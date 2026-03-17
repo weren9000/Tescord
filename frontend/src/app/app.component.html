@@ -535,12 +535,9 @@
         }
       </section>
 
-      <section class="panel-card">
+      <section class="panel-card panel-card--members">
         <div class="panel-header">
-          <div>
-            <p class="eyebrow">Участники</p>
-            <h3>Состав группы</h3>
-          </div>
+          <h3>Участники</h3>
           <small>{{ groupMembers().length }}</small>
         </div>
 
@@ -554,16 +551,15 @@
                 type="button"
                 (click)="openMemberVolume(member)"
               >
+                <span class="member-row__identity">
+                  <span class="member-dot" [class.member-dot--online]="member.isOnline"></span>
+                </span>
                 <strong class="member-row__name">
                   {{ member.nick }}
                   @if (member.isSelf) {
                     <span class="member-row__self">вы</span>
                   }
                 </strong>
-                <span class="member-row__status">
-                  <span class="member-dot" [class.member-dot--online]="member.isOnline"></span>
-                  {{ member.presenceLabel }}
-                </span>
               </button>
             }
           </div>

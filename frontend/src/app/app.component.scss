@@ -20,6 +20,7 @@
   --scroll-thumb: rgba(140, 220, 255, 0.32);
   --scroll-thumb-hover: rgba(255, 159, 67, 0.42);
   --font-ui: "Aptos", "Segoe UI Variable", "Trebuchet MS", sans-serif;
+  --space: 10px;
 
   box-sizing: border-box;
   display: block;
@@ -95,7 +96,7 @@ select {
 .auth-shell,
 .shell {
   min-height: 100vh;
-  padding: 18px;
+  padding: var(--space);
   background:
     linear-gradient(180deg, rgba(255, 159, 67, 0.05), transparent 18%),
     radial-gradient(circle at bottom right, var(--canvas-glow), transparent 32%),
@@ -105,14 +106,14 @@ select {
 .auth-shell {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(360px, 460px);
-  gap: 18px;
+  gap: var(--space);
   align-items: stretch;
 }
 
 .shell {
   display: grid;
   grid-template-columns: 104px 280px minmax(0, 1fr) 320px;
-  gap: 16px;
+  gap: var(--space);
   position: relative;
   height: 100dvh;
   min-height: 100dvh;
@@ -156,11 +157,11 @@ select {
 
 .mobile-toolbar__actions {
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space);
 }
 
 .mobile-nav-button {
-  padding: 10px 12px;
+  padding: var(--space);
   border: 1px solid var(--line-strong);
   background: transparent;
   color: var(--text);
@@ -207,7 +208,7 @@ select {
 .voice-stage,
 .composer,
 .panel-card {
-  padding: 18px;
+  padding: var(--space);
 }
 
 .auth-panel--story,
@@ -223,13 +224,13 @@ select {
 .channel-rail,
 .member-rail,
 .workspace-body {
-  gap: 18px;
+  gap: var(--space);
 }
 
 .auth-panel--logo {
   display: grid;
   place-items: center;
-  padding: 32px;
+  padding: var(--space);
 }
 
 .auth-panel--story h1,
@@ -274,7 +275,7 @@ select {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 18px;
+  gap: var(--space);
 }
 
 .auth-tabs {
@@ -306,14 +307,14 @@ select {
 .stack-form {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: var(--space);
 }
 
 .field,
 .range-field {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space);
 }
 
 .field span,
@@ -500,7 +501,7 @@ select {
 
 .rail-header {
   display: flex;
-  padding-bottom: 18px;
+  padding-bottom: var(--space);
   border-bottom: 1px solid var(--line);
 }
 
@@ -508,7 +509,7 @@ select {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--space);
 }
 
 .rail-header h1 {
@@ -521,7 +522,7 @@ select {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--space);
 }
 
 .section-title {
@@ -1095,7 +1096,7 @@ select {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 16px;
+  gap: var(--space);
 }
 
 .composer__field {
@@ -1125,20 +1126,35 @@ select {
 }
 
 .member-rail {
-  gap: 16px;
+  gap: var(--space);
 }
 
 .profile-card {
   background: var(--surface-soft);
-  padding: 14px;
+  padding: var(--space);
+}
+
+.panel-card--members {
+  padding: var(--space);
+}
+
+.panel-card--members .panel-header h3 {
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.panel-card--members .panel-header small {
+  font-size: 0.72rem;
 }
 
 .panel-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 14px;
-  margin-bottom: 12px;
+  gap: var(--space);
+  margin-bottom: var(--space);
 }
 
 .profile-head {
@@ -1164,7 +1180,7 @@ select {
 .profile-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space);
 }
 
 .profile-logout {
@@ -1175,16 +1191,16 @@ select {
 .members-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .member-row {
   width: 100%;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 9px 0;
+  justify-content: flex-start;
+  gap: 6px;
+  padding: 6px 0;
   border: 1px solid transparent;
   background: transparent;
   color: inherit;
@@ -1203,39 +1219,39 @@ select {
 }
 
 .member-dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   background: var(--offline);
-  flex: 0 0 8px;
+  flex: 0 0 7px;
 }
 
 .member-dot--online {
   background: var(--voice-open);
 }
 
-.member-row__name,
-.member-row__status {
+.member-row__identity,
+.member-row__name {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
   min-width: 0;
 }
 
-.member-row__name {
-  font-size: 0.92rem;
-  font-weight: 600;
+.member-row__identity {
+  flex: 0 0 auto;
 }
 
-.member-row__status {
-  color: var(--muted);
-  font-size: 0.82rem;
+.member-row__name {
+  font-size: 0.64rem;
+  font-weight: 600;
+  line-height: 1.2;
 }
 
 .member-row__self {
   display: inline-block;
-  margin-left: 6px;
+  margin-left: 4px;
   color: var(--muted);
-  font-size: 0.72rem;
+  font-size: 0.56rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
@@ -1404,9 +1420,9 @@ select {
     grid-column: 1 / -1;
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-    gap: 14px;
+    gap: var(--space);
     align-items: start;
-    padding: 14px 16px;
+    padding: var(--space);
   }
 
   .mobile-backdrop {
@@ -1420,10 +1436,10 @@ select {
 
   .member-rail {
     position: fixed;
-    top: 18px;
-    right: 18px;
-    bottom: 18px;
-    width: min(360px, calc(100vw - 36px));
+    top: var(--space);
+    right: var(--space);
+    bottom: var(--space);
+    width: min(360px, calc(100vw - 20px));
     z-index: 35;
     display: flex;
     overflow: auto;
@@ -1449,9 +1465,9 @@ select {
   .server-rail,
   .channel-rail {
     position: fixed;
-    top: 18px;
-    bottom: 18px;
-    left: 18px;
+    top: var(--space);
+    bottom: var(--space);
+    left: var(--space);
     z-index: 35;
     display: flex;
     overflow: auto;
@@ -1461,11 +1477,11 @@ select {
   }
 
   .server-rail {
-    width: min(300px, calc(100vw - 36px));
+    width: min(300px, calc(100vw - 20px));
   }
 
   .channel-rail {
-    width: min(360px, calc(100vw - 36px));
+    width: min(360px, calc(100vw - 20px));
   }
 
   .server-rail--mobile-open,
@@ -1508,7 +1524,7 @@ select {
 @media (max-width: 640px) {
   .auth-shell,
   .shell {
-    padding: 12px;
+    padding: var(--space);
   }
 
   .shell {
@@ -1518,8 +1534,8 @@ select {
   }
 
   .mobile-toolbar {
-    padding: 12px;
-    gap: 12px;
+    padding: var(--space);
+    gap: var(--space);
   }
 
   .mobile-toolbar__actions {
@@ -1530,20 +1546,20 @@ select {
 
   .mobile-nav-button {
     width: 100%;
-    padding: 12px 10px;
+    padding: var(--space);
   }
 
   .server-rail,
   .channel-rail,
   .member-rail {
-    top: 12px;
-    bottom: 12px;
-    width: min(100vw - 24px, 340px);
+    top: var(--space);
+    bottom: var(--space);
+    width: min(100vw - 20px, 340px);
   }
 
   .server-rail,
   .channel-rail {
-    left: 12px;
+    left: var(--space);
   }
 
   .member-rail {
