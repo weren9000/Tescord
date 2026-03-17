@@ -25,6 +25,16 @@ export interface WorkspaceChannel {
   position: number;
 }
 
+export interface WorkspaceMember {
+  id: string;
+  user_id: string;
+  login: string;
+  nick: string;
+  full_name: string;
+  character_name: string | null;
+  role: string;
+}
+
 export interface CreateWorkspaceServerRequest {
   name: string;
   description: string | null;

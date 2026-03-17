@@ -5,16 +5,22 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
 
-import { AuthSessionResponse } from './core/models/auth.models';
-import { ApiHealthResponse } from './core/models/system.models';
-import { CurrentUserResponse, WorkspaceChannel, WorkspaceServer } from './core/models/workspace.models';
 import { AuthApiService } from './core/api/auth-api.service';
 import { SystemApiService } from './core/api/system-api.service';
 import { WorkspaceApiService } from './core/api/workspace-api.service';
+import { AuthSessionResponse } from './core/models/auth.models';
+import { ApiHealthResponse } from './core/models/system.models';
+import {
+  CurrentUserResponse,
+  WorkspaceChannel,
+  WorkspaceMember,
+  WorkspaceServer
+} from './core/models/workspace.models';
 import { VoiceParticipant, VoiceRoomService } from './core/services/voice-room.service';
 
 type AuthMode = 'login' | 'register';
 type ChannelKind = 'text' | 'voice';
+type MemberPresenceTone = 'inactive' | 'speaking' | 'open' | 'muted';
 
 interface LoginFormModel {
   login: string;
@@ -47,10 +53,19 @@ interface ServerShortcut {
   active: boolean;
 }
 
-interface MemberCard {
-  name: string;
+interface GroupMemberItem {
+  id: string;
+  userId: string;
+  login: string;
+  nick: string;
+  fullName: string;
+  characterName: string | null;
   role: string;
-  status: 'online' | 'idle' | 'focus';
+  roleLabel: string;
+  isSelf: boolean;
+  presence: MemberPresenceTone;
+  presenceLabel: string;
+  voiceParticipant: VoiceParticipant | null;
 }
 
 const ADMIN_CREDENTIALS: LoginFormModel = {
@@ -90,8 +105,13 @@ export class AppComponent {
   readonly currentUser = signal<CurrentUserResponse | null>(null);
   readonly servers = signal<WorkspaceServer[]>([]);
   readonly channels = signal<WorkspaceChannel[]>([]);
+  readonly members = signal<WorkspaceMember[]>([]);
   readonly selectedServerId = signal<string | null>(null);
   readonly selectedChannelId = signal<string | null>(null);
+  readonly settingsPanelOpen = signal(false);
+  readonly createGroupModalOpen = signal(false);
+  readonly createChannelModalOpen = signal(false);
+  readonly selectedMemberUserId = signal<string | null>(null);
 
   readonly loginForm: LoginFormModel = {
     login: '',
@@ -123,6 +143,12 @@ export class AppComponent {
   readonly voiceError = this.voiceRoom.error;
   readonly voiceState = this.voiceRoom.state;
   readonly voiceMuted = this.voiceRoom.localMuted;
+  readonly voiceSettings = this.voiceRoom.settings;
+  readonly settingsNotice = this.voiceRoom.settingsNotice;
+  readonly devicesLoading = this.voiceRoom.devicesLoading;
+  readonly inputDevices = this.voiceRoom.inputDevices;
+  readonly outputDevices = this.voiceRoom.outputDevices;
+  readonly outputDeviceSupported = this.voiceRoom.outputDeviceSupported;
 
   readonly activeServer = computed(() => {
     const serverId = this.selectedServerId();
@@ -133,6 +159,7 @@ export class AppComponent {
     const channelId = this.selectedChannelId();
     return this.channels().find((channel) => channel.id === channelId) ?? null;
   });
+
   readonly textChannels = computed(() => this.channels().filter((channel) => channel.type === 'text'));
   readonly voiceChannels = computed(() => this.channels().filter((channel) => channel.type === 'voice'));
 
@@ -141,6 +168,7 @@ export class AppComponent {
     return this.channels().find((channel) => channel.id === connectedChannelId) ?? null;
   });
 
+  readonly connectedVoiceChannelId = computed(() => this.connectedVoiceChannel()?.id ?? null);
   readonly isVoiceChannelSelected = computed(() => this.activeChannel()?.type === 'voice');
   readonly hasVoiceConnection = computed(() => this.voiceRoom.isConnected() && this.connectedVoiceChannel() !== null);
   readonly isInActiveVoiceChannel = computed(
@@ -261,9 +289,7 @@ export class AppComponent {
     }
 
     if (this.isInActiveVoiceChannel()) {
-      return this.voiceMuted()
-        ? 'Вы в канале, микрофон выключен'
-        : 'Вы в канале, микрофон включен';
+      return this.voiceMuted() ? 'Вы в канале, микрофон выключен' : 'Вы в канале, микрофон включен';
     }
 
     if (this.hasVoiceConnection()) {
@@ -279,51 +305,84 @@ export class AppComponent {
     }
 
     return this.voiceMuted()
-      ? 'Голосовой канал работает в фоне, микрофон выключен'
-      : 'Голосовой канал работает в фоне, микрофон включен';
+      ? 'Голос работает в фоне, микрофон выключен'
+      : 'Голос работает в фоне, микрофон включен';
   });
 
   readonly composerHint = computed(() => {
     if (this.showVoiceDock()) {
-      return `Вы остаетесь в голосовом канале ${this.connectedVoiceChannel()?.name ?? ''}, пока не выйдете из него или не переключитесь в другую группу.`;
+      return `Вы остаетесь в голосовом канале ${this.connectedVoiceChannel()?.name ?? ''}, пока не выйдете из него или не смените группу.`;
     }
 
     if (this.isVoiceChannelSelected()) {
-      return 'Голосовой канал использует микрофон браузера и держится активным, пока вы находитесь в этой группе.';
+      return 'Голосовой канал использует микрофон браузера и остается активным, пока вы находитесь в этой группе.';
     }
 
-    return 'Следующим шагом здесь появятся история сообщений, отправка текста и вложения.';
+    return 'Следующий шаг после этого интерфейса: история сообщений, отправка текста и вложения.';
   });
 
   readonly serverShortcuts = computed<ServerShortcut[]>(() =>
     this.servers().map((server) => ({
       id: server.id,
-      label: server.name.slice(0, 2).toUpperCase(),
+      label: this.buildServerLabel(server.name),
       name: server.name,
       active: server.id === this.selectedServerId()
     }))
   );
 
-  readonly memberCards = computed<MemberCard[]>(() => {
-    const user = this.currentUser();
-    const baseCards: MemberCard[] = [
-      { name: 'Tescord Bot', role: 'Система', status: 'online' },
-      { name: 'WebRTC', role: 'Голосовые каналы', status: 'focus' },
-      { name: 'Attachments', role: 'Следующий этап', status: 'idle' }
-    ];
+  readonly groupMembers = computed<GroupMemberItem[]>(() => {
+    const currentUser = this.currentUser();
+    const voiceParticipantsByUserId = new Map(this.voiceParticipants().map((participant) => [participant.user_id, participant]));
 
-    if (!user) {
-      return baseCards;
+    return [...this.members()]
+      .map((member) => {
+        const voiceParticipant = voiceParticipantsByUserId.get(member.user_id) ?? null;
+        const presence = voiceParticipant ? this.voiceParticipantTone(voiceParticipant) : 'inactive';
+
+        return {
+          id: member.id,
+          userId: member.user_id,
+          login: member.login,
+          nick: member.nick,
+          fullName: member.full_name,
+          characterName: member.character_name,
+          role: member.role,
+          roleLabel: this.formatMemberRole(member.role),
+          isSelf: currentUser?.id === member.user_id,
+          presence,
+          presenceLabel: this.formatPresenceLabel(presence),
+          voiceParticipant
+        };
+      })
+      .sort((left, right) => {
+        const leftPresenceWeight = this.getPresenceWeight(left.presence);
+        const rightPresenceWeight = this.getPresenceWeight(right.presence);
+        if (leftPresenceWeight !== rightPresenceWeight) {
+          return leftPresenceWeight - rightPresenceWeight;
+        }
+
+        const leftRoleWeight = this.getRoleWeight(left.role);
+        const rightRoleWeight = this.getRoleWeight(right.role);
+        if (leftRoleWeight !== rightRoleWeight) {
+          return leftRoleWeight - rightRoleWeight;
+        }
+
+        return left.nick.localeCompare(right.nick, 'ru');
+      });
+  });
+
+  readonly selectedMember = computed(() => {
+    const userId = this.selectedMemberUserId();
+    return this.groupMembers().find((member) => member.userId === userId) ?? null;
+  });
+
+  readonly selectedMemberVolume = computed(() => {
+    const member = this.selectedMember();
+    if (!member) {
+      return 100;
     }
 
-    return [
-      {
-        name: user.nick,
-        role: user.is_admin ? 'Администратор' : user.character_name ?? 'Игрок в сети',
-        status: 'online'
-      },
-      ...baseCards
-    ];
+    return this.voiceRoom.getParticipantVolume(member.userId);
   });
 
   readonly localizedEnvironment = computed(() => {
@@ -434,6 +493,52 @@ export class AppComponent {
       });
   }
 
+  openVoiceSettings(): void {
+    this.settingsPanelOpen.set(true);
+    void this.voiceRoom.refreshDevices();
+  }
+
+  closeVoiceSettings(): void {
+    this.settingsPanelOpen.set(false);
+  }
+
+  openCreateGroupModal(): void {
+    if (!this.isAdmin()) {
+      return;
+    }
+
+    this.createGroupModalOpen.set(true);
+    this.managementError.set(null);
+    this.managementSuccess.set(null);
+  }
+
+  closeCreateGroupModal(): void {
+    this.createGroupModalOpen.set(false);
+  }
+
+  openCreateChannelModal(type: ChannelKind): void {
+    if (!this.canManageActiveGroup()) {
+      return;
+    }
+
+    this.createChannelForm.type = type;
+    this.createChannelModalOpen.set(true);
+    this.managementError.set(null);
+    this.managementSuccess.set(null);
+  }
+
+  closeCreateChannelModal(): void {
+    this.createChannelModalOpen.set(false);
+  }
+
+  openMemberVolume(member: GroupMemberItem): void {
+    this.selectedMemberUserId.set(member.userId);
+  }
+
+  closeMemberVolume(): void {
+    this.selectedMemberUserId.set(null);
+  }
+
   submitCreateGroup(): void {
     const token = this.session()?.access_token;
     if (!token) {
@@ -465,6 +570,7 @@ export class AppComponent {
           this.createGroupForm.description = '';
           this.managementSuccess.set(`Группа «${server.name}» создана`);
           this.createGroupLoading.set(false);
+          this.createGroupModalOpen.set(false);
           this.selectServer(server.id);
         },
         error: (error) => {
@@ -513,6 +619,7 @@ export class AppComponent {
               : `Текстовый канал #${channel.name} создан`
           );
           this.createChannelLoading.set(false);
+          this.createChannelModalOpen.set(false);
         },
         error: (error) => {
           this.createChannelLoading.set(false);
@@ -547,14 +654,43 @@ export class AppComponent {
     this.selectedChannelId.set(connectedVoiceChannel.id);
   }
 
+  changeInputDevice(deviceId: string): void {
+    void this.voiceRoom.updateInputDevice(deviceId || null);
+  }
+
+  refreshVoiceDevices(): void {
+    void this.voiceRoom.refreshDevices();
+  }
+
+  changeOutputDevice(deviceId: string): void {
+    void this.voiceRoom.updateOutputDevice(deviceId || null);
+  }
+
+  changeVoiceSensitivity(value: number | string): void {
+    this.voiceRoom.updateSensitivity(this.toRangeValue(value));
+  }
+
+  changeMasterVolume(value: number | string): void {
+    this.voiceRoom.updateMasterVolume(this.toRangeValue(value));
+  }
+
+  changeMemberVolume(userId: string, value: number | string): void {
+    this.voiceRoom.updateParticipantVolume(userId, this.toRangeValue(value));
+  }
+
   logout(): void {
     this.voiceRoom.leave();
     this.session.set(null);
     this.currentUser.set(null);
     this.servers.set([]);
     this.channels.set([]);
+    this.members.set([]);
     this.selectedServerId.set(null);
     this.selectedChannelId.set(null);
+    this.settingsPanelOpen.set(false);
+    this.createGroupModalOpen.set(false);
+    this.createChannelModalOpen.set(false);
+    this.selectedMemberUserId.set(null);
     this.authError.set(null);
     this.workspaceError.set(null);
     this.managementError.set(null);
@@ -569,16 +705,15 @@ export class AppComponent {
 
   selectServer(serverId: string): void {
     const token = this.session()?.access_token;
-    if (!token) {
+    if (!token || serverId === this.selectedServerId()) {
       return;
     }
 
-    if (serverId === this.selectedServerId()) {
-      return;
+    if (this.hasVoiceConnection()) {
+      this.voiceRoom.leave();
     }
 
-    this.voiceRoom.leave();
-    this.loadChannels(token, serverId);
+    this.loadServerWorkspace(token, serverId);
   }
 
   async selectChannel(channel: WorkspaceChannel): Promise<void> {
@@ -588,6 +723,18 @@ export class AppComponent {
     if (channel.type === 'voice') {
       await this.connectToVoiceChannel(channel);
     }
+  }
+
+  voiceParticipantsForChannel(channelId: string): VoiceParticipant[] {
+    return this.connectedVoiceChannelId() === channelId ? this.voiceParticipants() : [];
+  }
+
+  voiceParticipantTone(participant: VoiceParticipant): MemberPresenceTone {
+    if (participant.muted) {
+      return 'muted';
+    }
+
+    return participant.speaking ? 'speaking' : 'open';
   }
 
   private loadHealth(): void {
@@ -618,9 +765,8 @@ export class AppComponent {
 
     try {
       const session = JSON.parse(rawSession) as AuthSessionResponse;
-
       if (!session.access_token || !session.user) {
-        throw new Error('Invalid session');
+        throw new Error('invalid session');
       }
 
       this.session.set(session);
@@ -661,6 +807,7 @@ export class AppComponent {
             this.selectedServerId.set(null);
             this.selectedChannelId.set(null);
             this.channels.set([]);
+            this.members.set([]);
             this.workspaceLoading.set(false);
             return;
           }
@@ -671,7 +818,7 @@ export class AppComponent {
               ? selectedServerId
               : servers[0].id;
 
-          this.loadChannels(token, preferredServerId);
+          this.loadServerWorkspace(token, preferredServerId);
         },
         error: (error) => {
           this.workspaceLoading.set(false);
@@ -680,6 +827,7 @@ export class AppComponent {
           this.currentUser.set(null);
           this.servers.set([]);
           this.channels.set([]);
+          this.members.set([]);
           this.selectedServerId.set(null);
           this.selectedChannelId.set(null);
           this.clearStoredSession();
@@ -688,28 +836,34 @@ export class AppComponent {
       });
   }
 
-  private loadChannels(token: string, serverId: string): void {
+  private loadServerWorkspace(token: string, serverId: string): void {
     const previousSelectedChannelId = this.selectedChannelId();
+    const connectedVoiceChannelId = this.voiceRoom.activeChannelId();
 
     this.workspaceLoading.set(true);
     this.workspaceError.set(null);
     this.managementError.set(null);
+    this.managementSuccess.set(null);
     this.selectedServerId.set(serverId);
     this.selectedChannelId.set(null);
+    this.selectedMemberUserId.set(null);
 
-    this.workspaceApi
-      .getChannels(token, serverId)
+    forkJoin({
+      channels: this.workspaceApi.getChannels(token, serverId),
+      members: this.workspaceApi.getMembers(token, serverId)
+    })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: (channels) => {
+        next: ({ channels, members }) => {
           this.channels.set(channels);
+          this.members.set(members);
 
           const nextSelectedChannelId =
             (previousSelectedChannelId && channels.some((channel) => channel.id === previousSelectedChannelId)
               ? previousSelectedChannelId
               : null)
-            ?? (this.voiceRoom.activeChannelId() && channels.some((channel) => channel.id === this.voiceRoom.activeChannelId())
-              ? this.voiceRoom.activeChannelId()
+            ?? (connectedVoiceChannelId && channels.some((channel) => channel.id === connectedVoiceChannelId)
+              ? connectedVoiceChannelId
               : null)
             ?? channels[0]?.id
             ?? null;
@@ -719,10 +873,22 @@ export class AppComponent {
         },
         error: (error) => {
           this.channels.set([]);
+          this.members.set([]);
           this.workspaceLoading.set(false);
-          this.workspaceError.set(this.extractErrorMessage(error, 'Не удалось загрузить каналы выбранной группы'));
+          this.workspaceError.set(this.extractErrorMessage(error, 'Не удалось загрузить данные выбранной группы'));
         }
       });
+  }
+
+  private async connectToVoiceChannel(channel: WorkspaceChannel): Promise<void> {
+    const token = this.session()?.access_token;
+    const currentUser = this.currentUser();
+    if (!token || !currentUser || channel.type !== 'voice') {
+      return;
+    }
+
+    this.workspaceError.set(null);
+    await this.voiceRoom.join(channel.id, token, currentUser);
   }
 
   private persistSession(session: AuthSessionResponse): void {
@@ -756,28 +922,74 @@ export class AppComponent {
     return fallback;
   }
 
-  readonly connectedVoiceChannelId = computed(() => this.connectedVoiceChannel()?.id ?? null);
-
-  voiceParticipantsForChannel(channelId: string): VoiceParticipant[] {
-    return this.connectedVoiceChannelId() === channelId ? this.voiceParticipants() : [];
+  private buildServerLabel(name: string): string {
+    const words = name.trim().split(/\s+/).filter(Boolean);
+    const initials = words.slice(0, 2).map((word) => word[0]?.toUpperCase() ?? '').join('');
+    return initials || name.slice(0, 2).toUpperCase();
   }
 
-  voiceParticipantTone(participant: VoiceParticipant): 'speaking' | 'open' | 'muted' {
-    if (participant.muted) {
-      return 'muted';
+  private formatMemberRole(role: string): string {
+    if (role === 'owner') {
+      return 'владелец';
     }
 
-    return participant.speaking ? 'speaking' : 'open';
+    if (role === 'admin') {
+      return 'администратор';
+    }
+
+    return 'участник';
   }
 
-  private async connectToVoiceChannel(channel: WorkspaceChannel): Promise<void> {
-    const token = this.session()?.access_token;
-    const currentUser = this.currentUser();
-    if (!token || !currentUser || channel.type !== 'voice') {
-      return;
+  private formatPresenceLabel(presence: MemberPresenceTone): string {
+    if (presence === 'speaking') {
+      return 'говорит';
     }
 
-    this.workspaceError.set(null);
-    await this.voiceRoom.join(channel.id, token, currentUser);
+    if (presence === 'open') {
+      return 'микрофон включен';
+    }
+
+    if (presence === 'muted') {
+      return 'микрофон выключен';
+    }
+
+    return 'не в голосе';
+  }
+
+  private getPresenceWeight(presence: MemberPresenceTone): number {
+    if (presence === 'speaking') {
+      return 0;
+    }
+
+    if (presence === 'open') {
+      return 1;
+    }
+
+    if (presence === 'muted') {
+      return 2;
+    }
+
+    return 3;
+  }
+
+  private getRoleWeight(role: string): number {
+    if (role === 'owner') {
+      return 0;
+    }
+
+    if (role === 'admin') {
+      return 1;
+    }
+
+    return 2;
+  }
+
+  private toRangeValue(value: number | string): number {
+    const normalized = typeof value === 'number' ? value : Number.parseFloat(value);
+    if (Number.isNaN(normalized)) {
+      return 0;
+    }
+
+    return normalized;
   }
 }

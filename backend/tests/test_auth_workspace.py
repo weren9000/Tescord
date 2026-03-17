@@ -196,6 +196,23 @@ def test_servers_and_channels_endpoints_return_seed_workspace() -> None:
     assert any(channel["type"] == "voice" for channel in channels)
 
 
+def test_server_members_endpoint_returns_seed_members() -> None:
+    with TestClient(app) as client:
+        token = login_admin_user(client)
+        server_id, _ = get_seed_server_and_voice_channel(client, token)
+        response = client.get(
+            f"/api/servers/{server_id}/members",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+    assert response.status_code == 200
+    members = response.json()
+    assert members
+    admin_member = next(member for member in members if member["login"] == "weren9000")
+    assert admin_member["nick"] == "weren9000"
+    assert admin_member["role"] in {"owner", "admin"}
+
+
 def test_voice_websocket_connects_and_returns_room_state() -> None:
     with TestClient(app) as client:
         token = login_admin_user(client)

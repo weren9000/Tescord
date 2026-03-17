@@ -8,6 +8,7 @@ import {
   CreateWorkspaceServerRequest,
   CurrentUserResponse,
   WorkspaceChannel,
+  WorkspaceMember,
   WorkspaceServer
 } from '../models/workspace.models';
 
@@ -31,6 +32,12 @@ export class WorkspaceApiService {
 
   getChannels(token: string, serverId: string): Observable<WorkspaceChannel[]> {
     return this.http.get<WorkspaceChannel[]>(`${API_BASE_URL}/api/servers/${serverId}/channels`, {
+      headers: this.buildAuthHeaders(token)
+    });
+  }
+
+  getMembers(token: string, serverId: string): Observable<WorkspaceMember[]> {
+    return this.http.get<WorkspaceMember[]>(`${API_BASE_URL}/api/servers/${serverId}/members`, {
       headers: this.buildAuthHeaders(token)
     });
   }

@@ -10,7 +10,13 @@ from sqlalchemy.orm import Session
 from app.api.dependencies.auth import get_current_user
 from app.db.models import Channel, ChannelType, MemberRole, Server, ServerMember, User
 from app.db.session import get_db
-from app.schemas.workspace import ChannelSummary, CreateChannelRequest, CreateServerRequest, ServerSummary
+from app.schemas.workspace import (
+    ChannelSummary,
+    CreateChannelRequest,
+    CreateServerRequest,
+    ServerMemberSummary,
+    ServerSummary,
+)
 
 router = APIRouter(prefix="/servers", tags=["workspace"])
 
@@ -38,6 +44,18 @@ def _build_channel_summary(channel: Channel) -> ChannelSummary:
         topic=channel.topic,
         type=channel.type.value,
         position=channel.position,
+    )
+
+
+def _build_server_member_summary(member: ServerMember, user: User) -> ServerMemberSummary:
+    return ServerMemberSummary(
+        id=member.id,
+        user_id=user.id,
+        login=user.email,
+        nick=user.username,
+        full_name=user.display_name,
+        character_name=user.bio,
+        role=member.role.value,
     )
 
 
@@ -142,6 +160,23 @@ def list_server_channels(
     ).scalars().all()
 
     return [_build_channel_summary(channel) for channel in channels]
+
+
+@router.get("/{server_id}/members", response_model=list[ServerMemberSummary])
+def list_server_members(
+    server_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> list[ServerMemberSummary]:
+    server, _ = _get_accessible_server(db, server_id, current_user)
+    rows = db.execute(
+        select(ServerMember, User)
+        .join(User, User.id == ServerMember.user_id)
+        .where(ServerMember.server_id == server.id)
+        .order_by(ServerMember.joined_at, User.username)
+    ).all()
+
+    return [_build_server_member_summary(member, user) for member, user in rows]
 
 
 @router.post("/{server_id}/channels", response_model=ChannelSummary, status_code=status.HTTP_201_CREATED)

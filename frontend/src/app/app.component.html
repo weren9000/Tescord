@@ -5,8 +5,8 @@
         <p class="eyebrow">Tescord</p>
         <h1>Текстовые и голосовые каналы для вашей группы</h1>
         <p class="auth-lead">
-          Минималистичный клиент для общения внутри команды. Текстовые каналы, голос через WebRTC, управление группами и
-          каналами без лишнего визуального шума.
+          Минималистичный клиент для общения внутри команды. Текстовые каналы, голос через WebRTC, управление
+          группами и каналами без лишнего визуального шума.
         </p>
       </div>
 
@@ -148,7 +148,7 @@
   <div class="shell">
     <aside class="server-rail">
       <div class="brand-mark">
-        <span class="brand-mark__icon">≡</span>
+        <span class="brand-mark__icon">TES</span>
       </div>
 
       <div class="server-rail__list">
@@ -171,17 +171,28 @@
           </button>
         }
       </div>
+
+      <div class="server-rail__footer">
+        @if (isAdmin()) {
+          <button class="server-add" type="button" (click)="openCreateGroupModal()">+</button>
+        }
+      </div>
     </aside>
 
     <aside class="channel-rail">
       <header class="rail-header">
         <p class="eyebrow">Группа</p>
         <h1>{{ activeServer()?.name ?? 'Tescord' }}</h1>
-        <p>{{ activeServer()?.description ?? 'Выберите группу или создайте новую справа.' }}</p>
+        <p>{{ activeServer()?.description ?? 'Выберите группу или создайте новую через плюс в списке групп.' }}</p>
       </header>
 
       <section class="channel-group">
-        <div class="section-title">текстовые каналы</div>
+        <div class="section-head">
+          <div class="section-title">текстовые каналы</div>
+          @if (canManageActiveGroup()) {
+            <button class="section-action" type="button" (click)="openCreateChannelModal('text')">+</button>
+          }
+        </div>
 
         @if (textChannels().length) {
           @for (channel of textChannels(); track channel.id) {
@@ -194,7 +205,7 @@
               <span class="channel-link__prefix">#</span>
               <div class="channel-link__body">
                 <strong>{{ channel.name }}</strong>
-                <small>{{ channel.topic ?? 'текстовый канал' }}</small>
+                <small>{{ channel.topic ?? 'Текстовый канал' }}</small>
               </div>
             </button>
           }
@@ -206,7 +217,12 @@
       </section>
 
       <section class="channel-group">
-        <div class="section-title">голосовые каналы</div>
+        <div class="section-head">
+          <div class="section-title">голосовые каналы</div>
+          @if (canManageActiveGroup()) {
+            <button class="section-action" type="button" (click)="openCreateChannelModal('voice')">+</button>
+          }
+        </div>
 
         @if (voiceChannels().length) {
           @for (channel of voiceChannels(); track channel.id) {
@@ -225,9 +241,9 @@
                 <div class="channel-link__body">
                   <strong>{{ channel.name }}</strong>
                   @if (channel.id === connectedVoiceChannel()?.id) {
-                    <small>подключено · клик откроет комнату</small>
+                    <small>Подключено · клик откроет комнату</small>
                   } @else {
-                    <small>подключение по клику</small>
+                    <small>Подключение по клику</small>
                   }
                 </div>
               </button>
@@ -324,7 +340,7 @@
             <p class="eyebrow">Голосовая комната</p>
             <h3>{{ activeChannel()?.name ?? 'Голосовой канал' }}</h3>
             <p>
-              {{ activeChannel()?.topic ?? 'Голос остается активным, пока вы находитесь в этой группе. Можно уйти в текстовые каналы и не терять соединение.' }}
+              {{ activeChannel()?.topic ?? 'Голос остается активным, пока вы находитесь в этой группе. Можно перейти в текстовые каналы и не терять соединение.' }}
             </p>
           </section>
 
@@ -387,7 +403,7 @@
                         } @else if (participant.speaking) {
                           Сейчас говорит
                         } @else {
-                          Слушает канал
+                          В голосовом канале
                         }
                       }
                     </small>
@@ -398,56 +414,56 @@
           </section>
         } @else {
           <section class="hero-card">
-            <p class="eyebrow">Панель запуска</p>
+            <p class="eyebrow">Рабочая зона</p>
             <h3>Текст и голос работают в одном пространстве</h3>
             <p>
-              Можно находиться в голосовом канале и параллельно переключаться по текстовым каналам внутри этой же группы.
-              Отключение произойдет только при явном выходе из голоса, выходе из аккаунта или смене группы.
+              Можно находиться в голосовом канале и параллельно переключаться по текстовым каналам внутри этой же
+              группы. Отключение произойдет только при явном выходе из голоса, выходе из аккаунта или смене группы.
             </p>
           </section>
 
           <div class="message-list">
             <article class="message-card">
-              <div class="message-card__avatar" [style.--avatar-accent]="'#ff9f43'">A</div>
+              <div class="message-card__avatar" [style.--avatar-accent]="'#ff9f43'">Г</div>
               <div class="message-card__body">
                 <div class="message-card__meta">
-                  <strong>Администратор</strong>
-                  <span>&#64;управление</span>
+                  <strong>Группа</strong>
+                  <span>&#64;workspace</span>
                   <time>сейчас</time>
                 </div>
                 <p>
-                  Администратор может создавать текстовые и голосовые каналы. Голосовой канал теперь остается активным,
-                  даже если вы ушли в другой текстовый канал этой же группы.
-                </p>
-              </div>
-            </article>
-
-            <article class="message-card">
-              <div class="message-card__avatar" [style.--avatar-accent]="'#3dd6c6'">G</div>
-              <div class="message-card__body">
-                <div class="message-card__meta">
-                  <strong>Активная группа</strong>
-                  <span>&#64;workspace</span>
-                  <time>активно</time>
-                </div>
-                <p>
-                  Группа: <strong>{{ activeServer()?.name ?? 'не выбрана' }}</strong>. Канал:
+                  Активная группа: <strong>{{ activeServer()?.name ?? 'не выбрана' }}</strong>. Канал:
                   <strong>{{ activeChannelHeading() }}</strong>.
                 </p>
               </div>
             </article>
 
             <article class="message-card">
-              <div class="message-card__avatar" [style.--avatar-accent]="'#7ec8ff'">N</div>
+              <div class="message-card__avatar" [style.--avatar-accent]="'#3dd6c6'">А</div>
               <div class="message-card__body">
                 <div class="message-card__meta">
-                  <strong>Следующий этап</strong>
-                  <span>&#64;план</span>
+                  <strong>Аудио</strong>
+                  <span>&#64;voice</span>
+                  <time>активно</time>
+                </div>
+                <p>
+                  Настройки устройств и чувствительности доступны через шестеренку рядом с вашим профилем. Громкость
+                  каждого участника открывается по клику на него в правой колонке.
+                </p>
+              </div>
+            </article>
+
+            <article class="message-card">
+              <div class="message-card__avatar" [style.--avatar-accent]="'#8cdcff'">Ч</div>
+              <div class="message-card__body">
+                <div class="message-card__meta">
+                  <strong>Чат</strong>
+                  <span>&#64;roadmap</span>
                   <time>скоро</time>
                 </div>
                 <p>
-                  После этого можно перейти к истории сообщений, отправке текста, realtime для текстовых каналов и
-                  вложениям через отдельный API.
+                  Следующим шагом сюда подключим историю сообщений, отправку текста, realtime для текстовых каналов и
+                  вложения через отдельный API.
                 </p>
               </div>
             </article>
@@ -457,114 +473,317 @@
         <section class="composer">
           <div class="composer__hint">{{ composerHint() }}</div>
           <div class="composer__actions">
-            <button class="secondary-button" type="button">Файл</button>
-            <button class="secondary-button" type="button">Упомянуть</button>
-            <button class="primary-button" type="button">Отправить</button>
+            <button class="secondary-button" type="button" disabled>Файл</button>
+            <button class="secondary-button" type="button" disabled>Упомянуть</button>
+            <button class="primary-button" type="button" disabled>Отправить</button>
           </div>
         </section>
       </section>
     </main>
 
     <aside class="member-rail">
-      <section class="panel-card">
-        <p class="eyebrow">Сессия</p>
-        <h3>{{ currentUser()?.nick ?? 'Ожидание авторизации' }}</h3>
+      <section class="panel-card profile-card">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Профиль</p>
+            <h3>{{ currentUser()?.nick ?? 'Ожидание авторизации' }}</h3>
+          </div>
+          <button class="icon-button" type="button" (click)="openVoiceSettings()">⚙</button>
+        </div>
+
         <small>{{ currentUser()?.login ?? 'Нет активной сессии' }}</small>
         <p class="session-note">{{ currentUser()?.full_name ?? 'ФИО пока не загружено' }}</p>
         <p class="session-note">{{ currentUser()?.character_name ?? 'Персонаж пока не указан' }}</p>
+        <p class="session-note">
+          @if (hasVoiceConnection()) {
+            В голосе: {{ connectedVoiceChannel()?.name }}
+          } @else {
+            Голосовой канал не подключен
+          }
+        </p>
       </section>
-
-      @if (isAdmin()) {
-        <section class="panel-card panel-card--manage">
-          <p class="eyebrow">Админ</p>
-          <h3>Создать группу</h3>
-          <form class="stack-form" (ngSubmit)="submitCreateGroup()">
-            <label class="field">
-              <span>Название группы</span>
-              <input [(ngModel)]="createGroupForm.name" name="group_name" placeholder="Например, Стратеги" type="text" />
-            </label>
-
-            <label class="field">
-              <span>Описание</span>
-              <input
-                [(ngModel)]="createGroupForm.description"
-                name="group_description"
-                placeholder="Короткое описание группы"
-                type="text"
-              />
-            </label>
-
-            <button class="primary-button primary-button--full" type="submit" [disabled]="createGroupLoading()">
-              {{ createGroupLoading() ? 'Создаем группу...' : 'Создать группу' }}
-            </button>
-          </form>
-        </section>
-      }
-
-      @if (canManageActiveGroup()) {
-        <section class="panel-card panel-card--manage">
-          <p class="eyebrow">Каналы</p>
-          <h3>Создать канал</h3>
-          <form class="stack-form" (ngSubmit)="submitCreateChannel()">
-            <label class="field">
-              <span>Название канала</span>
-              <input [(ngModel)]="createChannelForm.name" name="channel_name" placeholder="Например, новости" type="text" />
-            </label>
-
-            <label class="field">
-              <span>Тема</span>
-              <input
-                [(ngModel)]="createChannelForm.topic"
-                name="channel_topic"
-                placeholder="Короткое описание канала"
-                type="text"
-              />
-            </label>
-
-            <label class="field">
-              <span>Тип канала</span>
-              <select [(ngModel)]="createChannelForm.type" name="channel_type">
-                <option value="text">Текстовый</option>
-                <option value="voice">Голосовой</option>
-              </select>
-            </label>
-
-            <button class="primary-button primary-button--full" type="submit" [disabled]="createChannelLoading()">
-              {{ createChannelLoading() ? 'Создаем канал...' : 'Создать канал' }}
-            </button>
-          </form>
-        </section>
-      }
 
       <section class="panel-card">
-        <p class="eyebrow">Участники</p>
-        <h3>Состояние запуска</h3>
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Участники</p>
+            <h3>Состав группы</h3>
+          </div>
+          <small>{{ groupMembers().length }}</small>
+        </div>
 
-        @for (member of memberCards(); track member.name) {
-          <div class="member-row">
-            <div class="member-row__identity">
-              <span
-                class="member-dot"
-                [class.member-dot--idle]="member.status === 'idle'"
-                [class.member-dot--focus]="member.status === 'focus'"
-              ></span>
-              <strong>{{ member.name }}</strong>
-            </div>
-            <small>{{ member.role }}</small>
+        @if (groupMembers().length) {
+          <div class="members-list">
+            @for (member of groupMembers(); track member.userId) {
+              <button
+                class="member-row"
+                [class.member-row--selected]="selectedMember()?.userId === member.userId"
+                [class.member-row--active]="member.presence !== 'inactive'"
+                type="button"
+                (click)="openMemberVolume(member)"
+              >
+                <div class="member-row__identity">
+                  <span
+                    class="member-dot"
+                    [class.member-dot--speaking]="member.presence === 'speaking'"
+                    [class.member-dot--open]="member.presence === 'open'"
+                    [class.member-dot--muted]="member.presence === 'muted'"
+                  ></span>
+                  <div class="member-row__meta">
+                    <strong>
+                      {{ member.nick }}
+                      @if (member.isSelf) {
+                        <span class="member-row__self">вы</span>
+                      }
+                    </strong>
+                    <small>{{ member.fullName }}</small>
+                  </div>
+                </div>
+
+                <div class="member-row__right">
+                  <span class="member-row__state">{{ member.presenceLabel }}</span>
+                  <small>{{ member.roleLabel }}</small>
+                </div>
+              </button>
+            }
+          </div>
+        } @else {
+          <div class="panel-empty">
+            {{ workspaceLoading() ? 'Загружаем участников...' : 'В этой группе пока нет участников' }}
           </div>
         }
-      </section>
 
-      <section class="panel-card panel-card--roadmap">
-        <p class="eyebrow">Что дальше</p>
-        <h3>Ближайший план</h3>
-        <ul>
-          <li>История сообщений и отправка текста</li>
-          <li>Realtime для текстовых каналов</li>
-          <li>Вложения в BYTEA через отдельный API</li>
-          <li>Права доступа и полировка интерфейса</li>
-        </ul>
+        <p class="panel-note">Нажмите на участника, чтобы открыть персональную громкость.</p>
       </section>
     </aside>
+  </div>
+}
+
+@if (settingsPanelOpen()) {
+  <div class="modal-backdrop" (click)="closeVoiceSettings()">
+    <section class="modal" (click)="$event.stopPropagation()">
+      <div class="modal__header">
+        <div>
+          <p class="eyebrow">Настройки</p>
+          <h3>Звук и микрофон</h3>
+        </div>
+        <button class="icon-button" type="button" (click)="closeVoiceSettings()">✕</button>
+      </div>
+
+      <div class="modal__body">
+        <div class="modal-toolbar">
+          <button class="secondary-button" type="button" (click)="refreshVoiceDevices()" [disabled]="devicesLoading()">
+            {{ devicesLoading() ? 'Обновляем...' : 'Обновить устройства' }}
+          </button>
+        </div>
+
+        <div class="settings-grid">
+          <label class="field">
+            <span>Микрофон</span>
+            <select
+              [ngModel]="voiceSettings().inputDeviceId ?? ''"
+              name="input_device_id"
+              (ngModelChange)="changeInputDevice($event)"
+            >
+              <option value="">По умолчанию</option>
+              @for (device of inputDevices(); track device.deviceId) {
+                <option [value]="device.deviceId">{{ device.label }}</option>
+              }
+            </select>
+          </label>
+
+          <label class="field">
+            <span>Устройство вывода</span>
+            <select
+              [ngModel]="voiceSettings().outputDeviceId ?? ''"
+              name="output_device_id"
+              (ngModelChange)="changeOutputDevice($event)"
+              [disabled]="!outputDeviceSupported()"
+            >
+              <option value="">По умолчанию</option>
+              @for (device of outputDevices(); track device.deviceId) {
+                <option [value]="device.deviceId">{{ device.label }}</option>
+              }
+            </select>
+          </label>
+
+          <label class="range-field">
+            <span>Чувствительность микрофона</span>
+            <div class="range-field__control">
+              <input
+                type="range"
+                min="0"
+                max="100"
+                step="1"
+                [ngModel]="voiceSettings().sensitivity"
+                name="sensitivity"
+                (ngModelChange)="changeVoiceSensitivity($event)"
+              />
+              <strong>{{ voiceSettings().sensitivity }}%</strong>
+            </div>
+            <small>Чем выше значение, тем раньше голос считается активным.</small>
+          </label>
+
+          <label class="range-field">
+            <span>Общая громкость</span>
+            <div class="range-field__control">
+              <input
+                type="range"
+                min="0"
+                max="100"
+                step="1"
+                [ngModel]="voiceSettings().masterVolume"
+                name="master_volume"
+                (ngModelChange)="changeMasterVolume($event)"
+              />
+              <strong>{{ voiceSettings().masterVolume }}%</strong>
+            </div>
+          </label>
+        </div>
+
+        @if (!outputDeviceSupported()) {
+          <p class="modal-note">Этот браузер не поддерживает выбор устройства вывода звука.</p>
+        }
+
+        @if (settingsNotice()) {
+          <p class="modal-note">{{ settingsNotice() }}</p>
+        }
+      </div>
+
+      <div class="modal__actions">
+        <button class="primary-button" type="button" (click)="closeVoiceSettings()">Готово</button>
+      </div>
+    </section>
+  </div>
+}
+
+@if (createGroupModalOpen()) {
+  <div class="modal-backdrop" (click)="closeCreateGroupModal()">
+    <section class="modal modal--compact" (click)="$event.stopPropagation()">
+      <div class="modal__header">
+        <div>
+          <p class="eyebrow">Группа</p>
+          <h3>Создать новую группу</h3>
+        </div>
+        <button class="icon-button" type="button" (click)="closeCreateGroupModal()">✕</button>
+      </div>
+
+      <form class="modal__body stack-form" (ngSubmit)="submitCreateGroup()">
+        <label class="field">
+          <span>Название группы</span>
+          <input [(ngModel)]="createGroupForm.name" name="group_name" placeholder="Например, Стратеги" type="text" />
+        </label>
+
+        <label class="field">
+          <span>Описание</span>
+          <input
+            [(ngModel)]="createGroupForm.description"
+            name="group_description"
+            placeholder="Короткое описание группы"
+            type="text"
+          />
+        </label>
+
+        <div class="modal__actions">
+          <button class="secondary-button" type="button" (click)="closeCreateGroupModal()">Отмена</button>
+          <button class="primary-button" type="submit" [disabled]="createGroupLoading()">
+            {{ createGroupLoading() ? 'Создаем...' : 'Создать группу' }}
+          </button>
+        </div>
+      </form>
+    </section>
+  </div>
+}
+
+@if (createChannelModalOpen()) {
+  <div class="modal-backdrop" (click)="closeCreateChannelModal()">
+    <section class="modal modal--compact" (click)="$event.stopPropagation()">
+      <div class="modal__header">
+        <div>
+          <p class="eyebrow">Канал</p>
+          <h3>{{ createChannelForm.type === 'voice' ? 'Создать голосовой канал' : 'Создать текстовый канал' }}</h3>
+        </div>
+        <button class="icon-button" type="button" (click)="closeCreateChannelModal()">✕</button>
+      </div>
+
+      <form class="modal__body stack-form" (ngSubmit)="submitCreateChannel()">
+        <label class="field">
+          <span>Название канала</span>
+          <input [(ngModel)]="createChannelForm.name" name="channel_name" placeholder="Например, новости" type="text" />
+        </label>
+
+        <label class="field">
+          <span>Тема</span>
+          <input
+            [(ngModel)]="createChannelForm.topic"
+            name="channel_topic"
+            placeholder="Короткое описание канала"
+            type="text"
+          />
+        </label>
+
+        <label class="field">
+          <span>Тип канала</span>
+          <select [(ngModel)]="createChannelForm.type" name="channel_type">
+            <option value="text">Текстовый</option>
+            <option value="voice">Голосовой</option>
+          </select>
+        </label>
+
+        <div class="modal__actions">
+          <button class="secondary-button" type="button" (click)="closeCreateChannelModal()">Отмена</button>
+          <button class="primary-button" type="submit" [disabled]="createChannelLoading()">
+            {{ createChannelLoading() ? 'Создаем...' : 'Создать канал' }}
+          </button>
+        </div>
+      </form>
+    </section>
+  </div>
+}
+
+@if (selectedMember(); as member) {
+  <div class="modal-backdrop" (click)="closeMemberVolume()">
+    <section class="modal modal--compact" (click)="$event.stopPropagation()">
+      <div class="modal__header">
+        <div>
+          <p class="eyebrow">Участник</p>
+          <h3>{{ member.nick }}</h3>
+        </div>
+        <button class="icon-button" type="button" (click)="closeMemberVolume()">✕</button>
+      </div>
+
+      <div class="modal__body">
+        <p class="modal-note">{{ member.fullName }} · {{ member.roleLabel }}</p>
+        <p class="modal-note">Состояние: {{ member.presenceLabel }}</p>
+
+        <label class="range-field">
+          <span>Персональная громкость</span>
+          <div class="range-field__control">
+            <input
+              type="range"
+              min="0"
+              max="100"
+              step="1"
+              [ngModel]="selectedMemberVolume()"
+              name="participant_volume"
+              (ngModelChange)="changeMemberVolume(member.userId, $event)"
+            />
+            <strong>{{ selectedMemberVolume() }}%</strong>
+          </div>
+        </label>
+
+        @if (!member.voiceParticipant) {
+          <p class="modal-note">
+            Сейчас участник не подключен к активному голосовому каналу. Настройка сохранится и применится позже.
+          </p>
+        } @else if (member.presence === 'speaking') {
+          <p class="modal-note modal-note--live">Участник сейчас говорит.</p>
+        }
+      </div>
+
+      <div class="modal__actions">
+        <button class="primary-button" type="button" (click)="closeMemberVolume()">Готово</button>
+      </div>
+    </section>
   </div>
 }

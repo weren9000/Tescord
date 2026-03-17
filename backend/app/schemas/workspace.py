@@ -28,6 +28,16 @@ class ChannelSummary(BaseModel):
     position: int
 
 
+class ServerMemberSummary(BaseModel):
+    id: UUID
+    user_id: UUID
+    login: str
+    nick: str
+    full_name: str
+    character_name: str | None
+    role: str
+
+
 class CreateChannelRequest(BaseModel):
     name: str = Field(min_length=2, max_length=80)
     topic: str | None = Field(default=None, max_length=255)
