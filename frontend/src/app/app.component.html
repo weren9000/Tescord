@@ -473,41 +473,77 @@
 
         <section class="composer">
           @if (isTextChannelSelected()) {
+            <input #attachmentInput hidden type="file" multiple (change)="onAttachmentSelection($event)" />
+
             @if (pendingFiles().length) {
               <div class="composer__files">
                 @for (file of pendingFiles(); track file.name + '-' + $index) {
-                  <button class="attachment-chip attachment-chip--pending" type="button" (click)="removePendingFile($index)">
+                  <button
+                    class="attachment-chip attachment-chip--pending composer-file"
+                    type="button"
+                    (click)="removePendingFile($index)"
+                  >
                     <strong>{{ file.name }}</strong>
-                    <small>{{ formatFileSize(file.size) }} · убрать</small>
+                    <small>{{ formatFileSize(file.size) }}</small>
+                    <span class="composer-file__remove">×</span>
                   </button>
                 }
               </div>
             }
 
-            <label class="composer__field">
-              <span class="composer__label">Сообщение</span>
-              <textarea
-                [ngModel]="messageDraft()"
-                (ngModelChange)="onMessageDraftChange($event)"
+            <div class="composer__surface" [class.composer__surface--busy]="messageSubmitting()">
+              <button
+                class="secondary-button composer__attach"
+                type="button"
                 [disabled]="messageSubmitting()"
-                placeholder="Напишите сообщение для этого канала"
-                rows="3"
-              ></textarea>
-            </label>
+                (click)="openAttachmentPicker()"
+                aria-label="Прикрепить файл"
+                title="Прикрепить файл"
+              >
+                +
+              </button>
 
-            <div class="composer__actions composer__actions--chat">
-              <input #attachmentInput hidden type="file" multiple (change)="onAttachmentSelection($event)" />
-              <button class="secondary-button" type="button" [disabled]="messageSubmitting()" (click)="openAttachmentPicker()">Файл</button>
-              <button class="primary-button" type="button" [disabled]="!canSendMessage()" (click)="submitMessage()">
-                {{ messageSubmitting() ? 'Отправляем...' : 'Отправить' }}
+              <label class="composer__field">
+                <textarea
+                  #messageTextarea
+                  [ngModel]="messageDraft()"
+                  (ngModelChange)="onMessageDraftChange($event)"
+                  (keydown)="onMessageComposerKeydown($event)"
+                  [disabled]="messageSubmitting()"
+                  placeholder="Сообщение"
+                  rows="1"
+                ></textarea>
+              </label>
+
+              <button
+                class="primary-button composer__submit"
+                type="button"
+                [disabled]="!canSendMessage()"
+                (click)="submitMessage()"
+                aria-label="Отправить сообщение"
+                title="Отправить сообщение"
+              >
+                {{ messageSubmitting() ? '...' : '→' }}
               </button>
             </div>
+
+            <div class="composer__meta">
+              <small>
+                @if (pendingFiles().length) {
+                  Файлов: {{ pendingFiles().length }} · до 50 МБ на файл
+                } @else {
+                  Можно отправлять текст и файлы до 50 МБ
+                }
+              </small>
+            </div>
           } @else {
-            <div class="composer__actions">
-            <button class="secondary-button" type="button" disabled>Файл</button>
-            <button class="secondary-button" type="button" disabled>Упомянуть</button>
-            <button class="primary-button" type="button" disabled>Отправить</button>
-          </div>
+            <div class="composer__surface composer__surface--disabled">
+              <button class="secondary-button composer__attach" type="button" disabled>+</button>
+              <label class="composer__field">
+                <textarea disabled placeholder="Выберите текстовый канал" rows="1"></textarea>
+              </label>
+              <button class="primary-button composer__submit" type="button" disabled>→</button>
+            </div>
           }
         </section>
       </section>

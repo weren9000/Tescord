@@ -114,6 +114,9 @@ export class AppComponent {
   @ViewChild('attachmentInput')
   private attachmentInputRef?: ElementRef<HTMLInputElement>;
 
+  @ViewChild('messageTextarea')
+  private messageTextareaRef?: ElementRef<HTMLTextAreaElement>;
+
   readonly health = signal<ApiHealthResponse | null>(null);
   readonly healthError = signal<string | null>(null);
   readonly authError = signal<string | null>(null);
@@ -736,7 +739,15 @@ export class AppComponent {
 
   onMessageDraftChange(value: string): void {
     this.messageDraft.set(value);
+    this.scheduleMessageTextareaResize();
     this.schedulePresenceHeartbeat();
+  }
+
+  onMessageComposerKeydown(event: KeyboardEvent): void {
+    if ((event.ctrlKey || event.metaKey) && event.key === 'Enter' && this.canSendMessage()) {
+      event.preventDefault();
+      this.submitMessage();
+    }
   }
 
   openAttachmentPicker(): void {
@@ -815,6 +826,7 @@ export class AppComponent {
           this.messageSubmitting.set(false);
           this.messageDraft.set('');
           this.pendingFiles.set([]);
+          this.scheduleMessageTextareaResize();
 
           if (this.selectedChannelId() !== channelId) {
             return;
@@ -1499,6 +1511,23 @@ export class AppComponent {
     this.messageDraft.set('');
     this.pendingFiles.set([]);
     this.messageError.set(null);
+    this.scheduleMessageTextareaResize();
+  }
+
+  private scheduleMessageTextareaResize(): void {
+    requestAnimationFrame(() => {
+      const textarea = this.messageTextareaRef?.nativeElement;
+      if (!textarea) {
+        return;
+      }
+
+      const maxHeight = typeof window !== 'undefined' && window.innerWidth <= 640 ? 120 : 168;
+      textarea.style.height = '0px';
+
+      const nextHeight = Math.min(Math.max(textarea.scrollHeight, 44), maxHeight);
+      textarea.style.height = `${nextHeight}px`;
+      textarea.style.overflowY = textarea.scrollHeight > maxHeight ? 'auto' : 'hidden';
+    });
   }
 
   private scrollMessagesToBottom(): void {
