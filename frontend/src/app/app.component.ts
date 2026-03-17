@@ -213,7 +213,7 @@ export class AppComponent {
   );
   readonly showVoiceDock = computed(() => this.hasVoiceConnection() && !this.isInActiveVoiceChannel());
   readonly workspaceOverlayVisible = computed(
-    () => this.workspaceLoading() || (this.isTextChannelSelected() && this.messagesLoading())
+    () => this.isTextChannelSelected() && (this.workspaceLoading() || this.messagesLoading())
   );
   readonly workspaceOverlayLabel = computed(() => {
     if (this.workspaceLoading()) {

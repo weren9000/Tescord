@@ -605,6 +605,7 @@ select {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   gap: 16px;
+  position: relative;
 }
 
 .workspace-header {
@@ -672,7 +673,6 @@ select {
 
 .workspace-body {
   min-height: 0;
-  position: relative;
 }
 
 .workspace-overlay {

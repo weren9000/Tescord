@@ -295,6 +295,13 @@
     </aside>
 
     <main class="workspace">
+      @if (workspaceOverlayVisible()) {
+        <div class="workspace-overlay">
+          <div class="workspace-overlay__loader"></div>
+          <span>{{ workspaceOverlayLabel() }}</span>
+        </div>
+      }
+
       @if (showVoiceDock()) {
         <section class="voice-dock">
           <div class="voice-dock__meta">
@@ -441,13 +448,6 @@
             } @else {
               <div class="message-list__status">Выберите текстовый канал, чтобы открыть переписку.</div>
             }
-          </div>
-        }
-
-        @if (workspaceOverlayVisible()) {
-          <div class="workspace-overlay">
-            <div class="workspace-overlay__loader"></div>
-            <span>{{ workspaceOverlayLabel() }}</span>
           </div>
         }
 
