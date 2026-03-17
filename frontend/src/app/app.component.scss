@@ -60,6 +60,9 @@ select {
   grid-template-columns: 104px 280px minmax(0, 1fr) 320px;
   gap: 16px;
   position: relative;
+  height: 100dvh;
+  min-height: 100dvh;
+  overflow: hidden;
 }
 
 .mobile-toolbar,
@@ -367,6 +370,7 @@ select {
   flex-direction: column;
   border: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.02);
+  overflow: hidden;
 }
 
 .server-token {
@@ -606,6 +610,7 @@ select {
   grid-template-rows: auto minmax(0, 1fr);
   gap: 16px;
   position: relative;
+  overflow: hidden;
 }
 
 .workspace-header {
@@ -673,6 +678,12 @@ select {
 
 .workspace-body {
   min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.channel-rail,
+.member-rail {
   overflow: auto;
   overscroll-behavior: contain;
 }
@@ -1340,6 +1351,8 @@ select {
 
   .shell {
     grid-template-columns: 1fr;
+    height: 100dvh;
+    min-height: 100dvh;
   }
 
   .mobile-toolbar {
