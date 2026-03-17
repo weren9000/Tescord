@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     debug: bool = True
     database_url: str = "postgresql+psycopg://tescord:tescord@localhost:5432/tescord"
     cors_origins: list[str] = ["http://localhost:4200"]
+    allowed_hosts: list[str] = ["localhost", "127.0.0.1", "testserver"]
     secret_key: str = "tescord-dev-secret-key"
     access_token_expire_minutes: int = 60 * 24 * 7
     seed_demo_data: bool = True

@@ -1,0 +1,16 @@
+[Unit]
+Description=Tescord FastAPI backend
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/srv/tescord/backend
+EnvironmentFile=/srv/tescord/backend/.env
+ExecStart=/srv/tescord/backend/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000 --proxy-headers
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

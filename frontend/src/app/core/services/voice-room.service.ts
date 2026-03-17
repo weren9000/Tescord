@@ -1,6 +1,6 @@
 import { Injectable, computed, signal } from '@angular/core';
 
-import { WS_BASE_URL } from '../api/api-base';
+import { VOICE_ICE_SERVERS, WS_BASE_URL } from '../api/api-base';
 import { CurrentUserResponse } from '../models/workspace.models';
 
 export interface VoiceParticipant {
@@ -93,11 +93,6 @@ type IncomingVoiceMessage =
   | ErrorMessage
   | { type: 'pong' };
 
-const ICE_SERVERS: RTCIceServer[] = [
-  {
-    urls: 'stun:stun.l.google.com:19302'
-  }
-];
 const SETTINGS_STORAGE_KEY = 'tescord.voice.settings';
 const VOICE_ACTIVITY_INTERVAL_MS = 120;
 const VOICE_ACTIVITY_HOLD_MS = 320;
@@ -558,7 +553,7 @@ export class VoiceRoomService {
       return existingConnection;
     }
 
-    const connection = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+    const connection = new RTCPeerConnection({ iceServers: VOICE_ICE_SERVERS });
 
     if (this.localStream) {
       for (const track of this.localStream.getTracks()) {
