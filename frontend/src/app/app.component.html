@@ -120,7 +120,9 @@
     <header class="mobile-toolbar">
       <div class="mobile-toolbar__meta">
         <strong>{{ activeServer()?.name ?? 'Tescord' }}</strong>
-        <small>{{ mobileWorkspaceSubtitle() }}</small>
+        @if (activeChannel()) {
+          <small>{{ mobileWorkspaceSubtitle() }}</small>
+        }
       </div>
 
       <div class="mobile-toolbar__actions">
@@ -188,9 +190,10 @@
 
     <aside class="channel-rail" [class.channel-rail--mobile-open]="mobilePanel() === 'channels'">
       <header class="rail-header">
-        <p class="eyebrow">Группа</p>
-        <h1>{{ activeServer()?.name ?? 'Tescord' }}</h1>
-        <p>{{ activeServer()?.description ?? 'Выберите группу или создайте новую через плюс в списке групп.' }}</p>
+        <div class="rail-header__line">
+          <p class="eyebrow">Группа</p>
+          <h1>{{ activeServer()?.name ?? 'Tescord' }}</h1>
+        </div>
       </header>
 
       <section class="channel-group">
@@ -396,9 +399,7 @@
                   <div class="message-list__status message-list__status--error">{{ messageError() }}</div>
                 }
 
-                @if (!messages().length) {
-                  <div class="message-list__status">В этом канале пока нет сообщений. Начните разговор первым.</div>
-                } @else {
+                @if (messages().length) {
                   @for (message of messages(); track message.id) {
                     <article class="message-card">
                       <div class="message-card__avatar" [style.--avatar-accent]="message.author.id === currentUser()?.id ? '#ff9f43' : '#3dd6c6'">
@@ -416,10 +417,21 @@
                         @if (message.attachments.length) {
                           <div class="message-attachments">
                             @for (attachment of message.attachments; track attachment.id) {
-                              <button class="attachment-chip" type="button" (click)="downloadAttachment(attachment)">
-                                <strong>{{ attachment.filename }}</strong>
-                                <small>{{ formatFileSize(attachment.size_bytes) }}</small>
-                              </button>
+                              @if (isInlineImageAttachment(attachment) && imagePreviewUrl(attachment); as previewUrl) {
+                                <button
+                                  class="attachment-preview"
+                                  type="button"
+                                  (click)="openImageAttachment(attachment)"
+                                >
+                                  <img [src]="previewUrl" [alt]="attachment.filename" loading="lazy" />
+                                  <span>{{ attachment.filename }}</span>
+                                </button>
+                              } @else {
+                                <button class="attachment-chip" type="button" (click)="downloadAttachment(attachment)">
+                                  <strong>{{ attachment.filename }}</strong>
+                                  <small>{{ formatFileSize(attachment.size_bytes) }}</small>
+                                </button>
+                              }
                             }
                           </div>
                         }
@@ -511,33 +523,20 @@
               <button
                 class="member-row"
                 [class.member-row--selected]="selectedMember()?.userId === member.userId"
-                [class.member-row--active]="member.presence !== 'inactive'"
+                [class.member-row--online]="member.isOnline"
                 type="button"
                 (click)="openMemberVolume(member)"
               >
-                <div class="member-row__identity">
-                  <span
-                    class="member-dot"
-                    [class.member-dot--speaking]="member.presence === 'speaking'"
-                    [class.member-dot--open]="member.presence === 'open'"
-                    [class.member-dot--muted]="member.presence === 'muted'"
-                  ></span>
-                  <div class="member-row__meta">
-                    <strong>
-                      {{ member.nick }}
-                      @if (member.isSelf) {
-                        <span class="member-row__self">вы</span>
-                      }
-                    </strong>
-                    <small>{{ member.fullName }}</small>
-                    <small class="member-row__activity">{{ member.activityLabel }}</small>
-                  </div>
-                </div>
-
-                <div class="member-row__right">
-                  <span class="member-row__state">{{ member.presenceLabel }}</span>
-                  <small>{{ member.roleLabel }}</small>
-                </div>
+                <strong class="member-row__name">
+                  {{ member.nick }}
+                  @if (member.isSelf) {
+                    <span class="member-row__self">вы</span>
+                  }
+                </strong>
+                <span class="member-row__status">
+                  <span class="member-dot" [class.member-dot--online]="member.isOnline"></span>
+                  {{ member.presenceLabel }}
+                </span>
               </button>
             }
           </div>
@@ -546,8 +545,6 @@
             {{ workspaceLoading() ? 'Загружаем участников...' : 'В этой группе пока нет участников' }}
           </div>
         }
-
-        <p class="panel-note">Нажмите на участника, чтобы открыть персональную громкость.</p>
       </section>
     </aside>
   </div>
@@ -748,9 +745,7 @@
 
       <div class="modal__body">
         <p class="modal-note">{{ member.fullName }} · {{ member.roleLabel }}</p>
-        <p class="modal-note">Состояние: {{ member.presenceLabel }}</p>
-
-        <p class="modal-note">Активность: {{ member.activityLabel }}</p>
+        <p class="modal-note">Статус: {{ member.presenceLabel }}</p>
 
         <label class="range-field">
           <span>Персональная громкость</span>
@@ -772,7 +767,7 @@
           <p class="modal-note">
             Сейчас участник не подключен к активному голосовому каналу. Настройка сохранится и применится позже.
           </p>
-        } @else if (member.presence === 'speaking') {
+        } @else if (member.voiceParticipant.speaking) {
           <p class="modal-note modal-note--live">Участник сейчас говорит.</p>
         }
       </div>

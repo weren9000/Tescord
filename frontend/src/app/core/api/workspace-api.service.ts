@@ -51,6 +51,12 @@ export class WorkspaceApiService {
     });
   }
 
+  sendPresenceHeartbeat(token: string): Observable<void> {
+    return this.http.post<void>(`${API_BASE_URL}/api/presence/heartbeat`, null, {
+      headers: this.buildAuthHeaders(token)
+    });
+  }
+
   createServer(token: string, payload: CreateWorkspaceServerRequest): Observable<WorkspaceServer> {
     return this.http.post<WorkspaceServer>(`${API_BASE_URL}/api/servers`, payload, {
       headers: this.buildAuthHeaders(token)

@@ -442,15 +442,21 @@ select {
 
 .rail-header {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
   padding-bottom: 18px;
   border-bottom: 1px solid var(--line);
 }
 
+.rail-header__line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .rail-header h1 {
   margin: 0;
-  font-size: 1.35rem;
+  font-size: 1.05rem;
+  text-align: right;
 }
 
 .section-head {
@@ -876,6 +882,37 @@ select {
   color: var(--muted);
 }
 
+.attachment-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(280px, 100%);
+  padding: 8px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.attachment-preview img {
+  display: block;
+  width: 100%;
+  max-height: 260px;
+  object-fit: cover;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.attachment-preview span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.82rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .attachment-chip--pending {
   border-color: rgba(255, 159, 67, 0.28);
   background: rgba(255, 159, 67, 0.08);
@@ -974,7 +1011,7 @@ select {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 10px 0;
+  padding: 9px 0;
   border: 1px solid transparent;
   background: transparent;
   color: inherit;
@@ -992,54 +1029,33 @@ select {
   background: rgba(255, 159, 67, 0.08);
 }
 
-.member-row__identity {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-}
-
 .member-dot {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   background: var(--offline);
-  flex: 0 0 10px;
+  flex: 0 0 8px;
 }
 
-.member-dot--speaking {
-  background: var(--voice-speaking);
-}
-
-.member-dot--open {
+.member-dot--online {
   background: var(--voice-open);
 }
 
-.member-dot--muted {
-  background: var(--voice-muted);
-}
-
-.member-row__meta {
+.member-row__name,
+.member-row__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   min-width: 0;
 }
 
-.member-row__meta strong,
-.member-row__meta small,
-.member-row__right small,
-.member-row__state {
-  display: block;
+.member-row__name {
+  font-size: 0.92rem;
+  font-weight: 600;
 }
 
-.member-row__activity {
+.member-row__status {
   color: var(--muted);
-}
-
-.member-row__right {
-  min-width: 100px;
-  text-align: right;
-}
-
-.member-row__state {
-  color: #dfe8f0;
+  font-size: 0.82rem;
 }
 
 .member-row__self {

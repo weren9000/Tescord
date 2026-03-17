@@ -41,6 +41,11 @@ def register_regular_user(client: TestClient) -> tuple[str, dict[str, str]]:
     return response.json()["access_token"], payload
 
 
+def send_presence_heartbeat(client: TestClient, token: str) -> None:
+    response = client.post("/api/presence/heartbeat", headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 204
+
+
 def delete_user(login: str) -> None:
     with SessionLocal() as db:
         user = db.execute(select(User).where(User.email == login)).scalar_one_or_none()
@@ -268,6 +273,23 @@ def test_server_members_endpoint_returns_seed_members() -> None:
     admin_member = next(member for member in members if member["login"] == "weren9000")
     assert admin_member["nick"] == "weren9000"
     assert admin_member["role"] in {"owner", "admin"}
+    assert admin_member["is_online"] is False
+
+
+def test_presence_heartbeat_marks_member_online() -> None:
+    with TestClient(app) as client:
+        token = login_admin_user(client)
+        server, _ = get_seed_server_and_voice_channel(client, token)
+        send_presence_heartbeat(client, token)
+        response = client.get(
+            f"/api/servers/{server['id']}/members",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+    assert response.status_code == 200
+    members = response.json()
+    admin_member = next(member for member in members if member["login"] == "weren9000")
+    assert admin_member["is_online"] is True
 
 
 def test_voice_websocket_connects_and_returns_room_state() -> None:

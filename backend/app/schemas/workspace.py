@@ -37,6 +37,7 @@ class ServerMemberSummary(BaseModel):
     full_name: str
     character_name: str | None
     role: str
+    is_online: bool = False
 
 
 class VoicePresenceParticipantSummary(BaseModel):

@@ -20,6 +20,7 @@ from app.schemas.workspace import (
     VoiceChannelPresenceSummary,
     VoicePresenceParticipantSummary,
 )
+from app.services.site_presence import site_presence_manager
 from app.services.voice_signaling import voice_signaling_manager
 
 router = APIRouter(prefix="/servers", tags=["workspace"])
@@ -51,7 +52,11 @@ def _build_channel_summary(channel: Channel) -> ChannelSummary:
     )
 
 
-def _build_server_member_summary(member: ServerMember, user: User) -> ServerMemberSummary:
+def _build_server_member_summary(
+    member: ServerMember,
+    user: User,
+    online_user_ids: set[UUID],
+) -> ServerMemberSummary:
     return ServerMemberSummary(
         id=member.id,
         user_id=user.id,
@@ -60,6 +65,7 @@ def _build_server_member_summary(member: ServerMember, user: User) -> ServerMemb
         full_name=user.display_name,
         character_name=user.bio,
         role=member.role.value,
+        is_online=user.id in online_user_ids,
     )
 
 
@@ -224,8 +230,12 @@ def list_server_members(
         .where(ServerMember.server_id == server.id)
         .order_by(ServerMember.joined_at, User.username)
     ).all()
+    online_user_ids = site_presence_manager.online_user_ids([user.id for _, user in rows])
 
-    return [_build_server_member_summary(member, user) for member, user in rows]
+    return [
+        _build_server_member_summary(member, user, online_user_ids)
+        for member, user in rows
+    ]
 
 
 @router.get("/{server_id}/voice-presence", response_model=list[VoiceChannelPresenceSummary])

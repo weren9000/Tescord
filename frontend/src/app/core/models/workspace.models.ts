@@ -33,6 +33,7 @@ export interface WorkspaceMember {
   full_name: string;
   character_name: string | null;
   role: string;
+  is_online: boolean;
 }
 
 export interface WorkspaceVoicePresenceParticipant {

@@ -17,21 +17,15 @@ import {
   WorkspaceMessageAttachment,
   WorkspaceMember,
   WorkspaceServer,
-  WorkspaceVoicePresenceChannel,
-  WorkspaceVoicePresenceParticipant
+  WorkspaceVoicePresenceChannel
 } from './core/models/workspace.models';
 import { VoiceParticipant, VoiceRoomService } from './core/services/voice-room.service';
 
 type AuthMode = 'login' | 'register';
 type ChannelKind = 'text' | 'voice';
-type MemberPresenceTone = 'inactive' | 'speaking' | 'open' | 'muted';
+type VoicePresenceTone = 'speaking' | 'open' | 'muted';
+type MemberPresenceTone = VoicePresenceTone | 'inactive';
 type MobilePanel = 'servers' | 'channels' | 'members' | null;
-
-interface VoicePresenceByUser {
-  channelId: string;
-  channelName: string;
-  participant: WorkspaceVoicePresenceParticipant;
-}
 
 interface LoginFormModel {
   login: string;
@@ -74,17 +68,17 @@ interface GroupMemberItem {
   role: string;
   roleLabel: string;
   isSelf: boolean;
-  presence: MemberPresenceTone;
   presenceLabel: string;
-  activityLabel: string;
-  activeVoiceChannelId: string | null;
-  activeVoiceChannelName: string | null;
+  isOnline: boolean;
   voiceParticipant: VoiceParticipant | null;
 }
 
 const SESSION_STORAGE_KEY = 'tescord.session';
 const MESSAGES_PAGE_SIZE = 25;
 const MAX_ATTACHMENT_SIZE_BYTES = 50 * 1024 * 1024;
+const MEMBERS_POLL_INTERVAL_MS = 15000;
+const PRESENCE_ACTIVITY_THROTTLE_MS = 15000;
+const PRESENCE_KEEPALIVE_INTERVAL_MS = 30000;
 const VOICE_PRESENCE_POLL_INTERVAL_MS = 3000;
 
 @Component({
@@ -100,7 +94,19 @@ export class AppComponent {
   private readonly workspaceApi = inject(WorkspaceApiService);
   private readonly voiceRoom = inject(VoiceRoomService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly imageAttachmentUrls = signal<Record<string, string>>({});
+  private readonly loadingImageAttachmentIds = new Set<string>();
+  private readonly handlePresenceActivity = () => this.schedulePresenceHeartbeat();
+  private readonly handleVisibilityChange = () => {
+    if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+      this.schedulePresenceHeartbeat(true);
+      void this.refreshMembers();
+    }
+  };
   private voicePresencePollIntervalId: number | null = null;
+  private memberPollIntervalId: number | null = null;
+  private presenceKeepaliveIntervalId: number | null = null;
+  private lastPresenceHeartbeatAt = 0;
 
   @ViewChild('messageList')
   private messageListRef?: ElementRef<HTMLElement>;
@@ -378,47 +384,15 @@ export class AppComponent {
     return presenceByChannel;
   });
 
-  readonly serverVoicePresenceByUserId = computed(() => {
-    const presenceByUser = new Map<string, VoicePresenceByUser>();
-
-    for (const channel of this.voicePresence()) {
-      for (const participant of channel.participants) {
-        presenceByUser.set(participant.user_id, {
-          channelId: channel.channel_id,
-          channelName: channel.channel_name,
-          participant,
-        });
-      }
-    }
-
-    return presenceByUser;
-  });
-
   readonly groupMembers = computed<GroupMemberItem[]>(() => {
     const currentUser = this.currentUser();
-    const connectedVoiceChannel = this.connectedVoiceChannel();
     const localVoiceParticipantsByUserId = new Map(
       this.voiceParticipants().map((participant) => [participant.user_id, participant])
     );
-    const serverVoicePresenceByUserId = this.serverVoicePresenceByUserId();
 
     return [...this.members()]
       .map((member) => {
         const voiceParticipant = localVoiceParticipantsByUserId.get(member.user_id) ?? null;
-        const serverVoicePresence = serverVoicePresenceByUserId.get(member.user_id) ?? null;
-        const presence = voiceParticipant
-          ? this.voiceParticipantTone(voiceParticipant)
-          : serverVoicePresence
-            ? serverVoicePresence.participant.muted
-              ? 'muted'
-              : 'open'
-            : 'inactive';
-        const activeVoiceChannelId = voiceParticipant
-          ? connectedVoiceChannel?.id ?? serverVoicePresence?.channelId ?? null
-          : serverVoicePresence?.channelId ?? null;
-        const activeVoiceChannelName = voiceParticipant
-          ? connectedVoiceChannel?.name ?? serverVoicePresence?.channelName ?? null
-          : serverVoicePresence?.channelName ?? null;
 
         return {
           id: member.id,
@@ -430,17 +404,14 @@ export class AppComponent {
           role: member.role,
           roleLabel: this.formatMemberRole(member.role),
           isSelf: currentUser?.id === member.user_id,
-          presence,
-          presenceLabel: this.formatPresenceLabel(presence),
-          activityLabel: this.formatVoiceActivityLabel(presence, activeVoiceChannelName),
-          activeVoiceChannelId,
-          activeVoiceChannelName,
+          isOnline: member.is_online,
+          presenceLabel: this.formatOnlineStatus(member.is_online),
           voiceParticipant
         };
       })
       .sort((left, right) => {
-        const leftPresenceWeight = this.getPresenceWeight(left.presence);
-        const rightPresenceWeight = this.getPresenceWeight(right.presence);
+        const leftPresenceWeight = this.getOnlineWeight(left.isOnline);
+        const rightPresenceWeight = this.getOnlineWeight(right.isOnline);
         if (leftPresenceWeight !== rightPresenceWeight) {
           return leftPresenceWeight - rightPresenceWeight;
         }
@@ -515,7 +486,15 @@ export class AppComponent {
   });
 
   constructor() {
-    this.destroyRef.onDestroy(() => this.stopVoicePresencePolling());
+    this.destroyRef.onDestroy(() => {
+      this.stopVoicePresencePolling();
+      this.stopMemberPolling();
+      this.stopPresenceKeepalive();
+      this.teardownPresenceActivityTracking();
+      this.clearImageAttachmentPreviews();
+    });
+    this.setupPresenceActivityTracking();
+    this.startPresenceKeepalive();
     this.loadHealth();
     this.restoreSession();
   }
@@ -721,6 +700,7 @@ export class AppComponent {
 
   onMessageDraftChange(value: string): void {
     this.messageDraft.set(value);
+    this.schedulePresenceHeartbeat();
   }
 
   openAttachmentPicker(): void {
@@ -749,6 +729,7 @@ export class AppComponent {
     if (validFiles.length) {
       this.pendingFiles.set([...this.pendingFiles(), ...validFiles]);
       this.messageError.set(null);
+      this.schedulePresenceHeartbeat();
     }
 
     if (rejectedFile) {
@@ -788,6 +769,7 @@ export class AppComponent {
 
     this.messageSubmitting.set(true);
     this.messageError.set(null);
+    this.schedulePresenceHeartbeat(true);
 
     this.workspaceApi
       .sendMessage(token, channelId, payload)
@@ -803,6 +785,7 @@ export class AppComponent {
           }
 
           this.messages.update((messages) => [...messages, message]);
+          this.primeImageAttachmentPreviews([message]);
           this.scrollMessagesToBottom();
         },
         error: (error) => {
@@ -896,8 +879,10 @@ export class AppComponent {
   }
 
   logout(): void {
+    this.stopMemberPolling();
     this.stopVoicePresencePolling();
     this.voiceRoom.leave();
+    this.lastPresenceHeartbeatAt = 0;
     this.session.set(null);
     this.currentUser.set(null);
     this.servers.set([]);
@@ -931,7 +916,9 @@ export class AppComponent {
       return;
     }
 
+    this.schedulePresenceHeartbeat(true);
     this.closeMobilePanel();
+    this.stopMemberPolling();
     this.stopVoicePresencePolling();
     if (this.hasVoiceConnection()) {
       this.voiceRoom.leave();
@@ -942,6 +929,7 @@ export class AppComponent {
   }
 
   async selectChannel(channel: WorkspaceChannel): Promise<void> {
+    this.schedulePresenceHeartbeat();
     this.closeMobilePanel();
     this.selectedChannelId.set(channel.id);
     this.workspaceError.set(null);
@@ -967,12 +955,35 @@ export class AppComponent {
     return this.serverVoicePresenceByChannelId().get(channelId) ?? [];
   }
 
-  voiceParticipantTone(participant: VoiceParticipant): MemberPresenceTone {
+  voiceParticipantTone(participant: VoiceParticipant): VoicePresenceTone {
     if (participant.muted) {
       return 'muted';
     }
 
     return participant.speaking ? 'speaking' : 'open';
+  }
+
+  imagePreviewUrl(attachment: WorkspaceMessageAttachment): string | null {
+    return this.imageAttachmentUrls()[attachment.id] ?? null;
+  }
+
+  isInlineImageAttachment(attachment: WorkspaceMessageAttachment): boolean {
+    const mimeType = attachment.mime_type.toLowerCase();
+    if (mimeType === 'image/png' || mimeType === 'image/jpeg' || mimeType === 'image/jpg') {
+      return true;
+    }
+
+    return /\.(png|jpe?g)$/i.test(attachment.filename);
+  }
+
+  openImageAttachment(attachment: WorkspaceMessageAttachment): void {
+    const previewUrl = this.imagePreviewUrl(attachment);
+    if (previewUrl) {
+      window.open(previewUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    this.downloadAttachment(attachment);
   }
 
   private startVoicePresencePolling(): void {
@@ -981,6 +992,14 @@ export class AppComponent {
     this.voicePresencePollIntervalId = window.setInterval(() => {
       void this.refreshVoicePresence();
     }, VOICE_PRESENCE_POLL_INTERVAL_MS);
+  }
+
+  private startMemberPolling(): void {
+    this.stopMemberPolling(false);
+    void this.refreshMembers();
+    this.memberPollIntervalId = window.setInterval(() => {
+      void this.refreshMembers();
+    }, MEMBERS_POLL_INTERVAL_MS);
   }
 
   private stopVoicePresencePolling(clearState = true): void {
@@ -992,6 +1011,137 @@ export class AppComponent {
     if (clearState) {
       this.voicePresence.set([]);
     }
+  }
+
+  private stopMemberPolling(clearState = true): void {
+    if (this.memberPollIntervalId !== null) {
+      window.clearInterval(this.memberPollIntervalId);
+      this.memberPollIntervalId = null;
+    }
+
+    if (clearState) {
+      this.members.set([]);
+    }
+  }
+
+  private startPresenceKeepalive(): void {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    this.stopPresenceKeepalive();
+    this.presenceKeepaliveIntervalId = window.setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+        return;
+      }
+
+      this.schedulePresenceHeartbeat(true);
+    }, PRESENCE_KEEPALIVE_INTERVAL_MS);
+  }
+
+  private stopPresenceKeepalive(): void {
+    if (this.presenceKeepaliveIntervalId !== null) {
+      window.clearInterval(this.presenceKeepaliveIntervalId);
+      this.presenceKeepaliveIntervalId = null;
+    }
+  }
+
+  private setupPresenceActivityTracking(): void {
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      return;
+    }
+
+    window.addEventListener('mousemove', this.handlePresenceActivity, { passive: true });
+    window.addEventListener('pointerdown', this.handlePresenceActivity, { passive: true });
+    window.addEventListener('touchstart', this.handlePresenceActivity, { passive: true });
+    window.addEventListener('keydown', this.handlePresenceActivity);
+    window.addEventListener('focus', this.handlePresenceActivity);
+    document.addEventListener('visibilitychange', this.handleVisibilityChange);
+  }
+
+  private teardownPresenceActivityTracking(): void {
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      return;
+    }
+
+    window.removeEventListener('mousemove', this.handlePresenceActivity);
+    window.removeEventListener('pointerdown', this.handlePresenceActivity);
+    window.removeEventListener('touchstart', this.handlePresenceActivity);
+    window.removeEventListener('keydown', this.handlePresenceActivity);
+    window.removeEventListener('focus', this.handlePresenceActivity);
+    document.removeEventListener('visibilitychange', this.handleVisibilityChange);
+  }
+
+  private schedulePresenceHeartbeat(force = false): void {
+    const token = this.session()?.access_token;
+    if (!token) {
+      return;
+    }
+
+    if (!force && typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+      return;
+    }
+
+    const now = Date.now();
+    if (!force && now - this.lastPresenceHeartbeatAt < PRESENCE_ACTIVITY_THROTTLE_MS) {
+      return;
+    }
+
+    this.lastPresenceHeartbeatAt = now;
+    this.workspaceApi
+      .sendPresenceHeartbeat(token)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          const currentUserId = this.currentUser()?.id;
+          if (!currentUserId) {
+            return;
+          }
+
+          this.members.update((members) =>
+            members.map((member) =>
+              member.user_id === currentUserId
+                ? {
+                    ...member,
+                    is_online: true
+                  }
+                : member
+            )
+          );
+        },
+        error: () => {
+          this.lastPresenceHeartbeatAt = 0;
+        }
+      });
+  }
+
+  private async refreshMembers(): Promise<void> {
+    const token = this.session()?.access_token;
+    const serverId = this.selectedServerId();
+    if (!token || !serverId) {
+      this.members.set([]);
+      return;
+    }
+
+    this.workspaceApi
+      .getMembers(token, serverId)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (members) => {
+          if (this.selectedServerId() !== serverId) {
+            return;
+          }
+
+          this.members.set(members);
+        },
+        error: () => {
+          if (this.selectedServerId() !== serverId) {
+            return;
+          }
+
+          this.members.set([]);
+        }
+      });
   }
 
   private async refreshVoicePresence(): Promise<void> {
@@ -1057,6 +1207,7 @@ export class AppComponent {
 
       this.session.set(session);
       this.currentUser.set(session.user);
+      this.schedulePresenceHeartbeat(true);
       this.bootstrapWorkspace(session.access_token);
     } catch {
       this.clearStoredSession();
@@ -1067,6 +1218,7 @@ export class AppComponent {
     this.session.set(session);
     this.currentUser.set(session.user);
     this.persistSession(session);
+    this.schedulePresenceHeartbeat(true);
     this.authLoading.set(false);
     this.authError.set(null);
     this.managementError.set(null);
@@ -1089,8 +1241,10 @@ export class AppComponent {
         next: ({ me, servers }) => {
           this.currentUser.set(me);
           this.servers.set(servers);
+          this.schedulePresenceHeartbeat(true);
 
           if (!servers.length) {
+            this.stopMemberPolling();
             this.stopVoicePresencePolling();
             this.resetTextChannelState();
             this.selectedServerId.set(null);
@@ -1111,6 +1265,7 @@ export class AppComponent {
           this.loadServerWorkspace(token, preferredServerId);
         },
         error: (error) => {
+          this.stopMemberPolling();
           this.stopVoicePresencePolling();
           this.workspaceLoading.set(false);
           this.voiceRoom.leave();
@@ -1133,6 +1288,7 @@ export class AppComponent {
     const previousSelectedChannelId = this.selectedChannelId();
     const connectedVoiceChannelId = this.voiceRoom.activeChannelId();
 
+    this.stopMemberPolling(false);
     this.stopVoicePresencePolling();
     this.workspaceLoading.set(true);
     this.workspaceError.set(null);
@@ -1171,10 +1327,12 @@ export class AppComponent {
           if (selectedChannel?.type === 'text') {
             this.loadMessagesForChannel(token, selectedChannel.id);
           }
+          this.startMemberPolling();
           this.startVoicePresencePolling();
           this.workspaceLoading.set(false);
         },
         error: (error) => {
+          this.stopMemberPolling();
           this.stopVoicePresencePolling();
           this.channels.set([]);
           this.members.set([]);
@@ -1212,6 +1370,7 @@ export class AppComponent {
     } else {
       this.messagesLoading.set(true);
       this.messages.set([]);
+      this.clearImageAttachmentPreviews();
       this.messagesHasMore.set(false);
       this.messagesCursor.set(null);
       this.messageError.set(null);
@@ -1231,6 +1390,7 @@ export class AppComponent {
           } else {
             this.messages.set(page.items);
           }
+          this.primeImageAttachmentPreviews(page.items);
 
           this.messagesHasMore.set(page.has_more);
           this.messagesCursor.set(page.next_before);
@@ -1271,6 +1431,7 @@ export class AppComponent {
 
   private resetTextChannelState(): void {
     this.messages.set([]);
+    this.clearImageAttachmentPreviews();
     this.messagesHasMore.set(false);
     this.messagesCursor.set(null);
     this.messagesLoading.set(false);
@@ -1301,6 +1462,61 @@ export class AppComponent {
 
       element.scrollTop = element.scrollHeight - previousScrollHeight + previousScrollTop;
     });
+  }
+
+  private primeImageAttachmentPreviews(messages: WorkspaceMessage[]): void {
+    const token = this.session()?.access_token;
+    if (!token) {
+      return;
+    }
+
+    for (const message of messages) {
+      for (const attachment of message.attachments) {
+        if (!this.isInlineImageAttachment(attachment)) {
+          continue;
+        }
+
+        if (this.imageAttachmentUrls()[attachment.id] || this.loadingImageAttachmentIds.has(attachment.id)) {
+          continue;
+        }
+
+        this.loadingImageAttachmentIds.add(attachment.id);
+        this.workspaceApi
+          .downloadAttachment(token, attachment.id)
+          .pipe(takeUntilDestroyed(this.destroyRef))
+          .subscribe({
+            next: (blob) => {
+              this.loadingImageAttachmentIds.delete(attachment.id);
+              const objectUrl = URL.createObjectURL(blob);
+              const attachmentStillVisible = this.messages().some((message) =>
+                message.attachments.some((messageAttachment) => messageAttachment.id === attachment.id)
+              );
+              if (!attachmentStillVisible) {
+                URL.revokeObjectURL(objectUrl);
+                return;
+              }
+
+              this.imageAttachmentUrls.update((currentUrls) => ({
+                ...currentUrls,
+                [attachment.id]: objectUrl
+              }));
+            },
+            error: () => {
+              this.loadingImageAttachmentIds.delete(attachment.id);
+            }
+          });
+      }
+    }
+  }
+
+  private clearImageAttachmentPreviews(): void {
+    const currentUrls = this.imageAttachmentUrls();
+    for (const objectUrl of Object.values(currentUrls)) {
+      URL.revokeObjectURL(objectUrl);
+    }
+
+    this.loadingImageAttachmentIds.clear();
+    this.imageAttachmentUrls.set({});
   }
 
   private persistSession(session: AuthSessionResponse): void {
@@ -1394,6 +1610,14 @@ export class AppComponent {
     }
 
     return 3;
+  }
+
+  private formatOnlineStatus(isOnline: boolean): string {
+    return isOnline ? 'Онлайн' : 'Офлайн';
+  }
+
+  private getOnlineWeight(isOnline: boolean): number {
+    return isOnline ? 0 : 1;
   }
 
   private getRoleWeight(role: string): number {
