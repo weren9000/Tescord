@@ -81,11 +81,7 @@ def _get_accessible_server(db: Session, server_id: UUID, current_user: User) -> 
     if server is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Группа не найдена")
 
-    membership = _get_membership(db, server_id, current_user.id)
-    if membership is None and not current_user.is_admin:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Группа не найдена")
-
-    return server, membership
+    return server, _get_membership(db, server_id, current_user.id)
 
 
 def _ensure_manage_permission(membership: ServerMember | None, current_user: User) -> MemberRole:
@@ -100,14 +96,18 @@ def _ensure_manage_permission(membership: ServerMember | None, current_user: Use
 
 @router.get("", response_model=list[ServerSummary])
 def list_servers(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> list[ServerSummary]:
-    rows = db.execute(
-        select(Server, ServerMember.role)
-        .join(ServerMember, ServerMember.server_id == Server.id)
-        .where(ServerMember.user_id == current_user.id)
-        .order_by(Server.name)
-    ).all()
+    servers = db.execute(select(Server).order_by(Server.name)).scalars().all()
+    member_roles = {
+        server_id: role
+        for server_id, role in db.execute(
+            select(ServerMember.server_id, ServerMember.role).where(ServerMember.user_id == current_user.id)
+        ).all()
+    }
 
-    return [_build_server_summary(server, role) for server, role in rows]
+    return [
+        _build_server_summary(server, member_roles.get(server.id, MemberRole.MEMBER))
+        for server in servers
+    ]
 
 
 @router.post("", response_model=ServerSummary, status_code=status.HTTP_201_CREATED)

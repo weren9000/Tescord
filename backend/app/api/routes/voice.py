@@ -2,11 +2,10 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect, status
-from sqlalchemy import select
+from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 
 from app.api.dependencies.auth import resolve_user_from_token
-from app.db.models import Channel, ChannelType, ServerMember
+from app.db.models import Channel, ChannelType
 from app.db.session import SessionLocal
 from app.services.voice_signaling import voice_signaling_manager
 
@@ -30,17 +29,6 @@ async def connect_to_voice_channel(websocket: WebSocket, channel_id: UUID) -> No
         channel = db.get(Channel, channel_id)
         if channel is None or channel.type != ChannelType.VOICE:
             await websocket.close(code=4404, reason="Voice channel not found")
-            return
-
-        membership = db.execute(
-            select(ServerMember.id).where(
-                ServerMember.server_id == channel.server_id,
-                ServerMember.user_id == current_user.id,
-            )
-        ).scalar_one_or_none()
-
-        if membership is None and not current_user.is_admin:
-            await websocket.close(code=4403, reason="Forbidden")
             return
 
         participant = await voice_signaling_manager.connect(

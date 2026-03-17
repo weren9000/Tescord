@@ -57,7 +57,7 @@ def delete_server(server_id: str) -> None:
             db.commit()
 
 
-def get_seed_server_and_voice_channel(client: TestClient, token: str) -> tuple[str, str]:
+def get_seed_server_and_voice_channel(client: TestClient, token: str) -> tuple[dict[str, str], dict[str, str]]:
     servers_response = client.get("/api/servers", headers={"Authorization": f"Bearer {token}"})
     assert servers_response.status_code == 200
     server = next(server for server in servers_response.json() if server["slug"] == "forgehold-collective")
@@ -68,7 +68,7 @@ def get_seed_server_and_voice_channel(client: TestClient, token: str) -> tuple[s
     )
     assert channels_response.status_code == 200
     voice_channel = next(channel for channel in channels_response.json() if channel["type"] == "voice")
-    return server["id"], voice_channel["id"]
+    return server, voice_channel
 
 
 def test_admin_login_returns_access_token() -> None:
@@ -178,13 +178,7 @@ def test_regular_user_cannot_create_group() -> None:
 def test_servers_and_channels_endpoints_return_seed_workspace() -> None:
     with TestClient(app) as client:
         token = login_admin_user(client)
-        servers_response = client.get("/api/servers", headers={"Authorization": f"Bearer {token}"})
-
-        assert servers_response.status_code == 200
-        servers = servers_response.json()
-        assert servers
-
-        server = next(server for server in servers if server["slug"] == "forgehold-collective")
+        server, _ = get_seed_server_and_voice_channel(client, token)
         channels_response = client.get(
             f"/api/servers/{server['id']}/channels",
             headers={"Authorization": f"Bearer {token}"},
@@ -196,12 +190,35 @@ def test_servers_and_channels_endpoints_return_seed_workspace() -> None:
     assert any(channel["type"] == "voice" for channel in channels)
 
 
+def test_regular_user_can_access_all_groups_channels_and_members() -> None:
+    with TestClient(app) as client:
+        token, payload = register_regular_user(client)
+        try:
+            server, _ = get_seed_server_and_voice_channel(client, token)
+            servers_response = client.get("/api/servers", headers={"Authorization": f"Bearer {token}"})
+            members_response = client.get(
+                f"/api/servers/{server['id']}/members",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+        finally:
+            delete_user(payload["login"])
+
+    assert servers_response.status_code == 200
+    listed_server = next(item for item in servers_response.json() if item["id"] == server["id"])
+    assert listed_server["member_role"] == "member"
+
+    assert members_response.status_code == 200
+    members = members_response.json()
+    assert members
+    assert any(member["login"] == "weren9000" for member in members)
+
+
 def test_server_members_endpoint_returns_seed_members() -> None:
     with TestClient(app) as client:
         token = login_admin_user(client)
-        server_id, _ = get_seed_server_and_voice_channel(client, token)
+        server, _ = get_seed_server_and_voice_channel(client, token)
         response = client.get(
-            f"/api/servers/{server_id}/members",
+            f"/api/servers/{server['id']}/members",
             headers={"Authorization": f"Bearer {token}"},
         )
 
@@ -216,9 +233,9 @@ def test_server_members_endpoint_returns_seed_members() -> None:
 def test_voice_websocket_connects_and_returns_room_state() -> None:
     with TestClient(app) as client:
         token = login_admin_user(client)
-        _, voice_channel_id = get_seed_server_and_voice_channel(client, token)
+        _, voice_channel = get_seed_server_and_voice_channel(client, token)
 
-        with client.websocket_connect(f"/api/voice/channels/{voice_channel_id}/ws?token={token}") as socket:
+        with client.websocket_connect(f"/api/voice/channels/{voice_channel['id']}/ws?token={token}") as socket:
             room_state = socket.receive_json()
             assert room_state["type"] == "room_state"
             assert isinstance(room_state["self_id"], str)
@@ -227,3 +244,16 @@ def test_voice_websocket_connects_and_returns_room_state() -> None:
             socket.send_json({"type": "ping"})
             pong = socket.receive_json()
             assert pong == {"type": "pong"}
+
+
+def test_regular_user_can_join_voice_channel() -> None:
+    with TestClient(app) as client:
+        token, payload = register_regular_user(client)
+        try:
+            _, voice_channel = get_seed_server_and_voice_channel(client, token)
+            with client.websocket_connect(f"/api/voice/channels/{voice_channel['id']}/ws?token={token}") as socket:
+                room_state = socket.receive_json()
+                assert room_state["type"] == "room_state"
+                assert isinstance(room_state["self_id"], str)
+        finally:
+            delete_user(payload["login"])
