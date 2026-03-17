@@ -442,7 +442,6 @@ select {
   flex-direction: column;
   min-height: 0;
   flex: 1 1 auto;
-  overflow: auto;
 }
 
 .server-rail__footer {
@@ -508,7 +507,7 @@ select {
   position: absolute;
   top: 50%;
   left: calc(100% + 10px);
-  z-index: 5;
+  z-index: 1000;
   padding: 6px 8px;
   border: 1px solid var(--line-strong);
   background: var(--surface-strong);
