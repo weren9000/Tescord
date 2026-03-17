@@ -82,11 +82,6 @@ interface GroupMemberItem {
   voiceParticipant: VoiceParticipant | null;
 }
 
-const ADMIN_CREDENTIALS: LoginFormModel = {
-  login: 'weren9000',
-  password: 'Vfrfhjys9000'
-};
-
 const SESSION_STORAGE_KEY = 'tescord.session';
 const MESSAGES_PAGE_SIZE = 25;
 const MAX_ATTACHMENT_SIZE_BYTES = 50 * 1024 * 1024;
@@ -352,18 +347,6 @@ export class AppComponent {
       : 'Голос работает в фоне, микрофон включен';
   });
 
-  readonly composerHint = computed(() => {
-    if (this.showVoiceDock()) {
-      return `Вы остаетесь в голосовом канале ${this.connectedVoiceChannel()?.name ?? ''}, пока не выйдете из него или не смените группу.`;
-    }
-
-    if (this.isVoiceChannelSelected()) {
-      return 'Голосовой канал использует микрофон браузера и остается активным, пока вы находитесь в этой группе.';
-    }
-
-    return 'Следующий шаг после этого интерфейса: история сообщений, отправка текста и вложения.';
-  });
-
   readonly serverShortcuts = computed<ServerShortcut[]>(() =>
     this.servers().map((server) => ({
       id: server.id,
@@ -539,13 +522,6 @@ export class AppComponent {
 
   switchAuthMode(mode: AuthMode): void {
     this.authMode.set(mode);
-    this.authError.set(null);
-  }
-
-  useAdminAccount(): void {
-    this.authMode.set('login');
-    this.loginForm.login = ADMIN_CREDENTIALS.login;
-    this.loginForm.password = ADMIN_CREDENTIALS.password;
     this.authError.set(null);
   }
 

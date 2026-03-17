@@ -1,35 +1,7 @@
 @if (!isAuthenticated()) {
   <div class="auth-shell">
-    <section class="auth-panel auth-panel--story">
-      <div class="auth-block">
-        <p class="eyebrow">Tescord</p>
-        <h1>Текстовые и голосовые каналы для вашей группы</h1>
-        <p class="auth-lead">
-          Минималистичный клиент для общения внутри команды. Текстовые каналы, голос через WebRTC, управление
-          группами и каналами без лишнего визуального шума.
-        </p>
-      </div>
-
-      <div class="auth-summary">
-        <article class="summary-card">
-          <p class="eyebrow">Статус системы</p>
-          <h2>{{ statusLabel() }}</h2>
-          @if (health(); as healthState) {
-            <p>{{ healthState.service }} · {{ localizedEnvironment() }} · БД {{ localizedDatabaseStatus() }}</p>
-          } @else if (healthError()) {
-            <p>{{ healthError() }}</p>
-          } @else {
-            <p>Проверяем backend и базу данных перед входом.</p>
-          }
-        </article>
-
-        <article class="summary-card">
-          <p class="eyebrow">Администратор</p>
-          <h2>Готовая учетная запись</h2>
-          <p>Логин: <code>weren9000</code></p>
-          <p>Пароль: <code>Vfrfhjys9000</code></p>
-        </article>
-      </div>
+    <section class="auth-panel auth-panel--story auth-panel--logo">
+      <img class="auth-logo" src="/assets/Logo.png" alt="Tescord" />
     </section>
 
     <section class="auth-panel auth-panel--form">
@@ -77,8 +49,7 @@
           </label>
 
           <div class="auth-actions">
-            <button class="secondary-button" type="button" (click)="useAdminAccount()">Подставить админа</button>
-            <button class="primary-button" type="submit" [disabled]="authLoading()">
+            <button class="primary-button primary-button--full" type="submit" [disabled]="authLoading()">
               {{ authLoading() ? 'Входим...' : 'Войти' }}
             </button>
           </div>
@@ -187,10 +158,6 @@
     }
 
     <aside class="server-rail" [class.server-rail--mobile-open]="mobilePanel() === 'servers'">
-      <div class="brand-mark">
-        <span class="brand-mark__icon">TES</span>
-      </div>
-
       <div class="server-rail__list">
         @if (serverShortcuts().length) {
           @for (server of serverShortcuts(); track server.id) {
@@ -325,48 +292,6 @@
     </aside>
 
     <main class="workspace">
-      <header class="workspace-header">
-        <div>
-          <p class="eyebrow">Текущий канал</p>
-          <h2>{{ activeChannelHeading() }}</h2>
-        </div>
-
-        <div class="workspace-header__actions">
-          <div
-            class="status-card"
-            [class.status-card--healthy]="statusTone() === 'healthy'"
-            [class.status-card--warning]="statusTone() === 'warning'"
-            [class.status-card--offline]="statusTone() === 'offline'"
-          >
-            <div class="status-card__dot"></div>
-            <div class="status-card__body">
-              <strong>{{ statusLabel() }}</strong>
-              @if (voiceError()) {
-                <span>{{ voiceError() }}</span>
-              } @else if (managementError()) {
-                <span>{{ managementError() }}</span>
-              } @else if (workspaceError()) {
-                <span>{{ workspaceError() }}</span>
-              } @else if (authError()) {
-                <span>{{ authError() }}</span>
-              } @else if (healthError()) {
-                <span>{{ healthError() }}</span>
-              } @else if (managementSuccess()) {
-                <span>{{ managementSuccess() }}</span>
-              } @else {
-                @if (health(); as healthState) {
-                  <span>{{ healthState.service }} · {{ localizedEnvironment() }} · БД {{ localizedDatabaseStatus() }}</span>
-                } @else {
-                  <span>Ожидаем ответ API</span>
-                }
-              }
-            </div>
-          </div>
-
-          <button class="secondary-button logout-button" type="button" (click)="logout()">Выйти</button>
-        </div>
-      </header>
-
       @if (showVoiceDock()) {
         <section class="voice-dock">
           <div class="voice-dock__meta">
@@ -387,14 +312,6 @@
 
       <section class="workspace-body">
         @if (isVoiceChannelSelected()) {
-          <section class="hero-card">
-            <p class="eyebrow">Голосовая комната</p>
-            <h3>{{ activeChannel()?.name ?? 'Голосовой канал' }}</h3>
-            <p>
-              {{ activeChannel()?.topic ?? 'Голос остается активным, пока вы находитесь в этой группе. Можно перейти в текстовые каналы и не терять соединение.' }}
-            </p>
-          </section>
-
           <section class="voice-stage">
             <div class="voice-stage__summary">
               <div>
@@ -464,15 +381,6 @@
             </div>
           </section>
         } @else {
-          <section class="hero-card">
-            <p class="eyebrow">Рабочая зона</p>
-            <h3>Текст и голос работают в одном пространстве</h3>
-            <p>
-              Можно находиться в голосовом канале и параллельно переключаться по текстовым каналам внутри этой же
-              группы. Отключение произойдет только при явном выходе из голоса, выходе из аккаунта или смене группы.
-            </p>
-          </section>
-
           <div class="message-list" #messageList (scroll)="onMessageListScroll()">
             @if (isTextChannelSelected()) {
               @if (messagesLoading()) {
@@ -521,56 +429,12 @@
                 }
               }
             } @else {
-            <article class="message-card">
-              <div class="message-card__avatar" [style.--avatar-accent]="'#ff9f43'">Г</div>
-              <div class="message-card__body">
-                <div class="message-card__meta">
-                  <strong>Группа</strong>
-                  <span>&#64;workspace</span>
-                  <time>сейчас</time>
-                </div>
-                <p>
-                  Активная группа: <strong>{{ activeServer()?.name ?? 'не выбрана' }}</strong>. Канал:
-                  <strong>{{ activeChannelHeading() }}</strong>.
-                </p>
-              </div>
-            </article>
-
-            <article class="message-card">
-              <div class="message-card__avatar" [style.--avatar-accent]="'#3dd6c6'">А</div>
-              <div class="message-card__body">
-                <div class="message-card__meta">
-                  <strong>Аудио</strong>
-                  <span>&#64;voice</span>
-                  <time>активно</time>
-                </div>
-                <p>
-                  Настройки устройств и чувствительности доступны через шестеренку рядом с вашим профилем. Громкость
-                  каждого участника открывается по клику на него в правой колонке.
-                </p>
-              </div>
-            </article>
-
-            <article class="message-card">
-              <div class="message-card__avatar" [style.--avatar-accent]="'#8cdcff'">Ч</div>
-              <div class="message-card__body">
-                <div class="message-card__meta">
-                  <strong>Чат</strong>
-                  <span>&#64;roadmap</span>
-                  <time>скоро</time>
-                </div>
-                <p>
-                  Следующим шагом сюда подключим историю сообщений, отправку текста, realtime для текстовых каналов и
-                  вложения через отдельный API.
-                </p>
-              </div>
-            </article>
+              <div class="message-list__status">Выберите текстовый канал, чтобы открыть переписку.</div>
             }
           </div>
         }
 
         <section class="composer">
-          <div class="composer__hint">{{ composerHint() }}</div>
           @if (isTextChannelSelected()) {
             @if (pendingFiles().length) {
               <div class="composer__files">
@@ -615,23 +479,21 @@
     <aside class="member-rail" [class.member-rail--mobile-open]="mobilePanel() === 'members'">
       <section class="panel-card profile-card">
         <div class="panel-header">
-          <div>
-            <p class="eyebrow">Профиль</p>
+          <div class="profile-head">
             <h3>{{ currentUser()?.nick ?? 'Ожидание авторизации' }}</h3>
+            <small>{{ currentUser()?.login ?? 'Нет активной сессии' }}</small>
           </div>
-          <button class="icon-button" type="button" (click)="openVoiceSettings()">⚙</button>
+          <div class="profile-actions">
+            <button class="icon-button" type="button" (click)="openVoiceSettings()">⚙</button>
+            <button class="secondary-button profile-logout" type="button" (click)="logout()">Выйти</button>
+          </div>
         </div>
 
-        <small>{{ currentUser()?.login ?? 'Нет активной сессии' }}</small>
         <p class="session-note">{{ currentUser()?.full_name ?? 'ФИО пока не загружено' }}</p>
         <p class="session-note">{{ currentUser()?.character_name ?? 'Персонаж пока не указан' }}</p>
-        <p class="session-note">
-          @if (hasVoiceConnection()) {
-            В голосе: {{ connectedVoiceChannel()?.name }}
-          } @else {
-            Голосовой канал не подключен
-          }
-        </p>
+        @if (hasVoiceConnection()) {
+          <p class="session-note">В голосе: {{ connectedVoiceChannel()?.name }}</p>
+        }
       </section>
 
       <section class="panel-card">
