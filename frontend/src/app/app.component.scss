@@ -812,18 +812,47 @@ select {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 10px;
+  padding: 8px 10px;
   border-left: 2px solid rgba(61, 214, 198, 0.52);
 }
 
 .voice-dock__meta {
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .voice-dock__meta strong {
-  font-size: 1.05rem;
+  font-size: 0.96rem;
+  line-height: 1.15;
+}
+
+.voice-dock__meta small {
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.25;
+}
+
+.voice-dock__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.voice-dock__actions > .secondary-button {
+  padding: 8px 10px;
+  font-size: 0.8rem;
+}
+
+.voice-dock__actions .voice-leave-button {
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  padding: 0;
 }
 
 .voice-workspace {
@@ -1001,6 +1030,12 @@ select {
   gap: 10px;
 }
 
+.voice-roster-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 .voice-card {
   display: flex;
   gap: 12px;
@@ -1085,6 +1120,28 @@ select {
   min-width: 0;
 }
 
+.voice-card--compact {
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+}
+
+.voice-card--compact .voice-card__avatar {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  font-size: 0.78rem;
+}
+
+.voice-card__body--compact {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
 .voice-card__title {
   display: flex;
   flex-wrap: wrap;
@@ -1097,6 +1154,28 @@ select {
 .voice-card__body span,
 .voice-card__body small {
   display: block;
+}
+
+.voice-card--compact .voice-card__title {
+  margin: 0;
+  min-width: 0;
+}
+
+.voice-card--compact .voice-card__title strong {
+  font-size: 0.92rem;
+  line-height: 1.15;
+}
+
+.voice-card--compact .voice-card__body span,
+.voice-card--compact .voice-card__body small {
+  display: none;
+}
+
+.voice-card__self {
+  color: var(--muted);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
 .voice-leave-button {
@@ -2040,6 +2119,17 @@ select {
     margin-left: 0;
   }
 
+  .voice-dock {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .voice-dock__actions {
+    width: auto;
+    flex-direction: row;
+    margin-left: auto;
+  }
+
   .voice-workspace__tabs {
     width: 100%;
   }
@@ -2138,6 +2228,33 @@ select {
   .voice-workspace__controls .voice-leave-button img {
     width: 16px;
     height: 16px;
+  }
+
+  .voice-dock {
+    gap: 8px;
+  }
+
+  .voice-dock__meta strong {
+    font-size: 0.9rem;
+  }
+
+  .voice-dock__meta small {
+    font-size: 0.7rem;
+  }
+
+  .voice-dock__actions {
+    gap: 6px;
+  }
+
+  .voice-dock__actions > .secondary-button {
+    padding: 7px 8px;
+    font-size: 0.74rem;
+  }
+
+  .voice-dock__actions .voice-leave-button {
+    width: 36px;
+    min-width: 36px;
+    height: 36px;
   }
 
   .composer {

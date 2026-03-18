@@ -353,7 +353,7 @@
 
           <div class="voice-dock__actions">
             <button class="secondary-button" type="button" (click)="openConnectedVoiceChannel()">Открыть канал</button>
-            <button class="secondary-button" type="button" (click)="toggleVoiceMute()">
+            <button class="secondary-button voice-mute-button" type="button" (click)="toggleVoiceMute()" [attr.aria-label]="voiceMuteControlLabel()" [attr.title]="voiceMuteControlLabel()">
               {{ voiceOwnerMuted() ? 'Микрофон заблокирован' : voiceMuted() ? 'Включить микрофон' : 'Выключить микрофон' }}
             </button>
             <button class="primary-button voice-leave-button" type="button" (click)="leaveVoiceChannel()" aria-label="Выйти из голоса" title="Выйти из голоса">
@@ -424,40 +424,11 @@
 
       <section class="workspace-body">
         @if (showVoiceWorkspaceChannel()) {
-          <section class="voice-stage">
-            <div class="voice-stage__summary">
-              <div>
-                <p class="eyebrow">Состояние</p>
-                <h3>{{ voiceStatusLabel() }}</h3>
-                <p>Участников в комнате: <strong>{{ activeVoiceRosterCount() }}</strong></p>
-              </div>
-
-              <div class="voice-stage__actions">
-                @if (!isInActiveVoiceChannel()) {
-                  <button class="primary-button" type="button" (click)="joinActiveVoiceChannel()">
-                    {{ hasVoiceConnection() ? 'Переключиться в этот канал' : 'Подключиться к голосу' }}
-                  </button>
-                } @else {
-                  <button
-                    class="secondary-button voice-mute-button"
-                    type="button"
-                    (click)="toggleVoiceMute()"
-                    [attr.aria-label]="voiceMuteControlLabel()"
-                    [attr.title]="voiceMuteControlLabel()"
-                  >
-                    <img [src]="voiceMuteControlIconPath()" alt="" />
-                  </button>
-                  <button class="primary-button voice-leave-button" type="button" (click)="leaveVoiceChannel()" aria-label="Отключиться" title="Отключиться">
-                    <img src="/assets/Phone outgoing.svg" alt="" />
-                  </button>
-                }
-              </div>
-            </div>
-
-            <div class="voice-grid">
+          <section class="voice-stage voice-stage--channel-tab">
+            <div class="voice-roster-list">
               @for (participant of activeVoiceRoster(); track participant.id) {
                   <button
-                    class="voice-card"
+                    class="voice-card voice-card--compact"
                     [class.voice-card--self]="participant.is_self"
                     [class.voice-card--speaking]="voiceParticipantTone(participant) === 'speaking'"
                     [class.voice-card--blocked]="voiceParticipantTone(participant) === 'blocked'"
@@ -467,20 +438,19 @@
                     (click)="openVoiceParticipantControls(participant.user_id, activeChannel()?.id ?? '')"
                   >
                   <div class="voice-card__avatar">{{ participant.nick.slice(0, 2).toUpperCase() }}</div>
-                  <div class="voice-card__body">
+                  <div class="voice-card__body voice-card__body--compact">
                     <div class="voice-card__title">
                       <strong>{{ participant.nick }}</strong>
-                      <img
-                        class="voice-state-icon voice-state-icon--card"
-                        [src]="voiceStateIconPath(participant)"
-                        [alt]="voiceStateIconAlt(participant)"
-                        [title]="voiceStateIconAlt(participant)"
-                      />
+                      @if (participant.is_self) {
+                        <small class="voice-card__self">вы</small>
+                      }
                     </div>
-                    <span>{{ participant.full_name }}</span>
-                    <small>
-                      {{ participant.is_self ? 'Вы в голосовом канале' : 'В голосовом канале' }}
-                    </small>
+                    <img
+                      class="voice-state-icon voice-state-icon--card"
+                      [src]="voiceStateIconPath(participant)"
+                      [alt]="voiceStateIconAlt(participant)"
+                      [title]="voiceStateIconAlt(participant)"
+                    />
                   </div>
                 </button>
               }
