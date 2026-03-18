@@ -153,11 +153,20 @@ select {
 
 .mobile-toolbar__meta strong {
   font-size: 1rem;
+  line-height: 1.15;
 }
 
 .mobile-toolbar__meta small {
   color: var(--muted);
   line-height: 1.4;
+}
+
+.mobile-toolbar__meta strong,
+.mobile-toolbar__meta small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .mobile-toolbar__actions {
@@ -1127,6 +1136,14 @@ select {
   color: var(--muted);
 }
 
+.message-list__empty {
+  margin: auto 0;
+  padding: 10px 0 12px;
+  color: var(--muted);
+  text-align: center;
+  font-size: 0.86rem;
+}
+
 .message-list__status--error {
   border-color: rgba(255, 107, 107, 0.24);
   color: #ffb7b7;
@@ -2023,14 +2040,28 @@ select {
   }
 
   .mobile-toolbar {
-    padding: var(--space);
-    gap: var(--space);
+    padding: 8px 10px;
+    gap: 8px;
   }
 
   .mobile-toolbar__actions {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     width: 100%;
+    gap: 6px;
+  }
+
+  .mobile-toolbar__meta {
+    gap: 2px;
+  }
+
+  .mobile-toolbar__meta strong {
+    font-size: 0.92rem;
+  }
+
+  .mobile-toolbar__meta small {
+    font-size: 0.72rem;
+    line-height: 1.2;
   }
 
   .modal {
@@ -2064,7 +2095,9 @@ select {
 
   .mobile-nav-button {
     width: 100%;
-    padding: var(--space);
+    min-width: 0;
+    padding: 8px 6px;
+    font-size: 0.78rem;
   }
 
   .voice-workspace__tabs {
@@ -2092,6 +2125,11 @@ select {
   .composer {
     gap: 6px;
     padding-bottom: calc(6px + env(safe-area-inset-bottom));
+  }
+
+  .message-list__empty {
+    font-size: 0.8rem;
+    padding: 8px 0;
   }
 
   .composer__files {

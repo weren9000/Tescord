@@ -707,7 +707,11 @@ export class AppComponent {
   readonly mobileWorkspaceSubtitle = computed(() => {
     const activeChannel = this.activeChannel();
     if (activeChannel) {
-      return activeChannel.type === 'voice' ? `Голосовой: ${activeChannel.name}` : `# ${activeChannel.name}`;
+      if (activeChannel.type === 'voice') {
+        return this.voiceWorkspaceTab() === 'channel' ? activeChannel.name : `Чат · ${activeChannel.name}`;
+      }
+
+      return `# ${activeChannel.name}`;
     }
 
     return this.activeServer()?.description ?? 'Откройте группу и выберите канал';

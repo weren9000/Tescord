@@ -563,6 +563,8 @@
                       </div>
                     </article>
                   }
+                } @else if (!messageError()) {
+                  <div class="message-list__empty">Сообщений пока нет</div>
                 }
               }
             } @else {
