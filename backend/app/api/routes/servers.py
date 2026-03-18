@@ -21,6 +21,11 @@ from app.schemas.workspace import (
     VoicePresenceParticipantSummary,
 )
 from app.services.site_presence import site_presence_manager
+from app.services.voice_access import (
+    can_view_voice_channel,
+    ensure_voice_channel_owner_permission,
+    list_voice_channel_access_map,
+)
 from app.services.voice_signaling import voice_signaling_manager
 
 router = APIRouter(prefix="/servers", tags=["workspace"])
@@ -41,7 +46,7 @@ def _build_server_summary(server: Server, role: MemberRole) -> ServerSummary:
     )
 
 
-def _build_channel_summary(channel: Channel) -> ChannelSummary:
+def _build_channel_summary(channel: Channel, voice_access_role: str | None = None) -> ChannelSummary:
     return ChannelSummary(
         id=channel.id,
         server_id=channel.server_id,
@@ -49,6 +54,7 @@ def _build_channel_summary(channel: Channel) -> ChannelSummary:
         topic=channel.topic,
         type=channel.type.value,
         position=channel.position,
+        voice_access_role=voice_access_role,
     )
 
 
@@ -213,8 +219,20 @@ def list_server_channels(
     channels = db.execute(
         select(Channel).where(Channel.server_id == server.id).order_by(Channel.position, Channel.name)
     ).scalars().all()
+    voice_channel_ids = [channel.id for channel in channels if channel.type == ChannelType.VOICE]
+    voice_access_map = list_voice_channel_access_map(db, voice_channel_ids, current_user.id)
 
-    return [_build_channel_summary(channel) for channel in channels]
+    visible_channels: list[ChannelSummary] = []
+    for channel in channels:
+        if channel.type != ChannelType.VOICE:
+            visible_channels.append(_build_channel_summary(channel))
+            continue
+
+        access = voice_access_map.get(channel.id)
+        if can_view_voice_channel(access):
+            visible_channels.append(_build_channel_summary(channel, access.role.value))
+
+    return visible_channels
 
 
 @router.get("/{server_id}/members", response_model=list[ServerMemberSummary])
@@ -251,14 +269,17 @@ async def list_server_voice_presence(
         .order_by(Channel.position, Channel.name)
     ).scalars().all()
 
-    if not voice_channels:
+    voice_access_map = list_voice_channel_access_map(db, [channel.id for channel in voice_channels], current_user.id)
+    visible_voice_channels = [channel for channel in voice_channels if can_view_voice_channel(voice_access_map.get(channel.id))]
+
+    if not visible_voice_channels:
         return []
 
-    snapshot = await voice_signaling_manager.snapshot_rooms({str(channel.id) for channel in voice_channels})
+    snapshot = await voice_signaling_manager.snapshot_rooms({str(channel.id) for channel in visible_voice_channels})
 
     return [
         _build_voice_channel_presence_summary(channel, snapshot[str(channel.id)])
-        for channel in voice_channels
+        for channel in visible_voice_channels
         if str(channel.id) in snapshot
     ]
 
@@ -296,7 +317,13 @@ def create_server_channel(
         position=next_position,
     )
     db.add(channel)
+    db.flush()
+    if channel.type == ChannelType.VOICE:
+        ensure_voice_channel_owner_permission(db, channel)
     db.commit()
     db.refresh(channel)
 
-    return _build_channel_summary(channel)
+    return _build_channel_summary(
+        channel,
+        "owner" if channel.type == ChannelType.VOICE else None,
+    )

@@ -169,5 +169,17 @@ class VoiceSignalingManager:
         for participant_id in stale_participants:
             await self.disconnect(channel_id, participant_id)
 
+    async def disconnect_user_sessions(self, channel_id: str, user_id: str) -> None:
+        async with self._lock:
+            room = self._rooms.get(channel_id, {})
+            participant_ids = [
+                participant_id
+                for participant_id, connection in room.items()
+                if connection.participant.user_id == user_id
+            ]
+
+        for participant_id in participant_ids:
+            await self.disconnect(channel_id, participant_id)
+
 
 voice_signaling_manager = VoiceSignalingManager()

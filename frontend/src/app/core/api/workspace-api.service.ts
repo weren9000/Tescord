@@ -7,6 +7,11 @@ import {
   CreateWorkspaceChannelRequest,
   CreateWorkspaceServerRequest,
   CurrentUserResponse,
+  VoiceAdminChannel,
+  VoiceAdminUser,
+  VoiceChannelAccessEntry,
+  VoiceJoinRequestCreateResponse,
+  VoiceJoinRequestSummary,
   WorkspaceChannel,
   WorkspaceMessage,
   WorkspaceMessagePage,
@@ -49,6 +54,85 @@ export class WorkspaceApiService {
     return this.http.get<WorkspaceVoicePresenceChannel[]>(`${API_BASE_URL}/api/servers/${serverId}/voice-presence`, {
       headers: this.buildAuthHeaders(token)
     });
+  }
+
+  getVoiceAdminChannels(token: string): Observable<VoiceAdminChannel[]> {
+    return this.http.get<VoiceAdminChannel[]>(`${API_BASE_URL}/api/voice/admin/channels`, {
+      headers: this.buildAuthHeaders(token)
+    });
+  }
+
+  getVoiceAdminUsers(token: string): Observable<VoiceAdminUser[]> {
+    return this.http.get<VoiceAdminUser[]>(`${API_BASE_URL}/api/voice/admin/users`, {
+      headers: this.buildAuthHeaders(token)
+    });
+  }
+
+  getVoiceChannelAccess(token: string, channelId: string): Observable<VoiceChannelAccessEntry[]> {
+    return this.http.get<VoiceChannelAccessEntry[]>(`${API_BASE_URL}/api/voice/channels/${channelId}/access`, {
+      headers: this.buildAuthHeaders(token)
+    });
+  }
+
+  updateVoiceChannelAccess(
+    token: string,
+    channelId: string,
+    userId: string,
+    role: 'owner' | 'resident' | 'stranger' | null
+  ): Observable<VoiceChannelAccessEntry[]> {
+    return this.http.put<VoiceChannelAccessEntry[]>(
+      `${API_BASE_URL}/api/voice/channels/${channelId}/access/${userId}`,
+      { role },
+      {
+        headers: this.buildAuthHeaders(token)
+      }
+    );
+  }
+
+  requestVoiceJoin(token: string, channelId: string): Observable<VoiceJoinRequestCreateResponse> {
+    return this.http.post<VoiceJoinRequestCreateResponse>(
+      `${API_BASE_URL}/api/voice/channels/${channelId}/requests`,
+      null,
+      {
+        headers: this.buildAuthHeaders(token)
+      }
+    );
+  }
+
+  getVoiceJoinRequest(token: string, requestId: string): Observable<VoiceJoinRequestSummary> {
+    return this.http.get<VoiceJoinRequestSummary>(`${API_BASE_URL}/api/voice/requests/${requestId}`, {
+      headers: this.buildAuthHeaders(token)
+    });
+  }
+
+  getVoiceJoinInbox(token: string): Observable<VoiceJoinRequestSummary[]> {
+    return this.http.get<VoiceJoinRequestSummary[]>(`${API_BASE_URL}/api/voice/requests/inbox`, {
+      headers: this.buildAuthHeaders(token)
+    });
+  }
+
+  resolveVoiceJoinRequest(
+    token: string,
+    requestId: string,
+    action: 'allow' | 'resident' | 'reject'
+  ): Observable<VoiceJoinRequestSummary> {
+    return this.http.post<VoiceJoinRequestSummary>(
+      `${API_BASE_URL}/api/voice/requests/${requestId}/resolve`,
+      { action },
+      {
+        headers: this.buildAuthHeaders(token)
+      }
+    );
+  }
+
+  kickVoiceParticipant(token: string, channelId: string, userId: string): Observable<VoiceChannelAccessEntry[]> {
+    return this.http.post<VoiceChannelAccessEntry[]>(
+      `${API_BASE_URL}/api/voice/channels/${channelId}/participants/${userId}/kick`,
+      null,
+      {
+        headers: this.buildAuthHeaders(token)
+      }
+    );
   }
 
   sendPresenceHeartbeat(token: string): Observable<void> {

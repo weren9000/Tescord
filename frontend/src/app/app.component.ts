@@ -12,6 +12,11 @@ import { AuthSessionResponse } from './core/models/auth.models';
 import { ApiHealthResponse } from './core/models/system.models';
 import {
   CurrentUserResponse,
+  VoiceAdminChannel,
+  VoiceAdminUser,
+  VoiceChannelAccessEntry,
+  VoiceJoinRequestCreateResponse,
+  VoiceJoinRequestSummary,
   WorkspaceChannel,
   WorkspaceMessage,
   WorkspaceMessageAttachment,
@@ -26,6 +31,7 @@ type ChannelKind = 'text' | 'voice';
 type VoicePresenceTone = 'speaking' | 'open' | 'muted';
 type MemberPresenceTone = VoicePresenceTone | 'inactive';
 type MobilePanel = 'servers' | 'channels' | 'members' | null;
+type VoiceAccessRole = 'owner' | 'resident' | 'stranger';
 
 interface LoginFormModel {
   login: string;
@@ -73,6 +79,18 @@ interface GroupMemberItem {
   voiceParticipant: VoiceParticipant | null;
 }
 
+interface VoiceAdminAssignmentFormModel {
+  userId: string;
+  role: VoiceAccessRole;
+}
+
+interface PendingVoiceJoinState {
+  requestId: string;
+  channelId: string;
+  channelName: string;
+  detail: string;
+}
+
 const SESSION_STORAGE_KEY = 'tescord.session';
 const MESSAGES_PAGE_SIZE = 25;
 const MAX_ATTACHMENT_SIZE_BYTES = 50 * 1024 * 1024;
@@ -81,6 +99,8 @@ const MEMBERS_POLL_INTERVAL_MS = 15000;
 const PRESENCE_ACTIVITY_THROTTLE_MS = 15000;
 const PRESENCE_KEEPALIVE_INTERVAL_MS = 30000;
 const VOICE_PRESENCE_POLL_INTERVAL_MS = 3000;
+const VOICE_JOIN_REQUEST_POLL_INTERVAL_MS = 3000;
+const VOICE_JOIN_INBOX_POLL_INTERVAL_MS = 3000;
 
 @Component({
   selector: 'app-root',
@@ -108,6 +128,8 @@ export class AppComponent {
   private memberPollIntervalId: number | null = null;
   private messageAutoRefreshIntervalId: number | null = null;
   private presenceKeepaliveIntervalId: number | null = null;
+  private voiceJoinRequestPollIntervalId: number | null = null;
+  private voiceJoinInboxPollIntervalId: number | null = null;
   private lastPresenceHeartbeatAt = 0;
 
   @ViewChild('messageList')
@@ -147,14 +169,29 @@ export class AppComponent {
   readonly selectedServerId = signal<string | null>(null);
   readonly selectedChannelId = signal<string | null>(null);
   readonly settingsPanelOpen = signal(false);
+  readonly voiceAdminPanelOpen = signal(false);
   readonly createGroupModalOpen = signal(false);
   readonly createChannelModalOpen = signal(false);
   readonly selectedMemberUserId = signal<string | null>(null);
+  readonly selectedVoiceMemberChannelId = signal<string | null>(null);
   readonly openedImageAttachmentId = signal<string | null>(null);
   readonly mobilePanel = signal<MobilePanel>(null);
   readonly messageDraft = signal('');
   readonly pendingFiles = signal<File[]>([]);
   readonly autoRefreshEnabled = signal(false);
+  readonly voiceAdminChannelsLoading = signal(false);
+  readonly voiceAdminUsersLoading = signal(false);
+  readonly voiceAdminAccessLoading = signal(false);
+  readonly voiceAdminSaving = signal(false);
+  readonly voiceOwnerActionLoading = signal(false);
+  readonly pendingVoiceJoin = signal<PendingVoiceJoinState | null>(null);
+  readonly ownerVoiceRequests = signal<VoiceJoinRequestSummary[]>([]);
+  readonly activeOwnerRequestId = signal<string | null>(null);
+  readonly ownerVoiceRequestModalOpen = signal(false);
+  readonly voiceAdminChannels = signal<VoiceAdminChannel[]>([]);
+  readonly voiceAdminUsers = signal<VoiceAdminUser[]>([]);
+  readonly voiceAdminSelectedChannelId = signal<string | null>(null);
+  readonly voiceAccessEntriesByChannelId = signal<Record<string, VoiceChannelAccessEntry[]>>({});
 
   readonly loginForm: LoginFormModel = {
     login: '',
@@ -178,6 +215,11 @@ export class AppComponent {
     name: '',
     topic: '',
     type: 'text'
+  };
+
+  readonly voiceAdminAssignmentForm: VoiceAdminAssignmentFormModel = {
+    userId: '',
+    role: 'resident'
   };
 
   readonly isAuthenticated = computed(() => this.session() !== null);
@@ -461,6 +503,82 @@ export class AppComponent {
     return this.voiceRoom.getParticipantVolume(member.userId);
   });
 
+  readonly voiceAdminSelectedChannel = computed(() => {
+    const selectedChannelId = this.voiceAdminSelectedChannelId();
+    return this.voiceAdminChannels().find((channel) => channel.channel_id === selectedChannelId) ?? null;
+  });
+
+  readonly voiceAdminSelectedChannelAccess = computed(() => {
+    const selectedChannelId = this.voiceAdminSelectedChannelId();
+    if (!selectedChannelId) {
+      return [];
+    }
+
+    return this.voiceAccessEntriesByChannelId()[selectedChannelId] ?? [];
+  });
+
+  readonly activeOwnerRequest = computed(() => {
+    if (!this.ownerVoiceRequestModalOpen()) {
+      return null;
+    }
+
+    const requests = this.ownerVoiceRequests();
+    const activeRequestId = this.activeOwnerRequestId();
+    return requests.find((request) => request.id === activeRequestId) ?? requests[0] ?? null;
+  });
+
+  readonly selectedVoiceMemberAccessEntry = computed(() => {
+    const userId = this.selectedMemberUserId();
+    const channelId = this.selectedVoiceMemberChannelId();
+    if (!userId || !channelId) {
+      return null;
+    }
+
+    const entries = this.voiceAccessEntriesByChannelId()[channelId] ?? [];
+    return entries.find((entry) => entry.user_id === userId) ?? null;
+  });
+
+  readonly selectedVoiceManagerAccessEntry = computed(() => {
+    const currentUserId = this.currentUser()?.id;
+    const channelId = this.selectedVoiceMemberChannelId();
+    if (!currentUserId || !channelId) {
+      return null;
+    }
+
+    const entries = this.voiceAccessEntriesByChannelId()[channelId] ?? [];
+    return entries.find((entry) => entry.user_id === currentUserId) ?? null;
+  });
+
+  readonly canManageSelectedVoiceMember = computed(() => {
+    const member = this.selectedMember();
+    if (!member || member.isSelf) {
+      return false;
+    }
+
+    if (this.currentUser()?.is_admin) {
+      return true;
+    }
+
+    return this.selectedVoiceManagerAccessEntry()?.role === 'owner';
+  });
+
+  readonly selectedVoiceMemberRoleLabel = computed(() => {
+    const role = this.selectedVoiceMemberAccessEntry()?.role;
+    if (role === 'owner') {
+      return 'владелец';
+    }
+
+    if (role === 'resident') {
+      return 'житель';
+    }
+
+    if (role === 'stranger') {
+      return 'чужак';
+    }
+
+    return 'нет доступа';
+  });
+
   readonly openedImageAttachment = computed(() => {
     const attachmentId = this.openedImageAttachmentId();
     if (!attachmentId) {
@@ -532,6 +650,8 @@ export class AppComponent {
       this.stopVoicePresencePolling();
       this.stopMemberPolling();
       this.stopMessageAutoRefreshPolling();
+      this.stopVoiceJoinRequestPolling();
+      this.stopVoiceJoinInboxPolling();
       this.stopPresenceKeepalive();
       this.teardownPresenceActivityTracking();
       this.clearAttachmentPreviews();
@@ -608,6 +728,22 @@ export class AppComponent {
     void this.voiceRoom.refreshDevices();
   }
 
+  openVoiceAdminPanel(): void {
+    if (!this.isAdmin()) {
+      return;
+    }
+
+    this.closeMobilePanel();
+    this.voiceAdminPanelOpen.set(true);
+    this.managementError.set(null);
+    this.managementSuccess.set(null);
+    void this.loadVoiceAdminData();
+  }
+
+  closeVoiceAdminPanel(): void {
+    this.voiceAdminPanelOpen.set(false);
+  }
+
   closeVoiceSettings(): void {
     this.settingsPanelOpen.set(false);
   }
@@ -643,13 +779,116 @@ export class AppComponent {
     this.createChannelModalOpen.set(false);
   }
 
-  openMemberVolume(member: GroupMemberItem): void {
+  openMemberVolume(member: GroupMemberItem, voiceChannelId: string | null = null): void {
     this.closeMobilePanel();
     this.selectedMemberUserId.set(member.userId);
+    this.selectedVoiceMemberChannelId.set(voiceChannelId);
+    const currentChannel = voiceChannelId
+      ? this.channels().find((channel) => channel.id === voiceChannelId) ?? null
+      : null;
+    const canManageVoiceChannel =
+      this.currentUser()?.is_admin === true || currentChannel?.voice_access_role === 'owner';
+
+    if (voiceChannelId && canManageVoiceChannel) {
+      void this.ensureVoiceChannelAccessLoaded(voiceChannelId);
+    }
   }
 
   closeMemberVolume(): void {
     this.selectedMemberUserId.set(null);
+    this.selectedVoiceMemberChannelId.set(null);
+  }
+
+  selectVoiceAdminChannel(channelId: string): void {
+    this.voiceAdminSelectedChannelId.set(channelId);
+    void this.ensureVoiceChannelAccessLoaded(channelId, true);
+  }
+
+  submitVoiceAdminAssignment(): void {
+    const token = this.session()?.access_token;
+    const channelId = this.voiceAdminSelectedChannelId();
+    if (!token || !channelId || !this.voiceAdminAssignmentForm.userId) {
+      return;
+    }
+
+    this.voiceAdminSaving.set(true);
+    this.managementError.set(null);
+
+    this.workspaceApi
+      .updateVoiceChannelAccess(
+        token,
+        channelId,
+        this.voiceAdminAssignmentForm.userId,
+        this.voiceAdminAssignmentForm.role
+      )
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (entries) => {
+          this.voiceAdminSaving.set(false);
+          this.setVoiceChannelAccessEntries(channelId, entries);
+          this.voiceAdminAssignmentForm.userId = '';
+          this.managementSuccess.set('Доступ к голосовому каналу обновлен');
+          void this.refreshVoiceAdminChannels();
+        },
+        error: (error) => {
+          this.voiceAdminSaving.set(false);
+          this.managementError.set(this.extractErrorMessage(error, 'Не удалось обновить доступ к голосовому каналу'));
+        }
+      });
+  }
+
+  applyVoiceAdminRole(userId: string, role: VoiceAccessRole): void {
+    const token = this.session()?.access_token;
+    const channelId = this.voiceAdminSelectedChannelId();
+    if (!token || !channelId) {
+      return;
+    }
+
+    this.voiceAdminSaving.set(true);
+    this.managementError.set(null);
+
+    this.workspaceApi
+      .updateVoiceChannelAccess(token, channelId, userId, role)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (entries) => {
+          this.voiceAdminSaving.set(false);
+          this.setVoiceChannelAccessEntries(channelId, entries);
+          this.managementSuccess.set('Роль доступа обновлена');
+          void this.refreshVoiceAdminChannels();
+        },
+        error: (error) => {
+          this.voiceAdminSaving.set(false);
+          this.managementError.set(this.extractErrorMessage(error, 'Не удалось обновить роль доступа'));
+        }
+      });
+  }
+
+  removeVoiceAdminAccess(userId: string): void {
+    const token = this.session()?.access_token;
+    const channelId = this.voiceAdminSelectedChannelId();
+    if (!token || !channelId) {
+      return;
+    }
+
+    this.voiceAdminSaving.set(true);
+    this.managementError.set(null);
+
+    this.workspaceApi
+      .updateVoiceChannelAccess(token, channelId, userId, null)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (entries) => {
+          this.voiceAdminSaving.set(false);
+          this.setVoiceChannelAccessEntries(channelId, entries);
+          this.managementSuccess.set('Пользователь скрыт из голосового канала');
+          void this.refreshVoiceAdminChannels();
+        },
+        error: (error) => {
+          this.voiceAdminSaving.set(false);
+          this.managementError.set(this.extractErrorMessage(error, 'Не удалось убрать доступ к голосовому каналу'));
+        }
+      });
   }
 
   submitCreateGroup(): void {
@@ -877,7 +1116,7 @@ export class AppComponent {
       return;
     }
 
-    await this.connectToVoiceChannel(activeChannel);
+    await this.handleVoiceChannelSelection(activeChannel);
   }
 
   leaveVoiceChannel(): void {
@@ -930,10 +1169,128 @@ export class AppComponent {
     this.voiceRoom.updateParticipantVolume(userId, this.toRangeValue(value));
   }
 
+  openVoiceParticipantControls(userId: string, channelId: string): void {
+    if (!channelId) {
+      return;
+    }
+
+    const member = this.groupMembers().find((entry) => entry.userId === userId);
+    if (!member) {
+      return;
+    }
+
+    this.openMemberVolume(member, channelId);
+  }
+
+  setSelectedVoiceMemberRole(role: Extract<VoiceAccessRole, 'resident' | 'stranger'>): void {
+    const token = this.session()?.access_token;
+    const channelId = this.selectedVoiceMemberChannelId();
+    const member = this.selectedMember();
+    if (!token || !channelId || !member) {
+      return;
+    }
+
+    this.voiceOwnerActionLoading.set(true);
+    this.managementError.set(null);
+
+    this.workspaceApi
+      .updateVoiceChannelAccess(token, channelId, member.userId, role)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (entries) => {
+          this.voiceOwnerActionLoading.set(false);
+          this.setVoiceChannelAccessEntries(channelId, entries);
+          this.managementSuccess.set(
+            role === 'resident'
+              ? `${member.nick} теперь житель канала`
+              : `${member.nick} теперь чужак канала`
+          );
+        },
+        error: (error) => {
+          this.voiceOwnerActionLoading.set(false);
+          this.managementError.set(this.extractErrorMessage(error, 'Не удалось изменить роль участника'));
+        }
+      });
+  }
+
+  kickSelectedVoiceMember(): void {
+    const token = this.session()?.access_token;
+    const channelId = this.selectedVoiceMemberChannelId();
+    const member = this.selectedMember();
+    if (!token || !channelId || !member) {
+      return;
+    }
+
+    this.voiceOwnerActionLoading.set(true);
+    this.managementError.set(null);
+
+    this.workspaceApi
+      .kickVoiceParticipant(token, channelId, member.userId)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (entries) => {
+          this.voiceOwnerActionLoading.set(false);
+          this.setVoiceChannelAccessEntries(channelId, entries);
+          this.managementSuccess.set(`${member.nick} выгнан из канала на 5 минут`);
+        },
+        error: (error) => {
+          this.voiceOwnerActionLoading.set(false);
+          this.managementError.set(this.extractErrorMessage(error, 'Не удалось выгнать участника'));
+        }
+      });
+  }
+
+  closePendingVoiceJoin(): void {
+    this.pendingVoiceJoin.set(null);
+    this.stopVoiceJoinRequestPolling();
+  }
+
+  closeActiveOwnerRequest(): void {
+    this.ownerVoiceRequestModalOpen.set(false);
+    this.activeOwnerRequestId.set(null);
+  }
+
+  resolveActiveVoiceRequest(action: 'allow' | 'resident' | 'reject'): void {
+    const token = this.session()?.access_token;
+    const activeRequest = this.activeOwnerRequest();
+    if (!token || !activeRequest) {
+      return;
+    }
+
+    this.voiceOwnerActionLoading.set(true);
+    this.managementError.set(null);
+
+    this.workspaceApi
+      .resolveVoiceJoinRequest(token, activeRequest.id, action)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.voiceOwnerActionLoading.set(false);
+          this.ownerVoiceRequests.update((requests) => requests.filter((request) => request.id !== activeRequest.id));
+          this.activeOwnerRequestId.set(this.ownerVoiceRequests()[0]?.id ?? null);
+          this.ownerVoiceRequestModalOpen.set(this.ownerVoiceRequests().length > 0);
+          this.managementSuccess.set(
+            action === 'allow'
+              ? 'Пользователь может зайти в канал'
+              : action === 'resident'
+                ? 'Пользователь стал жителем канала'
+                : 'Пользователь выгнан и не сможет зайти 5 минут'
+          );
+          void this.refreshVoiceJoinInbox();
+        },
+        error: (error) => {
+          this.voiceOwnerActionLoading.set(false);
+          this.managementError.set(this.extractErrorMessage(error, 'Не удалось обработать запрос на вход'));
+        }
+      });
+  }
+
   logout(): void {
     this.stopMemberPolling();
     this.stopVoicePresencePolling();
     this.stopMessageAutoRefreshPolling();
+    this.stopVoiceJoinRequestPolling();
+    this.stopVoiceJoinInboxPolling();
     this.voiceRoom.leave();
     this.lastPresenceHeartbeatAt = 0;
     this.session.set(null);
@@ -946,10 +1303,20 @@ export class AppComponent {
     this.selectedServerId.set(null);
     this.selectedChannelId.set(null);
     this.settingsPanelOpen.set(false);
+    this.voiceAdminPanelOpen.set(false);
     this.createGroupModalOpen.set(false);
     this.createChannelModalOpen.set(false);
     this.selectedMemberUserId.set(null);
+    this.selectedVoiceMemberChannelId.set(null);
     this.mobilePanel.set(null);
+    this.pendingVoiceJoin.set(null);
+    this.ownerVoiceRequests.set([]);
+    this.activeOwnerRequestId.set(null);
+    this.ownerVoiceRequestModalOpen.set(false);
+    this.voiceAdminChannels.set([]);
+    this.voiceAdminUsers.set([]);
+    this.voiceAdminSelectedChannelId.set(null);
+    this.voiceAccessEntriesByChannelId.set({});
     this.authError.set(null);
     this.workspaceError.set(null);
     this.messageError.set(null);
@@ -974,6 +1341,7 @@ export class AppComponent {
     this.stopMemberPolling();
     this.stopVoicePresencePolling();
     this.stopMessageAutoRefreshPolling();
+    this.closePendingVoiceJoin();
     if (this.hasVoiceConnection()) {
       this.voiceRoom.leave();
     }
@@ -992,7 +1360,7 @@ export class AppComponent {
     if (channel.type === 'voice') {
       this.resetTextChannelState();
       this.syncMessageAutoRefreshPolling();
-      await this.connectToVoiceChannel(channel);
+      await this.handleVoiceChannelSelection(channel);
       return;
     }
 
@@ -1080,6 +1448,49 @@ export class AppComponent {
     this.voicePresencePollIntervalId = window.setInterval(() => {
       void this.refreshVoicePresence();
     }, VOICE_PRESENCE_POLL_INTERVAL_MS);
+  }
+
+  private startVoiceJoinInboxPolling(): void {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    this.stopVoiceJoinInboxPolling(false);
+    void this.refreshVoiceJoinInbox();
+    this.voiceJoinInboxPollIntervalId = window.setInterval(() => {
+      void this.refreshVoiceJoinInbox();
+    }, VOICE_JOIN_INBOX_POLL_INTERVAL_MS);
+  }
+
+  private stopVoiceJoinInboxPolling(clearState = true): void {
+    if (this.voiceJoinInboxPollIntervalId !== null) {
+      window.clearInterval(this.voiceJoinInboxPollIntervalId);
+      this.voiceJoinInboxPollIntervalId = null;
+    }
+
+    if (clearState) {
+      this.ownerVoiceRequests.set([]);
+      this.activeOwnerRequestId.set(null);
+      this.ownerVoiceRequestModalOpen.set(false);
+    }
+  }
+
+  private startVoiceJoinRequestPolling(): void {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    this.stopVoiceJoinRequestPolling();
+    this.voiceJoinRequestPollIntervalId = window.setInterval(() => {
+      void this.refreshPendingVoiceJoin();
+    }, VOICE_JOIN_REQUEST_POLL_INTERVAL_MS);
+  }
+
+  private stopVoiceJoinRequestPolling(): void {
+    if (this.voiceJoinRequestPollIntervalId !== null) {
+      window.clearInterval(this.voiceJoinRequestPollIntervalId);
+      this.voiceJoinRequestPollIntervalId = null;
+    }
   }
 
   private startMemberPolling(): void {
@@ -1261,6 +1672,207 @@ export class AppComponent {
       });
   }
 
+  private async refreshVoiceJoinInbox(): Promise<void> {
+    const token = this.session()?.access_token;
+    if (!token) {
+      this.ownerVoiceRequests.set([]);
+      this.activeOwnerRequestId.set(null);
+      this.ownerVoiceRequestModalOpen.set(false);
+      return;
+    }
+
+    this.workspaceApi
+      .getVoiceJoinInbox(token)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (requests) => {
+          this.ownerVoiceRequests.set(requests);
+          if (requests.length) {
+            this.ownerVoiceRequestModalOpen.set(true);
+          } else {
+            this.ownerVoiceRequestModalOpen.set(false);
+          }
+          const activeRequestId = this.activeOwnerRequestId();
+          if (activeRequestId && requests.some((request) => request.id === activeRequestId)) {
+            return;
+          }
+
+          this.activeOwnerRequestId.set(requests[0]?.id ?? null);
+        },
+        error: () => {
+          this.ownerVoiceRequests.set([]);
+          this.activeOwnerRequestId.set(null);
+          this.ownerVoiceRequestModalOpen.set(false);
+        }
+      });
+  }
+
+  private async refreshPendingVoiceJoin(): Promise<void> {
+    const token = this.session()?.access_token;
+    const pendingJoin = this.pendingVoiceJoin();
+    if (!token || !pendingJoin) {
+      this.stopVoiceJoinRequestPolling();
+      return;
+    }
+
+    this.workspaceApi
+      .getVoiceJoinRequest(token, pendingJoin.requestId)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: async (request) => {
+          if (request.status === 'pending') {
+            return;
+          }
+
+          this.stopVoiceJoinRequestPolling();
+
+          if (request.status === 'allowed' || request.status === 'resident') {
+            const tokenValue = this.session()?.access_token;
+            const selectedServerId = this.selectedServerId();
+            if (tokenValue && selectedServerId) {
+              void this.refreshChannelsForCurrentServer(tokenValue);
+            }
+
+            const channel = this.channels().find((entry) => entry.id === request.channel_id) ?? this.activeChannel();
+            this.pendingVoiceJoin.set(null);
+            if (channel && channel.type === 'voice') {
+              await this.connectToVoiceChannel({
+                ...channel,
+                voice_access_role: request.status === 'resident' ? 'resident' : 'stranger'
+              });
+            }
+            return;
+          }
+
+          this.pendingVoiceJoin.set(null);
+          this.workspaceError.set('Владелец канала отклонил вход. Повторить попытку можно через 5 минут.');
+        },
+        error: () => {
+          this.stopVoiceJoinRequestPolling();
+        }
+      });
+  }
+
+  private async loadVoiceAdminData(): Promise<void> {
+    const token = this.session()?.access_token;
+    if (!token || !this.isAdmin()) {
+      return;
+    }
+
+    this.voiceAdminChannelsLoading.set(true);
+    this.voiceAdminUsersLoading.set(true);
+
+    forkJoin({
+      channels: this.workspaceApi.getVoiceAdminChannels(token),
+      users: this.workspaceApi.getVoiceAdminUsers(token)
+    })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: ({ channels, users }) => {
+          this.voiceAdminChannelsLoading.set(false);
+          this.voiceAdminUsersLoading.set(false);
+          this.voiceAdminChannels.set(channels);
+          this.voiceAdminUsers.set(users);
+
+          const preferredChannelId = this.voiceAdminSelectedChannelId();
+          const nextChannelId =
+            (preferredChannelId && channels.some((channel) => channel.channel_id === preferredChannelId)
+              ? preferredChannelId
+              : null)
+            ?? channels[0]?.channel_id
+            ?? null;
+
+          this.voiceAdminSelectedChannelId.set(nextChannelId);
+          if (!this.voiceAdminAssignmentForm.userId) {
+            this.voiceAdminAssignmentForm.userId = users[0]?.user_id ?? '';
+          }
+          if (nextChannelId) {
+            void this.ensureVoiceChannelAccessLoaded(nextChannelId, true);
+          }
+        },
+        error: (error) => {
+          this.voiceAdminChannelsLoading.set(false);
+          this.voiceAdminUsersLoading.set(false);
+          this.managementError.set(this.extractErrorMessage(error, 'Не удалось загрузить голосовые каналы для управления'));
+        }
+      });
+  }
+
+  private async refreshVoiceAdminChannels(): Promise<void> {
+    const token = this.session()?.access_token;
+    if (!token || !this.isAdmin()) {
+      return;
+    }
+
+    this.workspaceApi
+      .getVoiceAdminChannels(token)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (channels) => {
+          this.voiceAdminChannels.set(channels);
+        },
+        error: () => {
+          // Keep existing state until the next successful refresh.
+        }
+      });
+  }
+
+  private async ensureVoiceChannelAccessLoaded(channelId: string, force = false): Promise<void> {
+    const token = this.session()?.access_token;
+    if (!token) {
+      return;
+    }
+
+    if (!force && this.voiceAccessEntriesByChannelId()[channelId]) {
+      return;
+    }
+
+    this.voiceAdminAccessLoading.set(true);
+    this.workspaceApi
+      .getVoiceChannelAccess(token, channelId)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (entries) => {
+          this.voiceAdminAccessLoading.set(false);
+          this.setVoiceChannelAccessEntries(channelId, entries);
+        },
+        error: (error) => {
+          this.voiceAdminAccessLoading.set(false);
+          this.managementError.set(this.extractErrorMessage(error, 'Не удалось загрузить список ролей голосового канала'));
+        }
+      });
+  }
+
+  private setVoiceChannelAccessEntries(channelId: string, entries: VoiceChannelAccessEntry[]): void {
+    this.voiceAccessEntriesByChannelId.update((currentState) => ({
+      ...currentState,
+      [channelId]: entries
+    }));
+  }
+
+  private async refreshChannelsForCurrentServer(token: string): Promise<void> {
+    const serverId = this.selectedServerId();
+    if (!serverId) {
+      return;
+    }
+
+    this.workspaceApi
+      .getChannels(token, serverId)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (channels) => {
+          if (this.selectedServerId() !== serverId) {
+            return;
+          }
+
+          this.channels.set(channels);
+        },
+        error: () => {
+          // Keep current list until the next successful refresh.
+        }
+      });
+  }
+
   private loadHealth(): void {
     this.systemApi
       .getHealth()
@@ -1296,6 +1908,7 @@ export class AppComponent {
       this.session.set(session);
       this.currentUser.set(session.user);
       this.schedulePresenceHeartbeat(true);
+      this.startVoiceJoinInboxPolling();
       this.bootstrapWorkspace(session.access_token);
     } catch {
       this.clearStoredSession();
@@ -1307,6 +1920,7 @@ export class AppComponent {
     this.currentUser.set(session.user);
     this.persistSession(session);
     this.schedulePresenceHeartbeat(true);
+    this.startVoiceJoinInboxPolling();
     this.authLoading.set(false);
     this.authError.set(null);
     this.managementError.set(null);
@@ -1357,6 +1971,7 @@ export class AppComponent {
           this.stopMemberPolling();
           this.stopVoicePresencePolling();
           this.stopMessageAutoRefreshPolling();
+          this.stopVoiceJoinInboxPolling();
           this.workspaceLoading.set(false);
           this.voiceRoom.leave();
           this.session.set(null);
@@ -1387,6 +2002,7 @@ export class AppComponent {
     this.selectedServerId.set(serverId);
     this.selectedChannelId.set(null);
     this.selectedMemberUserId.set(null);
+    this.selectedVoiceMemberChannelId.set(null);
     this.voicePresence.set([]);
     this.resetTextChannelState();
 
@@ -1436,6 +2052,53 @@ export class AppComponent {
       });
   }
 
+  private async handleVoiceChannelSelection(channel: WorkspaceChannel): Promise<void> {
+    if (channel.voice_access_role === 'stranger') {
+      await this.requestVoiceChannelEntry(channel);
+      return;
+    }
+
+    await this.connectToVoiceChannel(channel);
+  }
+
+  private async requestVoiceChannelEntry(channel: WorkspaceChannel): Promise<void> {
+    const token = this.session()?.access_token;
+    if (!token) {
+      return;
+    }
+
+    this.workspaceError.set(null);
+
+    this.workspaceApi
+      .requestVoiceJoin(token, channel.id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: async (response: VoiceJoinRequestCreateResponse) => {
+          if (response.can_join_now) {
+            this.pendingVoiceJoin.set(null);
+            await this.connectToVoiceChannel(channel);
+            return;
+          }
+
+          if (!response.request) {
+            this.workspaceError.set(response.detail);
+            return;
+          }
+
+          this.pendingVoiceJoin.set({
+            requestId: response.request.id,
+            channelId: response.request.channel_id,
+            channelName: response.request.channel_name,
+            detail: response.detail,
+          });
+          this.startVoiceJoinRequestPolling();
+        },
+        error: (error) => {
+          this.workspaceError.set(this.extractErrorMessage(error, 'Не удалось отправить запрос владельцу канала'));
+        }
+      });
+  }
+
   private async connectToVoiceChannel(channel: WorkspaceChannel): Promise<void> {
     const token = this.session()?.access_token;
     const currentUser = this.currentUser();
@@ -1445,6 +2108,11 @@ export class AppComponent {
 
     this.workspaceError.set(null);
     await this.voiceRoom.join(channel.id, token, currentUser);
+    this.pendingVoiceJoin.set(null);
+    this.stopVoiceJoinRequestPolling();
+    if (this.currentUser()?.is_admin || channel.voice_access_role === 'owner') {
+      void this.ensureVoiceChannelAccessLoaded(channel.id, true);
+    }
   }
 
   private loadMessagesForChannel(token: string, channelId: string, before?: string | null): void {

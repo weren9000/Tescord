@@ -27,6 +27,7 @@ class ChannelSummary(BaseModel):
     topic: str | None
     type: str
     position: int
+    voice_access_role: str | None = None
 
 
 class ServerMemberSummary(BaseModel):

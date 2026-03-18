@@ -23,6 +23,7 @@ export interface WorkspaceChannel {
   topic: string | null;
   type: 'text' | 'voice' | 'announcement';
   position: number;
+  voice_access_role: 'owner' | 'resident' | 'stranger' | null;
 }
 
 export interface WorkspaceMember {
@@ -92,4 +93,48 @@ export interface WorkspaceMessagePage {
   items: WorkspaceMessage[];
   has_more: boolean;
   next_before: string | null;
+}
+
+export interface VoiceAdminChannel {
+  channel_id: string;
+  server_id: string;
+  server_name: string;
+  channel_name: string;
+  owner_user_id: string | null;
+  owner_nick: string | null;
+}
+
+export interface VoiceAdminUser {
+  user_id: string;
+  login: string;
+  nick: string;
+  full_name: string;
+}
+
+export interface VoiceChannelAccessEntry {
+  user_id: string;
+  login: string;
+  nick: string;
+  full_name: string;
+  role: 'owner' | 'resident' | 'stranger';
+  blocked_until: string | null;
+  temporary_access_until: string | null;
+}
+
+export interface VoiceJoinRequestSummary {
+  id: string;
+  channel_id: string;
+  channel_name: string;
+  requester_user_id: string;
+  requester_nick: string;
+  requester_full_name: string;
+  status: 'pending' | 'allowed' | 'resident' | 'rejected' | 'cancelled';
+  created_at: string;
+  resolved_at: string | null;
+}
+
+export interface VoiceJoinRequestCreateResponse {
+  request: VoiceJoinRequestSummary | null;
+  can_join_now: boolean;
+  detail: string;
 }

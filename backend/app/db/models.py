@@ -28,6 +28,20 @@ class MemberRole(str, enum.Enum):
     MEMBER = "member"
 
 
+class VoiceAccessRole(str, enum.Enum):
+    OWNER = "owner"
+    RESIDENT = "resident"
+    STRANGER = "stranger"
+
+
+class VoiceJoinRequestStatus(str, enum.Enum):
+    PENDING = "pending"
+    ALLOWED = "allowed"
+    RESIDENT = "resident"
+    REJECTED = "rejected"
+    CANCELLED = "cancelled"
+
+
 class MessageType(str, enum.Enum):
     TEXT = "text"
     SYSTEM = "system"
@@ -58,6 +72,11 @@ class User(TimestampMixin, Base):
     memberships: Mapped[list["ServerMember"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     messages: Mapped[list["Message"]] = relationship(back_populates="author", cascade="all, delete-orphan")
     created_channels: Mapped[list["Channel"]] = relationship(back_populates="created_by")
+    voice_permissions: Mapped[list["VoiceChannelAccess"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    requested_voice_joins: Mapped[list["VoiceJoinRequest"]] = relationship(
+        back_populates="requester",
+        cascade="all, delete-orphan",
+    )
 
 
 class Server(TimestampMixin, Base):
@@ -93,6 +112,14 @@ class Channel(TimestampMixin, Base):
     server: Mapped["Server"] = relationship(back_populates="channels")
     created_by: Mapped["User"] = relationship(back_populates="created_channels")
     messages: Mapped[list["Message"]] = relationship(back_populates="channel", cascade="all, delete-orphan")
+    voice_permissions: Mapped[list["VoiceChannelAccess"]] = relationship(
+        back_populates="channel",
+        cascade="all, delete-orphan",
+    )
+    voice_join_requests: Mapped[list["VoiceJoinRequest"]] = relationship(
+        back_populates="channel",
+        cascade="all, delete-orphan",
+    )
 
 
 class ServerMember(Base):
@@ -147,3 +174,45 @@ class Attachment(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     message: Mapped["Message"] = relationship(back_populates="attachments")
+
+
+class VoiceChannelAccess(TimestampMixin, Base):
+    __tablename__ = "voice_channel_access"
+    __table_args__ = (
+        UniqueConstraint("channel_id", "user_id", name="uq_voice_channel_access_channel_user"),
+        Index("ix_voice_channel_access_user_role", "user_id", "role"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    channel_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("channels.id", ondelete="CASCADE"), nullable=False)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    role: Mapped[VoiceAccessRole] = mapped_column(
+        Enum(VoiceAccessRole, name="voiceaccessrole", values_callable=enum_values),
+        nullable=False,
+    )
+    blocked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    temporary_access_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    channel: Mapped["Channel"] = relationship(back_populates="voice_permissions")
+    user: Mapped["User"] = relationship(back_populates="voice_permissions")
+
+
+class VoiceJoinRequest(TimestampMixin, Base):
+    __tablename__ = "voice_join_requests"
+    __table_args__ = (
+        Index("ix_voice_join_requests_status_created_at", "status", "created_at"),
+        Index("ix_voice_join_requests_requester", "requester_user_id", "channel_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    channel_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("channels.id", ondelete="CASCADE"), nullable=False)
+    requester_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    status: Mapped[VoiceJoinRequestStatus] = mapped_column(
+        Enum(VoiceJoinRequestStatus, name="voicejoinrequeststatus", values_callable=enum_values),
+        default=VoiceJoinRequestStatus.PENDING,
+        nullable=False,
+    )
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    channel: Mapped["Channel"] = relationship(back_populates="voice_join_requests")
+    requester: Mapped["User"] = relationship(back_populates="requested_voice_joins")

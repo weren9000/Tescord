@@ -9,6 +9,7 @@ from app.core.config import get_settings
 from app.core.security import hash_password, verify_password
 from app.db.models import Channel, ChannelType, MemberRole, Message, MessageType, Server, ServerMember, User
 from app.db.session import SessionLocal
+from app.services.voice_access import ensure_voice_channel_owner_permission
 
 
 def _slugify(value: str) -> str:
@@ -127,6 +128,11 @@ def ensure_development_seed_data() -> None:
                 channel.type = channel_type
 
         db.flush()
+
+        for channel in db.execute(
+            select(Channel).where(Channel.server_id == server.id, Channel.type == ChannelType.VOICE)
+        ).scalars():
+            ensure_voice_channel_owner_permission(db, channel)
 
         seeded_channels = {
             channel.name: channel

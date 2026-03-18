@@ -41,6 +41,12 @@ def register_regular_user(client: TestClient) -> tuple[str, dict[str, str]]:
     return response.json()["access_token"], payload
 
 
+def get_current_user_profile(client: TestClient, token: str) -> dict[str, str]:
+    response = client.get("/api/me", headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 200
+    return response.json()
+
+
 def send_presence_heartbeat(client: TestClient, token: str) -> None:
     response = client.post("/api/presence/heartbeat", headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 204
@@ -238,8 +244,12 @@ def test_regular_user_can_access_all_groups_channels_and_members() -> None:
     with TestClient(app) as client:
         token, payload = register_regular_user(client)
         try:
-            server, _ = get_seed_server_and_voice_channel(client, token)
+            server, text_channel = get_seed_server_and_text_channel(client, token)
             servers_response = client.get("/api/servers", headers={"Authorization": f"Bearer {token}"})
+            channels_response = client.get(
+                f"/api/servers/{server['id']}/channels",
+                headers={"Authorization": f"Bearer {token}"},
+            )
             members_response = client.get(
                 f"/api/servers/{server['id']}/members",
                 headers={"Authorization": f"Bearer {token}"},
@@ -250,6 +260,11 @@ def test_regular_user_can_access_all_groups_channels_and_members() -> None:
     assert servers_response.status_code == 200
     listed_server = next(item for item in servers_response.json() if item["id"] == server["id"])
     assert listed_server["member_role"] == "member"
+
+    assert channels_response.status_code == 200
+    channels = channels_response.json()
+    assert any(channel["id"] == text_channel["id"] for channel in channels)
+    assert all(channel["type"] != "voice" for channel in channels)
 
     assert members_response.status_code == 200
     members = members_response.json()
@@ -308,11 +323,76 @@ def test_voice_websocket_connects_and_returns_room_state() -> None:
             assert pong == {"type": "pong"}
 
 
-def test_regular_user_can_join_voice_channel() -> None:
+def test_regular_user_can_join_voice_channel_as_resident() -> None:
     with TestClient(app) as client:
+        admin_token = login_admin_user(client)
         token, payload = register_regular_user(client)
         try:
-            _, voice_channel = get_seed_server_and_voice_channel(client, token)
+            _, voice_channel = get_seed_server_and_voice_channel(client, admin_token)
+            current_user = get_current_user_profile(client, token)
+            assign_response = client.put(
+                f"/api/voice/channels/{voice_channel['id']}/access/{current_user['id']}",
+                headers={"Authorization": f"Bearer {admin_token}"},
+                json={"role": "resident"},
+            )
+            assert assign_response.status_code == 200
+
+            with client.websocket_connect(f"/api/voice/channels/{voice_channel['id']}/ws?token={token}") as socket:
+                room_state = socket.receive_json()
+                assert room_state["type"] == "room_state"
+                assert isinstance(room_state["self_id"], str)
+        finally:
+            delete_user(payload["login"])
+
+
+def test_stranger_can_request_voice_access_and_join_after_owner_allows() -> None:
+    with TestClient(app) as client:
+        admin_token = login_admin_user(client)
+        token, payload = register_regular_user(client)
+        try:
+            _, voice_channel = get_seed_server_and_voice_channel(client, admin_token)
+            current_user = get_current_user_profile(client, token)
+            assign_response = client.put(
+                f"/api/voice/channels/{voice_channel['id']}/access/{current_user['id']}",
+                headers={"Authorization": f"Bearer {admin_token}"},
+                json={"role": "stranger"},
+            )
+            assert assign_response.status_code == 200
+
+            channels_response = client.get(
+                f"/api/servers/{voice_channel['server_id']}/channels",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+            assert channels_response.status_code == 200
+            listed_voice_channel = next(
+                channel for channel in channels_response.json() if channel["id"] == voice_channel["id"]
+            )
+            assert listed_voice_channel["voice_access_role"] == "stranger"
+
+            request_response = client.post(
+                f"/api/voice/channels/{voice_channel['id']}/requests",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+            assert request_response.status_code == 200
+            request_payload = request_response.json()
+            assert request_payload["can_join_now"] is False
+            request_id = request_payload["request"]["id"]
+
+            inbox_response = client.get(
+                "/api/voice/requests/inbox",
+                headers={"Authorization": f"Bearer {admin_token}"},
+            )
+            assert inbox_response.status_code == 200
+            assert any(request["id"] == request_id for request in inbox_response.json())
+
+            resolve_response = client.post(
+                f"/api/voice/requests/{request_id}/resolve",
+                headers={"Authorization": f"Bearer {admin_token}"},
+                json={"action": "allow"},
+            )
+            assert resolve_response.status_code == 200
+            assert resolve_response.json()["status"] == "allowed"
+
             with client.websocket_connect(f"/api/voice/channels/{voice_channel['id']}/ws?token={token}") as socket:
                 room_state = socket.receive_json()
                 assert room_state["type"] == "room_state"

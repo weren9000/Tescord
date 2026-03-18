@@ -253,6 +253,8 @@
                   <strong>{{ channel.name }}</strong>
                   @if (channel.id === connectedVoiceChannel()?.id) {
                     <small>В голосе</small>
+                  } @else if (channel.voice_access_role === 'stranger') {
+                    <small>По запросу владельцу</small>
                   }
                 </div>
               </button>
@@ -260,11 +262,13 @@
               @if (voiceParticipantsForChannel(channel.id).length) {
                 <div class="voice-roster">
                   @for (participant of voiceParticipantsForChannel(channel.id); track participant.id) {
-                    <div
+                    <button
                       class="voice-roster__member"
                       [class.voice-roster__member--speaking]="voiceParticipantTone(participant) === 'speaking'"
                       [class.voice-roster__member--open]="voiceParticipantTone(participant) === 'open'"
                       [class.voice-roster__member--muted]="voiceParticipantTone(participant) === 'muted'"
+                      type="button"
+                      (click)="openVoiceParticipantControls(participant.user_id, channel.id)"
                     >
                       <span class="voice-roster__dot"></span>
                       <div class="voice-roster__meta">
@@ -279,7 +283,7 @@
                           }}
                         </small>
                       </div>
-                    </div>
+                    </button>
                   }
                 </div>
               }
@@ -345,12 +349,14 @@
 
             <div class="voice-grid">
               @for (participant of voiceParticipants(); track participant.id) {
-                <article
+                <button
                   class="voice-card"
                   [class.voice-card--self]="participant.is_self"
                   [class.voice-card--speaking]="participant.speaking"
                   [class.voice-card--open]="voiceParticipantTone(participant) === 'open'"
                   [class.voice-card--muted]="participant.muted"
+                  type="button"
+                  (click)="openVoiceParticipantControls(participant.user_id, activeChannel()?.id ?? '')"
                 >
                   <div class="voice-card__avatar">{{ participant.nick.slice(0, 2).toUpperCase() }}</div>
                   <div class="voice-card__body">
@@ -385,7 +391,7 @@
                       }
                     </small>
                   </div>
-                </article>
+                </button>
               }
             </div>
           </section>
@@ -579,6 +585,9 @@
             <small>{{ currentUser()?.login ?? 'Нет активной сессии' }}</small>
           </div>
           <div class="profile-actions">
+            @if (isAdmin()) {
+              <button class="icon-button" type="button" (click)="openVoiceAdminPanel()">≣</button>
+            }
             <button class="icon-button" type="button" (click)="openVoiceSettings()">⚙</button>
             <button class="secondary-button profile-logout" type="button" (click)="logout()">Выйти</button>
           </div>
@@ -626,6 +635,53 @@
         }
       </section>
     </aside>
+  </div>
+}
+
+@if (pendingVoiceJoin(); as pendingJoin) {
+  <div class="modal-backdrop" (click)="closePendingVoiceJoin()">
+    <section class="modal modal--compact" (click)="$event.stopPropagation()">
+      <div class="modal__header">
+        <div>
+          <p class="eyebrow">Голосовой канал</p>
+          <h3>{{ pendingJoin.channelName }}</h3>
+        </div>
+        <button class="icon-button" type="button" (click)="closePendingVoiceJoin()">✕</button>
+      </div>
+
+      <div class="modal__body">
+        <p class="modal-note">Ожидайте ответа владельца.</p>
+        <p class="modal-note">{{ pendingJoin.detail }}</p>
+      </div>
+
+      <div class="modal__actions">
+        <button class="secondary-button" type="button" (click)="closePendingVoiceJoin()">Закрыть</button>
+      </div>
+    </section>
+  </div>
+}
+
+@if (activeOwnerRequest(); as activeRequest) {
+  <div class="modal-backdrop" (click)="closeActiveOwnerRequest()">
+    <section class="modal modal--compact" (click)="$event.stopPropagation()">
+      <div class="modal__header">
+        <div>
+          <p class="eyebrow">Запрос на вход</p>
+          <h3>{{ activeRequest.requester_nick }}</h3>
+        </div>
+        <button class="icon-button" type="button" (click)="closeActiveOwnerRequest()">✕</button>
+      </div>
+
+      <div class="modal__body">
+        <p class="modal-note">{{ activeRequest.requester_full_name }}, хочет зайти в канал {{ activeRequest.channel_name }}</p>
+      </div>
+
+      <div class="modal__actions">
+        <button class="secondary-button" type="button" (click)="resolveActiveVoiceRequest('allow')" [disabled]="voiceOwnerActionLoading()">Впустить</button>
+        <button class="secondary-button" type="button" (click)="resolveActiveVoiceRequest('resident')" [disabled]="voiceOwnerActionLoading()">Сделать жителем</button>
+        <button class="primary-button" type="button" (click)="resolveActiveVoiceRequest('reject')" [disabled]="voiceOwnerActionLoading()">Выгнать</button>
+      </div>
+    </section>
   </div>
 }
 
@@ -743,6 +799,110 @@
   </div>
 }
 
+@if (voiceAdminPanelOpen()) {
+  <div class="modal-backdrop" (click)="closeVoiceAdminPanel()">
+    <section class="modal modal--wide" (click)="$event.stopPropagation()">
+      <div class="modal__header">
+        <div>
+          <p class="eyebrow">Админ</p>
+          <h3>Доступ к голосовым каналам</h3>
+        </div>
+        <button class="icon-button" type="button" (click)="closeVoiceAdminPanel()">✕</button>
+      </div>
+
+      <div class="modal__body voice-admin">
+        <div class="voice-admin__channels">
+          @if (voiceAdminChannels().length) {
+            @for (channel of voiceAdminChannels(); track channel.channel_id) {
+              <button
+                class="voice-admin__channel"
+                [class.voice-admin__channel--active]="channel.channel_id === voiceAdminSelectedChannelId()"
+                type="button"
+                (click)="selectVoiceAdminChannel(channel.channel_id)"
+              >
+                <strong>{{ channel.channel_name }}</strong>
+                <small>{{ channel.server_name }}</small>
+                <small>Владелец: {{ channel.owner_nick ?? 'не назначен' }}</small>
+              </button>
+            }
+          } @else {
+            <div class="panel-empty">
+              {{ voiceAdminChannelsLoading() ? 'Загружаем каналы...' : 'Голосовых каналов пока нет' }}
+            </div>
+          }
+        </div>
+
+        <div class="voice-admin__content">
+          @if (voiceAdminSelectedChannel(); as selectedChannel) {
+            <div class="voice-admin__section">
+              <h4>{{ selectedChannel.channel_name }}</h4>
+              <small>{{ selectedChannel.server_name }}</small>
+            </div>
+
+            <div class="voice-admin__section voice-admin__form">
+              <label class="field">
+                <span>Пользователь</span>
+                <select [(ngModel)]="voiceAdminAssignmentForm.userId" name="voice_admin_user">
+                  @for (user of voiceAdminUsers(); track user.user_id) {
+                    <option [value]="user.user_id">{{ user.nick }} · {{ user.full_name }}</option>
+                  }
+                </select>
+              </label>
+
+              <label class="field">
+                <span>Роль</span>
+                <select [(ngModel)]="voiceAdminAssignmentForm.role" name="voice_admin_role">
+                  <option value="owner">Владелец</option>
+                  <option value="resident">Житель</option>
+                  <option value="stranger">Чужак</option>
+                </select>
+              </label>
+
+              <button class="primary-button" type="button" (click)="submitVoiceAdminAssignment()" [disabled]="voiceAdminSaving() || !voiceAdminAssignmentForm.userId">
+                Применить
+              </button>
+            </div>
+
+            <div class="voice-admin__section">
+              @if (voiceAdminSelectedChannelAccess().length) {
+                <div class="voice-admin__list">
+                  @for (entry of voiceAdminSelectedChannelAccess(); track entry.user_id) {
+                    <div class="voice-admin__row">
+                      <div class="voice-admin__meta">
+                        <strong>{{ entry.nick }}</strong>
+                        <small>{{ entry.full_name }}</small>
+                      </div>
+
+                      <div class="voice-admin__actions">
+                        <button class="secondary-button" type="button" (click)="applyVoiceAdminRole(entry.user_id, 'owner')" [disabled]="voiceAdminSaving()">Вл.</button>
+                        <button class="secondary-button" type="button" (click)="applyVoiceAdminRole(entry.user_id, 'resident')" [disabled]="voiceAdminSaving()">Жит.</button>
+                        <button class="secondary-button" type="button" (click)="applyVoiceAdminRole(entry.user_id, 'stranger')" [disabled]="voiceAdminSaving()">Чуж.</button>
+                        @if (entry.role !== 'owner') {
+                          <button class="secondary-button" type="button" (click)="removeVoiceAdminAccess(entry.user_id)" [disabled]="voiceAdminSaving()">Убрать</button>
+                        }
+                      </div>
+                    </div>
+                  }
+                </div>
+              } @else {
+                <div class="panel-empty">
+                  {{ voiceAdminAccessLoading() ? 'Загружаем доступ...' : 'Для этого канала пока нет назначений' }}
+                </div>
+              }
+            </div>
+          } @else {
+            <div class="panel-empty">Выберите голосовой канал</div>
+          }
+        </div>
+      </div>
+
+      <div class="modal__actions">
+        <button class="primary-button" type="button" (click)="closeVoiceAdminPanel()">Закрыть</button>
+      </div>
+    </section>
+  </div>
+}
+
 @if (createGroupModalOpen()) {
   <div class="modal-backdrop" (click)="closeCreateGroupModal()">
     <section class="modal modal--compact" (click)="$event.stopPropagation()">
@@ -841,6 +1001,9 @@
       <div class="modal__body">
         <p class="modal-note">{{ member.fullName }} · {{ member.roleLabel }}</p>
         <p class="modal-note">Статус: {{ member.presenceLabel }}</p>
+        @if (selectedVoiceMemberChannelId() && selectedVoiceMemberAccessEntry()) {
+          <p class="modal-note">Доступ к каналу: {{ selectedVoiceMemberRoleLabel() }}</p>
+        }
 
         <label class="range-field">
           <span>Персональная громкость</span>
@@ -864,6 +1027,17 @@
           </p>
         } @else if (member.voiceParticipant.speaking) {
           <p class="modal-note modal-note--live">Участник сейчас говорит.</p>
+        }
+
+        @if (canManageSelectedVoiceMember()) {
+          <div class="modal-toolbar modal-toolbar--voice-owner">
+            @if (selectedVoiceMemberAccessEntry()?.role === 'stranger') {
+              <button class="secondary-button" type="button" (click)="setSelectedVoiceMemberRole('resident')" [disabled]="voiceOwnerActionLoading()">Сделать жителем</button>
+              <button class="primary-button" type="button" (click)="kickSelectedVoiceMember()" [disabled]="voiceOwnerActionLoading()">Выгнать</button>
+            } @else if (selectedVoiceMemberAccessEntry()?.role === 'resident') {
+              <button class="secondary-button" type="button" (click)="setSelectedVoiceMemberRole('stranger')" [disabled]="voiceOwnerActionLoading()">Сделать чужаком</button>
+            }
+          </div>
         }
       </div>
 
