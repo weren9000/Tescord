@@ -19,6 +19,7 @@ from app.schemas.workspace import (
     MessageAuthorSummary,
 )
 from app.services.app_events import publish_message_created
+from app.services.voice_access import can_view_voice_channel, get_voice_channel_access
 
 router = APIRouter(tags=["messages"])
 
@@ -68,16 +69,21 @@ def _sanitize_filename(filename: str | None) -> str:
     return sanitized or "file"
 
 
-def _get_accessible_message_channel(db: Session, channel_id: UUID) -> Channel:
+def _get_accessible_message_channel(db: Session, channel_id: UUID, current_user: User) -> Channel:
     channel = db.get(Channel, channel_id)
     if channel is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Канал не найден")
 
-    if channel.type == ChannelType.VOICE:
+    if channel.type not in {ChannelType.TEXT, ChannelType.VOICE}:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Сообщения доступны только в текстовых каналах",
+            detail="Сообщения доступны только в текстовых и голосовых каналах",
         )
+
+    if channel.type == ChannelType.VOICE:
+        access = get_voice_channel_access(db, channel.id, current_user.id)
+        if not can_view_voice_channel(access):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Канал не найден")
 
     return channel
 
@@ -95,10 +101,10 @@ def list_channel_messages(
     channel_id: UUID,
     before: UUID | None = Query(default=None),
     limit: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> ChannelMessagesPage:
-    channel = _get_accessible_message_channel(db, channel_id)
+    channel = _get_accessible_message_channel(db, channel_id, current_user)
 
     statement = (
         select(Message)
@@ -139,7 +145,7 @@ async def create_channel_message(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> ChannelMessageSummary:
-    channel = _get_accessible_message_channel(db, channel_id)
+    channel = _get_accessible_message_channel(db, channel_id, current_user)
 
     normalized_content = content.strip()
     uploads = [upload for upload in (files or []) if upload.filename]

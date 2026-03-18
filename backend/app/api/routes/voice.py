@@ -29,6 +29,7 @@ from app.schemas.voice import (
     VoiceChannelCatalogItem,
     VoiceJoinRequestCreateResponse,
     VoiceJoinRequestSummary,
+    VoiceOwnerMuteUpdateRequest,
 )
 from app.services.app_events import (
     publish_server_changed,
@@ -141,6 +142,7 @@ def _build_voice_access_entry(access: VoiceChannelAccess, user: User) -> VoiceCh
         nick=user.username,
         full_name=user.display_name,
         role=access.role.value,
+        owner_muted=access.owner_muted,
         blocked_until=access.blocked_until,
         temporary_access_until=access.temporary_access_until,
     )
@@ -240,6 +242,9 @@ def _upsert_voice_access(
         access.blocked_until = None
         access.temporary_access_until = None
 
+    if role == VoiceAccessRole.OWNER:
+        access.owner_muted = False
+
     _ensure_server_membership(db, channel, user)
     db.flush()
     return access
@@ -324,6 +329,7 @@ async def update_voice_channel_access(
 
         if current_owner is not None and current_owner.user_id != user_id:
             current_owner.role = VoiceAccessRole.RESIDENT
+            current_owner.owner_muted = False
             current_owner.blocked_until = None
             current_owner.temporary_access_until = None
 
@@ -566,6 +572,32 @@ async def kick_voice_participant(
     return _load_channel_access_entries(db, channel.id)
 
 
+@router.put("/channels/{channel_id}/participants/{user_id}/owner-mute", response_model=list[VoiceChannelAccessEntry])
+async def update_voice_participant_owner_mute(
+    channel_id: UUID,
+    user_id: UUID,
+    payload: VoiceOwnerMuteUpdateRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> list[VoiceChannelAccessEntry]:
+    channel = _get_voice_channel_or_404(db, channel_id)
+    _ensure_voice_channel_manager(db, channel, current_user)
+
+    access = get_voice_channel_access(db, channel.id, user_id)
+    if access is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Участник не найден в настройках канала")
+
+    if access.role == VoiceAccessRole.OWNER:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Нельзя заблокировать микрофон владельца канала")
+
+    access.owner_muted = payload.owner_muted
+    db.commit()
+
+    await voice_signaling_manager.update_owner_mute_state(str(channel.id), str(user_id), access.owner_muted)
+    await publish_server_changed(channel.server_id, reason="voice_access_changed")
+    return _load_channel_access_entries(db, channel.id)
+
+
 @router.websocket("/channels/{channel_id}/ws")
 async def connect_to_voice_channel(websocket: WebSocket, channel_id: UUID) -> None:
     token = websocket.query_params.get("token")
@@ -606,6 +638,7 @@ async def connect_to_voice_channel(websocket: WebSocket, channel_id: UUID) -> No
             user_id=str(current_user.id),
             nick=current_user.username,
             full_name=current_user.display_name,
+            owner_muted=bool(access.owner_muted),
         )
         await publish_server_changed(channel.server_id, reason="voice_presence_changed")
 

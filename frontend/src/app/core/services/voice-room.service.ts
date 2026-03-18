@@ -9,6 +9,7 @@ export interface VoiceParticipant {
   nick: string;
   full_name: string;
   muted: boolean;
+  owner_muted: boolean;
   speaking: boolean;
   is_self: boolean;
 }
@@ -32,6 +33,7 @@ type VoiceConnectionState = 'idle' | 'connecting' | 'connected' | 'error';
 interface RoomStateMessage {
   type: 'room_state';
   self_id: string;
+  self_participant: RemoteVoiceParticipant;
   participants: RemoteVoiceParticipant[];
 }
 
@@ -57,6 +59,12 @@ interface MuteStateMessage {
   muted: boolean;
 }
 
+interface OwnerMuteStateMessage {
+  type: 'owner_mute_state';
+  participant_id: string;
+  owner_muted: boolean;
+}
+
 interface ErrorMessage {
   type: 'error';
   detail: string;
@@ -68,6 +76,7 @@ interface RemoteVoiceParticipant {
   nick: string;
   full_name: string;
   muted: boolean;
+  owner_muted: boolean;
 }
 
 interface VoiceActivityMonitor {
@@ -90,6 +99,7 @@ type IncomingVoiceMessage =
   | PeerLeftMessage
   | RelayedSignalMessage
   | MuteStateMessage
+  | OwnerMuteStateMessage
   | ErrorMessage
   | { type: 'pong' };
 
@@ -97,6 +107,7 @@ const SETTINGS_STORAGE_KEY = 'tescord.voice.settings';
 const VOICE_ACTIVITY_INTERVAL_MS = 120;
 const VOICE_ACTIVITY_HOLD_MS = 320;
 const VOICE_SOCKET_PING_INTERVAL_MS = 20000;
+const OWNER_MUTED_NOTICE = 'Микрофон заблокирован владельцем канала';
 const DEFAULT_VOICE_SETTINGS: VoiceSettings = {
   inputDeviceId: null,
   outputDeviceId: null,
@@ -166,6 +177,7 @@ export class VoiceRoomService {
   readonly activeChannelId = signal<string | null>(null);
   readonly participants = signal<VoiceParticipant[]>([]);
   readonly localMuted = signal(false);
+  readonly ownerMuted = computed(() => this.getParticipant(this.selfId ?? 'local')?.owner_muted === true);
   readonly settings = signal<VoiceSettings>(loadVoiceSettings());
   readonly devicesLoading = signal(false);
   readonly inputDevices = signal<VoiceDeviceOption[]>([]);
@@ -205,6 +217,7 @@ export class VoiceRoomService {
         nick: currentUser.nick,
         full_name: currentUser.full_name,
         muted: false,
+        owner_muted: false,
         speaking: false,
         is_self: true
       }
@@ -213,6 +226,7 @@ export class VoiceRoomService {
     try {
       this.localStream = await this.openLocalStream();
       this.localMuted.set(false);
+      this.applyLocalTrackState();
       await this.ensureAudioContext().catch(() => null);
       await this.refreshDevices();
       await this.openSocket(channelId, token);
@@ -237,6 +251,9 @@ export class VoiceRoomService {
     this.activeChannelId.set(null);
     this.participants.set([]);
     this.localMuted.set(false);
+    if (this.settingsNotice() === OWNER_MUTED_NOTICE) {
+      this.settingsNotice.set(null);
+    }
   }
 
   toggleMute(): void {
@@ -244,12 +261,14 @@ export class VoiceRoomService {
       return;
     }
 
+    if (this.ownerMuted()) {
+      this.settingsNotice.set(OWNER_MUTED_NOTICE);
+      return;
+    }
+
     const nextMuted = !this.localMuted();
     this.localMuted.set(nextMuted);
-
-    for (const track of this.localStream.getAudioTracks()) {
-      track.enabled = !nextMuted;
-    }
+    this.applyLocalTrackState();
 
     this.updateParticipant(this.selfId ?? 'local', {
       muted: nextMuted,
@@ -464,6 +483,11 @@ export class VoiceRoomService {
       return;
     }
 
+    if (message.type === 'owner_mute_state') {
+      this.handleOwnerMuteState(message.participant_id, message.owner_muted);
+      return;
+    }
+
     if (message.type === 'offer') {
       void this.handleIncomingOffer(message.from_id, message.payload as RTCSessionDescriptionInit).catch((error) => {
         this.handlePeerConnectionFailure(
@@ -502,6 +526,8 @@ export class VoiceRoomService {
   private async handleRoomState(message: RoomStateMessage): Promise<void> {
     this.selfId = message.self_id;
     this.updateLocalParticipantId(message.self_id);
+    this.upsertParticipant(message.self_participant);
+    this.applyLocalTrackState();
     for (const participant of message.participants) {
       this.upsertParticipant(participant);
     }
@@ -637,6 +663,33 @@ export class VoiceRoomService {
     this.socket.send(JSON.stringify(payload));
   }
 
+  private applyLocalTrackState(): void {
+    if (!this.localStream) {
+      return;
+    }
+
+    const enabled = !(this.localMuted() || this.ownerMuted());
+    for (const track of this.localStream.getAudioTracks()) {
+      track.enabled = enabled;
+    }
+  }
+
+  private handleOwnerMuteState(participantId: string, ownerMuted: boolean): void {
+    this.updateParticipant(participantId, {
+      owner_muted: ownerMuted,
+      speaking: ownerMuted ? false : this.getParticipant(participantId)?.speaking ?? false
+    });
+
+    if (participantId === (this.selfId ?? 'local')) {
+      this.applyLocalTrackState();
+      if (ownerMuted) {
+        this.settingsNotice.set(OWNER_MUTED_NOTICE);
+      } else if (this.settingsNotice() === OWNER_MUTED_NOTICE) {
+        this.settingsNotice.set(null);
+      }
+    }
+  }
+
   private attachRemoteAudio(participantId: string, stream: MediaStream): void {
     let audioElement = this.remoteAudioElements.get(participantId);
     if (!audioElement) {
@@ -743,7 +796,8 @@ export class VoiceRoomService {
                 ...entry,
                 nick: participant.nick,
                 full_name: participant.full_name,
-                muted: participant.muted
+                muted: participant.muted,
+                owner_muted: participant.owner_muted
               }
             : entry
         );
@@ -754,7 +808,7 @@ export class VoiceRoomService {
         {
           ...participant,
           speaking: false,
-          is_self: false
+          is_self: participant.id === this.selfId
         }
       ];
     });
@@ -864,6 +918,9 @@ export class VoiceRoomService {
     this.activeChannelId.set(null);
     this.participants.set([]);
     this.localMuted.set(false);
+    if (this.settingsNotice() === OWNER_MUTED_NOTICE) {
+      this.settingsNotice.set(null);
+    }
   }
 
   private async startLocalVoiceActivityMonitor(): Promise<void> {
@@ -873,7 +930,11 @@ export class VoiceRoomService {
 
     const participantId = this.selfId ?? 'local';
     this.stopLocalVoiceActivityMonitor();
-    this.localMonitor = await this.createVoiceActivityMonitor(participantId, this.localStream, () => this.localMuted());
+    this.localMonitor = await this.createVoiceActivityMonitor(
+      participantId,
+      this.localStream,
+      () => this.localMuted() || this.ownerMuted()
+    );
   }
 
   private async startRemoteVoiceActivityMonitor(participantId: string, stream: MediaStream): Promise<void> {
@@ -881,7 +942,10 @@ export class VoiceRoomService {
     const monitor = await this.createVoiceActivityMonitor(
       participantId,
       stream,
-      () => this.getParticipant(participantId)?.muted === true
+      () => {
+        const participant = this.getParticipant(participantId);
+        return participant?.muted === true || participant?.owner_muted === true;
+      }
     );
     if (monitor) {
       this.remoteMonitors.set(participantId, monitor);

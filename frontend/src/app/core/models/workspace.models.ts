@@ -43,6 +43,7 @@ export interface WorkspaceVoicePresenceParticipant {
   nick: string;
   full_name: string;
   muted: boolean;
+  owner_muted: boolean;
 }
 
 export interface WorkspaceVoicePresenceChannel {
@@ -117,6 +118,7 @@ export interface VoiceChannelAccessEntry {
   nick: string;
   full_name: string;
   role: 'owner' | 'resident' | 'stranger';
+  owner_muted: boolean;
   blocked_until: string | null;
   temporary_access_until: string | null;
 }

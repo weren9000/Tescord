@@ -651,6 +651,57 @@ def test_kicked_stranger_voice_websocket_is_closed_immediately() -> None:
     assert disconnect_error.value.code == 4003
 
 
+def test_owner_mute_updates_voice_socket_and_presence() -> None:
+    with TestClient(app) as client:
+        admin_token = login_admin_user(client)
+        token, payload = register_regular_user(client)
+        try:
+            server, voice_channel = get_seed_server_and_voice_channel(client, admin_token)
+            current_user = get_current_user_profile(client, token)
+            assign_response = client.put(
+                f"/api/voice/channels/{voice_channel['id']}/access/{current_user['id']}",
+                headers={"Authorization": f"Bearer {admin_token}"},
+                json={"role": "resident"},
+            )
+            assert assign_response.status_code == 200
+
+            with client.websocket_connect(f"/api/voice/channels/{voice_channel['id']}/ws?token={token}") as socket:
+                room_state = socket.receive_json()
+                assert room_state["type"] == "room_state"
+                assert room_state["self_participant"]["owner_muted"] is False
+
+                mute_response = client.put(
+                    f"/api/voice/channels/{voice_channel['id']}/participants/{current_user['id']}/owner-mute",
+                    headers={"Authorization": f"Bearer {admin_token}"},
+                    json={"owner_muted": True},
+                )
+                assert mute_response.status_code == 200
+                muted_entry = next(
+                    entry for entry in mute_response.json() if entry["user_id"] == current_user["id"]
+                )
+                assert muted_entry["owner_muted"] is True
+
+                owner_mute_event = socket.receive_json()
+                assert owner_mute_event == {
+                    "type": "owner_mute_state",
+                    "participant_id": room_state["self_id"],
+                    "owner_muted": True,
+                }
+
+                presence_response = client.get(
+                    f"/api/servers/{server['id']}/voice-presence",
+                    headers={"Authorization": f"Bearer {token}"},
+                )
+        finally:
+            delete_user(payload["login"])
+
+    assert presence_response.status_code == 200
+    channels = presence_response.json()
+    active_channel = next(channel for channel in channels if channel["channel_id"] == voice_channel["id"])
+    participant = next(item for item in active_channel["participants"] if item["user_id"] == current_user["id"])
+    assert participant["owner_muted"] is True
+
+
 def test_voice_presence_endpoint_returns_active_voice_participants() -> None:
     with TestClient(app) as client:
         token = login_admin_user(client)
@@ -671,6 +722,57 @@ def test_voice_presence_endpoint_returns_active_voice_participants() -> None:
     active_channel = next(channel for channel in channels if channel["channel_id"] == voice_channel["id"])
     assert active_channel["participants"]
     assert any(participant["user_id"] for participant in active_channel["participants"])
+
+
+def test_voice_channel_supports_text_messages() -> None:
+    suffix = uuid4().hex[:6]
+
+    with TestClient(app) as client:
+        token = login_admin_user(client)
+        _, voice_channel = get_seed_server_and_voice_channel(client, token)
+
+        create_response = client.post(
+            f"/api/channels/{voice_channel['id']}/messages",
+            headers={"Authorization": f"Bearer {token}"},
+            data={"content": f"voice-chat-{suffix}"},
+        )
+
+        assert create_response.status_code == 201
+        created_message = create_response.json()
+
+        list_response = client.get(
+            f"/api/channels/{voice_channel['id']}/messages?limit=10",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+    assert list_response.status_code == 200
+    items = list_response.json()["items"]
+    assert any(message["id"] == created_message["id"] for message in items)
+    assert created_message["channel_id"] == voice_channel["id"]
+    assert created_message["content"] == f"voice-chat-{suffix}"
+
+
+def test_hidden_voice_channel_messages_are_not_accessible_without_role() -> None:
+    with TestClient(app) as client:
+        admin_token = login_admin_user(client)
+        _, voice_channel = get_seed_server_and_voice_channel(client, admin_token)
+        user_token, payload = register_regular_user(client)
+
+        try:
+            list_response = client.get(
+                f"/api/channels/{voice_channel['id']}/messages?limit=10",
+                headers={"Authorization": f"Bearer {user_token}"},
+            )
+            create_response = client.post(
+                f"/api/channels/{voice_channel['id']}/messages",
+                headers={"Authorization": f"Bearer {user_token}"},
+                data={"content": "hidden-voice-chat"},
+            )
+        finally:
+            delete_user(payload["login"])
+
+    assert list_response.status_code == 404
+    assert create_response.status_code == 404
 
 
 def test_text_messages_endpoint_supports_lazy_loading() -> None:

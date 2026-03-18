@@ -160,6 +160,13 @@
     }
 
     <aside class="server-rail" [class.server-rail--mobile-open]="mobilePanel() === 'servers'">
+      <div class="mobile-panel-head">
+        <span>Группы</span>
+        <button class="mobile-panel-close" type="button" aria-label="Закрыть группы" (click)="closeMobilePanel()">
+          ×
+        </button>
+      </div>
+
       <div class="server-rail__list">
         @if (serverShortcuts().length) {
           @for (server of serverShortcuts(); track server.id) {
@@ -188,6 +195,13 @@
     </aside>
 
     <aside class="channel-rail" [class.channel-rail--mobile-open]="mobilePanel() === 'channels'">
+      <div class="mobile-panel-head">
+        <span>Каналы</span>
+        <button class="mobile-panel-close" type="button" aria-label="Закрыть каналы" (click)="closeMobilePanel()">
+          ×
+        </button>
+      </div>
+
       <header class="rail-header">
         <div class="rail-header__line">
           <p class="eyebrow">Группа</p>
@@ -292,23 +306,20 @@
                     <button
                       class="voice-roster__member"
                       [class.voice-roster__member--speaking]="voiceParticipantTone(participant) === 'speaking'"
+                      [class.voice-roster__member--blocked]="voiceParticipantTone(participant) === 'blocked'"
                       [class.voice-roster__member--open]="voiceParticipantTone(participant) === 'open'"
                       [class.voice-roster__member--muted]="voiceParticipantTone(participant) === 'muted'"
                       type="button"
                       (click)="openVoiceParticipantControls(participant.user_id, channel.id)"
                     >
-                      <span class="voice-roster__dot"></span>
+                      <img
+                        class="voice-state-icon voice-state-icon--roster"
+                        [src]="voiceStateIconPath(participant)"
+                        [alt]="voiceStateIconAlt(participant)"
+                        [title]="voiceStateIconAlt(participant)"
+                      />
                       <div class="voice-roster__meta">
                         <span class="voice-roster__name">{{ participant.nick }}</span>
-                        <small>
-                          {{
-                            voiceParticipantTone(participant) === 'speaking'
-                              ? 'говорит'
-                              : voiceParticipantTone(participant) === 'muted'
-                                ? 'микрофон выключен'
-                                : 'в канале'
-                          }}
-                        </small>
                       </div>
                     </button>
                   }
@@ -343,9 +354,11 @@
           <div class="voice-dock__actions">
             <button class="secondary-button" type="button" (click)="openConnectedVoiceChannel()">Открыть канал</button>
             <button class="secondary-button" type="button" (click)="toggleVoiceMute()">
-              {{ voiceMuted() ? 'Включить микрофон' : 'Выключить микрофон' }}
+              {{ voiceOwnerMuted() ? 'Микрофон заблокирован' : voiceMuted() ? 'Включить микрофон' : 'Выключить микрофон' }}
             </button>
-            <button class="primary-button" type="button" (click)="leaveVoiceChannel()">Выйти из голоса</button>
+            <button class="primary-button voice-leave-button" type="button" (click)="leaveVoiceChannel()" aria-label="Выйти из голоса" title="Выйти из голоса">
+              <img src="/assets/Phone outgoing.svg" alt="" />
+            </button>
           </div>
         </section>
       }
@@ -367,64 +380,51 @@
                   </button>
                 } @else {
                   <button class="secondary-button" type="button" (click)="toggleVoiceMute()">
-                    {{ voiceMuted() ? 'Включить микрофон' : 'Выключить микрофон' }}
+                    {{ voiceOwnerMuted() ? 'Микрофон заблокирован' : voiceMuted() ? 'Включить микрофон' : 'Выключить микрофон' }}
                   </button>
-                  <button class="primary-button" type="button" (click)="leaveVoiceChannel()">Отключиться</button>
+                  <button class="primary-button voice-leave-button" type="button" (click)="leaveVoiceChannel()" aria-label="Отключиться" title="Отключиться">
+                    <img src="/assets/Phone outgoing.svg" alt="" />
+                  </button>
                 }
               </div>
             </div>
 
             <div class="voice-grid">
               @for (participant of voiceParticipants(); track participant.id) {
-                <button
-                  class="voice-card"
-                  [class.voice-card--self]="participant.is_self"
-                  [class.voice-card--speaking]="participant.speaking"
-                  [class.voice-card--open]="voiceParticipantTone(participant) === 'open'"
-                  [class.voice-card--muted]="participant.muted"
-                  type="button"
-                  (click)="openVoiceParticipantControls(participant.user_id, activeChannel()?.id ?? '')"
-                >
+                  <button
+                    class="voice-card"
+                    [class.voice-card--self]="participant.is_self"
+                    [class.voice-card--speaking]="voiceParticipantTone(participant) === 'speaking'"
+                    [class.voice-card--blocked]="voiceParticipantTone(participant) === 'blocked'"
+                    [class.voice-card--open]="voiceParticipantTone(participant) === 'open'"
+                    [class.voice-card--muted]="voiceParticipantTone(participant) === 'muted'"
+                    type="button"
+                    (click)="openVoiceParticipantControls(participant.user_id, activeChannel()?.id ?? '')"
+                  >
                   <div class="voice-card__avatar">{{ participant.nick.slice(0, 2).toUpperCase() }}</div>
                   <div class="voice-card__body">
                     <div class="voice-card__title">
                       <strong>{{ participant.nick }}</strong>
-                      @if (participant.speaking) {
-                        <span class="voice-pill voice-pill--live">Говорит</span>
-                      } @else if (participant.muted) {
-                        <span class="voice-pill voice-pill--muted">Микрофон выкл.</span>
-                      } @else {
-                        <span class="voice-pill voice-pill--open">Микрофон включен</span>
-                      }
+                      <img
+                        class="voice-state-icon voice-state-icon--card"
+                        [src]="voiceStateIconPath(participant)"
+                        [alt]="voiceStateIconAlt(participant)"
+                        [title]="voiceStateIconAlt(participant)"
+                      />
                     </div>
                     <span>{{ participant.full_name }}</span>
                     <small>
-                      @if (participant.is_self) {
-                        @if (participant.muted) {
-                          Вы, микрофон выключен
-                        } @else if (participant.speaking) {
-                          Вы сейчас говорите
-                        } @else {
-                          Вы в канале, микрофон включен
-                        }
-                      } @else {
-                        @if (participant.muted) {
-                          Микрофон выключен
-                        } @else if (participant.speaking) {
-                          Сейчас говорит
-                        } @else {
-                          В голосовом канале
-                        }
-                      }
+                      {{ participant.is_self ? 'Вы в голосовом канале' : 'В голосовом канале' }}
                     </small>
                   </div>
                 </button>
               }
             </div>
           </section>
-        } @else {
-          <div class="message-list" #messageList (scroll)="onMessageListScroll()">
-            @if (isTextChannelSelected()) {
+        }
+
+        <div class="message-list" #messageList (scroll)="onMessageListScroll()">
+            @if (canUseActiveChannelChat()) {
               @if (!messagesLoading()) {
                 @if (messagesHasMore()) {
                   <div class="message-list__status">
@@ -500,13 +500,12 @@
                 }
               }
             } @else {
-              <div class="message-list__status">Выберите текстовый канал, чтобы открыть переписку.</div>
+              <div class="message-list__status">Выберите канал, чтобы открыть чат.</div>
             }
           </div>
-        }
 
         <section class="composer">
-          @if (isTextChannelSelected()) {
+          @if (canUseActiveChannelChat()) {
             <input #attachmentInput hidden type="file" multiple (change)="onAttachmentSelection($event)" />
 
             @if (pendingFiles().length) {
@@ -590,7 +589,7 @@
             <div class="composer__surface composer__surface--disabled">
               <button class="secondary-button composer__attach" type="button" disabled>+</button>
               <label class="composer__field">
-                <textarea disabled placeholder="Выберите текстовый канал" rows="1"></textarea>
+                <textarea disabled placeholder="Выберите канал" rows="1"></textarea>
               </label>
               <button class="primary-button composer__submit" type="button" disabled>
                 <img src="/assets/Enter.svg" alt="" />
@@ -605,6 +604,13 @@
     </main>
 
     <aside class="member-rail" [class.member-rail--mobile-open]="mobilePanel() === 'members'">
+      <div class="mobile-panel-head">
+        <span>Участники</span>
+        <button class="mobile-panel-close" type="button" aria-label="Закрыть участников" (click)="closeMobilePanel()">
+          ×
+        </button>
+      </div>
+
       <section class="panel-card profile-card">
         <div class="panel-header">
           <div class="profile-head">
@@ -1060,6 +1066,10 @@
         <p class="modal-note">Статус: {{ member.presenceLabel }}</p>
         @if (selectedVoiceMemberChannelId() && selectedVoiceMemberAccessEntry()) {
           <p class="modal-note">Доступ к каналу: {{ selectedVoiceMemberRoleLabel() }}</p>
+          <p class="modal-note">
+            Микрофон:
+            {{ selectedVoiceMemberOwnerMuted() ? 'заблокирован владельцем' : 'доступен' }}
+          </p>
         }
 
         <label class="range-field">
@@ -1088,6 +1098,16 @@
 
         @if (canManageSelectedVoiceMember()) {
           <div class="modal-toolbar modal-toolbar--voice-owner">
+            @if (canToggleSelectedVoiceMemberOwnerMute()) {
+              <button
+                class="secondary-button"
+                type="button"
+                (click)="toggleSelectedVoiceMemberOwnerMute()"
+                [disabled]="voiceOwnerActionLoading()"
+              >
+                {{ selectedVoiceMemberOwnerMuted() ? 'Разблокировать микрофон' : 'Заглушить микрофон' }}
+              </button>
+            }
             @if (selectedVoiceMemberAccessEntry()?.role === 'stranger') {
               <button class="secondary-button" type="button" (click)="setSelectedVoiceMemberRole('resident')" [disabled]="voiceOwnerActionLoading()">Сделать жителем</button>
               <button class="primary-button" type="button" (click)="kickSelectedVoiceMember()" [disabled]="voiceOwnerActionLoading()">Выгнать</button>

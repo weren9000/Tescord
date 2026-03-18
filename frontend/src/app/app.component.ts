@@ -36,7 +36,7 @@ import { VoiceParticipant, VoiceRoomService } from './core/services/voice-room.s
 
 type AuthMode = 'login' | 'register';
 type ChannelKind = 'text' | 'voice';
-type VoicePresenceTone = 'speaking' | 'open' | 'muted';
+type VoicePresenceTone = 'speaking' | 'open' | 'muted' | 'blocked';
 type MemberPresenceTone = VoicePresenceTone | 'inactive';
 type MobilePanel = 'servers' | 'channels' | 'members' | null;
 type VoiceAccessRole = 'owner' | 'resident' | 'stranger';
@@ -247,6 +247,7 @@ export class AppComponent {
   readonly voiceError = this.voiceRoom.error;
   readonly voiceState = this.voiceRoom.state;
   readonly voiceMuted = this.voiceRoom.localMuted;
+  readonly voiceOwnerMuted = this.voiceRoom.ownerMuted;
   readonly voiceSettings = this.voiceRoom.settings;
   readonly settingsNotice = this.voiceRoom.settingsNotice;
   readonly devicesLoading = this.voiceRoom.devicesLoading;
@@ -275,27 +276,31 @@ export class AppComponent {
   readonly connectedVoiceChannelId = computed(() => this.connectedVoiceChannel()?.id ?? null);
   readonly isVoiceChannelSelected = computed(() => this.activeChannel()?.type === 'voice');
   readonly isTextChannelSelected = computed(() => this.activeChannel()?.type === 'text');
+  readonly canUseActiveChannelChat = computed(() => {
+    const activeChannel = this.activeChannel();
+    return activeChannel?.type === 'text' || activeChannel?.type === 'voice';
+  });
   readonly hasVoiceConnection = computed(() => this.voiceRoom.isConnected() && this.connectedVoiceChannel() !== null);
   readonly isInActiveVoiceChannel = computed(
     () => this.hasVoiceConnection() && this.activeChannel()?.id === this.connectedVoiceChannel()?.id
   );
   readonly showVoiceDock = computed(() => this.hasVoiceConnection() && !this.isInActiveVoiceChannel());
   readonly workspaceOverlayVisible = computed(
-    () => this.isTextChannelSelected() && (this.workspaceLoading() || this.messagesLoading())
+    () => this.canUseActiveChannelChat() && (this.workspaceLoading() || this.messagesLoading())
   );
   readonly workspaceOverlayLabel = computed(() => {
     if (this.workspaceLoading()) {
       return 'Загружаем рабочую область';
     }
 
-    if (this.isTextChannelSelected() && this.messagesLoading()) {
+    if (this.canUseActiveChannelChat() && this.messagesLoading()) {
       return 'Загружаем сообщения';
     }
 
     return '';
   });
   readonly canSendMessage = computed(() => {
-    if (!this.isTextChannelSelected() || this.messageSubmitting()) {
+    if (!this.canUseActiveChannelChat() || this.messageSubmitting()) {
       return false;
     }
 
@@ -415,6 +420,10 @@ export class AppComponent {
     }
 
     if (this.isInActiveVoiceChannel()) {
+      if (this.voiceOwnerMuted()) {
+        return 'Вы в канале, микрофон заблокирован владельцем';
+      }
+
       return this.voiceMuted() ? 'Вы в канале, микрофон выключен' : 'Вы в канале, микрофон включен';
     }
 
@@ -428,6 +437,10 @@ export class AppComponent {
   readonly voiceDockLabel = computed(() => {
     if (!this.hasVoiceConnection()) {
       return '';
+    }
+
+    if (this.voiceOwnerMuted()) {
+      return 'Голос работает в фоне, микрофон заблокирован владельцем';
     }
 
     return this.voiceMuted()
@@ -457,6 +470,7 @@ export class AppComponent {
           nick: participant.nick,
           full_name: participant.full_name,
           muted: participant.muted,
+          owner_muted: participant.owner_muted,
           speaking: false,
           is_self: currentUserId === participant.user_id,
         }))
@@ -596,6 +610,23 @@ export class AppComponent {
     }
 
     return 'нет доступа';
+  });
+
+  readonly selectedVoiceMemberOwnerMuted = computed(() => {
+    const accessEntry = this.selectedVoiceMemberAccessEntry();
+    if (accessEntry) {
+      return accessEntry.owner_muted;
+    }
+
+    return this.selectedMember()?.voiceParticipant?.owner_muted ?? false;
+  });
+
+  readonly canToggleSelectedVoiceMemberOwnerMute = computed(() => {
+    if (!this.canManageSelectedVoiceMember()) {
+      return false;
+    }
+
+    return this.selectedVoiceMemberAccessEntry()?.role !== 'owner';
   });
 
   readonly openedImageAttachment = computed(() => {
@@ -1138,7 +1169,12 @@ export class AppComponent {
   submitMessage(): void {
     const token = this.session()?.access_token;
     const activeChannel = this.activeChannel();
-    if (!token || !activeChannel || activeChannel.type !== 'text' || !this.canSendMessage()) {
+    if (
+      !token
+      || !activeChannel
+      || (activeChannel.type !== 'text' && activeChannel.type !== 'voice')
+      || !this.canSendMessage()
+    ) {
       return;
     }
 
@@ -1331,6 +1367,38 @@ export class AppComponent {
       });
   }
 
+  toggleSelectedVoiceMemberOwnerMute(): void {
+    const token = this.session()?.access_token;
+    const channelId = this.selectedVoiceMemberChannelId();
+    const member = this.selectedMember();
+    if (!token || !channelId || !member || !this.canToggleSelectedVoiceMemberOwnerMute()) {
+      return;
+    }
+
+    const nextOwnerMuted = !this.selectedVoiceMemberOwnerMuted();
+    this.voiceOwnerActionLoading.set(true);
+    this.managementError.set(null);
+
+    this.workspaceApi
+      .updateVoiceParticipantOwnerMute(token, channelId, member.userId, nextOwnerMuted)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (entries) => {
+          this.voiceOwnerActionLoading.set(false);
+          this.setVoiceChannelAccessEntries(channelId, entries);
+          this.managementSuccess.set(
+            nextOwnerMuted
+              ? `${member.nick}: микрофон заблокирован владельцем`
+              : `${member.nick}: блокировка микрофона снята`
+          );
+        },
+        error: (error) => {
+          this.voiceOwnerActionLoading.set(false);
+          this.managementError.set(this.extractErrorMessage(error, 'Не удалось изменить доступ к микрофону'));
+        }
+      });
+  }
+
   closePendingVoiceJoin(): void {
     this.pendingVoiceJoin.set(null);
     this.stopVoiceJoinRequestPolling();
@@ -1455,18 +1523,16 @@ export class AppComponent {
     this.workspaceError.set(null);
     this.messageError.set(null);
 
-    if (channel.type === 'voice') {
-      this.resetTextChannelState();
-      this.syncMessageAutoRefreshPolling();
-      await this.handleVoiceChannelSelection(channel);
-      return;
-    }
-
     const token = this.session()?.access_token;
-    if (token) {
+    if (token && (channel.type === 'text' || channel.type === 'voice')) {
       this.loadMessagesForChannel(token, channel.id);
     }
     this.syncMessageAutoRefreshPolling();
+
+    if (channel.type === 'voice') {
+      await this.handleVoiceChannelSelection(channel);
+      return;
+    }
   }
 
   toggleMessageAutoRefresh(): void {
@@ -1474,7 +1540,7 @@ export class AppComponent {
     this.syncMessageAutoRefreshPolling();
 
     if (this.autoRefreshEnabled()) {
-      this.refreshCurrentTextChannelMessages();
+      this.refreshCurrentChannelMessages();
     }
   }
 
@@ -1487,11 +1553,49 @@ export class AppComponent {
   }
 
   voiceParticipantTone(participant: VoiceParticipant): VoicePresenceTone {
+    if (participant.owner_muted) {
+      return 'blocked';
+    }
+
     if (participant.muted) {
       return 'muted';
     }
 
     return participant.speaking ? 'speaking' : 'open';
+  }
+
+  voiceStateIconPath(participant: VoiceParticipant): string {
+    const tone = this.voiceParticipantTone(participant);
+    if (tone === 'blocked') {
+      return '/assets/mic_block.svg';
+    }
+
+    if (tone === 'muted') {
+      return '/assets/mic_off.svg';
+    }
+
+    if (tone === 'speaking') {
+      return '/assets/mic_voice.svg';
+    }
+
+    return '/assets/mic.svg';
+  }
+
+  voiceStateIconAlt(participant: VoiceParticipant): string {
+    const tone = this.voiceParticipantTone(participant);
+    if (tone === 'blocked') {
+      return 'Микрофон заблокирован владельцем';
+    }
+
+    if (tone === 'muted') {
+      return 'Микрофон выключен пользователем';
+    }
+
+    if (tone === 'speaking') {
+      return 'Пользователь говорит';
+    }
+
+    return 'Микрофон активен';
   }
 
   attachmentPreviewUrl(attachment: WorkspaceMessageAttachment): string | null {
@@ -1985,7 +2089,7 @@ export class AppComponent {
     }
 
     await this.refreshVoiceJoinInbox();
-    this.refreshCurrentTextChannelMessages();
+    this.refreshCurrentChannelMessages();
   }
 
   private handlePresenceUpdatedEvent(event: AppPresenceUpdatedEvent): void {
@@ -2007,7 +2111,11 @@ export class AppComponent {
     }
 
     const activeChannel = this.activeChannel();
-    if (!activeChannel || activeChannel.type !== 'text' || activeChannel.id !== event.message.channel_id) {
+    if (
+      !activeChannel
+      || (activeChannel.type !== 'text' && activeChannel.type !== 'voice')
+      || activeChannel.id !== event.message.channel_id
+    ) {
       return;
     }
 
@@ -2169,7 +2277,7 @@ export class AppComponent {
             return;
           }
 
-          if (nextSelectedChannel.type === 'text') {
+          if (nextSelectedChannel.type === 'text' || nextSelectedChannel.type === 'voice') {
             if (selectedChannelChanged) {
               this.loadMessagesForChannel(token, nextSelectedChannel.id);
             }
@@ -2345,7 +2453,7 @@ export class AppComponent {
 
           this.selectedChannelId.set(nextSelectedChannelId);
           const selectedChannel = channels.find((channel) => channel.id === nextSelectedChannelId) ?? null;
-          if (selectedChannel?.type === 'text') {
+          if (selectedChannel && (selectedChannel.type === 'text' || selectedChannel.type === 'voice')) {
             this.loadMessagesForChannel(token, selectedChannel.id);
           }
           this.startMemberPolling();
@@ -2506,7 +2614,7 @@ export class AppComponent {
     if (
       !token
       || !activeChannel
-      || activeChannel.type !== 'text'
+      || (activeChannel.type !== 'text' && activeChannel.type !== 'voice')
       || !this.messagesHasMore()
       || !this.messagesCursor()
       || this.messagesLoading()
@@ -2522,7 +2630,10 @@ export class AppComponent {
     const token = this.session()?.access_token;
     const activeChannel = this.activeChannel();
     const shouldPoll = Boolean(
-      typeof window !== 'undefined' && this.autoRefreshEnabled() && token && activeChannel?.type === 'text'
+      typeof window !== 'undefined'
+      && this.autoRefreshEnabled()
+      && token
+      && (activeChannel?.type === 'text' || activeChannel?.type === 'voice')
     );
 
     if (!shouldPoll) {
@@ -2535,7 +2646,7 @@ export class AppComponent {
     }
 
     this.messageAutoRefreshIntervalId = window.setInterval(() => {
-      this.refreshCurrentTextChannelMessages();
+      this.refreshCurrentChannelMessages();
     }, MESSAGE_AUTO_REFRESH_INTERVAL_MS);
   }
 
@@ -2546,13 +2657,13 @@ export class AppComponent {
     }
   }
 
-  private refreshCurrentTextChannelMessages(): void {
+  private refreshCurrentChannelMessages(): void {
     const token = this.session()?.access_token;
     const activeChannel = this.activeChannel();
     if (
       !token
       || !activeChannel
-      || activeChannel.type !== 'text'
+      || (activeChannel.type !== 'text' && activeChannel.type !== 'voice')
       || this.workspaceLoading()
       || this.messagesLoading()
       || this.messagesLoadingMore()
@@ -2865,6 +2976,10 @@ export class AppComponent {
       return 'говорит';
     }
 
+    if (presence === 'blocked') {
+      return 'микрофон заблокирован';
+    }
+
     if (presence === 'open') {
       return 'микрофон включен';
     }
@@ -2885,6 +3000,10 @@ export class AppComponent {
       return `Говорит в ${channelName}`;
     }
 
+    if (presence === 'blocked') {
+      return `Микрофон заблокирован в ${channelName}`;
+    }
+
     return `В канале ${channelName}`;
   }
 
@@ -2893,15 +3012,19 @@ export class AppComponent {
       return 0;
     }
 
-    if (presence === 'open') {
+    if (presence === 'blocked') {
       return 1;
     }
 
-    if (presence === 'muted') {
+    if (presence === 'open') {
       return 2;
     }
 
-    return 3;
+    if (presence === 'muted') {
+      return 3;
+    }
+
+    return 4;
   }
 
   private formatOnlineStatus(isOnline: boolean): string {

@@ -15,6 +15,7 @@ class VoiceParticipant:
     nick: str
     full_name: str
     muted: bool = False
+    owner_muted: bool = False
 
     def to_payload(self) -> dict[str, Any]:
         return {
@@ -23,6 +24,7 @@ class VoiceParticipant:
             "nick": self.nick,
             "full_name": self.full_name,
             "muted": self.muted,
+            "owner_muted": self.owner_muted,
         }
 
 
@@ -37,12 +39,22 @@ class VoiceSignalingManager:
         self._rooms: dict[str, dict[str, VoiceConnection]] = {}
         self._lock = asyncio.Lock()
 
-    async def connect(self, websocket: WebSocket, channel_id: str, *, user_id: str, nick: str, full_name: str) -> VoiceParticipant:
+    async def connect(
+        self,
+        websocket: WebSocket,
+        channel_id: str,
+        *,
+        user_id: str,
+        nick: str,
+        full_name: str,
+        owner_muted: bool = False,
+    ) -> VoiceParticipant:
         participant = VoiceParticipant(
             id=uuid4().hex,
             user_id=user_id,
             nick=nick,
             full_name=full_name,
+            owner_muted=owner_muted,
         )
 
         await websocket.accept()
@@ -56,6 +68,7 @@ class VoiceSignalingManager:
             {
                 "type": "room_state",
                 "self_id": participant.id,
+                "self_participant": participant.to_payload(),
                 "participants": existing_participants,
             }
         )
@@ -142,6 +155,30 @@ class VoiceSignalingManager:
             },
             exclude_participant_id=participant_id,
         )
+
+    async def update_owner_mute_state(self, channel_id: str, user_id: str, owner_muted: bool) -> None:
+        async with self._lock:
+            room = self._rooms.get(channel_id)
+            if room is None:
+                return
+
+            affected_participant_ids: list[str] = []
+            for connection in room.values():
+                if connection.participant.user_id != user_id:
+                    continue
+
+                connection.participant.owner_muted = owner_muted
+                affected_participant_ids.append(connection.participant.id)
+
+        for participant_id in affected_participant_ids:
+            await self._broadcast(
+                channel_id,
+                {
+                    "type": "owner_mute_state",
+                    "participant_id": participant_id,
+                    "owner_muted": owner_muted,
+                },
+            )
 
     async def snapshot_rooms(self, channel_ids: set[str] | None = None) -> dict[str, list[dict[str, Any]]]:
         async with self._lock:

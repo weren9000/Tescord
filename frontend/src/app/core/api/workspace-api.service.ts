@@ -135,6 +135,21 @@ export class WorkspaceApiService {
     );
   }
 
+  updateVoiceParticipantOwnerMute(
+    token: string,
+    channelId: string,
+    userId: string,
+    ownerMuted: boolean
+  ): Observable<VoiceChannelAccessEntry[]> {
+    return this.http.put<VoiceChannelAccessEntry[]>(
+      `${API_BASE_URL}/api/voice/channels/${channelId}/participants/${userId}/owner-mute`,
+      { owner_muted: ownerMuted },
+      {
+        headers: this.buildAuthHeaders(token)
+      }
+    );
+  }
+
   sendPresenceHeartbeat(token: string): Observable<void> {
     return this.http.post<void>(`${API_BASE_URL}/api/presence/heartbeat`, null, {
       headers: this.buildAuthHeaders(token)

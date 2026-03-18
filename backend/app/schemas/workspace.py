@@ -47,6 +47,7 @@ class VoicePresenceParticipantSummary(BaseModel):
     nick: str
     full_name: str
     muted: bool
+    owner_muted: bool
 
 
 class VoiceChannelPresenceSummary(BaseModel):

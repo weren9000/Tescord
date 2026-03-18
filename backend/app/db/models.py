@@ -190,6 +190,7 @@ class VoiceChannelAccess(TimestampMixin, Base):
         Enum(VoiceAccessRole, name="voiceaccessrole", values_callable=enum_values),
         nullable=False,
     )
+    owner_muted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, server_default="false")
     blocked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     temporary_access_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 

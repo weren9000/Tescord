@@ -29,12 +29,17 @@ class VoiceChannelAccessEntry(BaseModel):
     nick: str
     full_name: str
     role: Literal["owner", "resident", "stranger"]
+    owner_muted: bool
     blocked_until: datetime | None
     temporary_access_until: datetime | None
 
 
 class VoiceChannelAccessUpdateRequest(BaseModel):
     role: Literal["owner", "resident", "stranger"] | None
+
+
+class VoiceOwnerMuteUpdateRequest(BaseModel):
+    owner_muted: bool
 
 
 class VoiceJoinRequestSummary(BaseModel):

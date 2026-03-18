@@ -93,6 +93,7 @@ def _build_voice_channel_presence_summary(
                 nick=str(participant["nick"]),
                 full_name=str(participant["full_name"]),
                 muted=bool(participant["muted"]),
+                owner_muted=bool(participant.get("owner_muted", False)),
             )
             for participant in participants
         ],
