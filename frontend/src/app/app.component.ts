@@ -1598,6 +1598,26 @@ export class AppComponent {
     return 'Микрофон активен';
   }
 
+  voiceMuteControlIconPath(): string {
+    if (this.voiceOwnerMuted()) {
+      return '/assets/mic_block.svg';
+    }
+
+    if (this.voiceMuted()) {
+      return '/assets/mic_off.svg';
+    }
+
+    return '/assets/mic.svg';
+  }
+
+  voiceMuteControlLabel(): string {
+    if (this.voiceOwnerMuted()) {
+      return 'Микрофон заблокирован владельцем';
+    }
+
+    return this.voiceMuted() ? 'Включить микрофон' : 'Выключить микрофон';
+  }
+
   attachmentPreviewUrl(attachment: WorkspaceMessageAttachment): string | null {
     return this.attachmentPreviewUrls()[attachment.id] ?? null;
   }

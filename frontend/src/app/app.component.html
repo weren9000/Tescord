@@ -379,8 +379,14 @@
                     {{ hasVoiceConnection() ? 'Переключиться в этот канал' : 'Подключиться к голосу' }}
                   </button>
                 } @else {
-                  <button class="secondary-button" type="button" (click)="toggleVoiceMute()">
-                    {{ voiceOwnerMuted() ? 'Микрофон заблокирован' : voiceMuted() ? 'Включить микрофон' : 'Выключить микрофон' }}
+                  <button
+                    class="secondary-button voice-mute-button"
+                    type="button"
+                    (click)="toggleVoiceMute()"
+                    [attr.aria-label]="voiceMuteControlLabel()"
+                    [attr.title]="voiceMuteControlLabel()"
+                  >
+                    <img [src]="voiceMuteControlIconPath()" alt="" />
                   </button>
                   <button class="primary-button voice-leave-button" type="button" (click)="leaveVoiceChannel()" aria-label="Отключиться" title="Отключиться">
                     <img src="/assets/Phone outgoing.svg" alt="" />

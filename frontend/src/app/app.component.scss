@@ -370,10 +370,15 @@ select {
 .server-add,
 .section-action,
 .icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 11px 14px;
   border: 1px solid var(--line-strong);
   background: transparent;
   color: var(--text);
+  text-align: center;
+  line-height: 1.2;
   cursor: pointer;
   transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
 }
@@ -974,6 +979,14 @@ select {
   padding-inline: 10px;
 }
 
+.voice-mute-button {
+  display: inline-grid;
+  place-items: center;
+  min-width: 44px;
+  padding-inline: 10px;
+}
+
+.voice-mute-button img,
 .voice-leave-button img {
   width: 18px;
   height: 18px;
@@ -1515,6 +1528,7 @@ select {
 }
 
 .modal__actions {
+  align-items: stretch;
   justify-content: flex-end;
   border-top: 1px solid var(--line);
 }
@@ -1525,6 +1539,7 @@ select {
 }
 
 .modal-toolbar--voice-owner {
+  width: 100%;
   flex-wrap: wrap;
   gap: 8px;
 }
@@ -1910,6 +1925,35 @@ select {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     width: 100%;
+  }
+
+  .modal {
+    width: min(100%, calc(100vw - 20px));
+    max-height: calc(100dvh - 20px);
+  }
+
+  .modal__header,
+  .modal__body,
+  .modal__actions {
+    padding: 14px;
+  }
+
+  .modal__actions,
+  .modal-toolbar--voice-owner {
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
+    gap: 8px;
+  }
+
+  .modal__actions > button,
+  .modal-toolbar--voice-owner > button {
+    width: 100%;
+    min-width: 0;
+    white-space: normal;
+    word-break: normal;
+    overflow-wrap: anywhere;
+    font-size: 1rem;
   }
 
   .mobile-nav-button {
