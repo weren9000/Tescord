@@ -814,15 +814,14 @@ select {
 
 .voice-dock__top {
   width: 100%;
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
 }
 
 .voice-dock__meta {
   min-width: 0;
-  flex: 1 1 auto;
 }
 
 .voice-dock__open {
@@ -834,6 +833,14 @@ select {
   color: inherit;
   text-align: left;
   cursor: pointer;
+}
+
+.voice-dock__mute,
+.voice-dock__leave {
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  padding: 0;
 }
 
 .voice-dock__open:hover strong {
@@ -851,16 +858,7 @@ select {
   line-height: 1.25;
 }
 
-.voice-dock__controls {
-  margin-left: auto;
-}
-
-.voice-dock__controls > .secondary-button {
-  padding: 8px 10px;
-  font-size: 0.8rem;
-}
-
-.voice-dock__controls .voice-mute-button {
+.voice-dock__mute.voice-mute-button {
   width: 40px;
   min-width: 40px;
   height: 40px;
@@ -870,7 +868,7 @@ select {
   position: relative;
 }
 
-.voice-dock__controls .voice-mute-button::before {
+.voice-dock__mute.voice-mute-button::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -880,19 +878,12 @@ select {
   background: center / contain no-repeat url('/assets/mic.svg');
 }
 
-.voice-dock__controls .voice-mute-button--off::before {
+.voice-dock__mute.voice-mute-button--off::before {
   background-image: url('/assets/mic_off.svg');
 }
 
-.voice-dock__controls .voice-mute-button--blocked::before {
+.voice-dock__mute.voice-mute-button--blocked::before {
   background-image: url('/assets/mic_block.svg');
-}
-
-.voice-dock__controls .voice-leave-button {
-  width: 40px;
-  min-width: 40px;
-  height: 40px;
-  padding: 0;
 }
 
 .voice-workspace {
@@ -2157,15 +2148,8 @@ select {
   }
 
   .voice-dock__top {
-    align-items: center;
-    justify-content: space-between;
+    grid-template-columns: auto minmax(0, 1fr) auto;
     gap: 10px;
-  }
-
-  .voice-dock__controls {
-    width: auto;
-    flex-direction: row;
-    margin-left: auto;
   }
 
   .voice-workspace__tabs {
@@ -2280,28 +2264,19 @@ select {
   font-size: 0.7rem;
 }
 
-.voice-dock__controls {
-  gap: 6px;
-}
-
-.voice-dock__controls > .secondary-button {
-  padding: 0;
-  font-size: 0.74rem;
-}
-
-.voice-dock__controls .voice-leave-button {
+.voice-dock__leave {
   width: 36px;
   min-width: 36px;
   height: 36px;
 }
 
-.voice-dock__controls .voice-mute-button {
+.voice-dock__mute.voice-mute-button {
   width: 36px;
   min-width: 36px;
   height: 36px;
 }
 
-.voice-dock__controls .voice-mute-button::before {
+.voice-dock__mute.voice-mute-button::before {
   width: 16px;
   height: 16px;
 }
