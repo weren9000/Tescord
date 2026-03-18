@@ -37,6 +37,7 @@ from app.services.app_events import (
     publish_voice_inbox_changed_from_sync,
     publish_voice_request_resolved,
 )
+from app.services.default_tavern import is_default_tavern_channel
 from app.services.voice_access import (
     build_voice_join_gate,
     block_stranger_access,
@@ -315,6 +316,11 @@ async def update_voice_channel_access(
 ) -> list[VoiceChannelAccessEntry]:
     channel = _get_voice_channel_or_404(db, channel_id)
     _ensure_voice_channel_manager(db, channel, current_user)
+    if is_default_tavern_channel(channel):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="У канала Таверна доступ общий для всех и не редактируется вручную",
+        )
 
     target_user = db.get(User, user_id)
     if target_user is None:
@@ -382,6 +388,16 @@ def create_voice_join_request(
     _ensure_server_membership(db, channel, current_user)
 
     access = get_voice_channel_access(db, channel.id, current_user.id)
+    if access is None and is_default_tavern_channel(channel):
+        access = VoiceChannelAccess(
+            channel_id=channel.id,
+            user_id=current_user.id,
+            role=VoiceAccessRole.RESIDENT,
+        )
+        db.add(access)
+        db.commit()
+        db.refresh(access)
+
     gate = build_voice_join_gate(access)
     if not gate.visible:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="У вас нет доступа к этому голосовому каналу")
@@ -621,6 +637,16 @@ async def connect_to_voice_channel(websocket: WebSocket, channel_id: UUID) -> No
         _ensure_server_membership(db, channel, current_user)
 
         access = get_voice_channel_access(db, channel.id, current_user.id)
+        if access is None and is_default_tavern_channel(channel):
+            access = VoiceChannelAccess(
+                channel_id=channel.id,
+                user_id=current_user.id,
+                role=VoiceAccessRole.RESIDENT,
+            )
+            db.add(access)
+            db.commit()
+            db.refresh(access)
+
         if not can_view_voice_channel(access):
             await websocket.close(code=4403, reason="Нет доступа к голосовому каналу")
             return

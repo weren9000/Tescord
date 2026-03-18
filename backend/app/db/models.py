@@ -108,6 +108,7 @@ class Channel(TimestampMixin, Base):
         nullable=False,
     )
     position: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    is_default_tavern: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, server_default="false")
 
     server: Mapped["Server"] = relationship(back_populates="channels")
     created_by: Mapped["User"] = relationship(back_populates="created_channels")

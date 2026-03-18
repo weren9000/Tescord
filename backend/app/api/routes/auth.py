@@ -9,6 +9,7 @@ from app.core.security import create_access_token, hash_password, verify_passwor
 from app.db.models import User
 from app.db.session import get_db
 from app.schemas.auth import AuthUserResponse, LoginRequest, RegisterRequest, TokenResponse
+from app.services.default_tavern import ensure_default_tavern_access_for_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -41,6 +42,8 @@ def register_user(payload: RegisterRequest, db: Session = Depends(get_db)) -> To
         bio=payload.character_name.strip(),
     )
     db.add(user)
+    db.flush()
+    ensure_default_tavern_access_for_user(db, user)
     db.commit()
     db.refresh(user)
     return build_token_response(user)

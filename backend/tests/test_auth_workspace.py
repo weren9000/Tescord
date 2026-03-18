@@ -93,7 +93,29 @@ def get_seed_server_and_voice_channel(client: TestClient, token: str) -> tuple[d
         headers={"Authorization": f"Bearer {token}"},
     )
     assert channels_response.status_code == 200
-    voice_channel = next(channel for channel in channels_response.json() if channel["type"] == "voice")
+    voice_channel = next(
+        channel
+        for channel in channels_response.json()
+        if channel["type"] == "voice" and channel["name"] != "Таверна"
+    )
+    return server, voice_channel
+
+
+def get_seed_server_and_tavern_channel(client: TestClient, token: str) -> tuple[dict[str, str], dict[str, str]]:
+    servers_response = client.get("/api/servers", headers={"Authorization": f"Bearer {token}"})
+    assert servers_response.status_code == 200
+    server = next(server for server in servers_response.json() if server["slug"] == "forgehold-collective")
+
+    channels_response = client.get(
+        f"/api/servers/{server['id']}/channels",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert channels_response.status_code == 200
+    voice_channel = next(
+        channel
+        for channel in channels_response.json()
+        if channel["type"] == "voice" and channel["name"] == "Таверна"
+    )
     return server, voice_channel
 
 
@@ -224,6 +246,10 @@ def test_admin_can_create_text_and_voice_channels() -> None:
                     "type": "voice",
                 },
             )
+            channels_response = client.get(
+                f"/api/servers/{group['id']}/channels",
+                headers={"Authorization": f"Bearer {token}"},
+            )
         finally:
             delete_server(group["id"])
 
@@ -231,6 +257,8 @@ def test_admin_can_create_text_and_voice_channels() -> None:
     assert text_channel_response.json()["type"] == "text"
     assert voice_channel_response.status_code == 201
     assert voice_channel_response.json()["type"] == "voice"
+    assert channels_response.status_code == 200
+    assert any(channel["name"] == "Таверна" for channel in channels_response.json())
 
 
 def test_admin_can_delete_text_and_voice_channels() -> None:
@@ -419,7 +447,8 @@ def test_regular_user_can_access_all_groups_channels_and_members() -> None:
     assert channels_response.status_code == 200
     channels = channels_response.json()
     assert any(channel["id"] == text_channel["id"] for channel in channels)
-    assert all(channel["type"] != "voice" for channel in channels)
+    tavern_channel = next(channel for channel in channels if channel["type"] == "voice" and channel["name"] == "Таверна")
+    assert tavern_channel["voice_access_role"] == "resident"
 
     assert members_response.status_code == 200
     members = members_response.json()
@@ -493,6 +522,20 @@ def test_regular_user_can_join_voice_channel_as_resident() -> None:
             assert assign_response.status_code == 200
 
             with client.websocket_connect(f"/api/voice/channels/{voice_channel['id']}/ws?token={token}") as socket:
+                room_state = socket.receive_json()
+                assert room_state["type"] == "room_state"
+                assert isinstance(room_state["self_id"], str)
+        finally:
+            delete_user(payload["login"])
+
+
+def test_regular_user_can_join_default_tavern_without_manual_assignment() -> None:
+    with TestClient(app) as client:
+        token, payload = register_regular_user(client)
+        try:
+            _, tavern_channel = get_seed_server_and_tavern_channel(client, token)
+
+            with client.websocket_connect(f"/api/voice/channels/{tavern_channel['id']}/ws?token={token}") as socket:
                 room_state = socket.receive_json()
                 assert room_state["type"] == "room_state"
                 assert isinstance(room_state["self_id"], str)

@@ -9,6 +9,7 @@ from app.core.config import get_settings
 from app.core.security import hash_password, verify_password
 from app.db.models import Channel, ChannelType, MemberRole, Message, MessageType, Server, ServerMember, User
 from app.db.session import SessionLocal
+from app.services.default_tavern import ensure_default_tavern_access_for_users, ensure_default_tavern_channel
 from app.services.voice_access import ensure_voice_channel_owner_permission
 
 
@@ -129,10 +130,14 @@ def ensure_development_seed_data() -> None:
 
         db.flush()
 
+        tavern_channel = ensure_default_tavern_channel(db, server, created_by_id=user.id)
+        ensure_default_tavern_access_for_users(db, [tavern_channel], [user])
+
         for channel in db.execute(
             select(Channel).where(Channel.server_id == server.id, Channel.type == ChannelType.VOICE)
         ).scalars():
-            ensure_voice_channel_owner_permission(db, channel)
+            if not channel.is_default_tavern:
+                ensure_voice_channel_owner_permission(db, channel)
 
         seeded_channels = {
             channel.name: channel

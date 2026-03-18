@@ -25,6 +25,7 @@ from app.services.app_events import (
     publish_server_changed_from_sync,
     publish_servers_changed_from_sync,
 )
+from app.services.default_tavern import ensure_default_tavern_access_for_users, ensure_default_tavern_channel, is_default_tavern_channel
 from app.services.site_presence import site_presence_manager
 from app.services.voice_access import (
     can_view_voice_channel,
@@ -217,6 +218,9 @@ def create_server(
         nickname=current_user.username,
     )
     db.add(membership)
+    all_users = db.execute(select(User).order_by(User.created_at, User.id)).scalars().all()
+    tavern_channel = ensure_default_tavern_channel(db, server, created_by_id=current_user.id)
+    ensure_default_tavern_access_for_users(db, [tavern_channel], all_users)
     db.commit()
     db.refresh(server)
     publish_servers_changed_from_sync(reason="server_created")
@@ -357,6 +361,11 @@ async def delete_server_channel(
 
     channel = _get_server_channel_or_404(db, server_id, channel_id)
     if channel.type == ChannelType.VOICE:
+        if is_default_tavern_channel(channel):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Системный голосовой канал Таверна нельзя удалить из группы",
+            )
         await voice_signaling_manager.disconnect_channel_sessions(str(channel.id))
 
     db.delete(channel)
