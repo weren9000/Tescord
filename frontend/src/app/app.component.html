@@ -363,14 +363,83 @@
         </section>
       }
 
+      @if (showVoiceWorkspaceShell()) {
+        <section class="voice-workspace" [class.voice-workspace--collapsed]="voiceWorkspaceCollapsed()">
+          <div class="voice-workspace__top">
+            <div class="voice-workspace__meta">
+              <p class="eyebrow">Голосовой канал</p>
+              <strong>{{ activeChannel()?.name }}</strong>
+              @if (!voiceWorkspaceCollapsed()) {
+                <small>{{ voiceStatusLabel() }} · участников: {{ activeVoiceRosterCount() }}</small>
+              }
+            </div>
+
+            <div class="voice-workspace__actions">
+              @if (!isInActiveVoiceChannel()) {
+                <button class="secondary-button" type="button" (click)="joinActiveVoiceChannel()">
+                  {{ hasVoiceConnection() ? 'Перейти в канал' : 'Подключиться' }}
+                </button>
+              } @else {
+                <button
+                  class="secondary-button voice-mute-button"
+                  type="button"
+                  (click)="toggleVoiceMute()"
+                  [attr.aria-label]="voiceMuteControlLabel()"
+                  [attr.title]="voiceMuteControlLabel()"
+                >
+                  <img [src]="voiceMuteControlIconPath()" alt="" />
+                </button>
+                <button class="primary-button voice-leave-button" type="button" (click)="leaveVoiceChannel()" aria-label="Отключиться" title="Отключиться">
+                  <img src="/assets/Phone outgoing.svg" alt="" />
+                </button>
+              }
+
+              <button
+                class="secondary-button voice-workspace__collapse"
+                type="button"
+                (click)="toggleVoiceWorkspaceCollapsed()"
+                [attr.aria-label]="voiceWorkspaceCollapsed() ? 'Развернуть сведения о голосовом канале' : 'Свернуть сведения о голосовом канале'"
+                [attr.title]="voiceWorkspaceCollapsed() ? 'Развернуть' : 'Свернуть'"
+              >
+                {{ voiceWorkspaceCollapsed() ? '▸' : '▾' }}
+              </button>
+            </div>
+          </div>
+
+          <div class="voice-workspace__tabs" role="tablist" aria-label="Режим голосового канала">
+            <button
+              class="voice-workspace__tab"
+              [class.voice-workspace__tab--active]="voiceWorkspaceTab() === 'chat'"
+              type="button"
+              role="tab"
+              [attr.aria-selected]="voiceWorkspaceTab() === 'chat'"
+              (click)="selectVoiceWorkspaceTab('chat')"
+            >
+              Чат
+            </button>
+            <button
+              class="voice-workspace__tab"
+              [class.voice-workspace__tab--active]="voiceWorkspaceTab() === 'channel'"
+              type="button"
+              role="tab"
+              [attr.aria-selected]="voiceWorkspaceTab() === 'channel'"
+              (click)="selectVoiceWorkspaceTab('channel')"
+            >
+              В канале
+              <span>{{ activeVoiceRosterCount() }}</span>
+            </button>
+          </div>
+        </section>
+      }
+
       <section class="workspace-body">
-        @if (isVoiceChannelSelected()) {
+        @if (showVoiceWorkspaceChannel()) {
           <section class="voice-stage">
             <div class="voice-stage__summary">
               <div>
                 <p class="eyebrow">Состояние</p>
                 <h3>{{ voiceStatusLabel() }}</h3>
-                <p>Участников в комнате: <strong>{{ voiceParticipants().length }}</strong></p>
+                <p>Участников в комнате: <strong>{{ activeVoiceRosterCount() }}</strong></p>
               </div>
 
               <div class="voice-stage__actions">
@@ -396,7 +465,7 @@
             </div>
 
             <div class="voice-grid">
-              @for (participant of voiceParticipants(); track participant.id) {
+              @for (participant of activeVoiceRoster(); track participant.id) {
                   <button
                     class="voice-card"
                     [class.voice-card--self]="participant.is_self"
@@ -429,8 +498,9 @@
           </section>
         }
 
-        <div class="message-list" #messageList (scroll)="onMessageListScroll()">
-            @if (canUseActiveChannelChat()) {
+        @if (showVoiceWorkspaceChat() || !canUseActiveChannelChat()) {
+          <div class="message-list" #messageList (scroll)="onMessageListScroll()">
+            @if (showVoiceWorkspaceChat()) {
               @if (!messagesLoading()) {
                 @if (messagesHasMore()) {
                   <div class="message-list__status">
@@ -509,9 +579,11 @@
               <div class="message-list__status">Выберите канал, чтобы открыть чат.</div>
             }
           </div>
+        }
 
-        <section class="composer">
-          @if (canUseActiveChannelChat()) {
+        @if (showVoiceWorkspaceChat() || !canUseActiveChannelChat()) {
+          <section class="composer">
+            @if (showVoiceWorkspaceChat()) {
             <input #attachmentInput hidden type="file" multiple (change)="onAttachmentSelection($event)" />
 
             @if (pendingFiles().length) {
@@ -589,8 +661,9 @@
                 <img src="/assets/Enter.svg" alt="" />
               </button>
             </div>
-          }
-        </section>
+            }
+          </section>
+        }
       </section>
     </main>
 

@@ -40,6 +40,7 @@ type VoicePresenceTone = 'speaking' | 'open' | 'muted' | 'blocked';
 type MemberPresenceTone = VoicePresenceTone | 'inactive';
 type MobilePanel = 'servers' | 'channels' | 'members' | null;
 type VoiceAccessRole = 'owner' | 'resident' | 'stranger';
+type VoiceWorkspaceTab = 'chat' | 'channel';
 
 interface LoginFormModel {
   login: string;
@@ -193,6 +194,8 @@ export class AppComponent {
   readonly selectedVoiceMemberChannelId = signal<string | null>(null);
   readonly openedImageAttachmentId = signal<string | null>(null);
   readonly mobilePanel = signal<MobilePanel>(null);
+  readonly voiceWorkspaceTab = signal<VoiceWorkspaceTab>('chat');
+  readonly voiceWorkspaceCollapsed = signal(true);
   readonly messageDraft = signal('');
   readonly pendingFiles = signal<File[]>([]);
   readonly voiceAdminChannelsLoading = signal(false);
@@ -282,16 +285,34 @@ export class AppComponent {
   readonly isInActiveVoiceChannel = computed(
     () => this.hasVoiceConnection() && this.activeChannel()?.id === this.connectedVoiceChannel()?.id
   );
-  readonly showVoiceDock = computed(() => this.hasVoiceConnection() && !this.isInActiveVoiceChannel());
+  readonly showVoiceDock = computed(
+    () => this.hasVoiceConnection() && !this.isInActiveVoiceChannel() && !this.isVoiceChannelSelected()
+  );
+  readonly showVoiceWorkspaceShell = computed(() => this.isVoiceChannelSelected());
+  readonly showVoiceWorkspaceChat = computed(
+    () => this.canUseActiveChannelChat() && (!this.isVoiceChannelSelected() || this.voiceWorkspaceTab() === 'chat')
+  );
+  readonly showVoiceWorkspaceChannel = computed(
+    () => this.isVoiceChannelSelected() && this.voiceWorkspaceTab() === 'channel'
+  );
+  readonly activeVoiceRoster = computed(() => {
+    const activeChannelId = this.activeChannel()?.id;
+    if (!activeChannelId) {
+      return [];
+    }
+
+    return this.voiceParticipantsForChannel(activeChannelId);
+  });
+  readonly activeVoiceRosterCount = computed(() => this.activeVoiceRoster().length);
   readonly workspaceOverlayVisible = computed(
-    () => this.canUseActiveChannelChat() && (this.workspaceLoading() || this.messagesLoading())
+    () => this.showVoiceWorkspaceChat() && (this.workspaceLoading() || this.messagesLoading())
   );
   readonly workspaceOverlayLabel = computed(() => {
     if (this.workspaceLoading()) {
       return 'Загружаем рабочую область';
     }
 
-    if (this.canUseActiveChannelChat() && this.messagesLoading()) {
+    if (this.showVoiceWorkspaceChat() && this.messagesLoading()) {
       return 'Загружаем сообщения';
     }
 
@@ -1260,6 +1281,16 @@ export class AppComponent {
 
     this.closeMobilePanel();
     this.selectedChannelId.set(connectedVoiceChannel.id);
+    this.voiceWorkspaceTab.set(this.defaultVoiceWorkspaceTab());
+    this.voiceWorkspaceCollapsed.set(this.isCompactVoiceWorkspaceViewport());
+  }
+
+  selectVoiceWorkspaceTab(tab: VoiceWorkspaceTab): void {
+    this.voiceWorkspaceTab.set(tab);
+  }
+
+  toggleVoiceWorkspaceCollapsed(): void {
+    this.voiceWorkspaceCollapsed.update((value) => !value);
   }
 
   toggleMobilePanel(panel: Exclude<MobilePanel, null>): void {
@@ -1520,6 +1551,14 @@ export class AppComponent {
     this.selectedChannelId.set(channel.id);
     this.workspaceError.set(null);
     this.messageError.set(null);
+
+    if (channel.type === 'voice') {
+      this.voiceWorkspaceTab.set(this.defaultVoiceWorkspaceTab());
+      this.voiceWorkspaceCollapsed.set(this.isCompactVoiceWorkspaceViewport());
+    } else {
+      this.voiceWorkspaceTab.set('chat');
+      this.voiceWorkspaceCollapsed.set(false);
+    }
 
     const token = this.session()?.access_token;
     if (token && (channel.type === 'text' || channel.type === 'voice')) {
@@ -2559,6 +2598,14 @@ export class AppComponent {
     if (this.currentUser()?.is_admin || channel.voice_access_role === 'owner') {
       void this.ensureVoiceChannelAccessLoaded(channel.id, true);
     }
+  }
+
+  private defaultVoiceWorkspaceTab(): VoiceWorkspaceTab {
+    return this.isCompactVoiceWorkspaceViewport() ? 'chat' : 'channel';
+  }
+
+  private isCompactVoiceWorkspaceViewport(): boolean {
+    return typeof window !== 'undefined' && window.matchMedia('(max-width: 920px)').matches;
   }
 
   private loadMessagesForChannel(token: string, channelId: string, before?: string | null): void {

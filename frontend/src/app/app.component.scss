@@ -194,6 +194,7 @@ select {
 .channel-rail,
 .member-rail,
 .workspace-header,
+.voice-workspace,
 .voice-dock,
 .hero-card,
 .voice-stage,
@@ -208,6 +209,7 @@ select {
 .channel-rail,
 .member-rail,
 .workspace-header,
+.voice-workspace,
 .voice-dock,
 .hero-card,
 .voice-stage,
@@ -219,6 +221,7 @@ select {
 .auth-panel--story,
 .channel-rail,
 .member-rail,
+.voice-workspace,
 .voice-stage,
 .workspace-body {
   display: flex;
@@ -228,6 +231,7 @@ select {
 .auth-panel--story,
 .channel-rail,
 .member-rail,
+.voice-workspace,
 .workspace-body {
   gap: var(--space);
 }
@@ -813,6 +817,102 @@ select {
   font-size: 1.05rem;
 }
 
+.voice-workspace {
+  gap: 8px;
+}
+
+.voice-workspace__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.voice-workspace__meta {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.voice-workspace__meta strong,
+.voice-workspace__meta small {
+  display: block;
+}
+
+.voice-workspace__meta strong {
+  font-size: 0.96rem;
+  line-height: 1.15;
+}
+
+.voice-workspace__meta small {
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.voice-workspace__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.voice-workspace__collapse {
+  min-width: 40px;
+  width: 40px;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+}
+
+.voice-workspace__tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.voice-workspace__tab {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--muted);
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
+}
+
+.voice-workspace__tab span {
+  min-width: 20px;
+  padding: 1px 6px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text);
+  font-size: 0.72rem;
+  line-height: 1.2;
+}
+
+.voice-workspace__tab:hover {
+  border-color: rgba(61, 214, 198, 0.28);
+  color: var(--text);
+}
+
+.voice-workspace__tab--active {
+  border-color: rgba(255, 159, 67, 0.34);
+  background: rgba(255, 159, 67, 0.1);
+  color: var(--text);
+}
+
+.voice-workspace--collapsed .voice-workspace__meta small {
+  display: none;
+}
+
 .workspace-body {
   min-height: 0;
   overflow: auto;
@@ -858,7 +958,7 @@ select {
 }
 
 .voice-stage {
-  gap: 18px;
+  gap: 10px;
 }
 
 .voice-stage__summary {
@@ -868,17 +968,27 @@ select {
   gap: 16px;
 }
 
+.voice-stage--channel-tab {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.voice-stage--channel-tab .voice-stage__summary {
+  display: none;
+}
+
 .voice-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 10px;
 }
 
 .voice-card {
   display: flex;
-  gap: 14px;
+  gap: 12px;
   width: 100%;
-  padding: 14px;
+  padding: 12px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.02);
   color: inherit;
@@ -1810,6 +1920,7 @@ select {
   }
 
   .workspace-header,
+  .voice-workspace__top,
   .voice-stage__summary,
   .voice-dock,
   .composer,
@@ -1819,6 +1930,7 @@ select {
   }
 
   .workspace-header__actions,
+  .voice-workspace__actions,
   .voice-stage__actions,
   .voice-dock__actions,
   .composer__actions,
@@ -1828,6 +1940,7 @@ select {
   }
 
   .status-card,
+  .voice-workspace__actions > button,
   .workspace-header__actions > button,
   .voice-stage__actions button,
   .voice-dock__actions button,
@@ -1859,6 +1972,10 @@ select {
 
   .voice-admin__actions {
     justify-content: flex-start;
+  }
+
+  .voice-workspace__tabs {
+    width: 100%;
   }
 }
 
@@ -1917,6 +2034,15 @@ select {
   .mobile-nav-button {
     width: 100%;
     padding: var(--space);
+  }
+
+  .voice-workspace__tabs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .voice-workspace__tab {
+    width: 100%;
   }
 
   .composer {
