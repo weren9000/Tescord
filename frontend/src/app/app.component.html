@@ -586,7 +586,14 @@
           </div>
           <div class="profile-actions">
             @if (isAdmin()) {
-              <button class="icon-button" type="button" (click)="openVoiceAdminPanel()">≣</button>
+              <button
+                class="secondary-button profile-admin-button"
+                type="button"
+                title="Управление доступом к голосовым каналам"
+                (click)="openVoiceAdminPanel()"
+              >
+                Доступ
+              </button>
             }
             <button class="icon-button" type="button" (click)="openVoiceSettings()">⚙</button>
             <button class="secondary-button profile-logout" type="button" (click)="logout()">Выйти</button>

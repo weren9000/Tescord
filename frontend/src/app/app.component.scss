@@ -1358,9 +1358,12 @@ select {
 .profile-actions {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
   gap: var(--space);
 }
 
+.profile-admin-button,
 .profile-logout {
   padding: 6px 10px;
   font-size: 0.8rem;
