@@ -5,6 +5,7 @@ from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
+from starlette.websockets import WebSocketDisconnect
 from sqlalchemy import select
 
 from app.db.models import Server, User
@@ -602,6 +603,52 @@ def test_kicked_stranger_sees_retry_wait_details() -> None:
     assert isinstance(detail["retry_after_seconds"], int)
     assert 1 <= detail["retry_after_seconds"] <= 300
     assert "Повторить попытку можно через" in detail["message"]
+
+
+def test_kicked_stranger_voice_websocket_is_closed_immediately() -> None:
+    with TestClient(app) as client:
+        admin_token = login_admin_user(client)
+        token, payload = register_regular_user(client)
+        try:
+            _, voice_channel = get_seed_server_and_voice_channel(client, admin_token)
+            current_user = get_current_user_profile(client, token)
+            assign_response = client.put(
+                f"/api/voice/channels/{voice_channel['id']}/access/{current_user['id']}",
+                headers={"Authorization": f"Bearer {admin_token}"},
+                json={"role": "stranger"},
+            )
+            assert assign_response.status_code == 200
+
+            request_response = client.post(
+                f"/api/voice/channels/{voice_channel['id']}/requests",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+            assert request_response.status_code == 200
+            request_id = request_response.json()["request"]["id"]
+
+            resolve_response = client.post(
+                f"/api/voice/requests/{request_id}/resolve",
+                headers={"Authorization": f"Bearer {admin_token}"},
+                json={"action": "allow"},
+            )
+            assert resolve_response.status_code == 200
+
+            with client.websocket_connect(f"/api/voice/channels/{voice_channel['id']}/ws?token={token}") as socket:
+                room_state = socket.receive_json()
+                assert room_state["type"] == "room_state"
+
+                kick_response = client.post(
+                    f"/api/voice/channels/{voice_channel['id']}/participants/{current_user['id']}/kick",
+                    headers={"Authorization": f"Bearer {admin_token}"},
+                )
+                assert kick_response.status_code == 200
+
+                with pytest.raises(WebSocketDisconnect) as disconnect_error:
+                    socket.receive_json()
+        finally:
+            delete_user(payload["login"])
+
+    assert disconnect_error.value.code == 4003
 
 
 def test_voice_presence_endpoint_returns_active_voice_participants() -> None:

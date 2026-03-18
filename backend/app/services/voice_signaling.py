@@ -70,15 +70,29 @@ class VoiceSignalingManager:
 
         return participant
 
-    async def disconnect(self, channel_id: str, participant_id: str) -> None:
+    async def disconnect(
+        self,
+        channel_id: str,
+        participant_id: str,
+        *,
+        close_socket: bool = False,
+        code: int = 4003,
+        reason: str = "Voice access revoked",
+    ) -> None:
         async with self._lock:
             room = self._rooms.get(channel_id)
             if room is None or participant_id not in room:
                 return
 
-            room.pop(participant_id, None)
+            connection = room.pop(participant_id)
             if not room:
                 self._rooms.pop(channel_id, None)
+
+        if close_socket:
+            try:
+                await connection.websocket.close(code=code, reason=reason)
+            except Exception:
+                pass
 
         await self._broadcast(
             channel_id,
@@ -179,7 +193,12 @@ class VoiceSignalingManager:
             ]
 
         for participant_id in participant_ids:
-            await self.disconnect(channel_id, participant_id)
+            await self.disconnect(
+                channel_id,
+                participant_id,
+                close_socket=True,
+                reason="Voice access revoked",
+            )
 
     async def disconnect_channel_sessions(
         self,

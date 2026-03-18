@@ -415,7 +415,7 @@ export class VoiceRoomService {
         resolve();
       };
       socket.onerror = () => reject(new Error('Не удалось установить signaling-соединение'));
-      socket.onclose = () => {
+      socket.onclose = (event) => {
         if (this.socket !== socket) {
           return;
         }
@@ -426,7 +426,11 @@ export class VoiceRoomService {
           return;
         }
 
-        this.handleFailure('????????? ?????????? ???????');
+        const failureMessage =
+          event.code === 4003
+            ? 'Владелец закрыл вам доступ к голосовому каналу'
+            : 'Соединение голосового канала прервано';
+        this.handleFailure(failureMessage);
       };
       socket.onmessage = (event) => {
         this.handleSocketMessage(event.data);
