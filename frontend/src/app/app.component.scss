@@ -1214,7 +1214,7 @@ select {
 
 .composer__surface {
   display: grid;
-  grid-template-columns: 42px minmax(0, 1fr) 46px 42px;
+  grid-template-columns: 42px minmax(0, 1fr) 46px;
   align-items: end;
   gap: 8px;
   padding: 8px;
@@ -1247,8 +1247,7 @@ select {
   font-weight: 700;
 }
 
-.composer__submit img,
-.composer__refresh-icon {
+.composer__submit img {
   width: 18px;
   height: 18px;
   display: block;
@@ -1259,47 +1258,6 @@ select {
 .composer__submit img {
   filter: brightness(0) saturate(100%) invert(92%) sepia(10%) saturate(637%) hue-rotate(329deg) brightness(102%)
     contrast(91%);
-}
-
-.composer__refresh {
-  width: 42px;
-  height: 42px;
-  min-width: 42px;
-  min-height: 42px;
-  align-self: end;
-  display: inline-grid;
-  place-items: center;
-  padding: 0;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 999px;
-  background: rgba(97, 112, 126, 0.2);
-  cursor: pointer;
-  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
-}
-
-.composer__refresh:hover:not(:disabled) {
-  border-color: rgba(140, 220, 255, 0.28);
-  background: rgba(97, 112, 126, 0.34);
-}
-
-.composer__refresh:disabled {
-  opacity: 0.48;
-  cursor: default;
-}
-
-.composer__refresh--active {
-  border-color: rgba(61, 214, 198, 0.44);
-  background: rgba(61, 214, 198, 0.18);
-}
-
-.composer__refresh-icon {
-  filter: brightness(0) saturate(100%) invert(66%) sepia(10%) saturate(425%) hue-rotate(168deg) brightness(86%)
-    contrast(86%);
-}
-
-.composer__refresh--active .composer__refresh-icon {
-  filter: brightness(0) saturate(100%) invert(79%) sepia(22%) saturate(1097%) hue-rotate(140deg) brightness(102%)
-    contrast(96%);
 }
 
 .composer__field {
@@ -1971,14 +1929,13 @@ select {
   }
 
   .composer__surface {
-    grid-template-columns: 40px minmax(0, 1fr) 40px 40px;
+    grid-template-columns: 40px minmax(0, 1fr) 40px;
     gap: 6px;
     padding: 6px;
   }
 
   .composer__attach,
-  .composer__submit,
-  .composer__refresh {
+  .composer__submit {
     height: 40px;
     min-height: 40px;
   }

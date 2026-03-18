@@ -110,7 +110,6 @@ interface BlockedVoiceJoinState {
 const SESSION_STORAGE_KEY = 'tescord.session';
 const MESSAGES_PAGE_SIZE = 25;
 const MAX_ATTACHMENT_SIZE_BYTES = 50 * 1024 * 1024;
-const MESSAGE_AUTO_REFRESH_INTERVAL_MS = 5000;
 const MEMBERS_POLL_INTERVAL_MS = 15000;
 const PRESENCE_ACTIVITY_THROTTLE_MS = 15000;
 const PRESENCE_KEEPALIVE_INTERVAL_MS = 30000;
@@ -196,7 +195,6 @@ export class AppComponent {
   readonly mobilePanel = signal<MobilePanel>(null);
   readonly messageDraft = signal('');
   readonly pendingFiles = signal<File[]>([]);
-  readonly autoRefreshEnabled = signal(false);
   readonly voiceAdminChannelsLoading = signal(false);
   readonly voiceAdminUsersLoading = signal(false);
   readonly voiceAdminAccessLoading = signal(false);
@@ -1109,7 +1107,7 @@ export class AppComponent {
   }
 
   onMessageComposerKeydown(event: KeyboardEvent): void {
-    if ((event.ctrlKey || event.metaKey) && event.key === 'Enter' && this.canSendMessage()) {
+    if (event.key === 'Enter' && !event.ctrlKey && !event.metaKey && !event.shiftKey && this.canSendMessage()) {
       event.preventDefault();
       this.submitMessage();
     }
@@ -1202,7 +1200,7 @@ export class AppComponent {
             return;
           }
 
-          this.messages.update((messages) => [...messages, message]);
+          this.messages.update((messages) => this.mergeMessagesChronologically([...messages, message]));
           this.primeAttachmentPreviews([message]);
           this.scrollMessagesToBottom();
         },
@@ -1532,15 +1530,6 @@ export class AppComponent {
     if (channel.type === 'voice') {
       await this.handleVoiceChannelSelection(channel);
       return;
-    }
-  }
-
-  toggleMessageAutoRefresh(): void {
-    this.autoRefreshEnabled.update((currentValue) => !currentValue);
-    this.syncMessageAutoRefreshPolling();
-
-    if (this.autoRefreshEnabled()) {
-      this.refreshCurrentChannelMessages();
     }
   }
 
@@ -2647,27 +2636,7 @@ export class AppComponent {
   }
 
   private syncMessageAutoRefreshPolling(): void {
-    const token = this.session()?.access_token;
-    const activeChannel = this.activeChannel();
-    const shouldPoll = Boolean(
-      typeof window !== 'undefined'
-      && this.autoRefreshEnabled()
-      && token
-      && (activeChannel?.type === 'text' || activeChannel?.type === 'voice')
-    );
-
-    if (!shouldPoll) {
-      this.stopMessageAutoRefreshPolling();
-      return;
-    }
-
-    if (this.messageAutoRefreshIntervalId !== null) {
-      return;
-    }
-
-    this.messageAutoRefreshIntervalId = window.setInterval(() => {
-      this.refreshCurrentChannelMessages();
-    }, MESSAGE_AUTO_REFRESH_INTERVAL_MS);
+    this.stopMessageAutoRefreshPolling();
   }
 
   private stopMessageAutoRefreshPolling(): void {

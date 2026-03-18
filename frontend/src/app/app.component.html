@@ -568,18 +568,6 @@
                   <img src="/assets/Enter.svg" alt="" />
                 }
               </button>
-
-              <button
-                class="composer__refresh"
-                [class.composer__refresh--active]="autoRefreshEnabled()"
-                type="button"
-                (click)="toggleMessageAutoRefresh()"
-                [attr.aria-pressed]="autoRefreshEnabled()"
-                [attr.aria-label]="autoRefreshEnabled() ? 'Выключить автообновление чата' : 'Включить автообновление чата'"
-                [attr.title]="autoRefreshEnabled() ? 'Автообновление включено' : 'Автообновление выключено'"
-              >
-                <img class="composer__refresh-icon" src="/assets/Refresh.svg" alt="" />
-              </button>
             </div>
 
             <div class="composer__meta">
@@ -599,9 +587,6 @@
               </label>
               <button class="primary-button composer__submit" type="button" disabled>
                 <img src="/assets/Enter.svg" alt="" />
-              </button>
-              <button class="composer__refresh" type="button" disabled>
-                <img class="composer__refresh-icon" src="/assets/Refresh.svg" alt="" />
               </button>
             </div>
           }
