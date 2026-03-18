@@ -814,11 +814,30 @@ select {
 
 .voice-dock__top {
   width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .voice-dock__meta {
   min-width: 0;
   flex: 1 1 auto;
+}
+
+.voice-dock__open {
+  align-items: flex-start;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.voice-dock__open:hover strong {
+  color: var(--accent-cool);
 }
 
 .voice-dock__meta strong {
@@ -839,11 +858,6 @@ select {
 .voice-dock__controls > .secondary-button {
   padding: 8px 10px;
   font-size: 0.8rem;
-}
-
-.voice-dock__controls .voice-dock__open-button {
-  min-width: 0;
-  white-space: nowrap;
 }
 
 .voice-dock__controls .voice-mute-button {
@@ -2143,7 +2157,6 @@ select {
   }
 
   .voice-dock__top {
-    display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 10px;
@@ -2272,7 +2285,7 @@ select {
 }
 
 .voice-dock__controls > .secondary-button {
-  padding: 7px 8px;
+  padding: 0;
   font-size: 0.74rem;
 }
 

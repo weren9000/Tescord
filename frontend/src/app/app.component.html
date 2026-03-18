@@ -346,20 +346,13 @@
       @if (showVoiceDock()) {
         <section class="voice-dock">
           <div class="voice-workspace__top voice-dock__top">
-            <div class="voice-workspace__meta voice-dock__meta">
+            <button class="voice-workspace__meta voice-dock__meta voice-dock__open" type="button" (click)="openConnectedVoiceChannel()">
               <p class="eyebrow">Голос в фоне</p>
               <strong>{{ connectedVoiceChannel()?.name }}</strong>
               <small>{{ voiceDockLabel() }} · участников: {{ voiceParticipants().length }}</small>
-            </div>
+            </button>
 
             <div class="voice-workspace__controls voice-dock__controls">
-              <button
-                class="secondary-button voice-dock__open-button"
-                type="button"
-                (click)="openConnectedVoiceChannel()"
-              >
-                Открыть канал
-              </button>
               <button
                 class="secondary-button voice-mute-button"
                 [class.voice-mute-button--blocked]="voiceOwnerMuted()"
