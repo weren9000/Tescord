@@ -1,6 +1,11 @@
 param(
+    [Parameter(Position = 0)]
     [string]$ServerHost,
-    [string]$ServerUser,
+    [Parameter(Position = 1)]
+    [string]$ServerUser = 'root',
+    [Parameter(Position = 2)]
+    [Alias('Password')]
+    [string]$ServerPasswordText,
     [SecureString]$ServerPassword,
     [string]$Domain,
     [string]$LetsEncryptEmail
@@ -94,18 +99,16 @@ if (-not $ServerHost) {
 }
 
 if (-not $ServerUser) {
-    $ServerUser = Read-Host 'Логин сервера (по умолчанию root)'
-    if (-not $ServerUser) {
-        $ServerUser = 'root'
-    }
+    $ServerUser = 'root'
 }
 
 if (-not $ServerPassword) {
-    $ServerPassword = Read-Host 'Пароль сервера' -AsSecureString
-}
-
-if (-not $Domain) {
-    $Domain = Read-Host 'Домен для сайта (можно пусто, тогда будет использован IP)'
+    if ([string]::IsNullOrWhiteSpace($ServerPasswordText)) {
+        $ServerPassword = Read-Host 'Пароль сервера' -AsSecureString
+    }
+    else {
+        $ServerPassword = ConvertTo-SecureString $ServerPasswordText -AsPlainText -Force
+    }
 }
 
 $appDomain = if ([string]::IsNullOrWhiteSpace($Domain)) { $ServerHost.Trim() } else { $Domain.Trim().ToLowerInvariant() }

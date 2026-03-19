@@ -191,12 +191,26 @@ npm run build
 .\scripts\deploy-ubuntu24.ps1
 ```
 
+Самый простой запуск по IP, логину и паролю:
+
+```powershell
+.\scripts\deploy-ubuntu24.ps1 95.182.97.217 root ВАШ_ПАРОЛЬ
+```
+
+Если нужен сразу деплой на домен с `Let's Encrypt`:
+
+```powershell
+.\scripts\deploy-ubuntu24.ps1 95.182.97.217 root ВАШ_ПАРОЛЬ -Domain tescord.ru -LetsEncryptEmail admin@tescord.ru
+```
+
 Скрипт спросит:
 - адрес сервера или IP
 - логин
 - пароль
 - домен
 - email для `Let's Encrypt`
+
+Если `Domain` не указан, скрипт не будет ничего спрашивать про домен и развернет сайт по IP с self-signed `HTTPS`.
 
 Важно:
 - скрипт деплоит только **закоммиченный** код

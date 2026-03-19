@@ -279,6 +279,18 @@ curl -fsS https://tescord.ru/api/health
 .\scripts\deploy-ubuntu24.ps1
 ```
 
+Короткий запуск без лишних вопросов:
+
+```powershell
+.\scripts\deploy-ubuntu24.ps1 95.182.97.217 root ВАШ_ПАРОЛЬ
+```
+
+Запуск сразу на домен:
+
+```powershell
+.\scripts\deploy-ubuntu24.ps1 95.182.97.217 root ВАШ_ПАРОЛЬ -Domain tescord.ru -LetsEncryptEmail admin@tescord.ru
+```
+
 Скрипт спросит:
 - адрес сервера или IP
 - логин
@@ -294,6 +306,7 @@ curl -fsS https://tescord.ru/api/health
 - self-signed подходит только как временный вариант
 - production `runtime-config.js` генерируется автоматически
 - пароль `TURN` тоже генерируется автоматически и выводится в конце
+- в минимальном сценарии достаточно передать `IP`, `логин` и `пароль`
 
 ### Пример сценария
 
