@@ -21,8 +21,9 @@ from app.schemas.workspace import (
     VoicePresenceParticipantSummary,
 )
 from app.services.app_events import (
-    publish_server_changed,
-    publish_server_changed_from_sync,
+    publish_channels_updated,
+    publish_channels_updated_from_sync,
+    publish_members_updated_from_sync,
     publish_servers_changed_from_sync,
 )
 from app.services.default_tavern import ensure_default_tavern_access_for_users, ensure_default_tavern_channel, is_default_tavern_channel
@@ -141,6 +142,7 @@ def _ensure_membership(db: Session, server_id: UUID, current_user: User) -> Serv
         return membership
 
     db.refresh(membership)
+    publish_members_updated_from_sync(server_id, reason="member_joined")
     return membership
 
 
@@ -341,7 +343,7 @@ def create_server_channel(
         ensure_voice_channel_owner_permission(db, channel)
     db.commit()
     db.refresh(channel)
-    publish_server_changed_from_sync(server.id, reason="channel_created")
+    publish_channels_updated_from_sync(server.id, reason="channel_created")
 
     return _build_channel_summary(
         channel,
@@ -370,4 +372,4 @@ async def delete_server_channel(
 
     db.delete(channel)
     db.commit()
-    await publish_server_changed(server_id, reason="channel_deleted")
+    await publish_channels_updated(server_id, reason="channel_deleted")

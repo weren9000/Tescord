@@ -1,4 +1,5 @@
 import { VoiceJoinRequestSummary, WorkspaceMessage } from './workspace.models';
+import { WorkspaceChannel, WorkspaceMember, WorkspaceVoicePresenceChannel } from './workspace.models';
 
 export interface AppEventsReadyEvent {
   type: 'ready';
@@ -27,6 +28,26 @@ export interface AppMessageCreatedEvent {
   message: WorkspaceMessage;
 }
 
+export interface AppChannelsUpdatedEvent {
+  type: 'channels_updated';
+  server_id: string;
+  reason: string;
+  channels: WorkspaceChannel[];
+}
+
+export interface AppMembersUpdatedEvent {
+  type: 'members_updated';
+  server_id: string;
+  reason: string;
+  members: WorkspaceMember[];
+}
+
+export interface AppVoicePresenceUpdatedEvent {
+  type: 'voice_presence_updated';
+  server_id: string;
+  voice_presence: WorkspaceVoicePresenceChannel[];
+}
+
 export interface AppServersChangedEvent {
   type: 'servers_changed';
   reason: string;
@@ -53,6 +74,9 @@ export type AppEventsMessage =
   | AppEventsErrorEvent
   | AppPresenceUpdatedEvent
   | AppMessageCreatedEvent
+  | AppChannelsUpdatedEvent
+  | AppMembersUpdatedEvent
+  | AppVoicePresenceUpdatedEvent
   | AppServersChangedEvent
   | AppServerChangedEvent
   | AppVoiceInboxChangedEvent

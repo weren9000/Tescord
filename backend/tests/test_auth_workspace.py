@@ -159,13 +159,12 @@ def create_temp_text_channel(client: TestClient, token: str, suffix: str) -> tup
 
 
 @contextmanager
-def connect_app_events_websocket(client: TestClient, token: str):
+def connect_app_events_websocket(client: TestClient, token: str, server_id: str | None = None):
     with client.websocket_connect(f"/api/events/ws?token={token}") as websocket:
         ready_event = websocket.receive_json()
         assert ready_event["type"] == "ready"
-
-        presence_event = websocket.receive_json()
-        assert presence_event["type"] == "presence_updated"
+        if server_id is not None:
+            websocket.send_json({"type": "subscribe_server", "server_id": server_id})
         yield websocket
 
 
@@ -379,20 +378,14 @@ def test_servers_and_channels_endpoints_return_seed_workspace() -> None:
     assert any(channel["type"] == "voice" for channel in channels)
 
 
-def test_app_events_websocket_reports_ready_and_activity_presence() -> None:
+def test_app_events_websocket_reports_ready_and_ping() -> None:
     with TestClient(app) as client:
         token = login_admin_user(client)
-        profile = get_current_user_profile(client, token)
 
         with connect_app_events_websocket(client, token) as websocket:
-            websocket.send_json({"type": "activity"})
-            presence_event = websocket.receive_json()
             websocket.send_json({"type": "ping"})
             pong_event = websocket.receive_json()
 
-    assert presence_event["type"] == "presence_updated"
-    assert presence_event["user_id"] == profile["id"]
-    assert presence_event["is_online"] is True
     assert pong_event == {"type": "pong"}
 
 
@@ -402,10 +395,10 @@ def test_app_events_websocket_pushes_new_message_to_connected_clients() -> None:
     with TestClient(app) as client:
         admin_token = login_admin_user(client)
         regular_token, payload = register_regular_user(client)
-        _, text_channel = get_seed_server_and_text_channel(client, admin_token)
+        server, text_channel = get_seed_server_and_text_channel(client, admin_token)
 
         try:
-            with connect_app_events_websocket(client, regular_token) as websocket:
+            with connect_app_events_websocket(client, regular_token, server["id"]) as websocket:
                 send_message_response = client.post(
                     f"/api/channels/{text_channel['id']}/messages",
                     headers={"Authorization": f"Bearer {admin_token}"},

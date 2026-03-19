@@ -32,9 +32,13 @@ from app.schemas.voice import (
     VoiceOwnerMuteUpdateRequest,
 )
 from app.services.app_events import (
-    publish_server_changed,
+    publish_channels_updated,
+    publish_channels_updated_from_sync,
+    publish_members_updated,
+    publish_members_updated_from_sync,
     publish_voice_inbox_changed,
     publish_voice_inbox_changed_from_sync,
+    publish_voice_presence_updated,
     publish_voice_request_resolved,
 )
 from app.services.default_tavern import is_default_tavern_channel
@@ -87,7 +91,7 @@ def _get_voice_channel_or_404(db: Session, channel_id: UUID) -> Channel:
     return channel
 
 
-def _ensure_server_membership(db: Session, channel: Channel, user: User) -> ServerMember:
+def _ensure_server_membership(db: Session, channel: Channel, user: User) -> tuple[ServerMember, bool]:
     membership = db.execute(
         select(ServerMember).where(
             ServerMember.server_id == channel.server_id,
@@ -95,7 +99,7 @@ def _ensure_server_membership(db: Session, channel: Channel, user: User) -> Serv
         )
     ).scalar_one_or_none()
     if membership is not None:
-        return membership
+        return membership, False
 
     membership = ServerMember(
         server_id=channel.server_id,
@@ -114,10 +118,26 @@ def _ensure_server_membership(db: Session, channel: Channel, user: User) -> Serv
                 ServerMember.user_id == user.id,
             )
         ).scalar_one()
+        return membership, False
     else:
         db.refresh(membership)
 
-    return membership
+    return membership, True
+
+
+def _collect_voice_inbox_recipient_ids(db: Session, channel_id: UUID) -> set[UUID]:
+    admin_user_ids = set(
+        db.execute(select(User.id).where(User.is_admin.is_(True))).scalars().all()
+    )
+    owner_user_ids = set(
+        db.execute(
+            select(VoiceChannelAccess.user_id).where(
+                VoiceChannelAccess.channel_id == channel_id,
+                VoiceChannelAccess.role == VoiceAccessRole.OWNER,
+            )
+        ).scalars().all()
+    )
+    return admin_user_ids | owner_user_ids
 
 
 def _build_voice_channel_catalog_item(
@@ -342,7 +362,8 @@ async def update_voice_channel_access(
         _upsert_voice_access(db, channel, target_user, VoiceAccessRole.OWNER)
         db.commit()
         entries = _load_channel_access_entries(db, channel.id)
-        await publish_server_changed(channel.server_id, reason="voice_access_changed")
+        await publish_channels_updated(channel.server_id, reason="voice_access_changed")
+        await publish_voice_presence_updated(channel.server_id)
         return entries
 
     if payload.role is None:
@@ -358,7 +379,8 @@ async def update_voice_channel_access(
         db.delete(current_access)
         db.commit()
         entries = _load_channel_access_entries(db, channel.id)
-        await publish_server_changed(channel.server_id, reason="voice_access_changed")
+        await publish_channels_updated(channel.server_id, reason="voice_access_changed")
+        await publish_voice_presence_updated(channel.server_id)
         return entries
 
     next_role = VoiceAccessRole(payload.role)
@@ -374,7 +396,8 @@ async def update_voice_channel_access(
     _upsert_voice_access(db, channel, target_user, next_role)
     db.commit()
     entries = _load_channel_access_entries(db, channel.id)
-    await publish_server_changed(channel.server_id, reason="voice_access_changed")
+    await publish_channels_updated(channel.server_id, reason="voice_access_changed")
+    await publish_voice_presence_updated(channel.server_id)
     return entries
 
 
@@ -385,7 +408,9 @@ def create_voice_join_request(
     db: Session = Depends(get_db),
 ) -> VoiceJoinRequestCreateResponse:
     channel = _get_voice_channel_or_404(db, channel_id)
-    _ensure_server_membership(db, channel, current_user)
+    _, membership_created = _ensure_server_membership(db, channel, current_user)
+    if membership_created:
+        publish_members_updated_from_sync(channel.server_id, reason="member_joined")
 
     access = get_voice_channel_access(db, channel.id, current_user.id)
     if access is None and is_default_tavern_channel(channel):
@@ -451,7 +476,7 @@ def create_voice_join_request(
     db.add(request)
     db.commit()
     db.refresh(request)
-    publish_voice_inbox_changed_from_sync()
+    publish_voice_inbox_changed_from_sync(_collect_voice_inbox_recipient_ids(db, channel.id))
 
     return VoiceJoinRequestCreateResponse(
         request=_build_voice_join_request_summary(request, channel, current_user),
@@ -560,9 +585,10 @@ async def resolve_voice_join_request(
     db.commit()
     db.refresh(request)
     request_summary = _build_voice_join_request_summary(request, channel, requester, access)
-    await publish_voice_inbox_changed()
+    await publish_voice_inbox_changed(_collect_voice_inbox_recipient_ids(db, channel.id))
     await publish_voice_request_resolved(requester.id, request_summary.model_dump(mode="json"))
-    await publish_server_changed(channel.server_id, reason="voice_access_changed")
+    await publish_channels_updated(channel.server_id, reason="voice_access_changed")
+    await publish_voice_presence_updated(channel.server_id)
 
     return request_summary
 
@@ -584,7 +610,8 @@ async def kick_voice_participant(
     block_stranger_access(access)
     db.commit()
     await voice_signaling_manager.disconnect_user_sessions(str(channel.id), str(user_id))
-    await publish_server_changed(channel.server_id, reason="voice_access_changed")
+    await publish_channels_updated(channel.server_id, reason="voice_access_changed")
+    await publish_voice_presence_updated(channel.server_id)
     return _load_channel_access_entries(db, channel.id)
 
 
@@ -610,7 +637,7 @@ async def update_voice_participant_owner_mute(
     db.commit()
 
     await voice_signaling_manager.update_owner_mute_state(str(channel.id), str(user_id), access.owner_muted)
-    await publish_server_changed(channel.server_id, reason="voice_access_changed")
+    await publish_voice_presence_updated(channel.server_id)
     return _load_channel_access_entries(db, channel.id)
 
 
@@ -634,7 +661,9 @@ async def connect_to_voice_channel(websocket: WebSocket, channel_id: UUID) -> No
             await websocket.close(code=4404, reason="Voice channel not found")
             return
 
-        _ensure_server_membership(db, channel, current_user)
+        _, membership_created = _ensure_server_membership(db, channel, current_user)
+        if membership_created:
+            await publish_members_updated(channel.server_id, reason="member_joined")
 
         access = get_voice_channel_access(db, channel.id, current_user.id)
         if access is None and is_default_tavern_channel(channel):
@@ -666,7 +695,7 @@ async def connect_to_voice_channel(websocket: WebSocket, channel_id: UUID) -> No
             full_name=current_user.display_name,
             owner_muted=bool(access.owner_muted),
         )
-        await publish_server_changed(channel.server_id, reason="voice_presence_changed")
+        await publish_voice_presence_updated(channel.server_id)
 
     try:
         while True:
@@ -696,7 +725,7 @@ async def connect_to_voice_channel(websocket: WebSocket, channel_id: UUID) -> No
                     participant.id,
                     bool(message.get("muted")),
                 )
-                await publish_server_changed(channel.server_id, reason="voice_presence_changed")
+                await publish_voice_presence_updated(channel.server_id)
                 continue
 
             if message_type == "ping":
@@ -718,4 +747,4 @@ async def connect_to_voice_channel(websocket: WebSocket, channel_id: UUID) -> No
             if access is not None and access.role == VoiceAccessRole.STRANGER:
                 mark_stranger_rejoin_grace(access)
                 db.commit()
-        await publish_server_changed(channel.server_id, reason="voice_presence_changed")
+        await publish_voice_presence_updated(channel.server_id)

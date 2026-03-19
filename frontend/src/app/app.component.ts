@@ -10,9 +10,12 @@ import { SystemApiService } from './core/api/system-api.service';
 import { WorkspaceApiService } from './core/api/workspace-api.service';
 import {
   AppEventsMessage,
+  AppChannelsUpdatedEvent,
   AppMessageCreatedEvent,
+  AppMembersUpdatedEvent,
   AppPresenceUpdatedEvent,
   AppServerChangedEvent,
+  AppVoicePresenceUpdatedEvent,
   AppVoiceRequestResolvedEvent
 } from './core/models/app-events.models';
 import { AuthSessionResponse } from './core/models/auth.models';
@@ -111,12 +114,8 @@ interface BlockedVoiceJoinState {
 const SESSION_STORAGE_KEY = 'tescord.session';
 const MESSAGES_PAGE_SIZE = 25;
 const MAX_ATTACHMENT_SIZE_BYTES = 50 * 1024 * 1024;
-const MEMBERS_POLL_INTERVAL_MS = 15000;
-const PRESENCE_ACTIVITY_THROTTLE_MS = 15000;
-const PRESENCE_KEEPALIVE_INTERVAL_MS = 30000;
-const VOICE_PRESENCE_POLL_INTERVAL_MS = 3000;
-const VOICE_JOIN_REQUEST_POLL_INTERVAL_MS = 3000;
-const VOICE_JOIN_INBOX_POLL_INTERVAL_MS = 3000;
+const PRESENCE_ACTIVITY_THROTTLE_MS = 30000;
+const PRESENCE_KEEPALIVE_INTERVAL_MS = 45000;
 
 @Component({
   selector: 'app-root',
@@ -138,7 +137,6 @@ export class AppComponent {
   private readonly handleVisibilityChange = () => {
     if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
       this.schedulePresenceHeartbeat(true);
-      void this.refreshMembers();
     }
   };
   private voicePresencePollIntervalId: number | null = null;
@@ -1040,8 +1038,7 @@ export class AppComponent {
       .subscribe({
         next: (channel) => {
           const updatedChannels = [...this.channels(), channel].sort((left, right) => left.position - right.position);
-          this.channels.set(updatedChannels);
-          this.selectedChannelId.set(channel.id);
+          this.applyChannelsSnapshot(updatedChannels, token, channel.id);
           this.createChannelForm.name = '';
           this.createChannelForm.topic = '';
           this.createChannelForm.type = 'text';
@@ -1115,7 +1112,10 @@ export class AppComponent {
               ? `Голосовой канал ${channel.name} удален`
               : `Текстовый канал #${channel.name} удален`
           );
-          this.loadServerWorkspace(token, activeServer.id);
+          this.applyChannelsSnapshot(
+            this.channels().filter((existingChannel) => existingChannel.id !== channel.id),
+            token
+          );
         },
         error: (error) => {
           this.deletingChannelId.set(null);
@@ -1466,7 +1466,6 @@ export class AppComponent {
                 ? 'Пользователь стал жителем канала'
                 : 'Пользователь выгнан и не сможет зайти 5 минут'
           );
-          void this.refreshVoiceJoinInbox();
         },
         error: (error) => {
           this.voiceOwnerActionLoading.set(false);
@@ -1691,9 +1690,6 @@ export class AppComponent {
   private startVoicePresencePolling(): void {
     this.stopVoicePresencePolling(false);
     void this.refreshVoicePresence();
-    this.voicePresencePollIntervalId = window.setInterval(() => {
-      void this.refreshVoicePresence();
-    }, VOICE_PRESENCE_POLL_INTERVAL_MS);
   }
 
   private startVoiceJoinInboxPolling(): void {
@@ -1703,9 +1699,6 @@ export class AppComponent {
 
     this.stopVoiceJoinInboxPolling(false);
     void this.refreshVoiceJoinInbox();
-    this.voiceJoinInboxPollIntervalId = window.setInterval(() => {
-      void this.refreshVoiceJoinInbox();
-    }, VOICE_JOIN_INBOX_POLL_INTERVAL_MS);
   }
 
   private stopVoiceJoinInboxPolling(clearState = true): void {
@@ -1722,14 +1715,8 @@ export class AppComponent {
   }
 
   private startVoiceJoinRequestPolling(): void {
-    if (typeof window === 'undefined') {
-      return;
-    }
-
     this.stopVoiceJoinRequestPolling();
-    this.voiceJoinRequestPollIntervalId = window.setInterval(() => {
-      void this.refreshPendingVoiceJoin();
-    }, VOICE_JOIN_REQUEST_POLL_INTERVAL_MS);
+    void this.refreshPendingVoiceJoin();
   }
 
   private stopVoiceJoinRequestPolling(): void {
@@ -1742,9 +1729,6 @@ export class AppComponent {
   private startMemberPolling(): void {
     this.stopMemberPolling(false);
     void this.refreshMembers();
-    this.memberPollIntervalId = window.setInterval(() => {
-      void this.refreshMembers();
-    }, MEMBERS_POLL_INTERVAL_MS);
   }
 
   private stopVoicePresencePolling(clearState = true): void {
@@ -1882,7 +1866,7 @@ export class AppComponent {
             return;
           }
 
-          this.members.set(members);
+          this.applyMembersSnapshot(members);
         },
         error: () => {
           if (this.selectedServerId() !== serverId) {
@@ -1911,7 +1895,7 @@ export class AppComponent {
             return;
           }
 
-          this.voicePresence.set(voicePresence);
+          this.applyVoicePresenceSnapshot(voicePresence);
         },
         error: () => {
           if (this.selectedServerId() !== serverId) {
@@ -2095,6 +2079,15 @@ export class AppComponent {
       case 'message_created':
         this.handleMessageCreatedEvent(event);
         return;
+      case 'channels_updated':
+        this.handleChannelsUpdatedEvent(event);
+        return;
+      case 'members_updated':
+        this.handleMembersUpdatedEvent(event);
+        return;
+      case 'voice_presence_updated':
+        this.handleVoicePresenceUpdatedEvent(event);
+        return;
       case 'servers_changed': {
         const token = this.session()?.access_token;
         if (token) {
@@ -2175,6 +2168,124 @@ export class AppComponent {
     }
   }
 
+  private applyChannelsSnapshot(
+    channels: WorkspaceChannel[],
+    token: string,
+    preferredSelectedChannelId: string | null = this.selectedChannelId()
+  ): void {
+    const connectedVoiceChannelId = this.voiceRoom.activeChannelId();
+
+    this.channels.set(channels);
+
+    if (connectedVoiceChannelId && !channels.some((channel) => channel.id === connectedVoiceChannelId)) {
+      this.voiceRoom.leave();
+    }
+
+    const nextSelectedChannelId =
+      (preferredSelectedChannelId && channels.some((channel) => channel.id === preferredSelectedChannelId)
+        ? preferredSelectedChannelId
+        : null)
+      ?? (connectedVoiceChannelId && channels.some((channel) => channel.id === connectedVoiceChannelId)
+        ? connectedVoiceChannelId
+        : null)
+      ?? channels[0]?.id
+      ?? null;
+
+    const selectedChannelChanged = nextSelectedChannelId !== this.selectedChannelId();
+    this.selectedChannelId.set(nextSelectedChannelId);
+    this.filterVoicePresenceToVisibleChannels(channels);
+
+    if (
+      this.selectedVoiceMemberChannelId()
+      && !channels.some((channel) => channel.id === this.selectedVoiceMemberChannelId())
+    ) {
+      this.closeMemberVolume();
+    }
+
+    const nextSelectedChannel = channels.find((channel) => channel.id === nextSelectedChannelId) ?? null;
+    if (!nextSelectedChannel) {
+      this.resetTextChannelState();
+      this.syncMessageAutoRefreshPolling();
+      return;
+    }
+
+    if (nextSelectedChannel.type === 'text' || nextSelectedChannel.type === 'voice') {
+      if (selectedChannelChanged) {
+        this.loadMessagesForChannel(token, nextSelectedChannel.id);
+      }
+    } else if (selectedChannelChanged) {
+      this.resetTextChannelState();
+    }
+
+    this.syncMessageAutoRefreshPolling();
+  }
+
+  private applyMembersSnapshot(members: WorkspaceMember[]): void {
+    this.members.set(members);
+
+    if (this.selectedMemberUserId() && !members.some((member) => member.user_id === this.selectedMemberUserId())) {
+      this.closeMemberVolume();
+    }
+  }
+
+  private applyVoicePresenceSnapshot(voicePresence: WorkspaceVoicePresenceChannel[]): void {
+    const visibleVoiceChannelIds = new Set(
+      this.channels()
+        .filter((channel) => channel.type === 'voice')
+        .map((channel) => channel.id)
+    );
+
+    this.voicePresence.set(
+      voicePresence.filter((channel) => visibleVoiceChannelIds.has(channel.channel_id))
+    );
+  }
+
+  private filterVoicePresenceToVisibleChannels(channels: WorkspaceChannel[]): void {
+    const visibleVoiceChannelIds = new Set(
+      channels.filter((channel) => channel.type === 'voice').map((channel) => channel.id)
+    );
+    this.voicePresence.update((entries) =>
+      entries.filter((entry) => visibleVoiceChannelIds.has(entry.channel_id))
+    );
+  }
+
+  private handleChannelsUpdatedEvent(event: AppChannelsUpdatedEvent): void {
+    const token = this.session()?.access_token;
+    if (!token || event.server_id !== this.selectedServerId()) {
+      if (this.voiceAdminPanelOpen()) {
+        void this.refreshVoiceAdminChannels();
+      }
+      return;
+    }
+
+    this.applyChannelsSnapshot(event.channels, token);
+
+    if (this.voiceAdminPanelOpen()) {
+      void this.refreshVoiceAdminChannels();
+
+      const selectedVoiceAdminChannelId = this.voiceAdminSelectedChannelId();
+      if (selectedVoiceAdminChannelId) {
+        void this.ensureVoiceChannelAccessLoaded(selectedVoiceAdminChannelId, true);
+      }
+    }
+  }
+
+  private handleMembersUpdatedEvent(event: AppMembersUpdatedEvent): void {
+    if (event.server_id !== this.selectedServerId()) {
+      return;
+    }
+
+    this.applyMembersSnapshot(event.members);
+  }
+
+  private handleVoicePresenceUpdatedEvent(event: AppVoicePresenceUpdatedEvent): void {
+    if (event.server_id !== this.selectedServerId()) {
+      return;
+    }
+
+    this.applyVoicePresenceSnapshot(event.voice_presence);
+  }
+
   private async refreshServersList(token: string): Promise<void> {
     const previousSelectedServerId = this.selectedServerId();
 
@@ -2186,6 +2297,7 @@ export class AppComponent {
           this.servers.set(servers);
 
           if (!servers.length) {
+            this.appEvents.setActiveServer(null);
             this.selectedServerId.set(null);
             this.selectedChannelId.set(null);
             this.channels.set([]);
@@ -2246,12 +2358,6 @@ export class AppComponent {
     this.stopVoiceJoinRequestPolling();
 
     if (request.status === 'allowed' || request.status === 'resident') {
-      const tokenValue = this.session()?.access_token;
-      const selectedServerId = this.selectedServerId();
-      if (tokenValue && selectedServerId) {
-        await this.refreshChannelsForCurrentServer(tokenValue);
-      }
-
       const channel = this.channels().find((entry) => entry.id === request.channel_id) ?? this.activeChannel();
       this.pendingVoiceJoin.set(null);
       if (channel && channel.type === 'voice') {
@@ -2293,43 +2399,7 @@ export class AppComponent {
           if (this.selectedServerId() !== serverId) {
             return;
           }
-
-          this.channels.set(channels);
-
-          const connectedVoiceChannelId = this.voiceRoom.activeChannelId();
-          if (connectedVoiceChannelId && !channels.some((channel) => channel.id === connectedVoiceChannelId)) {
-            this.voiceRoom.leave();
-          }
-
-          const nextSelectedChannelId =
-            (previousSelectedChannelId && channels.some((channel) => channel.id === previousSelectedChannelId)
-              ? previousSelectedChannelId
-              : null)
-            ?? (connectedVoiceChannelId && channels.some((channel) => channel.id === connectedVoiceChannelId)
-              ? connectedVoiceChannelId
-              : null)
-            ?? channels[0]?.id
-            ?? null;
-
-          const selectedChannelChanged = nextSelectedChannelId !== this.selectedChannelId();
-          this.selectedChannelId.set(nextSelectedChannelId);
-
-          const nextSelectedChannel = channels.find((channel) => channel.id === nextSelectedChannelId) ?? null;
-          if (!nextSelectedChannel) {
-            this.resetTextChannelState();
-            this.syncMessageAutoRefreshPolling();
-            return;
-          }
-
-          if (nextSelectedChannel.type === 'text' || nextSelectedChannel.type === 'voice') {
-            if (selectedChannelChanged) {
-              this.loadMessagesForChannel(token, nextSelectedChannel.id);
-            }
-          } else if (selectedChannelChanged) {
-            this.resetTextChannelState();
-          }
-
-          this.syncMessageAutoRefreshPolling();
+          this.applyChannelsSnapshot(channels, token, previousSelectedChannelId);
         },
         error: () => {
           // Keep current list until the next successful refresh.
@@ -2412,6 +2482,7 @@ export class AppComponent {
           this.schedulePresenceHeartbeat(true);
 
           if (!servers.length) {
+            this.appEvents.setActiveServer(null);
             this.stopMemberPolling();
             this.stopVoicePresencePolling();
             this.stopMessageAutoRefreshPolling();
@@ -2438,7 +2509,7 @@ export class AppComponent {
           this.stopVoicePresencePolling();
           this.stopMessageAutoRefreshPolling();
           this.stopVoiceJoinInboxPolling();
-          this.appEvents.stop();
+    this.appEvents.stop();
           this.workspaceLoading.set(false);
           this.voiceRoom.leave();
           this.session.set(null);
@@ -2448,8 +2519,8 @@ export class AppComponent {
           this.members.set([]);
           this.voicePresence.set([]);
           this.resetTextChannelState();
-          this.selectedServerId.set(null);
-          this.selectedChannelId.set(null);
+    this.selectedServerId.set(null);
+    this.selectedChannelId.set(null);
           this.clearStoredSession();
           this.authError.set(this.extractErrorMessage(error, 'Сессия устарела. Войдите снова.'));
         }
@@ -2458,7 +2529,6 @@ export class AppComponent {
 
   private loadServerWorkspace(token: string, serverId: string): void {
     const previousSelectedChannelId = this.selectedChannelId();
-    const connectedVoiceChannelId = this.voiceRoom.activeChannelId();
 
     this.stopMemberPolling(false);
     this.stopVoicePresencePolling();
@@ -2467,6 +2537,7 @@ export class AppComponent {
     this.managementError.set(null);
     this.managementSuccess.set(null);
     this.selectedServerId.set(serverId);
+    this.appEvents.setActiveServer(serverId);
     this.selectedChannelId.set(null);
     this.selectedMemberUserId.set(null);
     this.selectedVoiceMemberChannelId.set(null);
@@ -2481,27 +2552,9 @@ export class AppComponent {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: ({ channels, members, voicePresence }) => {
-          this.channels.set(channels);
-          this.members.set(members);
-          this.voicePresence.set(voicePresence);
-
-          const nextSelectedChannelId =
-            (previousSelectedChannelId && channels.some((channel) => channel.id === previousSelectedChannelId)
-              ? previousSelectedChannelId
-              : null)
-            ?? (connectedVoiceChannelId && channels.some((channel) => channel.id === connectedVoiceChannelId)
-              ? connectedVoiceChannelId
-              : null)
-            ?? channels[0]?.id
-            ?? null;
-
-          this.selectedChannelId.set(nextSelectedChannelId);
-          const selectedChannel = channels.find((channel) => channel.id === nextSelectedChannelId) ?? null;
-          if (selectedChannel && (selectedChannel.type === 'text' || selectedChannel.type === 'voice')) {
-            this.loadMessagesForChannel(token, selectedChannel.id);
-          }
-          this.startMemberPolling();
-          this.startVoicePresencePolling();
+          this.applyChannelsSnapshot(channels, token, previousSelectedChannelId);
+          this.applyMembersSnapshot(members);
+          this.applyVoicePresenceSnapshot(voicePresence);
           this.syncMessageAutoRefreshPolling();
           this.workspaceLoading.set(false);
         },
@@ -2559,7 +2612,6 @@ export class AppComponent {
             channelName: response.request.channel_name,
             detail: response.detail,
           });
-          this.startVoiceJoinRequestPolling();
         },
         error: (error) => {
           const blockedNotice = this.extractBlockedVoiceJoinNotice(error);

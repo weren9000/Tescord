@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 
 from app.api.dependencies.auth import resolve_user_from_token
 from app.db.session import SessionLocal
-from app.services.app_events import app_event_manager, build_presence_updated_event
+from app.services.app_events import app_event_manager, publish_presence_updated
 from app.services.site_presence import site_presence_manager
 
 router = APIRouter(prefix="/events", tags=["events"])
@@ -25,14 +25,15 @@ async def connect_app_events(websocket: WebSocket) -> None:
             return
 
     connection_id = await app_event_manager.connect(websocket, current_user.id)
-    site_presence_manager.mark_active(current_user.id)
+    became_online = site_presence_manager.mark_active(current_user.id)
     await websocket.send_json(
         {
             "type": "ready",
             "user_id": str(current_user.id),
         }
     )
-    await app_event_manager.broadcast(build_presence_updated_event(current_user.id))
+    if became_online:
+        await publish_presence_updated(current_user.id)
 
     try:
         while True:
@@ -44,8 +45,23 @@ async def connect_app_events(websocket: WebSocket) -> None:
                 continue
 
             if message_type == "activity":
-                site_presence_manager.mark_active(current_user.id)
-                await app_event_manager.broadcast(build_presence_updated_event(current_user.id))
+                became_online = site_presence_manager.mark_active(current_user.id)
+                if became_online:
+                    await publish_presence_updated(current_user.id)
+                continue
+
+            if message_type == "subscribe_server":
+                server_id = payload.get("server_id")
+                if server_id is not None and not isinstance(server_id, str):
+                    await websocket.send_json(
+                        {
+                            "type": "error",
+                            "detail": "server_id must be a string or null",
+                        }
+                    )
+                    continue
+
+                await app_event_manager.set_active_server(current_user.id, connection_id, server_id)
                 continue
 
             await websocket.send_json(

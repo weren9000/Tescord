@@ -17,6 +17,7 @@ export class AppEventsService {
   private pingIntervalId: number | null = null;
   private reconnectAttempt = 0;
   private currentToken: string | null = null;
+  private activeServerId: string | null = null;
   private manuallyStopped = true;
   private readonly eventSubject = new Subject<AppEventsMessage>();
 
@@ -53,6 +54,7 @@ export class AppEventsService {
   stop(): void {
     this.manuallyStopped = true;
     this.currentToken = null;
+    this.activeServerId = null;
     this.connectionError.set(null);
     this.reconnectAttempt = 0;
     this.clearReconnectTimer();
@@ -65,6 +67,11 @@ export class AppEventsService {
     this.send({
       type: 'activity'
     });
+  }
+
+  setActiveServer(serverId: string | null): void {
+    this.activeServerId = serverId;
+    this.sendServerSubscription();
   }
 
   private openSocket(): void {
@@ -86,6 +93,7 @@ export class AppEventsService {
       this.reconnectAttempt = 0;
       this.startPing();
       this.sendActivity();
+      this.sendServerSubscription();
     });
 
     socket.addEventListener('message', (event) => {
@@ -142,6 +150,13 @@ export class AppEventsService {
     this.pingIntervalId = window.setInterval(() => {
       this.send({ type: 'ping' });
     }, APP_EVENTS_PING_INTERVAL_MS);
+  }
+
+  private sendServerSubscription(): void {
+    this.send({
+      type: 'subscribe_server',
+      server_id: this.activeServerId
+    });
   }
 
   private stopPing(): void {

@@ -12,6 +12,7 @@ router = APIRouter(prefix="/presence", tags=["presence"])
 
 @router.post("/heartbeat", status_code=status.HTTP_204_NO_CONTENT)
 def create_presence_heartbeat(current_user: User = Depends(get_current_user)) -> Response:
-    site_presence_manager.mark_active(current_user.id)
-    publish_presence_updated_from_sync(current_user.id)
+    became_online = site_presence_manager.mark_active(current_user.id)
+    if became_online:
+        publish_presence_updated_from_sync(current_user.id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
