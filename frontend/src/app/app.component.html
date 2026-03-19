@@ -1245,6 +1245,30 @@
   </div>
 }
 
+@if (pendingServerSwitch(); as pendingSwitch) {
+  <div class="modal-backdrop" (click)="stayInCurrentServer()">
+    <section class="modal modal--compact" (click)="$event.stopPropagation()">
+      <div class="modal__header">
+        <div>
+          <p class="eyebrow">Переход между группами</p>
+          <h3>Подтвердите переход</h3>
+        </div>
+      </div>
+
+      <div class="modal__body">
+        <p class="modal-note">
+          Вы хотите покинуть «{{ pendingSwitch.fromServerName }}» и отправиться в «{{ pendingSwitch.toServerName }}»?
+        </p>
+      </div>
+
+      <div class="modal__actions">
+        <button class="secondary-button" type="button" (click)="stayInCurrentServer()">Остаться</button>
+        <button class="primary-button" type="button" (click)="confirmServerSwitch()">Да</button>
+      </div>
+    </section>
+  </div>
+}
+
 @if (selectedMember(); as member) {
   <div class="modal-backdrop" (click)="closeMemberVolume()">
     <section class="modal modal--compact" (click)="$event.stopPropagation()">

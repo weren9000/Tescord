@@ -191,6 +191,12 @@ interface VoiceJoinRequestTrigger {
   channel: WorkspaceChannel;
 }
 
+interface PendingServerSwitchState {
+  serverId: string;
+  fromServerName: string;
+  toServerName: string;
+}
+
 const SESSION_STORAGE_KEY = 'tescord.session';
 const MESSAGES_PAGE_SIZE = 25;
 const MAX_ATTACHMENT_SIZE_BYTES = 50 * 1024 * 1024;
@@ -304,6 +310,7 @@ export class AppComponent {
   readonly voiceAdminUsers = signal<VoiceAdminUser[]>([]);
   readonly voiceAdminSelectedChannelId = signal<string | null>(null);
   readonly voiceAccessEntriesByChannelId = signal<Record<string, VoiceChannelAccessEntry[]>>({});
+  readonly pendingServerSwitch = signal<PendingServerSwitchState | null>(null);
 
   readonly loginForm: LoginFormModel = {
     login: '',
@@ -1822,6 +1829,42 @@ export class AppComponent {
   selectServer(serverId: string): void {
     const token = this.session()?.access_token;
     if (!token || serverId === this.selectedServerId()) {
+      return;
+    }
+
+    const nextServer = this.servers().find((server) => server.id === serverId) ?? null;
+    const currentServer = this.activeServer();
+    if (this.hasVoiceConnection() && currentServer && nextServer) {
+      this.pendingServerSwitch.set({
+        serverId,
+        fromServerName: currentServer.name,
+        toServerName: nextServer.name
+      });
+      return;
+    }
+
+    this.performServerSelection(serverId);
+  }
+
+  stayInCurrentServer(): void {
+    this.pendingServerSwitch.set(null);
+  }
+
+  confirmServerSwitch(): void {
+    const pendingServerSwitch = this.pendingServerSwitch();
+    const token = this.session()?.access_token;
+    if (!pendingServerSwitch || !token) {
+      this.pendingServerSwitch.set(null);
+      return;
+    }
+
+    this.pendingServerSwitch.set(null);
+    this.performServerSelection(pendingServerSwitch.serverId);
+  }
+
+  private performServerSelection(serverId: string): void {
+    const token = this.session()?.access_token;
+    if (!token) {
       return;
     }
 
