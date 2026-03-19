@@ -580,6 +580,10 @@ select {
   padding-top: 0;
 }
 
+.channel-group--tavern {
+  gap: 6px;
+}
+
 .channel-row {
   display: flex;
   align-items: stretch;
@@ -651,8 +655,30 @@ select {
   text-align: left;
 }
 
+.channel-link__prefix--icon {
+  display: inline-grid;
+  place-items: center;
+}
+
 .channel-link--voice .channel-link__prefix {
   color: var(--voice);
+}
+
+.channel-link__icon {
+  width: 18px;
+  height: 18px;
+  display: block;
+  object-fit: contain;
+}
+
+.channel-link--tavern {
+  border-left: 2px solid rgba(255, 191, 120, 0.24);
+  background: rgba(255, 191, 120, 0.04);
+}
+
+.channel-link--tavern:hover {
+  border-color: rgba(255, 191, 120, 0.34);
+  background: rgba(255, 191, 120, 0.08);
 }
 
 .channel-link__body {
@@ -680,6 +706,10 @@ select {
 
 .voice-channel-block {
   border-left: 1px solid transparent;
+}
+
+.voice-channel-block--tavern {
+  border-left-color: rgba(255, 191, 120, 0.34);
 }
 
 .voice-channel-block--connected {

@@ -360,6 +360,12 @@ export class AppComponent {
 
   readonly textChannels = computed(() => this.channels().filter((channel) => channel.type === 'text'));
   readonly voiceChannels = computed(() => this.channels().filter((channel) => channel.type === 'voice'));
+  readonly tavernVoiceChannel = computed(
+    () => this.voiceChannels().find((channel) => this.isTavernChannel(channel)) ?? null
+  );
+  readonly regularVoiceChannels = computed(() =>
+    this.voiceChannels().filter((channel) => !this.isTavernChannel(channel))
+  );
 
   readonly connectedVoiceChannel = computed(() => {
     const connectedChannelId = this.voiceRoom.activeChannelId();
@@ -1956,6 +1962,14 @@ export class AppComponent {
     }
 
     return /\.(png|jpe?g)$/i.test(attachment.filename);
+  }
+
+  isTavernChannel(channel: WorkspaceChannel | null | undefined): boolean {
+    if (!channel || channel.type !== 'voice') {
+      return false;
+    }
+
+    return channel.name.trim().toLocaleLowerCase('ru-RU') === 'таверна';
   }
 
   isInlineAudioAttachment(attachment: WorkspaceMessageAttachment): boolean {

@@ -255,6 +255,67 @@
         }
       </section>
 
+      @if (tavernVoiceChannel(); as tavernChannel) {
+        <section class="channel-group channel-group--tavern">
+          <div class="section-head">
+            <div class="section-title">Таверна</div>
+          </div>
+
+          <div
+            class="voice-channel-block voice-channel-block--tavern"
+            [class.voice-channel-block--connected]="tavernChannel.id === connectedVoiceChannel()?.id"
+          >
+            <div class="channel-row">
+              <button
+                class="channel-link channel-link--voice channel-link--tavern"
+                [class.channel-link--active]="tavernChannel.id === selectedChannelId()"
+                [class.channel-link--connected]="tavernChannel.id === connectedVoiceChannel()?.id"
+                type="button"
+                (click)="selectChannel(tavernChannel)"
+              >
+                <span class="channel-link__prefix channel-link__prefix--icon">
+                  <img class="channel-link__icon" src="/assets/Taverna.svg" alt="" />
+                </span>
+                <div class="channel-link__body">
+                  <strong>{{ tavernChannel.name }}</strong>
+                  @if (tavernChannel.id === connectedVoiceChannel()?.id) {
+                    <small>В голосе</small>
+                  } @else {
+                    <small>Общий голосовой канал группы</small>
+                  }
+                </div>
+              </button>
+            </div>
+
+            @if (voiceParticipantsForChannel(tavernChannel.id).length) {
+              <div class="voice-roster">
+                @for (participant of voiceParticipantsForChannel(tavernChannel.id); track participant.id) {
+                  <button
+                    class="voice-roster__member"
+                    [class.voice-roster__member--speaking]="voiceParticipantTone(participant) === 'speaking'"
+                    [class.voice-roster__member--blocked]="voiceParticipantTone(participant) === 'blocked'"
+                    [class.voice-roster__member--open]="voiceParticipantTone(participant) === 'open'"
+                    [class.voice-roster__member--muted]="voiceParticipantTone(participant) === 'muted'"
+                    type="button"
+                    (click)="openVoiceParticipantControls(participant.user_id, tavernChannel.id)"
+                  >
+                    <img
+                      class="voice-state-icon voice-state-icon--roster"
+                      [src]="voiceStateIconPath(participant)"
+                      [alt]="voiceStateIconAlt(participant)"
+                      [title]="voiceStateIconAlt(participant)"
+                    />
+                    <div class="voice-roster__meta">
+                      <span class="voice-roster__name">{{ participant.nick }}</span>
+                    </div>
+                  </button>
+                }
+              </div>
+            }
+          </div>
+        </section>
+      }
+
       <section class="channel-group">
         <div class="section-head">
           <div class="section-title">голосовые каналы</div>
@@ -263,8 +324,64 @@
           }
         </div>
 
-        @if (voiceChannels().length) {
-          @for (channel of voiceChannels(); track channel.id) {
+        @if (tavernVoiceChannel(); as tavernChannel) {
+          <div
+            class="voice-channel-block voice-channel-block--tavern"
+            [class.voice-channel-block--connected]="tavernChannel.id === connectedVoiceChannel()?.id"
+            hidden
+          >
+            <div class="channel-row">
+              <button
+                class="channel-link channel-link--voice channel-link--tavern"
+                [class.channel-link--active]="tavernChannel.id === selectedChannelId()"
+                [class.channel-link--connected]="tavernChannel.id === connectedVoiceChannel()?.id"
+                type="button"
+                (click)="selectChannel(tavernChannel)"
+              >
+                <span class="channel-link__prefix channel-link__prefix--icon">
+                  <img class="channel-link__icon" src="/assets/Taverna.svg" alt="" />
+                </span>
+                <div class="channel-link__body">
+                  <strong>{{ tavernChannel.name }}</strong>
+                  @if (tavernChannel.id === connectedVoiceChannel()?.id) {
+                    <small>Р’ РіРѕР»РѕСЃРµ</small>
+                  } @else {
+                    <small>Общий голосовой канал группы</small>
+                  }
+                </div>
+              </button>
+            </div>
+
+            @if (voiceParticipantsForChannel(tavernChannel.id).length) {
+              <div class="voice-roster">
+                @for (participant of voiceParticipantsForChannel(tavernChannel.id); track participant.id) {
+                  <button
+                    class="voice-roster__member"
+                    [class.voice-roster__member--speaking]="voiceParticipantTone(participant) === 'speaking'"
+                    [class.voice-roster__member--blocked]="voiceParticipantTone(participant) === 'blocked'"
+                    [class.voice-roster__member--open]="voiceParticipantTone(participant) === 'open'"
+                    [class.voice-roster__member--muted]="voiceParticipantTone(participant) === 'muted'"
+                    type="button"
+                    (click)="openVoiceParticipantControls(participant.user_id, tavernChannel.id)"
+                  >
+                    <img
+                      class="voice-state-icon voice-state-icon--roster"
+                      [src]="voiceStateIconPath(participant)"
+                      [alt]="voiceStateIconAlt(participant)"
+                      [title]="voiceStateIconAlt(participant)"
+                    />
+                    <div class="voice-roster__meta">
+                      <span class="voice-roster__name">{{ participant.nick }}</span>
+                    </div>
+                  </button>
+                }
+              </div>
+            }
+          </div>
+        }
+
+        @if (regularVoiceChannels().length) {
+          @for (channel of regularVoiceChannels(); track channel.id) {
             <div
               class="voice-channel-block"
               [class.voice-channel-block--connected]="channel.id === connectedVoiceChannel()?.id"
