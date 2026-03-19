@@ -1,156 +1,139 @@
 # Tescord
 
-Tescord - это Discord-подобное приложение для небольших сообществ на `FastAPI`, `Angular` и `PostgreSQL`.
+Tescord - это Discord-подобное приложение для небольших сообществ на `FastAPI`, `Angular`, `PostgreSQL` и `WebRTC`.
 
-## Что уже есть
+Сейчас в проекте уже есть:
+- регистрация и вход
+- текстовые и голосовые каналы
+- realtime через `WebSocket`
+- голос через `WebRTC`
+- загрузка вложений в PostgreSQL
+- админ-управление группами, каналами и доступом к голосовым комнатам
 
-- `backend/` - API, авторизация, модели БД, миграции, development seed
+## Структура проекта
+
+- `backend/` - FastAPI, модели БД, миграции, тесты
 - `frontend/` - Angular-клиент
-- `infra/` - инфраструктурные файлы, включая `compose.yml` для PostgreSQL
+- `infra/` - шаблоны для `nginx`, `systemd`, `coturn`, `docker compose`
+- `scripts/` - вспомогательные скрипты, включая автоматический деплой на `Ubuntu 24`
 
-## Что нужно для запуска
+## Запуск в режиме разработки
+
+### Что нужно
 
 - `Python 3.12+`
-- `Node.js 20+` и `npm`
-- `PostgreSQL`
+- `Node.js 20+`
+- `PostgreSQL 16+` или `Docker`
 
-## Быстрый запуск
+Frontend в development-режиме по умолчанию ходит в:
 
-Ниже самый простой сценарий для локального запуска на Windows.
+- `http://127.0.0.1:8000` для API
+- `ws://127.0.0.1:8000` для WebSocket
 
-### 1. Подготовить PostgreSQL
+Это уже прописано в [frontend/public/runtime-config.js](/d:/Эксперименты/alt-discord/frontend/public/runtime-config.js), отдельно настраивать ничего не нужно.
 
-Убедись, что сервер PostgreSQL запущен и доступен на `localhost:5432`.
+### PostgreSQL
 
-Проверка:
+Если PostgreSQL уже установлен локально, достаточно создать базу `tescord`.
 
-```powershell
-pg_isready
-```
-
-Если базы `tescord` еще нет, создай ее:
+На Windows:
 
 ```powershell
 $env:PGPASSWORD='ВАШ_ПАРОЛЬ'
 psql -h localhost -U postgres -d postgres -w -c "CREATE DATABASE tescord;"
 ```
 
-### 2. Настроить backend
+На Ubuntu:
 
-Перейди в папку `backend`:
+```bash
+sudo -u postgres psql -c "CREATE DATABASE tescord;"
+```
+
+Если удобнее запускать PostgreSQL через Docker:
+
+```powershell
+docker compose -f infra/compose.yml up -d postgres
+```
+
+Контейнер поднимет:
+- БД: `tescord`
+- пользователя: `tescord`
+- пароль: `tescord`
+
+### Backend на Windows
 
 ```powershell
 cd backend
-```
-
-Создай виртуальное окружение:
-
-```powershell
 python -m venv .venv
-```
-
-Активируй его:
-
-```powershell
 .venv\Scripts\activate
-```
-
-Установи зависимости:
-
-```powershell
 python -m pip install -e .[dev]
-```
-
-Создай локальный `.env`:
-
-```powershell
 Copy-Item .env.example .env
+alembic upgrade head
+uvicorn app.main:app --reload
 ```
 
-Открой `backend/.env` и укажи свою строку подключения к PostgreSQL.
-
-Пример:
+Пример локального `backend/.env`:
 
 ```env
-TESCORD_DATABASE_URL=postgresql+psycopg://postgres:ВАШ_ПАРОЛЬ@localhost:5432/tescord
+TESCORD_DATABASE_URL=postgresql+psycopg://tescord:tescord@localhost:5432/tescord
 TESCORD_SECRET_KEY=tescord-local-dev-secret
 TESCORD_SEED_DEMO_DATA=true
 ```
 
-### 3. Применить миграции
-
-Из папки `backend` выполни:
-
-```powershell
-alembic upgrade head
-```
-
-### 4. Запустить backend
-
-Из папки `backend`:
-
-```powershell
-uvicorn app.main:app --reload
-```
-
-После запуска backend будет доступен здесь:
-
+После запуска backend будет доступен по адресам:
 - API: `http://127.0.0.1:8000`
-- Swagger UI: `http://127.0.0.1:8000/docs`
-- Health-check: `http://127.0.0.1:8000/api/health`
+- Swagger: `http://127.0.0.1:8000/docs`
+- Health: `http://127.0.0.1:8000/api/health`
 
-### 5. Запустить frontend
+### Backend на Ubuntu 24
 
-Открой второй терминал и перейди в папку `frontend`:
+```bash
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e '.[dev]'
+cp .env.example .env
+alembic upgrade head
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+### Frontend
+
+Во втором терминале:
+
+На Windows:
 
 ```powershell
 cd frontend
-```
-
-Установи зависимости:
-
-```powershell
 npm install
-```
-
-Запусти dev-сервер:
-
-```powershell
 npm start
 ```
 
-Frontend будет доступен здесь:
+На Ubuntu:
+
+```bash
+cd frontend
+npm install
+npm start
+```
+
+Frontend будет доступен по адресу:
 
 - `http://localhost:4200`
 
-## Полный порядок запуска
+### Development seed
 
-Если кратко, то рабочий порядок такой:
+Если `TESCORD_SEED_DEMO_DATA=true`, backend автоматически создаст demo-данные.
 
-1. Запустить PostgreSQL
-2. Перейти в `backend`
-3. Активировать `.venv`
-4. Выполнить `alembic upgrade head`
-5. Выполнить `uvicorn app.main:app --reload`
-6. Перейти в `frontend`
-7. Выполнить `npm start`
-8. Открыть `http://localhost:4200`
-
-## Development seed
-
-В development-режиме backend автоматически создает демо-пользователя, сервер и каналы, если их еще нет.
-
-Демо-данные:
-
-- Email: `demo@tescord.local`
-- Password: `tescord-demo`
-- Server: `Forgehold Collective`
-
-Сейчас Angular-клиент использует этот демо-аккаунт автоматически при старте.
+По умолчанию:
+- логин: `weren9000`
+- пароль: `Vfrfhjys9000`
 
 ## Полезные команды
 
-### Backend
+Backend:
+
+На Windows:
 
 ```powershell
 cd backend
@@ -159,19 +142,69 @@ pytest
 alembic upgrade head
 ```
 
-### Frontend
+На Ubuntu:
+
+```bash
+cd backend
+source .venv/bin/activate
+pytest
+alembic upgrade head
+```
+
+Frontend:
 
 ```powershell
 cd frontend
 npm run build
 ```
 
-## Запуск PostgreSQL через Docker
+## Деплой на Ubuntu 24
 
-Если захочешь запускать PostgreSQL через Docker, можно использовать:
+Есть два варианта.
+
+### 1. Ручной деплой
+
+Подробно описан в [DEPLOYMENT.md](./DEPLOYMENT.md).
+
+### 2. Автоматический деплой
+
+Для Windows подготовлен PowerShell-скрипт:
+
+- [scripts/deploy-ubuntu24.ps1](./scripts/deploy-ubuntu24.ps1)
+
+Он:
+- собирает frontend локально
+- упаковывает текущий закоммиченный `HEAD`
+- загружает архив на сервер
+- устанавливает `nginx`, `postgresql`, `coturn`, `python3`, `venv`, `certbot`
+- создает backend `.env`
+- прогоняет миграции
+- настраивает `systemd`
+- разворачивает frontend
+- записывает production `runtime-config.js`
+- выпускает `Let's Encrypt`, если указан домен
+- иначе поднимает self-signed `HTTPS` на IP
+
+Запуск:
 
 ```powershell
-docker compose -f infra/compose.yml up -d postgres
+.\scripts\deploy-ubuntu24.ps1
 ```
 
-Но в текущей локальной настройке можно спокойно работать и с установленным локально PostgreSQL.
+Скрипт спросит:
+- адрес сервера или IP
+- логин
+- пароль
+- домен
+- email для `Let's Encrypt`
+
+Важно:
+- скрипт деплоит только **закоммиченный** код
+- незакоммиченные tracked-изменения он не пропустит
+- для работы нужны `plink.exe` и `pscp.exe` из PuTTY
+
+Подробности по ручному и автоматическому деплою есть в [DEPLOYMENT.md](./DEPLOYMENT.md).
+
+## Примечание
+
+В рабочей папке может существовать локальный untracked-файл `frontend/src/assets/Log out.svg`. Он не нужен для запуска и не участвует в git.
