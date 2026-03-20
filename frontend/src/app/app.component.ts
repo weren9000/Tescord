@@ -1073,7 +1073,9 @@ export class AppComponent {
         exhaustMap(({ token, payload }) =>
           this.workspaceApi.createServer(token, payload).pipe(
             tap((server) => {
-              const updatedServers = [...this.servers(), server].sort((left, right) => left.name.localeCompare(right.name, 'ru'));
+              const updatedServers = this.mergeServersById([...this.servers(), server]).sort(
+                (left, right) => left.name.localeCompare(right.name, 'ru')
+              );
               this.servers.set(updatedServers);
               this.createGroupForm.name = '';
               this.createGroupForm.description = '';
@@ -1099,7 +1101,9 @@ export class AppComponent {
         exhaustMap(({ token, serverId, payload }) =>
           this.workspaceApi.createChannel(token, serverId, payload).pipe(
             tap((channel) => {
-              const updatedChannels = [...this.channels(), channel].sort((left, right) => left.position - right.position);
+              const updatedChannels = this.mergeChannelsById([...this.channels(), channel]).sort(
+                (left, right) => left.position - right.position
+              );
               this.applyChannelsSnapshot(updatedChannels, token, channel.id);
               this.createChannelForm.name = '';
               this.createChannelForm.topic = '';
@@ -2918,6 +2922,24 @@ export class AppComponent {
         void this.ensureVoiceChannelAccessLoaded(selectedVoiceAdminChannelId, true);
       }
     }
+  }
+
+  private mergeServersById(servers: WorkspaceServer[]): WorkspaceServer[] {
+    const serversById = new Map<string, WorkspaceServer>();
+    for (const server of servers) {
+      serversById.set(server.id, server);
+    }
+
+    return [...serversById.values()];
+  }
+
+  private mergeChannelsById(channels: WorkspaceChannel[]): WorkspaceChannel[] {
+    const channelsById = new Map<string, WorkspaceChannel>();
+    for (const channel of channels) {
+      channelsById.set(channel.id, channel);
+    }
+
+    return [...channelsById.values()];
   }
 
   private handleMembersUpdatedEvent(event: AppMembersUpdatedEvent): void {
