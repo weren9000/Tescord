@@ -958,18 +958,16 @@
               <button
                 class="member-row"
                 [class.member-row--selected]="selectedMember()?.userId === member.userId"
-                [class.member-row--online]="member.isOnline"
                 type="button"
                 (click)="openMemberVolume(member)"
               >
                 <span class="member-row__identity">
-                  <span class="member-avatar">
+                  <span class="member-avatar" [class.member-avatar--online]="member.isOnline">
                     @if (userAvatarUrl(member.userId, member.avatarUpdatedAt); as avatarUrl) {
                       <img [src]="avatarUrl" [alt]="displayCharacterName(member.characterName, member.nick)" loading="lazy" />
                     } @else {
                       <span>{{ displayCharacterInitials(member.characterName, member.nick) }}</span>
                     }
-                    <span class="member-dot" [class.member-dot--online]="member.isOnline"></span>
                   </span>
                 </span>
                 <strong class="member-row__name">
