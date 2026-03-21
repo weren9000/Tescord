@@ -155,6 +155,7 @@ def _build_voice_channel_catalog_item(
         owner_user_id=owner_access.user_id if owner_access is not None else None,
         owner_nick=owner_user.username if owner_user is not None else None,
         owner_character_name=owner_user.bio if owner_user is not None else None,
+        owner_avatar_updated_at=owner_user.avatar_updated_at if owner_user is not None else None,
     )
 
 
@@ -165,6 +166,7 @@ def _build_voice_access_entry(access: VoiceChannelAccess, user: User) -> VoiceCh
         nick=user.username,
         full_name=user.display_name,
         character_name=user.bio,
+        avatar_updated_at=user.avatar_updated_at,
         role=access.role.value,
         is_online=False,
         is_in_channel=False,
@@ -195,6 +197,7 @@ def _build_voice_join_request_summary(
         requester_nick=requester.username,
         requester_full_name=requester.display_name,
         requester_character_name=requester.bio,
+        requester_avatar_updated_at=requester.avatar_updated_at,
         status=request.status.value,
         created_at=request.created_at,
         resolved_at=request.resolved_at,
@@ -262,6 +265,7 @@ async def _load_channel_access_entries(db: Session, channel_id: UUID) -> list[Vo
                 nick=user.username,
                 full_name=user.display_name,
                 character_name=user.bio,
+                avatar_updated_at=user.avatar_updated_at,
                 role=access.role.value,
                 is_online=user.id in online_user_ids,
                 is_in_channel=participant is not None,
@@ -354,6 +358,7 @@ def list_all_users_for_voice_admin(
             nick=user.username,
             full_name=user.display_name,
             character_name=user.bio,
+            avatar_updated_at=user.avatar_updated_at,
             is_online=user.id in online_user_ids,
         )
         for user in users
@@ -739,6 +744,7 @@ async def connect_to_voice_channel(websocket: WebSocket, channel_id: UUID) -> No
             nick=current_user.username,
             full_name=current_user.display_name,
             character_name=current_user.bio,
+            avatar_updated_at=current_user.avatar_updated_at,
             owner_muted=bool(access.owner_muted),
         )
         await publish_voice_presence_updated(channel.server_id)

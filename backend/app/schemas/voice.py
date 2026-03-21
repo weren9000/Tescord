@@ -15,6 +15,7 @@ class VoiceChannelCatalogItem(BaseModel):
     owner_user_id: UUID | None
     owner_nick: str | None
     owner_character_name: str | None
+    owner_avatar_updated_at: datetime | None = None
 
 
 class VoiceAccessUserSummary(BaseModel):
@@ -23,6 +24,7 @@ class VoiceAccessUserSummary(BaseModel):
     nick: str
     full_name: str
     character_name: str | None
+    avatar_updated_at: datetime | None
     is_online: bool = False
 
 
@@ -32,6 +34,7 @@ class VoiceChannelAccessEntry(BaseModel):
     nick: str
     full_name: str
     character_name: str | None
+    avatar_updated_at: datetime | None
     role: Literal["owner", "resident", "stranger"]
     is_online: bool = False
     is_in_channel: bool = False
@@ -57,6 +60,7 @@ class VoiceJoinRequestSummary(BaseModel):
     requester_nick: str
     requester_full_name: str
     requester_character_name: str | None
+    requester_avatar_updated_at: datetime | None = None
     status: Literal["pending", "allowed", "resident", "rejected", "cancelled"]
     created_at: datetime
     resolved_at: datetime | None

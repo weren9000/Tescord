@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
 from uuid import uuid4
 
@@ -15,6 +16,7 @@ class VoiceParticipant:
     nick: str
     full_name: str
     character_name: str | None
+    avatar_updated_at: datetime | None = None
     muted: bool = False
     owner_muted: bool = False
 
@@ -25,6 +27,7 @@ class VoiceParticipant:
             "nick": self.nick,
             "full_name": self.full_name,
             "character_name": self.character_name,
+            "avatar_updated_at": self.avatar_updated_at.isoformat() if self.avatar_updated_at is not None else None,
             "muted": self.muted,
             "owner_muted": self.owner_muted,
         }
@@ -50,6 +53,7 @@ class VoiceSignalingManager:
         nick: str,
         full_name: str,
         character_name: str | None,
+        avatar_updated_at: datetime | None = None,
         owner_muted: bool = False,
     ) -> VoiceParticipant:
         participant = VoiceParticipant(
@@ -58,6 +62,7 @@ class VoiceSignalingManager:
             nick=nick,
             full_name=full_name,
             character_name=character_name,
+            avatar_updated_at=avatar_updated_at,
             owner_muted=owner_muted,
         )
 

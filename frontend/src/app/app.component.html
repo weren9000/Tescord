@@ -311,15 +311,22 @@
                     type="button"
                     (click)="openVoiceParticipantControls(participant.user_id, tavernChannel.id)"
                   >
+                    <div class="voice-roster__avatar">
+                      @if (userAvatarUrl(participant.user_id, participant.avatar_updated_at); as avatarUrl) {
+                        <img [src]="avatarUrl" [alt]="displayCharacterName(participant.character_name, participant.nick)" loading="lazy" />
+                      } @else {
+                        <span>{{ displayCharacterInitials(participant.character_name, participant.nick) }}</span>
+                      }
+                    </div>
+                    <div class="voice-roster__meta">
+                      <span class="voice-roster__name">{{ displayCharacterName(participant.character_name, participant.nick) }}</span>
+                    </div>
                     <img
                       class="voice-state-icon voice-state-icon--roster"
                       [src]="voiceStateIconPath(participant)"
                       [alt]="voiceStateIconAlt(participant)"
                       [title]="voiceStateIconAlt(participant)"
                     />
-                    <div class="voice-roster__meta">
-                      <span class="voice-roster__name">{{ displayCharacterName(participant.character_name, participant.nick) }}</span>
-                    </div>
                   </button>
                 }
               </div>
@@ -376,15 +383,22 @@
                     type="button"
                     (click)="openVoiceParticipantControls(participant.user_id, tavernChannel.id)"
                   >
+                    <div class="voice-roster__avatar">
+                      @if (userAvatarUrl(participant.user_id, participant.avatar_updated_at); as avatarUrl) {
+                        <img [src]="avatarUrl" [alt]="displayCharacterName(participant.character_name, participant.nick)" loading="lazy" />
+                      } @else {
+                        <span>{{ displayCharacterInitials(participant.character_name, participant.nick) }}</span>
+                      }
+                    </div>
+                    <div class="voice-roster__meta">
+                      <span class="voice-roster__name">{{ displayCharacterName(participant.character_name, participant.nick) }}</span>
+                    </div>
                     <img
                       class="voice-state-icon voice-state-icon--roster"
                       [src]="voiceStateIconPath(participant)"
                       [alt]="voiceStateIconAlt(participant)"
                       [title]="voiceStateIconAlt(participant)"
                     />
-                    <div class="voice-roster__meta">
-                      <span class="voice-roster__name">{{ displayCharacterName(participant.character_name, participant.nick) }}</span>
-                    </div>
                   </button>
                 }
               </div>
@@ -441,15 +455,22 @@
                       type="button"
                       (click)="openVoiceParticipantControls(participant.user_id, channel.id)"
                     >
+                      <div class="voice-roster__avatar">
+                        @if (userAvatarUrl(participant.user_id, participant.avatar_updated_at); as avatarUrl) {
+                          <img [src]="avatarUrl" [alt]="displayCharacterName(participant.character_name, participant.nick)" loading="lazy" />
+                        } @else {
+                          <span>{{ displayCharacterInitials(participant.character_name, participant.nick) }}</span>
+                        }
+                      </div>
+                      <div class="voice-roster__meta">
+                        <span class="voice-roster__name">{{ displayCharacterName(participant.character_name, participant.nick) }}</span>
+                      </div>
                       <img
                         class="voice-state-icon voice-state-icon--roster"
                         [src]="voiceStateIconPath(participant)"
                         [alt]="voiceStateIconAlt(participant)"
                         [title]="voiceStateIconAlt(participant)"
                       />
-                      <div class="voice-roster__meta">
-                        <span class="voice-roster__name">{{ displayCharacterName(participant.character_name, participant.nick) }}</span>
-                      </div>
                     </button>
                   }
                 </div>
@@ -590,7 +611,13 @@
                     type="button"
                     (click)="openVoiceParticipantControls(participant.user_id, activeChannel()?.id ?? '')"
                   >
-                  <div class="voice-card__avatar">{{ displayCharacterInitials(participant.character_name, participant.nick) }}</div>
+                  <div class="voice-card__avatar">
+                    @if (userAvatarUrl(participant.user_id, participant.avatar_updated_at); as avatarUrl) {
+                      <img [src]="avatarUrl" [alt]="displayCharacterName(participant.character_name, participant.nick)" loading="lazy" />
+                    } @else {
+                      <span>{{ displayCharacterInitials(participant.character_name, participant.nick) }}</span>
+                    }
+                  </div>
                   <div class="voice-card__body voice-card__body--compact">
                     <div class="voice-card__title">
                       <strong>{{ displayCharacterName(participant.character_name, participant.nick) }}</strong>
@@ -632,7 +659,11 @@
                         class="message-card__avatar"
                         [style.--avatar-accent]="message.author.id === currentUser()?.id ? '#ff9f43' : '#3dd6c6'"
                       >
-                        {{ displayCharacterInitials(message.author.character_name, message.author.nick) }}
+                        @if (userAvatarUrl(message.author.id, message.author.avatar_updated_at); as avatarUrl) {
+                          <img [src]="avatarUrl" [alt]="displayCharacterName(message.author.character_name, message.author.nick)" loading="lazy" />
+                        } @else {
+                          <span>{{ displayCharacterInitials(message.author.character_name, message.author.nick) }}</span>
+                        }
                       </div>
                       <div class="message-card__body">
                         <div class="message-card__meta">
@@ -858,12 +889,36 @@
       </div>
 
       <section class="panel-card profile-card">
+        <input
+          #profileAvatarInput
+          hidden
+          type="file"
+          accept="image/png,image/jpeg"
+          (change)="onProfileAvatarSelection($event)"
+        />
         <div class="panel-header">
-          <div class="profile-head">
-            <h3>{{ displayCharacterName(currentUser()?.character_name, currentUser()?.nick ?? 'Ожидание авторизации') }}</h3>
-            <small>{{ currentUser()?.login ?? 'Нет активной сессии' }}</small>
+          <div class="profile-summary">
+            <button
+              class="profile-avatar-button"
+              type="button"
+              [disabled]="!currentUser() || profileSaving()"
+              title="Нажмите, чтобы загрузить аватарку"
+              (click)="openProfileAvatarPicker('instant')"
+            >
+              @if (currentUserAvatarUrl(); as avatarUrl) {
+                <img [src]="avatarUrl" [alt]="displayCharacterName(currentUser()?.character_name, currentUser()?.nick ?? '')" loading="lazy" />
+              } @else {
+                <span>{{ displayCharacterInitials(currentUser()?.character_name, currentUser()?.nick ?? '??') }}</span>
+              }
+              <span class="profile-avatar-button__hint">+</span>
+            </button>
+            <div class="profile-head">
+              <h3>{{ displayCharacterName(currentUser()?.character_name, currentUser()?.nick ?? 'Ожидание авторизации') }}</h3>
+              <small>{{ currentUser()?.login ?? 'Нет активной сессии' }}</small>
+            </div>
           </div>
           <div class="profile-actions">
+            <button class="secondary-button profile-edit-button" type="button" (click)="openProfileEditor()">Профиль</button>
             @if (isAdmin()) {
               <button
                 class="secondary-button profile-admin-button"
@@ -881,6 +936,11 @@
 
         <p class="session-note">{{ currentUser()?.nick ?? 'Ник пока не загружен' }}</p>
         <p class="session-note">{{ currentUser()?.full_name ?? 'ФИО пока не загружено' }}</p>
+        @if (profileError()) {
+          <p class="session-note session-note--error">{{ profileError() }}</p>
+        } @else if (profileNotice()) {
+          <p class="session-note session-note--success">{{ profileNotice() }}</p>
+        }
         @if (hasVoiceConnection()) {
           <p class="session-note">В голосе: {{ connectedVoiceChannel()?.name }}</p>
         }
@@ -903,7 +963,14 @@
                 (click)="openMemberVolume(member)"
               >
                 <span class="member-row__identity">
-                  <span class="member-dot" [class.member-dot--online]="member.isOnline"></span>
+                  <span class="member-avatar">
+                    @if (userAvatarUrl(member.userId, member.avatarUpdatedAt); as avatarUrl) {
+                      <img [src]="avatarUrl" [alt]="displayCharacterName(member.characterName, member.nick)" loading="lazy" />
+                    } @else {
+                      <span>{{ displayCharacterInitials(member.characterName, member.nick) }}</span>
+                    }
+                    <span class="member-dot" [class.member-dot--online]="member.isOnline"></span>
+                  </span>
                 </span>
                 <strong class="member-row__name">
                   {{ displayCharacterName(member.characterName, member.nick) }}
@@ -921,6 +988,74 @@
         }
       </section>
     </aside>
+  </div>
+}
+
+@if (profileEditorOpen()) {
+  <div class="modal-backdrop" (click)="closeProfileEditor()">
+    <section class="modal modal--compact" (click)="$event.stopPropagation()">
+      <div class="modal__header">
+        <div>
+          <p class="eyebrow">Профиль</p>
+          <h3>{{ displayCharacterName(currentUser()?.character_name, currentUser()?.nick ?? 'Пользователь') }}</h3>
+        </div>
+        <button class="icon-button" type="button" (click)="closeProfileEditor()">×</button>
+      </div>
+
+      <div class="modal__body">
+        <div class="profile-editor">
+          <button
+            class="profile-editor__avatar"
+            type="button"
+            [disabled]="profileSaving()"
+            (click)="openProfileAvatarPicker('editor')"
+          >
+            @if (effectiveProfileAvatarUrl(); as avatarUrl) {
+              <img [src]="avatarUrl" [alt]="displayCharacterName(profileCharacterNameDraft(), currentUser()?.nick ?? '')" loading="lazy" />
+            } @else {
+              <span>{{ displayCharacterInitials(profileCharacterNameDraft(), currentUser()?.nick ?? '??') }}</span>
+            }
+          </button>
+          <div class="profile-editor__controls">
+            <button class="secondary-button" type="button" [disabled]="profileSaving()" (click)="openProfileAvatarPicker('editor')">
+              Загрузить аватарку
+            </button>
+            <button
+              class="secondary-button"
+              type="button"
+              [disabled]="profileSaving() || (!currentUserAvatarUrl() && !profileAvatarFile())"
+              (click)="resetProfileAvatar()"
+            >
+              Сбросить
+            </button>
+            <small>PNG или JPG, квадрат 1:1, максимум 300×300.</small>
+          </div>
+        </div>
+
+        <label class="form-field">
+          <span>Имя персонажа</span>
+          <input
+            [ngModel]="profileCharacterNameDraft()"
+            (ngModelChange)="profileCharacterNameDraft.set($event)"
+            [disabled]="profileSaving()"
+            maxlength="64"
+          />
+        </label>
+
+        @if (profileError()) {
+          <p class="modal-note modal-note--error">{{ profileError() }}</p>
+        } @else if (profileNotice()) {
+          <p class="modal-note modal-note--success">{{ profileNotice() }}</p>
+        }
+      </div>
+
+      <div class="modal__actions">
+        <button class="secondary-button" type="button" [disabled]="profileSaving()" (click)="closeProfileEditor()">Отмена</button>
+        <button class="primary-button" type="button" [disabled]="!canSubmitProfile()" (click)="submitProfileChanges()">
+          {{ profileSaving() ? 'Сохраняем...' : 'Сохранить' }}
+        </button>
+      </div>
+    </section>
   </div>
 }
 

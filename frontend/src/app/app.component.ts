@@ -6,6 +6,7 @@ import { FormsModule } from '@angular/forms';
 import { EMPTY, Subject, catchError, exhaustMap, finalize, forkJoin, mergeMap, tap } from 'rxjs';
 
 import { AuthApiService } from './core/api/auth-api.service';
+import { API_BASE_URL } from './core/api/api-base';
 import { SystemApiService } from './core/api/system-api.service';
 import { WorkspaceApiService } from './core/api/workspace-api.service';
 import {
@@ -96,12 +97,22 @@ interface GroupMemberItem {
   nick: string;
   fullName: string;
   characterName: string | null;
+  avatarUpdatedAt: string | null;
   role: string;
   roleLabel: string;
   isSelf: boolean;
   presenceLabel: string;
   isOnline: boolean;
   voiceParticipant: VoiceParticipant | null;
+}
+
+interface ProfileUpdateTrigger {
+  token: string;
+  characterName: string;
+  avatarFile: File | null;
+  removeAvatar: boolean;
+  successMessage: string;
+  closeEditor: boolean;
 }
 
 interface VoiceAdminAssignmentFormModel {
@@ -247,6 +258,9 @@ const SESSION_STORAGE_KEY = 'tescord.session';
 const MESSAGES_PAGE_SIZE = 25;
 const MAX_ATTACHMENT_SIZE_BYTES = 50 * 1024 * 1024;
 const MAX_INLINE_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
+const MAX_PROFILE_AVATAR_DIMENSION = 300;
+const MAX_PROFILE_AVATAR_UPLOAD_BYTES = 2 * 1024 * 1024;
+const MAX_PROFILE_AVATAR_SOURCE_BYTES = 8 * 1024 * 1024;
 const PRESENCE_ACTIVITY_THROTTLE_MS = 30000;
 const PRESENCE_KEEPALIVE_INTERVAL_MS = 45000;
 const MESSAGE_REACTION_OPTIONS: readonly MessageReactionOption[] = [
@@ -388,7 +402,10 @@ export class AppComponent {
   private readonly voiceJoinRequestTrigger$ = new Subject<VoiceJoinRequestTrigger>();
   private readonly updateServerIconTrigger$ = new Subject<UpdateServerIconTrigger>();
   private readonly messageReactionTrigger$ = new Subject<MessageReactionTrigger>();
+  private readonly profileUpdateTrigger$ = new Subject<ProfileUpdateTrigger>();
   private readonly pendingMessageReactionKeys = new Set<string>();
+  private profileAvatarSelectionMode: 'instant' | 'editor' = 'instant';
+  private profileAvatarPreviewObjectUrl: string | null = null;
 
   @ViewChild('messageList')
   private messageListRef?: ElementRef<HTMLElement>;
@@ -398,6 +415,9 @@ export class AppComponent {
 
   @ViewChild('messageTextarea')
   private messageTextareaRef?: ElementRef<HTMLTextAreaElement>;
+
+  @ViewChild('profileAvatarInput')
+  private profileAvatarInputRef?: ElementRef<HTMLInputElement>;
 
   readonly health = signal<ApiHealthResponse | null>(null);
   readonly healthError = signal<string | null>(null);
@@ -430,6 +450,7 @@ export class AppComponent {
   readonly selectedChannelId = signal<string | null>(null);
   readonly settingsPanelOpen = signal(false);
   readonly voiceAdminPanelOpen = signal(false);
+  readonly profileEditorOpen = signal(false);
   readonly createGroupModalOpen = signal(false);
   readonly createChannelModalOpen = signal(false);
   readonly serverIconModalOpen = signal(false);
@@ -449,6 +470,13 @@ export class AppComponent {
   readonly serverIconSaving = signal(false);
   readonly pendingVoiceJoin = signal<PendingVoiceJoinState | null>(null);
   readonly blockedVoiceJoinNotice = signal<BlockedVoiceJoinState | null>(null);
+  readonly profileSaving = signal(false);
+  readonly profileNotice = signal<string | null>(null);
+  readonly profileError = signal<string | null>(null);
+  readonly profileCharacterNameDraft = signal('');
+  readonly profileAvatarFile = signal<File | null>(null);
+  readonly profileAvatarPreviewUrl = signal<string | null>(null);
+  readonly profileAvatarRemove = signal(false);
   readonly ownerVoiceRequests = signal<VoiceJoinRequestSummary[]>([]);
   readonly activeOwnerRequestId = signal<string | null>(null);
   readonly ownerVoiceRequestModalOpen = signal(false);
@@ -593,6 +621,27 @@ export class AppComponent {
   });
 
   readonly canEditActiveServerIcon = computed(() => this.canManageActiveGroup() && !this.isCompactVoiceWorkspaceViewport());
+  readonly currentUserAvatarUrl = computed(() =>
+    this.buildUserAvatarUrl(this.currentUser()?.id ?? null, this.currentUser()?.avatar_updated_at ?? null)
+  );
+  readonly effectiveProfileAvatarUrl = computed(() => this.profileAvatarPreviewUrl() ?? this.currentUserAvatarUrl());
+  readonly canSubmitProfile = computed(() => {
+    const currentUser = this.currentUser();
+    if (!currentUser || this.profileSaving()) {
+      return false;
+    }
+
+    const normalizedCharacterName = this.profileCharacterNameDraft().trim();
+    if (normalizedCharacterName.length < 2) {
+      return false;
+    }
+
+    return (
+      normalizedCharacterName !== (currentUser.character_name ?? '').trim()
+      || this.profileAvatarFile() !== null
+      || this.profileAvatarRemove()
+    );
+  });
   readonly activeServerIconAsset = computed(() => {
     const activeServer = this.activeServer();
     if (!activeServer) {
@@ -756,6 +805,7 @@ export class AppComponent {
           nick: participant.nick,
           full_name: participant.full_name,
           character_name: participant.character_name,
+          avatar_updated_at: participant.avatar_updated_at,
           muted: participant.muted,
           owner_muted: participant.owner_muted,
           speaking: false,
@@ -784,6 +834,7 @@ export class AppComponent {
           nick: member.nick,
           fullName: member.full_name,
           characterName: member.character_name,
+          avatarUpdatedAt: member.avatar_updated_at,
           role: member.role,
           roleLabel: this.formatMemberRole(member.role),
           isSelf: currentUser?.id === member.user_id,
@@ -1013,6 +1064,7 @@ export class AppComponent {
       this.stopPresenceKeepalive();
       this.teardownPresenceActivityTracking();
       this.clearAttachmentPreviews();
+      this.revokeProfileAvatarPreviewObjectUrl();
     });
     this.bindActionPipelines();
     this.appEvents.events$
@@ -1026,6 +1078,7 @@ export class AppComponent {
 
   private bindActionPipelines(): void {
     this.bindAuthPipelines();
+    this.bindProfilePipeline();
     this.bindVoiceAdminPipelines();
     this.bindWorkspaceMutationPipelines();
     this.bindMessagePipelines();
@@ -1321,6 +1374,42 @@ export class AppComponent {
       .subscribe();
   }
 
+  private bindProfilePipeline(): void {
+    this.profileUpdateTrigger$
+      .pipe(
+        exhaustMap(({ token, characterName, avatarFile, removeAvatar, successMessage, closeEditor }) =>
+          this.workspaceApi.updateCurrentUserProfile(token, {
+            characterName,
+            avatarFile,
+            removeAvatar
+          }).pipe(
+            tap((updatedUser) => {
+              this.applyCurrentUserProfile(updatedUser);
+              this.profileNotice.set(successMessage);
+              this.profileError.set(null);
+              if (closeEditor) {
+                this.profileEditorOpen.set(false);
+              }
+              this.clearPendingProfileAvatar();
+            }),
+            catchError((error) => {
+              if (!closeEditor) {
+                this.profileCharacterNameDraft.set(this.currentUser()?.character_name ?? '');
+                this.profileEditorOpen.set(true);
+              }
+              this.profileError.set(this.extractErrorMessage(error, 'Не удалось обновить профиль'));
+              return EMPTY;
+            }),
+            finalize(() => {
+              this.profileSaving.set(false);
+            })
+          )
+        ),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe();
+  }
+
   private bindVoiceOwnershipPipelines(): void {
     this.voiceMemberRoleTrigger$
       .pipe(
@@ -1544,6 +1633,124 @@ export class AppComponent {
     this.closeMobilePanel();
     this.settingsPanelOpen.set(true);
     void this.voiceRoom.refreshDevices();
+  }
+
+  openProfileEditor(): void {
+    const currentUser = this.currentUser();
+    if (!currentUser) {
+      return;
+    }
+
+    this.closeMobilePanel();
+    this.profileCharacterNameDraft.set(currentUser.character_name ?? '');
+    this.profileAvatarRemove.set(false);
+    this.profileError.set(null);
+    this.profileNotice.set(null);
+    this.clearPendingProfileAvatar();
+    this.profileEditorOpen.set(true);
+  }
+
+  closeProfileEditor(): void {
+    this.profileEditorOpen.set(false);
+    this.profileError.set(null);
+    this.profileAvatarRemove.set(false);
+    this.clearPendingProfileAvatar();
+    if (this.currentUser()) {
+      this.profileCharacterNameDraft.set(this.currentUser()?.character_name ?? '');
+    }
+  }
+
+  openProfileAvatarPicker(mode: 'instant' | 'editor' = 'instant'): void {
+    this.profileAvatarSelectionMode = mode;
+    this.profileError.set(null);
+    this.profileNotice.set(null);
+    this.profileAvatarInputRef?.nativeElement.click();
+  }
+
+  async onProfileAvatarSelection(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement | null;
+    const selectedFile = input?.files?.[0] ?? null;
+    if (input) {
+      input.value = '';
+    }
+
+    if (!selectedFile) {
+      return;
+    }
+
+    try {
+      const preparedFile = await this.prepareProfileAvatarFile(selectedFile);
+      if (this.profileAvatarSelectionMode === 'editor') {
+        this.profileAvatarFile.set(preparedFile);
+        this.profileAvatarRemove.set(false);
+        this.setProfileAvatarPreview(preparedFile);
+        return;
+      }
+
+      const token = this.session()?.access_token;
+      const currentUser = this.currentUser();
+      if (!token || !currentUser) {
+        return;
+      }
+
+      this.profileSaving.set(true);
+      this.profileError.set(null);
+      this.profileNotice.set(null);
+      this.profileUpdateTrigger$.next({
+        token,
+        characterName: currentUser.character_name ?? currentUser.nick,
+        avatarFile: preparedFile,
+        removeAvatar: false,
+        successMessage: 'Аватарка обновлена',
+        closeEditor: false
+      });
+    } catch (error) {
+      if (this.profileAvatarSelectionMode === 'instant') {
+        this.profileCharacterNameDraft.set(this.currentUser()?.character_name ?? '');
+        this.profileEditorOpen.set(true);
+      }
+      this.profileError.set(error instanceof Error ? error.message : 'Не удалось подготовить аватарку');
+    }
+  }
+
+  resetProfileAvatar(): void {
+    if (!this.currentUserAvatarUrl() && !this.profileAvatarFile()) {
+      return;
+    }
+
+    this.profileAvatarRemove.set(true);
+    this.clearPendingProfileAvatar();
+  }
+
+  submitProfileChanges(): void {
+    const token = this.session()?.access_token;
+    const currentUser = this.currentUser();
+    const normalizedCharacterName = this.profileCharacterNameDraft().trim();
+    if (!token || !currentUser) {
+      return;
+    }
+
+    if (normalizedCharacterName.length < 2) {
+      this.profileError.set('Имя персонажа должно быть не короче 2 символов');
+      return;
+    }
+
+    if (!this.canSubmitProfile()) {
+      this.profileEditorOpen.set(false);
+      return;
+    }
+
+    this.profileSaving.set(true);
+    this.profileError.set(null);
+    this.profileNotice.set(null);
+    this.profileUpdateTrigger$.next({
+      token,
+      characterName: normalizedCharacterName,
+      avatarFile: this.profileAvatarFile(),
+      removeAvatar: this.profileAvatarRemove(),
+      successMessage: 'Профиль обновлен',
+      closeEditor: true
+    });
   }
 
   openVoiceAdminPanel(): void {
@@ -3003,16 +3210,19 @@ export class AppComponent {
     }
 
     this.applyMembersSnapshot(event.members);
+    this.patchMessagesFromMemberSnapshot(event.members);
   }
 
   private handleVoicePresenceUpdatedEvent(event: AppVoicePresenceUpdatedEvent): void {
     if (event.server_id !== this.selectedServerId()) {
       this.patchVoiceAdminEntriesFromPresenceEvent(event);
+      this.voiceRoom.syncParticipantProfiles(this.flattenVoicePresenceParticipants(event.voice_presence));
       return;
     }
 
     this.applyVoicePresenceSnapshot(event.voice_presence);
     this.patchVoiceAdminEntriesFromPresenceEvent(event);
+    this.voiceRoom.syncParticipantProfiles(this.flattenVoicePresenceParticipants(event.voice_presence));
   }
 
   private async refreshServersList(token: string): Promise<void> {
@@ -3632,6 +3842,254 @@ export class AppComponent {
     this.openedImageAttachmentId.set(null);
   }
 
+  private buildUserAvatarUrl(userId: string | null, avatarUpdatedAt: string | null): string | null {
+    if (!userId || !avatarUpdatedAt) {
+      return null;
+    }
+
+    return `${API_BASE_URL}/api/users/${encodeURIComponent(userId)}/avatar?v=${encodeURIComponent(avatarUpdatedAt)}`;
+  }
+
+  private patchMessagesFromMemberSnapshot(members: WorkspaceMember[]): void {
+    const membersByUserId = new Map(members.map((member) => [member.user_id, member]));
+    this.messages.update((messages) =>
+      messages.map((message) => {
+        const member = membersByUserId.get(message.author.id);
+        if (!member) {
+          return message;
+        }
+
+        return {
+          ...message,
+          author: {
+            ...message.author,
+            nick: member.nick,
+            full_name: member.full_name,
+            character_name: member.character_name,
+            avatar_updated_at: member.avatar_updated_at
+          }
+        };
+      })
+    );
+  }
+
+  private flattenVoicePresenceParticipants(voicePresence: WorkspaceVoicePresenceChannel[]): VoiceParticipant[] {
+    return voicePresence.flatMap((channel) =>
+      channel.participants.map((participant) => ({
+        id: participant.participant_id,
+        user_id: participant.user_id,
+        nick: participant.nick,
+        full_name: participant.full_name,
+        character_name: participant.character_name,
+        avatar_updated_at: participant.avatar_updated_at,
+        muted: participant.muted,
+        owner_muted: participant.owner_muted,
+        speaking: false,
+        is_self: participant.user_id === this.currentUser()?.id
+      }))
+    );
+  }
+
+  private applyCurrentUserProfile(updatedUser: CurrentUserResponse): void {
+    this.currentUser.set(updatedUser);
+    this.session.update((session) => {
+      if (!session) {
+        return session;
+      }
+
+      const nextSession = {
+        ...session,
+        user: {
+          ...session.user,
+          ...updatedUser
+        }
+      };
+      this.persistSession(nextSession);
+      return nextSession;
+    });
+
+    this.members.update((members) =>
+      members.map((member) =>
+        member.user_id === updatedUser.id
+          ? {
+              ...member,
+              nick: updatedUser.nick,
+              full_name: updatedUser.full_name,
+              character_name: updatedUser.character_name,
+              avatar_updated_at: updatedUser.avatar_updated_at
+            }
+          : member
+      )
+    );
+
+    this.messages.update((messages) =>
+      messages.map((message) =>
+        message.author.id === updatedUser.id
+          ? {
+              ...message,
+              author: {
+                ...message.author,
+                nick: updatedUser.nick,
+                full_name: updatedUser.full_name,
+                character_name: updatedUser.character_name,
+                avatar_updated_at: updatedUser.avatar_updated_at
+              }
+            }
+          : message
+      )
+    );
+
+    this.voicePresence.update((channels) =>
+      channels.map((channel) => ({
+        ...channel,
+        participants: channel.participants.map((participant) =>
+          participant.user_id === updatedUser.id
+            ? {
+                ...participant,
+                nick: updatedUser.nick,
+                full_name: updatedUser.full_name,
+                character_name: updatedUser.character_name,
+                avatar_updated_at: updatedUser.avatar_updated_at
+              }
+            : participant
+        )
+      }))
+    );
+
+    this.voiceAdminUsers.update((users) =>
+      users.map((user) =>
+        user.user_id === updatedUser.id
+          ? {
+              ...user,
+              nick: updatedUser.nick,
+              full_name: updatedUser.full_name,
+              character_name: updatedUser.character_name,
+              avatar_updated_at: updatedUser.avatar_updated_at
+            }
+          : user
+      )
+    );
+
+    this.voiceAccessEntriesByChannelId.update((currentState) => {
+      const nextState: Record<string, VoiceChannelAccessEntry[]> = {};
+      for (const [channelId, entries] of Object.entries(currentState)) {
+        nextState[channelId] = entries.map((entry) =>
+          entry.user_id === updatedUser.id
+            ? {
+                ...entry,
+                nick: updatedUser.nick,
+                full_name: updatedUser.full_name,
+                character_name: updatedUser.character_name,
+                avatar_updated_at: updatedUser.avatar_updated_at
+              }
+            : entry
+        );
+      }
+
+      return nextState;
+    });
+
+    this.voiceRoom.syncCurrentUserProfile(updatedUser);
+  }
+
+  private revokeProfileAvatarPreviewObjectUrl(): void {
+    if (!this.profileAvatarPreviewObjectUrl) {
+      return;
+    }
+
+    URL.revokeObjectURL(this.profileAvatarPreviewObjectUrl);
+    this.profileAvatarPreviewObjectUrl = null;
+  }
+
+  private clearPendingProfileAvatar(): void {
+    this.profileAvatarFile.set(null);
+    this.profileAvatarPreviewUrl.set(null);
+    this.revokeProfileAvatarPreviewObjectUrl();
+  }
+
+  private setProfileAvatarPreview(file: File): void {
+    this.revokeProfileAvatarPreviewObjectUrl();
+    this.profileAvatarPreviewObjectUrl = URL.createObjectURL(file);
+    this.profileAvatarPreviewUrl.set(this.profileAvatarPreviewObjectUrl);
+  }
+
+  private async prepareProfileAvatarFile(file: File): Promise<File> {
+    if (!['image/png', 'image/jpeg'].includes(file.type)) {
+      throw new Error('Поддерживаются только PNG и JPG аватарки');
+    }
+
+    if (file.size > MAX_PROFILE_AVATAR_SOURCE_BYTES) {
+      throw new Error('Исходное изображение слишком большое. Выберите файл до 8 МБ');
+    }
+
+    const image = await this.loadFileAsImage(file);
+    if (image.width !== image.height) {
+      throw new Error('Аватарка должна быть квадратной 1:1');
+    }
+
+    const targetSize = Math.min(MAX_PROFILE_AVATAR_DIMENSION, image.width, image.height);
+    let preparedFile = file;
+
+    if (image.width > MAX_PROFILE_AVATAR_DIMENSION || image.height > MAX_PROFILE_AVATAR_DIMENSION) {
+      preparedFile = await this.resizeProfileAvatarFile(file, image, targetSize);
+    }
+
+    if (preparedFile.size > MAX_PROFILE_AVATAR_UPLOAD_BYTES) {
+      throw new Error('Аватарка превышает лимит 2 МБ');
+    }
+
+    return preparedFile;
+  }
+
+  private loadFileAsImage(file: File): Promise<HTMLImageElement> {
+    return new Promise((resolve, reject) => {
+      const objectUrl = URL.createObjectURL(file);
+      const image = new Image();
+      image.onload = () => {
+        URL.revokeObjectURL(objectUrl);
+        resolve(image);
+      };
+      image.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        reject(new Error('Не удалось прочитать изображение'));
+      };
+      image.src = objectUrl;
+    });
+  }
+
+  private resizeProfileAvatarFile(file: File, image: HTMLImageElement, targetSize: number): Promise<File> {
+    return new Promise((resolve, reject) => {
+      const canvas = document.createElement('canvas');
+      canvas.width = targetSize;
+      canvas.height = targetSize;
+
+      const context = canvas.getContext('2d');
+      if (!context) {
+        reject(new Error('Не удалось подготовить изображение'));
+        return;
+      }
+
+      context.drawImage(image, 0, 0, targetSize, targetSize);
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            reject(new Error('Не удалось сохранить изображение'));
+            return;
+          }
+
+          resolve(
+            new File([blob], file.name, {
+              type: file.type,
+              lastModified: Date.now()
+            })
+          );
+        },
+        file.type,
+        file.type === 'image/jpeg' ? 0.92 : undefined
+      );
+    });
+  }
+
   private persistSession(session: AuthSessionResponse): void {
     if (typeof localStorage === 'undefined') {
       return;
@@ -3862,6 +4320,10 @@ export class AppComponent {
     }
 
     return label.slice(0, 2).toUpperCase();
+  }
+
+  userAvatarUrl(userId: string | null | undefined, avatarUpdatedAt: string | null | undefined): string | null {
+    return this.buildUserAvatarUrl(userId ?? null, avatarUpdatedAt ?? null);
   }
 
   private getOnlineWeight(isOnline: boolean): number {

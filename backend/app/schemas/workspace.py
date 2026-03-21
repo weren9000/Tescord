@@ -42,6 +42,7 @@ class ServerMemberSummary(BaseModel):
     nick: str
     full_name: str
     character_name: str | None
+    avatar_updated_at: datetime | None
     role: str
     is_online: bool = False
 
@@ -52,6 +53,7 @@ class VoicePresenceParticipantSummary(BaseModel):
     nick: str
     full_name: str
     character_name: str | None
+    avatar_updated_at: datetime | None
     muted: bool
     owner_muted: bool
 
@@ -74,6 +76,7 @@ class MessageAuthorSummary(BaseModel):
     nick: str
     full_name: str
     character_name: str | None
+    avatar_updated_at: datetime | None
 
 
 class MessageAttachmentSummary(BaseModel):

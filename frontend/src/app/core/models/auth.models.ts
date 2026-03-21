@@ -17,6 +17,7 @@ export interface AuthUser {
   full_name: string;
   nick: string;
   character_name: string | null;
+  avatar_updated_at: string | null;
   is_admin: boolean;
   created_at: string;
 }

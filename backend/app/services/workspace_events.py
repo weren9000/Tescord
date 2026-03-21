@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import select
@@ -41,6 +42,7 @@ def _build_server_member_summary(
         nick=user.username,
         full_name=user.display_name,
         character_name=user.bio,
+        avatar_updated_at=user.avatar_updated_at,
         role=member.role.value,
         is_online=user.id in online_user_ids,
     )
@@ -62,6 +64,11 @@ def _build_voice_channel_presence_summary(
                 character_name=(
                     str(participant["character_name"])
                     if participant.get("character_name") is not None
+                    else None
+                ),
+                avatar_updated_at=(
+                    datetime.fromisoformat(str(participant["avatar_updated_at"]))
+                    if participant.get("avatar_updated_at") is not None
                     else None
                 ),
                 muted=bool(participant["muted"]),

@@ -13,6 +13,16 @@ from app.db.session import SessionLocal
 from app.main import app
 from app.services.site_presence import site_presence_manager
 
+TEST_PNG_BYTES = (
+    b"\x89PNG\r\n\x1a\n"
+    b"\x00\x00\x00\rIHDR"
+    b"\x00\x00\x00\x01\x00\x00\x00\x01"
+    b"\x08\x06\x00\x00\x00\x1f\x15\xc4\x89"
+    b"\x00\x00\x00\rIDATx\x9cc`\x00\x01\x00\x00\x05\x00\x01"
+    b"\r\n-\xb4"
+    b"\x00\x00\x00\x00IEND\xaeB`\x82"
+)
+
 
 @pytest.fixture(autouse=True)
 def reset_site_presence_state() -> None:
@@ -207,6 +217,42 @@ def test_current_user_endpoint_returns_admin_user() -> None:
     assert payload["login"] == "weren9000"
     assert payload["nick"] == "weren9000"
     assert payload["is_admin"] is True
+
+
+def test_user_can_update_character_name_and_avatar() -> None:
+    with TestClient(app) as client:
+        token, payload = register_regular_user(client)
+
+        try:
+            update_response = client.put(
+                "/api/me/profile",
+                headers={"Authorization": f"Bearer {token}"},
+                data={
+                    "character_name": "Архонт Теней",
+                    "remove_avatar": "false",
+                },
+                files={
+                    "avatar": ("avatar.png", TEST_PNG_BYTES, "image/png"),
+                },
+            )
+            assert update_response.status_code == 200
+            updated_user = update_response.json()
+            assert updated_user["character_name"] == "Архонт Теней"
+            assert updated_user["avatar_updated_at"] is not None
+
+            current_user_response = client.get("/api/me", headers={"Authorization": f"Bearer {token}"})
+            assert current_user_response.status_code == 200
+            assert current_user_response.json()["avatar_updated_at"] == updated_user["avatar_updated_at"]
+
+            avatar_response = client.get(
+                f"/api/users/{updated_user['id']}/avatar",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+            assert avatar_response.status_code == 200
+            assert avatar_response.headers["content-type"].startswith("image/png")
+            assert avatar_response.content == TEST_PNG_BYTES
+        finally:
+            delete_user(payload["login"])
 
 
 def test_admin_can_create_text_and_voice_channels() -> None:

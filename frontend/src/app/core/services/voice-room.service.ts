@@ -9,6 +9,7 @@ export interface VoiceParticipant {
   nick: string;
   full_name: string;
   character_name: string | null;
+  avatar_updated_at: string | null;
   muted: boolean;
   owner_muted: boolean;
   speaking: boolean;
@@ -78,6 +79,7 @@ interface RemoteVoiceParticipant {
   nick: string;
   full_name: string;
   character_name: string | null;
+  avatar_updated_at: string | null;
   muted: boolean;
   owner_muted: boolean;
 }
@@ -251,6 +253,7 @@ export class VoiceRoomService {
         nick: currentUser.nick,
         full_name: currentUser.full_name,
         character_name: currentUser.character_name,
+        avatar_updated_at: currentUser.avatar_updated_at,
         muted: false,
         owner_muted: false,
         speaking: false,
@@ -286,9 +289,57 @@ export class VoiceRoomService {
     this.activeChannelId.set(null);
     this.participants.set([]);
     this.localMuted.set(false);
+    this.lastJoinContext = null;
     if (this.settingsNotice() === OWNER_MUTED_NOTICE) {
       this.settingsNotice.set(null);
     }
+  }
+
+  syncCurrentUserProfile(currentUser: CurrentUserResponse): void {
+    if (this.lastJoinContext) {
+      this.lastJoinContext = {
+        ...this.lastJoinContext,
+        currentUser
+      };
+    }
+
+    this.participants.update((participants) =>
+      participants.map((participant) =>
+        participant.user_id === currentUser.id
+          ? {
+              ...participant,
+              nick: currentUser.nick,
+              full_name: currentUser.full_name,
+              character_name: currentUser.character_name,
+              avatar_updated_at: currentUser.avatar_updated_at
+            }
+          : participant
+      )
+    );
+  }
+
+  syncParticipantProfiles(participantsSnapshot: Array<Pick<VoiceParticipant, 'user_id' | 'nick' | 'full_name' | 'character_name' | 'avatar_updated_at'>>): void {
+    if (!participantsSnapshot.length) {
+      return;
+    }
+
+    const snapshotByUserId = new Map(participantsSnapshot.map((participant) => [participant.user_id, participant]));
+    this.participants.update((participants) =>
+      participants.map((participant) => {
+        const snapshot = snapshotByUserId.get(participant.user_id);
+        if (!snapshot) {
+          return participant;
+        }
+
+        return {
+          ...participant,
+          nick: snapshot.nick,
+          full_name: snapshot.full_name,
+          character_name: snapshot.character_name,
+          avatar_updated_at: snapshot.avatar_updated_at
+        };
+      })
+    );
   }
 
   toggleMute(): void {
@@ -1021,6 +1072,7 @@ export class VoiceRoomService {
                 nick: participant.nick,
                 full_name: participant.full_name,
                 character_name: participant.character_name,
+                avatar_updated_at: participant.avatar_updated_at,
                 muted: participant.muted,
                 owner_muted: participant.owner_muted
               }

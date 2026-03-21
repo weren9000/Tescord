@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Index, Integer, LargeBinary, String, Text, Uuid, UniqueConstraint, func
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.orm import DeclarativeBase, Mapped, deferred, mapped_column, relationship
 
 
 class Base(DeclarativeBase):
@@ -80,6 +80,11 @@ class User(TimestampMixin, Base):
     display_name: Mapped[str] = mapped_column(String(64), nullable=False)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     bio: Mapped[str | None] = mapped_column(Text, nullable=True)
+    avatar_filename: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    avatar_mime_type: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    avatar_size_bytes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    avatar_content: Mapped[bytes | None] = deferred(mapped_column(LargeBinary, nullable=True))
+    avatar_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, server_default="false")
 
     owned_servers: Mapped[list["Server"]] = relationship(back_populates="owner")

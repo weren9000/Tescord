@@ -50,6 +50,7 @@ def _build_author_summary(user: User) -> MessageAuthorSummary:
         nick=user.username,
         full_name=user.display_name,
         character_name=user.bio,
+        avatar_updated_at=user.avatar_updated_at,
     )
 
 

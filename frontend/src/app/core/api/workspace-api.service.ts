@@ -34,6 +34,26 @@ export class WorkspaceApiService {
     });
   }
 
+  updateCurrentUserProfile(
+    token: string,
+    payload: {
+      characterName: string;
+      avatarFile?: File | null;
+      removeAvatar?: boolean;
+    }
+  ): Observable<CurrentUserResponse> {
+    const formData = new FormData();
+    formData.append('character_name', payload.characterName);
+    formData.append('remove_avatar', payload.removeAvatar === true ? 'true' : 'false');
+    if (payload.avatarFile) {
+      formData.append('avatar', payload.avatarFile, payload.avatarFile.name);
+    }
+
+    return this.http.put<CurrentUserResponse>(`${API_BASE_URL}/api/me/profile`, formData, {
+      headers: this.buildAuthHeaders(token)
+    });
+  }
+
   getServers(token: string): Observable<WorkspaceServer[]> {
     return this.http.get<WorkspaceServer[]>(`${API_BASE_URL}/api/servers`, {
       headers: this.buildAuthHeaders(token)
