@@ -244,10 +244,7 @@ def test_user_can_update_character_name_and_avatar() -> None:
             assert current_user_response.status_code == 200
             assert current_user_response.json()["avatar_updated_at"] == updated_user["avatar_updated_at"]
 
-            avatar_response = client.get(
-                f"/api/users/{updated_user['id']}/avatar",
-                headers={"Authorization": f"Bearer {token}"},
-            )
+            avatar_response = client.get(f"/api/users/{updated_user['id']}/avatar")
             assert avatar_response.status_code == 200
             assert avatar_response.headers["content-type"].startswith("image/png")
             assert avatar_response.content == TEST_PNG_BYTES
