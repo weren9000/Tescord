@@ -120,6 +120,11 @@ interface VoiceAdminAssignmentFormModel {
   role: VoiceAccessRole;
 }
 
+interface VoiceAdminChannelNameOption {
+  name: string;
+  groupsCount: number;
+}
+
 type VoiceAdminStatusTone = 'neutral' | 'online' | 'active' | 'warning' | 'danger';
 
 interface VoiceAdminStatusChip {
@@ -482,6 +487,8 @@ export class AppComponent {
   readonly ownerVoiceRequestModalOpen = signal(false);
   readonly voiceAdminChannels = signal<VoiceAdminChannel[]>([]);
   readonly voiceAdminUsers = signal<VoiceAdminUser[]>([]);
+  readonly voiceAdminSelectedChannelName = signal<string | null>(null);
+  readonly voiceAdminSelectedServerId = signal<string | null>(null);
   readonly voiceAdminSelectedChannelId = signal<string | null>(null);
   readonly voiceAccessEntriesByChannelId = signal<Record<string, VoiceChannelAccessEntry[]>>({});
   readonly pendingServerSwitch = signal<PendingServerSwitchState | null>(null);
@@ -877,6 +884,33 @@ export class AppComponent {
   readonly voiceAdminSelectedChannel = computed(() => {
     const selectedChannelId = this.voiceAdminSelectedChannelId();
     return this.voiceAdminChannels().find((channel) => channel.channel_id === selectedChannelId) ?? null;
+  });
+  readonly voiceAdminChannelNameOptions = computed<VoiceAdminChannelNameOption[]>(() => {
+    const optionsByName = new Map<string, VoiceAdminChannelNameOption>();
+    for (const channel of this.voiceAdminChannels()) {
+      const existing = optionsByName.get(channel.channel_name);
+      if (existing) {
+        existing.groupsCount += 1;
+        continue;
+      }
+
+      optionsByName.set(channel.channel_name, {
+        name: channel.channel_name,
+        groupsCount: 1
+      });
+    }
+
+    return [...optionsByName.values()];
+  });
+  readonly voiceAdminGroupOptions = computed(() => {
+    const selectedChannelName = this.voiceAdminSelectedChannelName();
+    if (!selectedChannelName) {
+      return [];
+    }
+
+    return [...this.voiceAdminChannels()]
+      .filter((channel) => channel.channel_name === selectedChannelName)
+      .sort((left, right) => this.compareServerNames(left.server_name, right.server_name));
   });
 
   readonly voiceAdminSelectedChannelAccess = computed(() => {
@@ -1864,9 +1898,30 @@ export class AppComponent {
     this.selectedVoiceMemberChannelId.set(null);
   }
 
-  selectVoiceAdminChannel(channelId: string): void {
-    this.voiceAdminSelectedChannelId.set(channelId);
-    void this.ensureVoiceChannelAccessLoaded(channelId, true);
+  selectVoiceAdminChannelName(channelName: string): void {
+    if (this.voiceAdminSelectedChannelName() === channelName) {
+      return;
+    }
+
+    this.voiceAdminSelectedChannelName.set(channelName);
+    const matchingChannels = this.voiceAdminChannels()
+      .filter((channel) => channel.channel_name === channelName)
+      .sort((left, right) => this.compareServerNames(left.server_name, right.server_name));
+
+    const nextChannel = matchingChannels.length === 1 ? matchingChannels[0] : null;
+    this.voiceAdminSelectedServerId.set(nextChannel?.server_id ?? null);
+    this.voiceAdminSelectedChannelId.set(nextChannel?.channel_id ?? null);
+
+    if (nextChannel) {
+      void this.ensureVoiceChannelAccessLoaded(nextChannel.channel_id, true);
+    }
+  }
+
+  selectVoiceAdminChannel(channel: VoiceAdminChannel): void {
+    this.voiceAdminSelectedChannelName.set(channel.channel_name);
+    this.voiceAdminSelectedServerId.set(channel.server_id);
+    this.voiceAdminSelectedChannelId.set(channel.channel_id);
+    void this.ensureVoiceChannelAccessLoaded(channel.channel_id, true);
   }
 
   submitVoiceAdminAssignment(): void {
@@ -2878,15 +2933,7 @@ export class AppComponent {
           this.voiceAdminChannels.set(channels);
           this.voiceAdminUsers.set(users);
 
-          const preferredChannelId = this.voiceAdminSelectedChannelId();
-          const nextChannelId =
-            (preferredChannelId && channels.some((channel) => channel.channel_id === preferredChannelId)
-              ? preferredChannelId
-              : null)
-            ?? channels[0]?.channel_id
-            ?? null;
-
-          this.voiceAdminSelectedChannelId.set(nextChannelId);
+          const nextChannelId = this.syncVoiceAdminSelection(channels);
           if (!this.voiceAdminAssignmentForm.userId) {
             this.voiceAdminAssignmentForm.userId = users[0]?.user_id ?? '';
           }
@@ -2914,6 +2961,7 @@ export class AppComponent {
       .subscribe({
         next: (channels) => {
           this.voiceAdminChannels.set(channels);
+          this.syncVoiceAdminSelection(channels);
         },
         error: () => {
           // Keep existing state until the next successful refresh.
@@ -3646,6 +3694,61 @@ export class AppComponent {
     }
 
     return left.name.localeCompare(right.name, 'ru');
+  }
+
+  private compareServerNames(leftName: string, rightName: string): number {
+    const leftIsCommon = leftName.trim().toLowerCase() === 'общая';
+    const rightIsCommon = rightName.trim().toLowerCase() === 'общая';
+
+    if (leftIsCommon && !rightIsCommon) {
+      return -1;
+    }
+
+    if (!leftIsCommon && rightIsCommon) {
+      return 1;
+    }
+
+    return leftName.localeCompare(rightName, 'ru');
+  }
+
+  private syncVoiceAdminSelection(channels: VoiceAdminChannel[]): string | null {
+    const selectedChannelId = this.voiceAdminSelectedChannelId();
+    const selectedChannelName = this.voiceAdminSelectedChannelName();
+    const selectedServerId = this.voiceAdminSelectedServerId();
+    const preferredSelectedChannel = selectedChannelId
+      ? channels.find((channel) => channel.channel_id === selectedChannelId) ?? null
+      : null;
+
+    const nextChannelName = preferredSelectedChannel?.channel_name
+      ?? (selectedChannelName && channels.some((channel) => channel.channel_name === selectedChannelName)
+        ? selectedChannelName
+        : null)
+      ?? channels[0]?.channel_name
+      ?? null;
+
+    this.voiceAdminSelectedChannelName.set(nextChannelName);
+
+    if (!nextChannelName) {
+      this.voiceAdminSelectedServerId.set(null);
+      this.voiceAdminSelectedChannelId.set(null);
+      return null;
+    }
+
+    const matchingChannels = channels
+      .filter((channel) => channel.channel_name === nextChannelName)
+      .sort((left, right) => this.compareServerNames(left.server_name, right.server_name));
+
+    const nextChannel =
+      preferredSelectedChannel?.channel_name === nextChannelName
+        ? preferredSelectedChannel
+        : (selectedServerId
+            ? matchingChannels.find((channel) => channel.server_id === selectedServerId) ?? null
+            : null)
+          ?? (matchingChannels.length === 1 ? matchingChannels[0] : null);
+
+    this.voiceAdminSelectedServerId.set(nextChannel?.server_id ?? null);
+    this.voiceAdminSelectedChannelId.set(nextChannel?.channel_id ?? null);
+    return nextChannel?.channel_id ?? null;
   }
 
   private requestAttachmentPreview(

@@ -1307,30 +1307,22 @@
       </div>
 
       <div class="modal__body voice-admin">
-        <div class="voice-admin__channels">
+        <div class="voice-admin__channels voice-admin__step">
           <div class="voice-admin__channels-head">
-            <span>Каналы</span>
-            <strong>{{ voiceAdminChannels().length }}</strong>
+            <span>Шаг 1. Канал</span>
+            <strong>{{ voiceAdminChannelNameOptions().length }}</strong>
           </div>
-          @if (voiceAdminChannels().length) {
-            @for (channel of voiceAdminChannels(); track channel.channel_id) {
+          @if (voiceAdminChannelNameOptions().length) {
+            @for (channelOption of voiceAdminChannelNameOptions(); track channelOption.name) {
               <button
                 class="voice-admin__channel"
-                [class.voice-admin__channel--active]="channel.channel_id === voiceAdminSelectedChannelId()"
+                [class.voice-admin__channel--active]="channelOption.name === voiceAdminSelectedChannelName()"
                 type="button"
-                (click)="selectVoiceAdminChannel(channel.channel_id)"
+                (click)="selectVoiceAdminChannelName(channelOption.name)"
               >
-                <strong class="voice-admin__channel-name">{{ channel.channel_name }}</strong>
-                <small class="voice-admin__channel-meta">{{ channel.server_name }}</small>
-                <small
-                  class="voice-admin__channel-owner"
-                  [class.voice-admin__channel-owner--empty]="!channel.owner_nick"
-                >
-                  {{
-                    channel.owner_nick
-                      ? 'Владелец: ' + displayCharacterName(channel.owner_character_name, channel.owner_nick)
-                      : 'Владелец не назначен'
-                  }}
+                <strong class="voice-admin__channel-name">{{ channelOption.name }}</strong>
+                <small class="voice-admin__channel-meta">
+                  {{ channelOption.groupsCount }} {{ channelOption.groupsCount === 1 ? 'группа' : channelOption.groupsCount < 5 ? 'группы' : 'групп' }}
                 </small>
               </button>
             }
@@ -1338,6 +1330,41 @@
             <div class="panel-empty">
               {{ voiceAdminChannelsLoading() ? 'Загружаем каналы...' : 'Голосовых каналов пока нет' }}
             </div>
+          }
+        </div>
+
+        <div class="voice-admin__channels voice-admin__step">
+          <div class="voice-admin__channels-head">
+            <span>Шаг 2. Группа</span>
+            <strong>{{ voiceAdminGroupOptions().length }}</strong>
+          </div>
+          @if (voiceAdminSelectedChannelName()) {
+            @if (voiceAdminGroupOptions().length) {
+              @for (channel of voiceAdminGroupOptions(); track channel.channel_id) {
+                <button
+                  class="voice-admin__channel voice-admin__channel--group"
+                  [class.voice-admin__channel--active]="channel.channel_id === voiceAdminSelectedChannelId()"
+                  type="button"
+                  (click)="selectVoiceAdminChannel(channel)"
+                >
+                  <strong class="voice-admin__channel-name">{{ channel.server_name }}</strong>
+                  <small
+                    class="voice-admin__channel-owner"
+                    [class.voice-admin__channel-owner--empty]="!channel.owner_nick"
+                  >
+                    {{
+                      channel.owner_nick
+                        ? 'Владелец: ' + displayCharacterName(channel.owner_character_name, channel.owner_nick)
+                        : 'Владелец не назначен'
+                    }}
+                  </small>
+                </button>
+              }
+            } @else {
+              <div class="panel-empty">Для этого канала пока нет доступных групп</div>
+            }
+          } @else {
+            <div class="panel-empty">Сначала выберите голосовой канал</div>
           }
         </div>
 
@@ -1459,7 +1486,13 @@
               }
             </div>
           } @else {
-            <div class="panel-empty">Выберите голосовой канал</div>
+            <div class="panel-empty">
+              @if (!voiceAdminSelectedChannelName()) {
+                Выберите голосовой канал
+              } @else {
+                Теперь выберите группу для канала «{{ voiceAdminSelectedChannelName() }}»
+              }
+            </div>
           }
         </div>
       </div>
