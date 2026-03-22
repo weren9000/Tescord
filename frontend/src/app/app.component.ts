@@ -2036,35 +2036,28 @@ export class AppComponent {
   onAttachmentSelection(event: Event): void {
     const input = event.target as HTMLInputElement | null;
     const selectedFiles = Array.from(input?.files ?? []);
-    if (!selectedFiles.length) {
-      return;
-    }
-
-    const validFiles: File[] = [];
-    let rejectedFile: File | null = null;
-
-    for (const file of selectedFiles) {
-      if (file.size > MAX_ATTACHMENT_SIZE_BYTES) {
-        rejectedFile = file;
-        continue;
-      }
-
-      validFiles.push(file);
-    }
-
-    if (validFiles.length) {
-      this.pendingFiles.set([...this.pendingFiles(), ...validFiles]);
-      this.messageError.set(null);
-      this.schedulePresenceHeartbeat();
-    }
-
-    if (rejectedFile) {
-      this.messageError.set(`Файл ${rejectedFile.name} превышает лимит 50 МБ`);
-    }
-
     if (input) {
       input.value = '';
     }
+
+    this.addPendingFiles(selectedFiles);
+  }
+
+  onMessageComposerPaste(event: ClipboardEvent): void {
+    const clipboardData = event.clipboardData;
+    if (!clipboardData || this.messageSubmitting()) {
+      return;
+    }
+
+    const pastedImages = Array.from(clipboardData.items)
+      .filter((item) => item.kind === 'file' && item.type.startsWith('image/'))
+      .map((item, index) => {
+        const file = item.getAsFile();
+        return file ? this.normalizeClipboardAttachmentFile(file, index) : null;
+      })
+      .filter((file): file is File => file !== null);
+
+    this.addPendingFiles(pastedImages);
   }
 
   removePendingFile(index: number): void {
@@ -4099,6 +4092,62 @@ export class AppComponent {
         file.type === 'image/jpeg' ? 0.92 : undefined
       );
     });
+  }
+
+  private addPendingFiles(files: File[]): void {
+    if (!files.length) {
+      return;
+    }
+
+    const validFiles: File[] = [];
+    let rejectedFile: File | null = null;
+
+    for (const file of files) {
+      if (file.size > MAX_ATTACHMENT_SIZE_BYTES) {
+        rejectedFile = file;
+        continue;
+      }
+
+      validFiles.push(file);
+    }
+
+    if (validFiles.length) {
+      this.pendingFiles.set([...this.pendingFiles(), ...validFiles]);
+      this.messageError.set(null);
+      this.schedulePresenceHeartbeat();
+    }
+
+    if (rejectedFile) {
+      this.messageError.set(`Файл ${rejectedFile.name} превышает лимит 50 МБ`);
+    }
+  }
+
+  private normalizeClipboardAttachmentFile(file: File, index: number): File {
+    if (file.name) {
+      return file;
+    }
+
+    const extension = this.attachmentFileExtensionByMimeType(file.type);
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    return new File([file], `clipboard-${timestamp}-${index + 1}${extension}`, {
+      type: file.type,
+      lastModified: file.lastModified || Date.now()
+    });
+  }
+
+  private attachmentFileExtensionByMimeType(mimeType: string): string {
+    switch (mimeType.toLowerCase()) {
+      case 'image/png':
+        return '.png';
+      case 'image/jpeg':
+        return '.jpg';
+      case 'image/gif':
+        return '.gif';
+      case 'image/webp':
+        return '.webp';
+      default:
+        return '';
+    }
   }
 
   private persistSession(session: AuthSessionResponse): void {

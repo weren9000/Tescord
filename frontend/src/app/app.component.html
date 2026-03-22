@@ -855,6 +855,7 @@
                   [ngModel]="messageDraft()"
                   (ngModelChange)="onMessageDraftChange($event)"
                   (keydown)="onMessageComposerKeydown($event)"
+                  (paste)="onMessageComposerPaste($event)"
                   [disabled]="messageSubmitting()"
                   placeholder="Сообщение"
                   rows="1"
@@ -882,7 +883,7 @@
                 @if (pendingFiles().length) {
                   Файлов: {{ pendingFiles().length }} · до 50 МБ на файл
                 } @else {
-                  Можно отправлять текст и файлы до 50 МБ
+                  Можно отправлять текст и файлы до 50 МБ, а картинки вставлять из буфера
                 }
               </small>
             </div>
