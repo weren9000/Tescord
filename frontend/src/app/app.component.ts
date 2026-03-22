@@ -1158,9 +1158,7 @@ export class AppComponent {
         exhaustMap(({ token, payload }) =>
           this.workspaceApi.createServer(token, payload).pipe(
             tap((server) => {
-              const updatedServers = this.mergeServersById([...this.servers(), server]).sort(
-                (left, right) => left.name.localeCompare(right.name, 'ru')
-              );
+              const updatedServers = this.mergeServersById([...this.servers(), server]);
               this.servers.set(updatedServers);
               this.createGroupForm.name = '';
               this.createGroupForm.description = '';
@@ -1570,7 +1568,7 @@ export class AppComponent {
               this.servers.update((servers) =>
                 servers
                   .map((server) => (server.id === updatedServer.id ? updatedServer : server))
-                  .sort((left, right) => left.name.localeCompare(right.name, 'ru'))
+                  .sort((left, right) => this.compareServers(left, right))
               );
               this.managementSuccess.set(`Иконка группы «${updatedServer.name}» обновлена: ${iconLabel}`);
               this.serverIconModalOpen.set(false);
@@ -3196,7 +3194,7 @@ export class AppComponent {
       serversById.set(server.id, server);
     }
 
-    return [...serversById.values()];
+    return [...serversById.values()].sort((left, right) => this.compareServers(left, right));
   }
 
   private mergeChannelsById(channels: WorkspaceChannel[]): WorkspaceChannel[] {
@@ -3237,7 +3235,7 @@ export class AppComponent {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (servers) => {
-          this.servers.set(servers);
+          this.servers.set(this.mergeServersById(servers));
 
           if (!servers.length) {
             this.appEvents.setActiveServer(null);
@@ -3421,7 +3419,7 @@ export class AppComponent {
       .subscribe({
         next: ({ me, servers }) => {
           this.currentUser.set(me);
-          this.servers.set(servers);
+          this.servers.set(this.mergeServersById(servers));
           this.schedulePresenceHeartbeat(true);
 
           if (!servers.length) {
@@ -3633,6 +3631,21 @@ export class AppComponent {
     }
 
     this.loadMessagesForChannel(token, activeChannel.id, this.messagesCursor());
+  }
+
+  private compareServers(left: WorkspaceServer, right: WorkspaceServer): number {
+    const leftIsCommon = left.name.trim().toLowerCase() === 'общая';
+    const rightIsCommon = right.name.trim().toLowerCase() === 'общая';
+
+    if (leftIsCommon && !rightIsCommon) {
+      return -1;
+    }
+
+    if (!leftIsCommon && rightIsCommon) {
+      return 1;
+    }
+
+    return left.name.localeCompare(right.name, 'ru');
   }
 
   private requestAttachmentPreview(
