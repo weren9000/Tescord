@@ -16,6 +16,8 @@ async def connect_to_direct_calls(websocket: WebSocket) -> None:
         await websocket.close(code=4401, reason="Missing token")
         return
 
+    connection_id = ""
+
     with SessionLocal() as db:
         try:
             current_user = resolve_user_from_token(token, db)
@@ -23,7 +25,7 @@ async def connect_to_direct_calls(websocket: WebSocket) -> None:
             await websocket.close(code=4401, reason="Unauthorized")
             return
 
-        await direct_call_signaling_manager.connect(
+        connection_id = await direct_call_signaling_manager.connect(
             websocket,
             user_id=str(current_user.id),
             nick=current_user.username,
@@ -109,7 +111,7 @@ async def connect_to_direct_calls(websocket: WebSocket) -> None:
                     "detail": f"Неподдерживаемый тип сообщения: {message_type!r}",
                 }
             )
-    except WebSocketDisconnect:
+    except (WebSocketDisconnect, RuntimeError):
         pass
     finally:
-        await direct_call_signaling_manager.disconnect(user_id, websocket)
+        await direct_call_signaling_manager.disconnect(user_id, connection_id, websocket)

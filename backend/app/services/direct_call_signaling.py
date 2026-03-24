@@ -29,6 +29,7 @@ class DirectCallPeer:
 
 @dataclass(slots=True)
 class DirectCallConnection:
+    id: str
     websocket: WebSocket
     peer: DirectCallPeer
 
@@ -53,7 +54,7 @@ class DirectCallSession:
 
 class DirectCallSignalingManager:
     def __init__(self) -> None:
-        self._connections: dict[str, DirectCallConnection] = {}
+        self._connections: dict[str, dict[str, DirectCallConnection]] = {}
         self._calls: dict[str, DirectCallSession] = {}
         self._user_to_call_id: dict[str, str] = {}
         self._lock = asyncio.Lock()
@@ -67,16 +68,14 @@ class DirectCallSignalingManager:
         full_name: str,
         character_name: str | None,
         avatar_updated_at: datetime | None = None,
-    ) -> None:
+    ) -> str:
         await websocket.accept()
+        connection_id = uuid4().hex
 
-        previous_socket: WebSocket | None = None
         async with self._lock:
-            previous_connection = self._connections.get(user_id)
-            if previous_connection is not None:
-                previous_socket = previous_connection.websocket
-
-            self._connections[user_id] = DirectCallConnection(
+            user_connections = self._connections.setdefault(user_id, {})
+            user_connections[connection_id] = DirectCallConnection(
+                id=connection_id,
                 websocket=websocket,
                 peer=DirectCallPeer(
                     user_id=user_id,
@@ -87,24 +86,24 @@ class DirectCallSignalingManager:
                 ),
             )
 
-        if previous_socket is not None and previous_socket is not websocket:
-            try:
-                await previous_socket.close(code=4000, reason="Replaced by a newer session")
-            except Exception:
-                pass
-
         await websocket.send_json({"type": "ready", "user_id": user_id})
+        return connection_id
 
-    async def disconnect(self, user_id: str, websocket: WebSocket) -> None:
+    async def disconnect(self, user_id: str, connection_id: str, websocket: WebSocket) -> None:
         call_to_end: DirectCallSession | None = None
         async with self._lock:
-            current_connection = self._connections.get(user_id)
-            if current_connection is not None and current_connection.websocket is websocket:
-                self._connections.pop(user_id, None)
+            current_connections = self._connections.get(user_id)
+            if current_connections is not None:
+                current_connection = current_connections.get(connection_id)
+                if current_connection is not None and current_connection.websocket is websocket:
+                    current_connections.pop(connection_id, None)
+                    if not current_connections:
+                        self._connections.pop(user_id, None)
 
-            call_id = self._user_to_call_id.get(user_id)
-            if call_id is not None:
-                call_to_end = self._calls.get(call_id)
+            if user_id not in self._connections:
+                call_id = self._user_to_call_id.get(user_id)
+                if call_id is not None:
+                    call_to_end = self._calls.get(call_id)
 
         if call_to_end is not None:
             await self._end_call(
@@ -129,8 +128,10 @@ class DirectCallSignalingManager:
             return False
 
         async with self._lock:
-            caller_connection = self._connections.get(caller_user_id)
-            target_connection = self._connections.get(target_user_id)
+            caller_connections = self._connections.get(caller_user_id) or {}
+            target_connections = self._connections.get(target_user_id) or {}
+            caller_connection = next(iter(caller_connections.values()), None)
+            target_connection = next(iter(target_connections.values()), None)
 
             if caller_connection is None:
                 return False
@@ -285,17 +286,24 @@ class DirectCallSignalingManager:
 
     async def _send_to_user(self, user_id: str, payload: dict[str, Any]) -> bool:
         async with self._lock:
-            connection = self._connections.get(user_id)
+            connections = list((self._connections.get(user_id) or {}).values())
 
-        if connection is None:
+        if not connections:
             return False
 
-        try:
-            await connection.websocket.send_json(payload)
-            return True
-        except Exception:
-            await self.disconnect(user_id, connection.websocket)
-            return False
+        delivered = False
+        stale_connections: list[DirectCallConnection] = []
+        for connection in connections:
+            try:
+                await connection.websocket.send_json(payload)
+                delivered = True
+            except Exception:
+                stale_connections.append(connection)
+
+        for connection in stale_connections:
+            await self.disconnect(user_id, connection.id, connection.websocket)
+
+        return delivered
 
     def _drop_call_locked(self, call: DirectCallSession) -> None:
         self._calls.pop(call.id, None)
