@@ -1051,6 +1051,35 @@
           </div>
         }
 
+        @if (directCallState() === 'connected' && directCallScreenSupported()) {
+          <div class="modal-toolbar modal-toolbar--voice-owner">
+            @if (directCallScreenSharing()) {
+              <button class="secondary-button" type="button" (click)="stopDirectCallScreenShare()">Остановить показ экрана</button>
+            } @else {
+              <button class="secondary-button" type="button" (click)="startDirectCallScreenShare()" [disabled]="!canToggleDirectCallScreenShare()">Показать экран</button>
+            }
+          </div>
+        }
+
+        @if (directCallRemoteScreenStream() || directCallLocalScreenStream()) {
+          <div class="direct-call-screen-stack">
+            @if (directCallRemoteScreenStream()) {
+              <div class="direct-call-screen">
+                <span class="direct-call-screen__caption">Экран собеседника</span>
+                <video #directCallRemoteScreenVideo class="direct-call-screen__video" autoplay playsinline></video>
+              </div>
+            }
+            @if (directCallLocalScreenStream()) {
+              <div class="direct-call-screen direct-call-screen--local">
+                <span class="direct-call-screen__caption">Ваш экран</span>
+                <video #directCallLocalScreenVideo class="direct-call-screen__video" autoplay muted playsinline></video>
+              </div>
+            }
+          </div>
+        } @else if (directCallState() === 'connected' && directCallScreenSupported()) {
+          <p class="modal-note">Можно показать один экран собеседнику.</p>
+        }
+
         @if (directCallError()) {
           <p class="modal-note modal-note--error">{{ directCallError() }}</p>
         }
@@ -1765,6 +1794,35 @@
               <div class="modal-toolbar modal-toolbar--voice-owner">
                 <button class="primary-button" type="button" (click)="hangupDirectCall()">Положить трубку</button>
               </div>
+            }
+
+            @if (directCallState() === 'connected' && directCallScreenSupported()) {
+              <div class="modal-toolbar modal-toolbar--voice-owner">
+                @if (directCallScreenSharing()) {
+                  <button class="secondary-button" type="button" (click)="stopDirectCallScreenShare()">Остановить показ экрана</button>
+                } @else {
+                  <button class="secondary-button" type="button" (click)="startDirectCallScreenShare()" [disabled]="!canToggleDirectCallScreenShare()">Показать экран</button>
+                }
+              </div>
+            }
+
+            @if (directCallRemoteScreenStream() || directCallLocalScreenStream()) {
+              <div class="direct-call-screen-stack">
+                @if (directCallRemoteScreenStream()) {
+                  <div class="direct-call-screen">
+                    <span class="direct-call-screen__caption">Экран собеседника</span>
+                    <video #directCallRemoteScreenVideo class="direct-call-screen__video" autoplay playsinline></video>
+                  </div>
+                }
+                @if (directCallLocalScreenStream()) {
+                  <div class="direct-call-screen direct-call-screen--local">
+                    <span class="direct-call-screen__caption">Ваш экран</span>
+                    <video #directCallLocalScreenVideo class="direct-call-screen__video" autoplay muted playsinline></video>
+                  </div>
+                }
+              </div>
+            } @else if (directCallState() === 'connected' && directCallScreenSupported()) {
+              <p class="modal-note">Можно показать один экран собеседнику.</p>
             }
           } @else {
             <div class="modal-toolbar">

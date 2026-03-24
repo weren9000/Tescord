@@ -1,6 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
-import { Component, DestroyRef, ElementRef, ViewChild, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, ElementRef, ViewChild, computed, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { EMPTY, Subject, catchError, exhaustMap, finalize, forkJoin, mergeMap, tap } from 'rxjs';
@@ -446,6 +446,21 @@ export class AppComponent {
   @ViewChild('profileAvatarInput')
   private profileAvatarInputRef?: ElementRef<HTMLInputElement>;
 
+  @ViewChild('directCallLocalScreenVideo')
+  private set directCallLocalScreenVideoRef(ref: ElementRef<HTMLVideoElement> | undefined) {
+    this.directCallLocalScreenVideoElement = ref?.nativeElement ?? null;
+    this.syncDirectCallScreenVideos();
+  }
+
+  @ViewChild('directCallRemoteScreenVideo')
+  private set directCallRemoteScreenVideoRef(ref: ElementRef<HTMLVideoElement> | undefined) {
+    this.directCallRemoteScreenVideoElement = ref?.nativeElement ?? null;
+    this.syncDirectCallScreenVideos();
+  }
+
+  private directCallLocalScreenVideoElement: HTMLVideoElement | null = null;
+  private directCallRemoteScreenVideoElement: HTMLVideoElement | null = null;
+
   readonly health = signal<ApiHealthResponse | null>(null);
   readonly healthError = signal<string | null>(null);
   readonly authError = signal<string | null>(null);
@@ -568,6 +583,11 @@ export class AppComponent {
   readonly directCallPeer = this.directCall.peer;
   readonly directCallCanCall = this.directCall.canCall;
   readonly hasDirectCall = this.directCall.hasActiveCall;
+  readonly directCallScreenSupported = this.directCall.screenShareSupported;
+  readonly directCallScreenSharing = this.directCall.isScreenSharing;
+  readonly directCallLocalScreenStream = this.directCall.localScreenStream;
+  readonly directCallRemoteScreenStream = this.directCall.remoteScreenStream;
+  readonly directCallHasRemoteScreen = this.directCall.hasRemoteScreenShare;
 
   readonly activeServer = computed(() => {
     const serverId = this.selectedServerId();
@@ -1168,6 +1188,11 @@ export class AppComponent {
       this.teardownPresenceActivityTracking();
       this.clearAttachmentPreviews();
       this.revokeProfileAvatarPreviewObjectUrl();
+    });
+    effect(() => {
+      this.directCallLocalScreenStream();
+      this.directCallRemoteScreenStream();
+      queueMicrotask(() => this.syncDirectCallScreenVideos());
     });
     this.bindActionPipelines();
     this.appEvents.events$
@@ -2007,6 +2032,26 @@ export class AppComponent {
     }
   }
 
+  startDirectCallScreenShare(): void {
+    void this.directCall.startScreenShare();
+  }
+
+  stopDirectCallScreenShare(): void {
+    void this.directCall.stopScreenShare();
+  }
+
+  canToggleDirectCallScreenShare(): boolean {
+    if (!this.directCallScreenSupported()) {
+      return false;
+    }
+
+    if (this.directCallScreenSharing()) {
+      return true;
+    }
+
+    return this.directCallState() === 'connected';
+  }
+
   canStartDirectCallToSelectedMember(): boolean {
     const member = this.selectedMember();
     if (!member || member.isSelf || this.selectedVoiceMemberChannelId()) {
@@ -2042,6 +2087,22 @@ export class AppComponent {
     }
 
     return this.displayCharacterName(peer.character_name, peer.nick);
+  }
+
+  private syncDirectCallScreenVideos(): void {
+    if (this.directCallLocalScreenVideoElement) {
+      const localStream = this.directCallLocalScreenStream();
+      if (this.directCallLocalScreenVideoElement.srcObject !== localStream) {
+        this.directCallLocalScreenVideoElement.srcObject = localStream;
+      }
+    }
+
+    if (this.directCallRemoteScreenVideoElement) {
+      const remoteStream = this.directCallRemoteScreenStream();
+      if (this.directCallRemoteScreenVideoElement.srcObject !== remoteStream) {
+        this.directCallRemoteScreenVideoElement.srcObject = remoteStream;
+      }
+    }
   }
 
   selectVoiceAdminChannelName(channelName: string): void {

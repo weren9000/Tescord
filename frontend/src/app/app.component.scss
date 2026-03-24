@@ -2070,6 +2070,37 @@ select {
   display: block;
 }
 
+.direct-call-screen-stack {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.direct-call-screen {
+  display: grid;
+  gap: 6px;
+}
+
+.direct-call-screen__caption {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.direct-call-screen__video {
+  width: 100%;
+  display: block;
+  border: 1px solid var(--line);
+  background: #05080e;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+
+.direct-call-screen--local .direct-call-screen__video {
+  object-fit: contain;
+}
+
 .modal-toolbar--voice-owner {
   width: 100%;
   flex-wrap: wrap;

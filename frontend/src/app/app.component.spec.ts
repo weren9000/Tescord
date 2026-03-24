@@ -135,6 +135,11 @@ describe('AppComponent', () => {
             notice: signal(null),
             peer: signal(null),
             canCall: computed(() => true),
+            screenShareSupported: computed(() => true),
+            isScreenSharing: computed(() => false),
+            localScreenStream: signal(null),
+            remoteScreenStream: signal(null),
+            hasRemoteScreenShare: computed(() => false),
             hasActiveCall: computed(() => false),
             start: () => undefined,
             stop: () => undefined,
@@ -142,6 +147,8 @@ describe('AppComponent', () => {
             acceptIncoming: () => undefined,
             rejectIncoming: () => undefined,
             hangUp: async () => undefined,
+            startScreenShare: async () => undefined,
+            stopScreenShare: async () => undefined,
             clearFeedback: () => undefined
           }
         },
