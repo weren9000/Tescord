@@ -458,8 +458,22 @@ export class AppComponent {
     this.syncDirectCallScreenVideos();
   }
 
+  @ViewChild('directCallExpandedLocalScreenVideo')
+  private set directCallExpandedLocalScreenVideoRef(ref: ElementRef<HTMLVideoElement> | undefined) {
+    this.directCallExpandedLocalScreenVideoElement = ref?.nativeElement ?? null;
+    this.syncDirectCallScreenVideos();
+  }
+
+  @ViewChild('directCallExpandedRemoteScreenVideo')
+  private set directCallExpandedRemoteScreenVideoRef(ref: ElementRef<HTMLVideoElement> | undefined) {
+    this.directCallExpandedRemoteScreenVideoElement = ref?.nativeElement ?? null;
+    this.syncDirectCallScreenVideos();
+  }
+
   private directCallLocalScreenVideoElement: HTMLVideoElement | null = null;
   private directCallRemoteScreenVideoElement: HTMLVideoElement | null = null;
+  private directCallExpandedLocalScreenVideoElement: HTMLVideoElement | null = null;
+  private directCallExpandedRemoteScreenVideoElement: HTMLVideoElement | null = null;
 
   readonly health = signal<ApiHealthResponse | null>(null);
   readonly healthError = signal<string | null>(null);
@@ -477,6 +491,7 @@ export class AppComponent {
   readonly createChannelLoading = signal(false);
   readonly deletingChannelId = signal<string | null>(null);
   readonly authMode = signal<AuthMode>('login');
+  readonly directCallScreenExpanded = signal(false);
 
   readonly session = signal<AuthSessionResponse | null>(null);
   readonly currentUser = signal<CurrentUserResponse | null>(null);
@@ -588,6 +603,9 @@ export class AppComponent {
   readonly directCallLocalScreenStream = this.directCall.localScreenStream;
   readonly directCallRemoteScreenStream = this.directCall.remoteScreenStream;
   readonly directCallHasRemoteScreen = this.directCall.hasRemoteScreenShare;
+  readonly hasAnyDirectCallScreen = computed(
+    () => this.directCallHasRemoteScreen() || this.directCallScreenSharing()
+  );
 
   readonly activeServer = computed(() => {
     const serverId = this.selectedServerId();
@@ -1192,6 +1210,9 @@ export class AppComponent {
     effect(() => {
       this.directCallLocalScreenStream();
       this.directCallRemoteScreenStream();
+      if (!this.hasAnyDirectCallScreen() && this.directCallScreenExpanded()) {
+        this.directCallScreenExpanded.set(false);
+      }
       queueMicrotask(() => this.syncDirectCallScreenVideos());
     });
     this.bindActionPipelines();
@@ -2026,6 +2047,7 @@ export class AppComponent {
   }
 
   async hangupDirectCall(closeModal = false): Promise<void> {
+    this.directCallScreenExpanded.set(false);
     await this.directCall.hangUp();
     if (closeModal) {
       this.closeMemberVolume();
@@ -2038,6 +2060,18 @@ export class AppComponent {
 
   stopDirectCallScreenShare(): void {
     void this.directCall.stopScreenShare();
+  }
+
+  expandDirectCallScreen(): void {
+    if (!this.hasAnyDirectCallScreen()) {
+      return;
+    }
+
+    this.directCallScreenExpanded.set(true);
+  }
+
+  collapseDirectCallScreen(): void {
+    this.directCallScreenExpanded.set(false);
   }
 
   canToggleDirectCallScreenShare(): boolean {
@@ -2090,17 +2124,24 @@ export class AppComponent {
   }
 
   private syncDirectCallScreenVideos(): void {
-    if (this.directCallLocalScreenVideoElement) {
-      const localStream = this.directCallLocalScreenStream();
-      if (this.directCallLocalScreenVideoElement.srcObject !== localStream) {
-        this.directCallLocalScreenVideoElement.srcObject = localStream;
+    const localStream = this.directCallLocalScreenStream();
+    const remoteStream = this.directCallRemoteScreenStream();
+
+    for (const video of [
+      this.directCallLocalScreenVideoElement,
+      this.directCallExpandedLocalScreenVideoElement
+    ]) {
+      if (video && video.srcObject !== localStream) {
+        video.srcObject = localStream;
       }
     }
 
-    if (this.directCallRemoteScreenVideoElement) {
-      const remoteStream = this.directCallRemoteScreenStream();
-      if (this.directCallRemoteScreenVideoElement.srcObject !== remoteStream) {
-        this.directCallRemoteScreenVideoElement.srcObject = remoteStream;
+    for (const video of [
+      this.directCallRemoteScreenVideoElement,
+      this.directCallExpandedRemoteScreenVideoElement
+    ]) {
+      if (video && video.srcObject !== remoteStream) {
+        video.srcObject = remoteStream;
       }
     }
   }

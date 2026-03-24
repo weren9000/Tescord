@@ -1023,7 +1023,7 @@
 
 @if (shouldShowStandaloneDirectCallModal() && directCallPeer(); as standaloneCallPeer) {
   <div class="modal-backdrop">
-    <section class="modal modal--compact" (click)="$event.stopPropagation()">
+    <section class="modal modal--compact" [class.modal--wide]="hasAnyDirectCallScreen()" (click)="$event.stopPropagation()">
       <div class="modal__header">
         <div>
           <p class="eyebrow">Личный звонок</p>
@@ -1058,6 +1058,9 @@
             } @else {
               <button class="secondary-button" type="button" (click)="startDirectCallScreenShare()" [disabled]="!canToggleDirectCallScreenShare()">Показать экран</button>
             }
+            @if (hasAnyDirectCallScreen()) {
+              <button class="secondary-button" type="button" (click)="expandDirectCallScreen()">Развернуть экран</button>
+            }
           </div>
         }
 
@@ -1085,6 +1088,40 @@
         }
       </div>
     </section>
+  </div>
+}
+
+@if (directCallScreenExpanded() && hasAnyDirectCallScreen()) {
+  <div class="direct-call-screen-overlay">
+    <div class="direct-call-screen-overlay__toolbar">
+      <div class="direct-call-screen-overlay__title">
+        <strong>{{ directCallHasRemoteScreen() ? 'Экран собеседника' : 'Ваш экран' }}</strong>
+        @if (directCallPeer(); as expandedPeer) {
+          <span>{{ displayCharacterName(expandedPeer.character_name, expandedPeer.nick) }}</span>
+        }
+      </div>
+      <div class="direct-call-screen-overlay__actions">
+        <button class="secondary-button" type="button" (click)="collapseDirectCallScreen()">Свернуть</button>
+        @if (directCallState() !== 'incoming') {
+          <button class="primary-button" type="button" (click)="hangupDirectCall()">Положить трубку</button>
+        }
+      </div>
+    </div>
+
+    <div class="direct-call-screen-overlay__content">
+      @if (directCallRemoteScreenStream()) {
+        <video #directCallExpandedRemoteScreenVideo class="direct-call-screen-overlay__video" autoplay playsinline></video>
+      } @else if (directCallLocalScreenStream()) {
+        <video #directCallExpandedLocalScreenVideo class="direct-call-screen-overlay__video" autoplay muted playsinline></video>
+      }
+
+      @if (directCallRemoteScreenStream() && directCallLocalScreenStream()) {
+        <div class="direct-call-screen-overlay__preview">
+          <span class="direct-call-screen__caption">Ваш экран</span>
+          <video #directCallExpandedLocalScreenVideo class="direct-call-screen__video" autoplay muted playsinline></video>
+        </div>
+      }
+    </div>
   </div>
 }
 
@@ -1716,7 +1753,7 @@
 
 @if (selectedMember(); as member) {
   <div class="modal-backdrop" (click)="closeMemberVolume()">
-    <section class="modal modal--compact" (click)="$event.stopPropagation()">
+    <section class="modal modal--compact" [class.modal--wide]="!selectedVoiceMemberChannelId() && hasAnyDirectCallScreen()" (click)="$event.stopPropagation()">
       <div class="modal__header">
         <div>
           <p class="eyebrow">Участник</p>
@@ -1802,6 +1839,9 @@
                   <button class="secondary-button" type="button" (click)="stopDirectCallScreenShare()">Остановить показ экрана</button>
                 } @else {
                   <button class="secondary-button" type="button" (click)="startDirectCallScreenShare()" [disabled]="!canToggleDirectCallScreenShare()">Показать экран</button>
+                }
+                @if (hasAnyDirectCallScreen()) {
+                  <button class="secondary-button" type="button" (click)="expandDirectCallScreen()">Развернуть экран</button>
                 }
               </div>
             }
