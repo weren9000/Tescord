@@ -184,8 +184,10 @@ class DirectCallSignalingManager:
             if call is None or call.callee_user_id != user_id or call.status != "ringing":
                 return False
 
-            caller_connection = self._connections.get(call.caller_user_id)
-            callee_connection = self._connections.get(call.callee_user_id)
+            caller_connections = self._connections.get(call.caller_user_id) or {}
+            callee_connections = self._connections.get(call.callee_user_id) or {}
+            caller_connection = next(iter(caller_connections.values()), None)
+            callee_connection = next(iter(callee_connections.values()), None)
             if caller_connection is None or callee_connection is None:
                 self._drop_call_locked(call)
                 return False
