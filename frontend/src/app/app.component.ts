@@ -42,6 +42,7 @@ import {
   WorkspaceVoicePresenceChannel
 } from './core/models/workspace.models';
 import { AppEventsService } from './core/services/app-events.service';
+import { DirectCallPeer, DirectCallService } from './core/services/direct-call.service';
 import { VoiceParticipant, VoiceRoomService } from './core/services/voice-room.service';
 
 type AuthMode = 'login' | 'register';
@@ -374,6 +375,7 @@ export class AppComponent {
   private readonly authApi = inject(AuthApiService);
   private readonly workspaceApi = inject(WorkspaceApiService);
   private readonly appEvents = inject(AppEventsService);
+  private readonly directCall = inject(DirectCallService);
   private readonly voiceRoom = inject(VoiceRoomService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly attachmentPreviewUrls = signal<Record<string, string>>({});
@@ -540,6 +542,12 @@ export class AppComponent {
   readonly inputDevices = this.voiceRoom.inputDevices;
   readonly outputDevices = this.voiceRoom.outputDevices;
   readonly outputDeviceSupported = this.voiceRoom.outputDeviceSupported;
+  readonly directCallState = this.directCall.state;
+  readonly directCallError = this.directCall.error;
+  readonly directCallNotice = this.directCall.notice;
+  readonly directCallPeer = this.directCall.peer;
+  readonly directCallCanCall = this.directCall.canCall;
+  readonly hasDirectCall = this.directCall.hasActiveCall;
 
   readonly activeServer = computed(() => {
     const serverId = this.selectedServerId();
@@ -880,6 +888,45 @@ export class AppComponent {
 
     return this.voiceRoom.getParticipantVolume(member.userId);
   });
+  readonly selectedMemberDirectCallActive = computed(() => {
+    const member = this.selectedMember();
+    const peer = this.directCallPeer();
+    if (!member || !peer || this.selectedVoiceMemberChannelId()) {
+      return false;
+    }
+
+    return peer.user_id === member.userId;
+  });
+  readonly shouldShowStandaloneIncomingCall = computed(() => {
+    if (this.directCallState() !== 'incoming') {
+      return false;
+    }
+
+    const peer = this.directCallPeer();
+    if (!peer) {
+      return false;
+    }
+
+    const member = this.selectedMember();
+    if (!member || this.selectedVoiceMemberChannelId()) {
+      return true;
+    }
+
+    return member.userId !== peer.user_id;
+  });
+  readonly shouldShowStandaloneDirectCallModal = computed(() => {
+    const peer = this.directCallPeer();
+    if (!peer || !this.hasDirectCall()) {
+      return false;
+    }
+
+    const member = this.selectedMember();
+    if (!member || this.selectedVoiceMemberChannelId()) {
+      return true;
+    }
+
+    return member.userId !== peer.user_id;
+  });
 
   readonly voiceAdminSelectedChannel = computed(() => {
     const selectedChannelId = this.voiceAdminSelectedChannelId();
@@ -1090,6 +1137,7 @@ export class AppComponent {
   constructor() {
     this.destroyRef.onDestroy(() => {
       this.appEvents.stop();
+      this.directCall.stop();
       this.stopVoicePresencePolling();
       this.stopMemberPolling();
       this.stopMessageAutoRefreshPolling();
@@ -1893,9 +1941,85 @@ export class AppComponent {
     }
   }
 
+  openMemberCall(member: GroupMemberItem): void {
+    this.closeMobilePanel();
+    this.directCall.clearFeedback();
+    this.selectedMemberUserId.set(member.userId);
+    this.selectedVoiceMemberChannelId.set(null);
+  }
+
   closeMemberVolume(): void {
     this.selectedMemberUserId.set(null);
     this.selectedVoiceMemberChannelId.set(null);
+    this.directCall.clearFeedback();
+  }
+
+  startDirectCallToSelectedMember(): void {
+    const member = this.selectedMember();
+    if (!member || member.isSelf) {
+      return;
+    }
+
+    this.directCall.openCall({
+      user_id: member.userId,
+      nick: member.nick,
+      full_name: member.fullName,
+      character_name: member.characterName,
+      avatar_updated_at: member.avatarUpdatedAt,
+    });
+  }
+
+  acceptDirectCall(): void {
+    this.directCall.acceptIncoming();
+  }
+
+  rejectDirectCall(): void {
+    this.directCall.rejectIncoming();
+    this.closeMemberVolume();
+  }
+
+  async hangupDirectCall(closeModal = false): Promise<void> {
+    await this.directCall.hangUp();
+    if (closeModal) {
+      this.closeMemberVolume();
+    }
+  }
+
+  canStartDirectCallToSelectedMember(): boolean {
+    const member = this.selectedMember();
+    if (!member || member.isSelf || this.selectedVoiceMemberChannelId()) {
+      return false;
+    }
+
+    const peer = this.directCallPeer();
+    if (!peer) {
+      return this.directCallCanCall();
+    }
+
+    if (peer.user_id !== member.userId) {
+      return false;
+    }
+
+    return this.directCallState() === 'idle';
+  }
+
+  selectedMemberHasOtherDirectCall(): boolean {
+    const member = this.selectedMember();
+    const peer = this.directCallPeer();
+    if (!member || !peer || this.selectedVoiceMemberChannelId()) {
+      return false;
+    }
+
+    return this.hasDirectCall() && peer.user_id !== member.userId;
+  }
+
+  directCallPeerLabel(): string {
+    const peer = this.directCallPeer();
+    if (!peer) {
+      return 'собеседник';
+    }
+
+    return this.displayCharacterName(peer.character_name, peer.nick);
   }
 
   selectVoiceAdminChannelName(channelName: string): void {
@@ -2354,6 +2478,7 @@ export class AppComponent {
 
   logout(): void {
     this.appEvents.stop();
+    this.directCall.stop();
     this.stopMemberPolling();
     this.stopVoicePresencePolling();
     this.stopMessageAutoRefreshPolling();
@@ -2384,6 +2509,8 @@ export class AppComponent {
     this.ownerVoiceRequestModalOpen.set(false);
     this.voiceAdminChannels.set([]);
     this.voiceAdminUsers.set([]);
+    this.voiceAdminSelectedChannelName.set(null);
+    this.voiceAdminSelectedServerId.set(null);
     this.voiceAdminSelectedChannelId.set(null);
     this.voiceAccessEntriesByChannelId.set({});
     this.authError.set(null);
@@ -3431,6 +3558,7 @@ export class AppComponent {
       this.session.set(session);
       this.currentUser.set(session.user);
       this.appEvents.start(session.access_token);
+      this.directCall.start(session.access_token);
       this.schedulePresenceHeartbeat(true);
       this.startVoiceJoinInboxPolling();
       this.bootstrapWorkspace(session.access_token);
@@ -3443,6 +3571,7 @@ export class AppComponent {
     this.session.set(session);
     this.currentUser.set(session.user);
     this.appEvents.start(session.access_token);
+    this.directCall.start(session.access_token);
     this.persistSession(session);
     this.schedulePresenceHeartbeat(true);
     this.startVoiceJoinInboxPolling();
@@ -3498,7 +3627,8 @@ export class AppComponent {
           this.stopVoicePresencePolling();
           this.stopMessageAutoRefreshPolling();
           this.stopVoiceJoinInboxPolling();
-    this.appEvents.stop();
+          this.appEvents.stop();
+          this.directCall.stop();
           this.workspaceLoading.set(false);
           this.voiceRoom.leave();
           this.session.set(null);

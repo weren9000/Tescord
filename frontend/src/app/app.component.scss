@@ -2058,6 +2058,18 @@ select {
   justify-content: flex-start;
 }
 
+.direct-call-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.direct-call-button img {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
 .modal-toolbar--voice-owner {
   width: 100%;
   flex-wrap: wrap;

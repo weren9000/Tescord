@@ -6,6 +6,7 @@ import { AppComponent } from './app.component';
 import { AuthApiService } from './core/api/auth-api.service';
 import { SystemApiService } from './core/api/system-api.service';
 import { WorkspaceApiService } from './core/api/workspace-api.service';
+import { DirectCallService } from './core/services/direct-call.service';
 import { VoiceRoomService } from './core/services/voice-room.service';
 
 describe('AppComponent', () => {
@@ -123,6 +124,25 @@ describe('AppComponent', () => {
                 type: 'text',
                 position: 1
               })
+          }
+        },
+        {
+          provide: DirectCallService,
+          useValue: {
+            connected: signal(true),
+            state: signal('idle'),
+            error: signal(null),
+            notice: signal(null),
+            peer: signal(null),
+            canCall: computed(() => true),
+            hasActiveCall: computed(() => false),
+            start: () => undefined,
+            stop: () => undefined,
+            openCall: () => undefined,
+            acceptIncoming: () => undefined,
+            rejectIncoming: () => undefined,
+            hangUp: async () => undefined,
+            clearFeedback: () => undefined
           }
         },
         {

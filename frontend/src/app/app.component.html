@@ -991,7 +991,7 @@
                 class="member-row"
                 [class.member-row--selected]="selectedMember()?.userId === member.userId"
                 type="button"
-                (click)="openMemberVolume(member)"
+                (click)="openMemberCall(member)"
               >
                 <span class="member-row__identity">
                   <span class="member-avatar" [class.member-avatar--online]="member.isOnline">
@@ -1018,6 +1018,44 @@
         }
       </section>
     </aside>
+  </div>
+}
+
+@if (shouldShowStandaloneDirectCallModal() && directCallPeer(); as standaloneCallPeer) {
+  <div class="modal-backdrop">
+    <section class="modal modal--compact" (click)="$event.stopPropagation()">
+      <div class="modal__header">
+        <div>
+          <p class="eyebrow">Личный звонок</p>
+          <h3>{{ displayCharacterName(standaloneCallPeer.character_name, standaloneCallPeer.nick) }}</h3>
+        </div>
+        @if (directCallState() === 'incoming') {
+          <button class="icon-button" type="button" (click)="rejectDirectCall()">✕</button>
+        } @else {
+          <button class="icon-button" type="button" (click)="hangupDirectCall()">✕</button>
+        }
+      </div>
+
+      <div class="modal__body">
+        <p class="modal-note">&#64;{{ standaloneCallPeer.nick }}</p>
+        @if (directCallState() === 'incoming') {
+          <p class="modal-note modal-note--live">Входящий личный звонок.</p>
+          <div class="modal-toolbar modal-toolbar--voice-owner">
+            <button class="primary-button" type="button" (click)="acceptDirectCall()">Ответить</button>
+            <button class="secondary-button" type="button" (click)="rejectDirectCall()">Отклонить</button>
+          </div>
+        } @else {
+          <p class="modal-note">{{ directCallNotice() || (directCallState() === 'outgoing' ? 'Ожидаем ответа собеседника.' : 'Личный звонок активен.') }}</p>
+          <div class="modal-toolbar modal-toolbar--voice-owner">
+            <button class="primary-button" type="button" (click)="hangupDirectCall()">Положить трубку</button>
+          </div>
+        }
+
+        @if (directCallError()) {
+          <p class="modal-note modal-note--error">{{ directCallError() }}</p>
+        }
+      </div>
+    </section>
   </div>
 }
 
@@ -1661,62 +1699,94 @@
       <div class="modal__body">
         <p class="modal-note">&#64;{{ member.nick }} · {{ member.roleLabel }}</p>
         <p class="modal-note">Статус: {{ member.presenceLabel }}</p>
-        @if (selectedVoiceMemberChannelId() && selectedVoiceMemberAccessEntry()) {
-          <p class="modal-note">Доступ к каналу: {{ selectedVoiceMemberRoleLabel() }}</p>
-          <p class="modal-note">
-            Микрофон:
-            {{ selectedVoiceMemberOwnerMuted() ? 'заблокирован владельцем' : 'доступен' }}
-          </p>
-        }
+        @if (selectedVoiceMemberChannelId()) {
+          @if (selectedVoiceMemberAccessEntry()) {
+            <p class="modal-note">Доступ к каналу: {{ selectedVoiceMemberRoleLabel() }}</p>
+            <p class="modal-note">
+              Микрофон:
+              {{ selectedVoiceMemberOwnerMuted() ? 'заблокирован владельцем' : 'доступен' }}
+            </p>
+          }
 
-        <label class="range-field">
-          <span>Персональная громкость</span>
-          <div class="range-field__control">
-            <input
-              type="range"
-              min="0"
-              max="200"
-              step="1"
-              [ngModel]="selectedMemberVolume()"
-              name="participant_volume"
-              (ngModelChange)="changeMemberVolume(member.userId, $event)"
-            />
-            <strong>{{ selectedMemberVolume() }}%</strong>
-          </div>
-        </label>
+          <label class="range-field">
+            <span>Персональная громкость</span>
+            <div class="range-field__control">
+              <input
+                type="range"
+                min="0"
+                max="200"
+                step="1"
+                [ngModel]="selectedMemberVolume()"
+                name="participant_volume"
+                (ngModelChange)="changeMemberVolume(member.userId, $event)"
+              />
+              <strong>{{ selectedMemberVolume() }}%</strong>
+            </div>
+          </label>
 
-        @if (!member.voiceParticipant) {
-          <p class="modal-note">
-            Сейчас участник не подключен к активному голосовому каналу. Настройка сохранится и применится позже.
-          </p>
-        } @else if (member.voiceParticipant.speaking) {
-          <p class="modal-note modal-note--live">Участник сейчас говорит.</p>
-        }
+          @if (member.voiceParticipant?.speaking) {
+            <p class="modal-note modal-note--live">Участник сейчас говорит.</p>
+          }
 
-        @if (canManageSelectedVoiceMember()) {
-          <div class="modal-toolbar modal-toolbar--voice-owner">
-            @if (canToggleSelectedVoiceMemberOwnerMute()) {
-              <button
-                class="secondary-button"
-                type="button"
-                (click)="toggleSelectedVoiceMemberOwnerMute()"
-                [disabled]="voiceOwnerActionLoading()"
-              >
-                {{ selectedVoiceMemberOwnerMuted() ? 'Разблокировать микрофон' : 'Заглушить микрофон' }}
+          @if (canManageSelectedVoiceMember()) {
+            <div class="modal-toolbar modal-toolbar--voice-owner">
+              @if (canToggleSelectedVoiceMemberOwnerMute()) {
+                <button
+                  class="secondary-button"
+                  type="button"
+                  (click)="toggleSelectedVoiceMemberOwnerMute()"
+                  [disabled]="voiceOwnerActionLoading()"
+                >
+                  {{ selectedVoiceMemberOwnerMuted() ? 'Разблокировать микрофон' : 'Заглушить микрофон' }}
+                </button>
+              }
+              @if (selectedVoiceMemberAccessEntry()?.role === 'stranger') {
+                <button class="secondary-button" type="button" (click)="setSelectedVoiceMemberRole('resident')" [disabled]="voiceOwnerActionLoading()">Сделать жителем</button>
+                <button class="primary-button" type="button" (click)="kickSelectedVoiceMember()" [disabled]="voiceOwnerActionLoading()">Выгнать</button>
+              } @else if (selectedVoiceMemberAccessEntry()?.role === 'resident') {
+                <button class="secondary-button" type="button" (click)="setSelectedVoiceMemberRole('stranger')" [disabled]="voiceOwnerActionLoading()">Сделать чужаком</button>
+              }
+            </div>
+          }
+        } @else {
+          @if (member.isSelf) {
+            <p class="modal-note">Личный звонок самому себе недоступен.</p>
+          } @else if (selectedMemberHasOtherDirectCall()) {
+            <p class="modal-note">Сейчас уже идет личный звонок с {{ directCallPeerLabel() }}.</p>
+          } @else if (selectedMemberDirectCallActive()) {
+            @if (directCallState() === 'incoming') {
+              <p class="modal-note modal-note--live">Входящий личный звонок.</p>
+              <div class="modal-toolbar modal-toolbar--voice-owner">
+                <button class="primary-button" type="button" (click)="acceptDirectCall()">Ответить</button>
+                <button class="secondary-button" type="button" (click)="rejectDirectCall()">Отклонить</button>
+              </div>
+            } @else {
+              <p class="modal-note">{{ directCallNotice() || (directCallState() === 'outgoing' ? 'Ожидаем ответа собеседника.' : 'Личный звонок активен.') }}</p>
+              <div class="modal-toolbar modal-toolbar--voice-owner">
+                <button class="primary-button" type="button" (click)="hangupDirectCall()">Положить трубку</button>
+              </div>
+            }
+          } @else {
+            <div class="modal-toolbar">
+              <button class="primary-button direct-call-button" type="button" (click)="startDirectCallToSelectedMember()" [disabled]="!canStartDirectCallToSelectedMember()">
+                <img src="/assets/Phone_connect.svg" alt="" />
+                <span>Позвонить</span>
               </button>
-            }
-            @if (selectedVoiceMemberAccessEntry()?.role === 'stranger') {
-              <button class="secondary-button" type="button" (click)="setSelectedVoiceMemberRole('resident')" [disabled]="voiceOwnerActionLoading()">Сделать жителем</button>
-              <button class="primary-button" type="button" (click)="kickSelectedVoiceMember()" [disabled]="voiceOwnerActionLoading()">Выгнать</button>
-            } @else if (selectedVoiceMemberAccessEntry()?.role === 'resident') {
-              <button class="secondary-button" type="button" (click)="setSelectedVoiceMemberRole('stranger')" [disabled]="voiceOwnerActionLoading()">Сделать чужаком</button>
-            }
-          </div>
+            </div>
+          }
+
+          @if (directCallError()) {
+            <p class="modal-note modal-note--error">{{ directCallError() }}</p>
+          } @else if (directCallNotice() && !selectedMemberHasOtherDirectCall()) {
+            <p class="modal-note">{{ directCallNotice() }}</p>
+          }
         }
       </div>
 
       <div class="modal__actions">
-        <button class="primary-button" type="button" (click)="closeMemberVolume()">Готово</button>
+        <button class="primary-button" type="button" (click)="closeMemberVolume()">
+          {{ selectedVoiceMemberChannelId() ? 'Готово' : 'Закрыть' }}
+        </button>
       </div>
     </section>
   </div>
