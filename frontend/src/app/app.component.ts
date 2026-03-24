@@ -260,6 +260,14 @@ interface MessageReactionTrigger {
   remove: boolean;
 }
 
+interface BrowserWakeLockSentinel extends EventTarget {
+  release(): Promise<void>;
+}
+
+interface BrowserWakeLock {
+  request(type: 'screen'): Promise<BrowserWakeLockSentinel>;
+}
+
 const SESSION_STORAGE_KEY = 'tescord.session';
 const MESSAGES_PAGE_SIZE = 25;
 const MAX_ATTACHMENT_SIZE_BYTES = 50 * 1024 * 1024;
@@ -380,11 +388,23 @@ export class AppComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly attachmentPreviewUrls = signal<Record<string, string>>({});
   private readonly loadingAttachmentPreviewIds = new Set<string>();
+  private wakeLock: BrowserWakeLockSentinel | null = null;
+  private wakeLockRequestInFlight = false;
   private readonly handlePresenceActivity = () => this.schedulePresenceHeartbeat();
   private readonly handleVisibilityChange = () => {
     if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
       this.schedulePresenceHeartbeat(true);
     }
+
+    void this.syncWakeLock();
+  };
+  private readonly handleWakeLockRelease = () => {
+    if (this.wakeLock) {
+      this.wakeLock.removeEventListener('release', this.handleWakeLockRelease);
+      this.wakeLock = null;
+    }
+
+    void this.syncWakeLock();
   };
   private voicePresencePollIntervalId: number | null = null;
   private memberPollIntervalId: number | null = null;
@@ -1138,6 +1158,7 @@ export class AppComponent {
     this.destroyRef.onDestroy(() => {
       this.appEvents.stop();
       this.directCall.stop();
+      void this.releaseWakeLock();
       this.stopVoicePresencePolling();
       this.stopMemberPolling();
       this.stopMessageAutoRefreshPolling();
@@ -1156,6 +1177,7 @@ export class AppComponent {
     this.startPresenceKeepalive();
     this.loadHealth();
     this.restoreSession();
+    void this.syncWakeLock();
   }
 
   private bindActionPipelines(): void {
@@ -2871,6 +2893,66 @@ export class AppComponent {
     window.removeEventListener('keydown', this.handlePresenceActivity);
     window.removeEventListener('focus', this.handlePresenceActivity);
     document.removeEventListener('visibilitychange', this.handleVisibilityChange);
+  }
+
+  private getWakeLockApi(): BrowserWakeLock | null {
+    if (typeof navigator === 'undefined') {
+      return null;
+    }
+
+    return ((navigator as Navigator & { wakeLock?: BrowserWakeLock }).wakeLock ?? null);
+  }
+
+  private async syncWakeLock(): Promise<void> {
+    const wakeLockApi = this.getWakeLockApi();
+    if (!wakeLockApi || typeof document === 'undefined') {
+      return;
+    }
+
+    if (document.visibilityState === 'visible') {
+      await this.requestWakeLock(wakeLockApi);
+      return;
+    }
+
+    await this.releaseWakeLock();
+  }
+
+  private async requestWakeLock(wakeLockApi = this.getWakeLockApi()): Promise<void> {
+    if (!wakeLockApi || typeof document === 'undefined' || document.visibilityState !== 'visible') {
+      return;
+    }
+
+    if (this.wakeLock || this.wakeLockRequestInFlight) {
+      return;
+    }
+
+    this.wakeLockRequestInFlight = true;
+
+    try {
+      const sentinel = await wakeLockApi.request('screen');
+      sentinel.addEventListener('release', this.handleWakeLockRelease);
+      this.wakeLock = sentinel;
+    } catch {
+      // Some mobile browsers can reject wake lock on low battery or system policy.
+    } finally {
+      this.wakeLockRequestInFlight = false;
+    }
+  }
+
+  private async releaseWakeLock(): Promise<void> {
+    if (!this.wakeLock) {
+      return;
+    }
+
+    const sentinel = this.wakeLock;
+    this.wakeLock = null;
+    sentinel.removeEventListener('release', this.handleWakeLockRelease);
+
+    try {
+      await sentinel.release();
+    } catch {
+      // Ignore release errors when the browser already dropped the lock.
+    }
   }
 
   private schedulePresenceHeartbeat(force = false): void {
