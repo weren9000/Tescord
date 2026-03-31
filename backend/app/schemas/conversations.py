@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class ConversationMemberPreview(BaseModel):
@@ -37,10 +37,17 @@ class ConversationDirectoryUserSummary(BaseModel):
 
 
 class CreateDirectConversationRequest(BaseModel):
-    user_id: UUID
+    user_id: UUID | None = None
+    user_public_id: int | None = Field(default=None, ge=10000, le=99999)
+
+    @model_validator(mode="after")
+    def validate_target(self) -> "CreateDirectConversationRequest":
+        if (self.user_id is None) == (self.user_public_id is None):
+            raise ValueError("Нужно указать пользователя по UUID или пятизначному ID")
+        return self
 
 
 class CreateGroupConversationRequest(BaseModel):
     name: str = Field(min_length=2, max_length=80)
-    member_ids: list[UUID] = Field(min_length=1, max_length=9)
+    member_ids: list[UUID] = Field(default_factory=list, max_length=9)
     icon_asset: str | None = Field(default=None, max_length=255)

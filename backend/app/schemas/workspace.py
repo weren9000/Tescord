@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class ServerSummary(BaseModel):
@@ -23,7 +23,14 @@ class CreateServerRequest(BaseModel):
 
 
 class AddServerMemberRequest(BaseModel):
-    user_id: UUID
+    user_id: UUID | None = None
+    user_public_id: int | None = Field(default=None, ge=10000, le=99999)
+
+    @model_validator(mode="after")
+    def validate_target(self) -> "AddServerMemberRequest":
+        if (self.user_id is None) == (self.user_public_id is None):
+            raise ValueError("Нужно указать пользователя по UUID или пятизначному ID")
+        return self
 
 
 class UpdateServerIconRequest(BaseModel):

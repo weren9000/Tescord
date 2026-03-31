@@ -301,7 +301,12 @@ def add_server_member(
 
     _ensure_manage_permission(membership, current_user)
 
-    user = db.get(User, payload.user_id)
+    if payload.user_id is not None:
+        user = db.get(User, payload.user_id)
+    else:
+        assert payload.user_public_id is not None
+        user = db.execute(select(User).where(User.public_id == payload.user_public_id)).scalar_one_or_none()
+
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден")
 
@@ -309,6 +314,16 @@ def add_server_member(
         select(ServerMember).where(ServerMember.server_id == server.id, ServerMember.user_id == user.id)
     ).scalar_one_or_none()
     if existing_member is None:
+        if server.kind == ServerKind.GROUP_CHAT:
+            members_count = db.execute(
+                select(func.count(ServerMember.id)).where(ServerMember.server_id == server.id)
+            ).scalar_one()
+            if int(members_count or 0) >= 10:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="В группе не может быть больше 10 участников",
+                )
+
         existing_member = ServerMember(
             server_id=server.id,
             user_id=user.id,

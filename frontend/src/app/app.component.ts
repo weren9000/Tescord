@@ -30,6 +30,7 @@ import {
 import { AuthLoginRequest, AuthRegisterRequest, AuthSessionResponse } from './core/models/auth.models';
 import { ApiHealthResponse } from './core/models/system.models';
 import {
+  AddWorkspaceMemberRequest,
   CreateWorkspaceChannelRequest,
   CreateWorkspaceServerRequest,
   CurrentUserResponse,
@@ -197,12 +198,15 @@ interface CreateConversationTrigger {
 interface AddServerMemberTrigger {
   token: string;
   serverId: string;
-  userId: string;
+  payload: AddWorkspaceMemberRequest;
 }
 
 interface OpenDirectConversationTrigger {
   token: string;
-  userId: string;
+  payload: {
+    user_id?: string | null;
+    user_public_id?: number | null;
+  };
   closeModal: boolean;
 }
 
@@ -813,13 +817,17 @@ export class AppComponent {
     const selectedCount = this.createConversationGroupMemberIds().length;
     return (
       this.createConversationForm.name.trim().length >= 2
-      && selectedCount >= 2
       && selectedCount <= 9
       && !this.createConversationLoading()
     );
   });
   readonly canCreateDirectConversation = computed(() =>
-    this.createConversationForm.directUserId.trim().length > 0 && !this.createConversationLoading()
+    this.resolveUserLookupPayload(this.createConversationForm.directUserId, this.directDirectoryQuery()) !== null
+    && !this.createConversationLoading()
+  );
+  readonly canAddGroupMember = computed(() =>
+    this.resolveUserLookupPayload(this.addGroupMemberUserId(), this.addGroupMemberQuery()) !== null
+    && !this.addGroupMemberLoading()
   );
   readonly createConversationAvailableUsers = computed(() =>
     [...this.conversationDirectory()].sort((left, right) => {
@@ -1512,8 +1520,8 @@ export class AppComponent {
   private bindWorkspaceMutationPipelines(): void {
     this.openDirectConversationTrigger$
       .pipe(
-        exhaustMap(({ token, userId, closeModal }) =>
-          this.workspaceApi.openDirectConversation(token, userId).pipe(
+        exhaustMap(({ token, payload, closeModal }) =>
+          this.workspaceApi.openDirectConversation(token, payload).pipe(
             tap((conversation) => {
               this.conversations.set(this.mergeConversationsById([...this.conversations(), conversation]));
               this.workspaceMode.set('chats');
@@ -1569,8 +1577,8 @@ export class AppComponent {
 
     this.addServerMemberTrigger$
       .pipe(
-        exhaustMap(({ token, serverId, userId }) =>
-          this.workspaceApi.addServerMember(token, serverId, userId).pipe(
+        exhaustMap(({ token, serverId, payload }) =>
+          this.workspaceApi.addServerMember(token, serverId, payload).pipe(
             tap((member) => {
               this.members.update((currentMembers) => {
                 if (currentMembers.some((entry) => entry.user_id === member.user_id)) {
@@ -2259,8 +2267,8 @@ export class AppComponent {
   submitAddGroupMember(): void {
     const token = this.session()?.access_token;
     const serverId = this.selectedServerId();
-    const userId = this.addGroupMemberUserId().trim();
-    if (!token || !serverId || !userId) {
+    const payload = this.resolveUserLookupPayload(this.addGroupMemberUserId(), this.addGroupMemberQuery());
+    if (!token || !serverId || !payload) {
       this.managementError.set('Выберите пользователя для добавления в группу');
       return;
     }
@@ -2268,7 +2276,7 @@ export class AppComponent {
     this.addGroupMemberLoading.set(true);
     this.managementError.set(null);
     this.managementSuccess.set(null);
-    this.addServerMemberTrigger$.next({ token, serverId, userId });
+    this.addServerMemberTrigger$.next({ token, serverId, payload });
   }
 
   selectWorkspaceMode(mode: WorkspaceMode): void {
@@ -2332,6 +2340,33 @@ export class AppComponent {
   closeCreateConversationModal(): void {
     this.createConversationModalOpen.set(false);
     this.conversationCreateTab.set('direct');
+  }
+
+  private parsePublicUserId(value: string): number | null {
+    const normalized = value.trim();
+    if (!/^\d{5}$/.test(normalized)) {
+      return null;
+    }
+
+    const parsed = Number(normalized);
+    return Number.isInteger(parsed) ? parsed : null;
+  }
+
+  private resolveUserLookupPayload(
+    selectedUserId: string,
+    lookupValue: string,
+  ): { user_id?: string | null; user_public_id?: number | null } | null {
+    const normalizedUserId = selectedUserId.trim();
+    if (normalizedUserId) {
+      return { user_id: normalizedUserId };
+    }
+
+    const publicId = this.parsePublicUserId(lookupValue);
+    if (publicId !== null) {
+      return { user_public_id: publicId };
+    }
+
+    return null;
   }
 
   toggleCreateConversationMember(userId: string, selected: boolean): void {
@@ -2474,7 +2509,7 @@ export class AppComponent {
     this.managementError.set(null);
     this.openDirectConversationTrigger$.next({
       token,
-      userId: member.userId,
+      payload: { user_id: member.userId },
       closeModal: true,
     });
   }
@@ -2715,8 +2750,8 @@ export class AppComponent {
 
   startDirectConversationFromModal(): void {
     const token = this.session()?.access_token;
-    const userId = this.createConversationForm.directUserId.trim();
-    if (!token || !userId) {
+    const payload = this.resolveUserLookupPayload(this.createConversationForm.directUserId, this.directDirectoryQuery());
+    if (!token || !payload) {
       this.managementError.set('Выберите пользователя для личного чата');
       return;
     }
@@ -2726,7 +2761,7 @@ export class AppComponent {
     this.managementSuccess.set(null);
     this.openDirectConversationTrigger$.next({
       token,
-      userId,
+      payload,
       closeModal: true,
     });
   }
@@ -2745,11 +2780,6 @@ export class AppComponent {
 
     if (payload.name.length < 2) {
       this.managementError.set('Введите название мини-группы');
-      return;
-    }
-
-    if (payload.member_ids.length < 2) {
-      this.managementError.set('Выберите минимум двух участников');
       return;
     }
 

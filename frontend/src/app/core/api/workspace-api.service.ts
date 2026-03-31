@@ -6,9 +6,11 @@ import { API_BASE_URL } from './api-base';
 import {
   ConversationDirectoryUser,
   ConversationSummary,
+  CreateDirectConversationRequest,
   CreateGroupConversationRequest,
 } from '../models/conversation.models';
 import {
+  AddWorkspaceMemberRequest,
   CreateWorkspaceChannelRequest,
   CreateWorkspaceServerRequest,
   CurrentUserResponse,
@@ -76,10 +78,10 @@ export class WorkspaceApiService {
     });
   }
 
-  openDirectConversation(token: string, userId: string): Observable<ConversationSummary> {
+  openDirectConversation(token: string, payload: CreateDirectConversationRequest): Observable<ConversationSummary> {
     return this.http.post<ConversationSummary>(
       `${API_BASE_URL}/api/conversations/direct`,
-      { user_id: userId },
+      payload,
       {
         headers: this.buildAuthHeaders(token)
       }
@@ -107,10 +109,10 @@ export class WorkspaceApiService {
     });
   }
 
-  addServerMember(token: string, serverId: string, userId: string): Observable<WorkspaceMember> {
+  addServerMember(token: string, serverId: string, payload: AddWorkspaceMemberRequest): Observable<WorkspaceMember> {
     return this.http.post<WorkspaceMember>(
       `${API_BASE_URL}/api/servers/${serverId}/members`,
-      { user_id: userId },
+      payload,
       {
         headers: this.buildAuthHeaders(token)
       }

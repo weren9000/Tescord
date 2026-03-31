@@ -55,6 +55,31 @@ def test_open_direct_conversation_creates_single_shared_chat() -> None:
             delete_user(payload["email"])
 
 
+def test_open_direct_conversation_by_public_id() -> None:
+    with TestClient(app) as client:
+        admin_token = login_admin_user(client)
+        user_token, payload = register_regular_user(client)
+        conversation_id = None
+
+        try:
+            user_profile = get_current_user_profile(client, user_token)
+
+            response = client.post(
+                "/api/conversations/direct",
+                headers={"Authorization": f"Bearer {admin_token}"},
+                json={"user_public_id": user_profile["public_id"]},
+            )
+            assert response.status_code == 201
+            conversation = response.json()
+            conversation_id = conversation["id"]
+            assert conversation["kind"] == "direct"
+            assert any(member["public_id"] == user_profile["public_id"] for member in conversation["members"])
+        finally:
+            if conversation_id is not None:
+                delete_server(conversation_id)
+            delete_user(payload["email"])
+
+
 def test_conversation_messages_are_private_to_members() -> None:
     with TestClient(app) as client:
         admin_token = login_admin_user(client)
@@ -112,7 +137,7 @@ def test_user_can_create_group_conversation() -> None:
             member_one_profile = get_current_user_profile(client, member_one_token)
             member_two_login_response = client.post(
                 "/api/auth/login",
-                json={"login": member_two_payload["login"], "password": member_two_payload["password"]},
+                json={"email": member_two_payload["email"], "password": member_two_payload["password"]},
             )
             assert member_two_login_response.status_code == 200
             member_two_profile = member_two_login_response.json()["user"]
@@ -143,4 +168,30 @@ def test_user_can_create_group_conversation() -> None:
             delete_user(owner_payload["email"])
             delete_user(member_one_payload["email"])
             delete_user(member_two_payload["email"])
+
+
+def test_user_can_create_group_conversation_alone() -> None:
+    with TestClient(app) as client:
+        owner_token, owner_payload = register_regular_user(client)
+        conversation_id = None
+
+        try:
+            group_response = client.post(
+                "/api/conversations/group",
+                headers={"Authorization": f"Bearer {owner_token}"},
+                json={
+                    "name": f"Соло-группа {uuid4().hex[:6]}",
+                    "member_ids": [],
+                },
+            )
+            assert group_response.status_code == 201
+            conversation = group_response.json()
+            conversation_id = conversation["id"]
+            assert conversation["kind"] == "group_chat"
+            assert len(conversation["members"]) == 1
+            assert conversation["members"][0]["role"] == "owner"
+        finally:
+            if conversation_id is not None:
+                delete_server(conversation_id)
+            delete_user(owner_payload["email"])
 

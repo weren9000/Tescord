@@ -60,6 +60,11 @@ export interface CreateWorkspaceServerRequest {
   description: string | null;
 }
 
+export interface AddWorkspaceMemberRequest {
+  user_id?: string | null;
+  user_public_id?: number | null;
+}
+
 export interface CreateWorkspaceChannelRequest {
   name: string;
   topic: string | null;

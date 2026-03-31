@@ -100,6 +100,30 @@ def _load_conversation(server_id: UUID, db: Session) -> Server | None:
     ).scalar_one_or_none()
 
 
+def _resolve_conversation_target_user(
+    payload: CreateDirectConversationRequest,
+    current_user: User,
+    db: Session,
+) -> User:
+    if payload.user_id is not None:
+        if payload.user_id == current_user.id:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Нельзя создать личный чат с самим собой")
+
+        user = db.get(User, payload.user_id)
+        if user is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден")
+        return user
+
+    assert payload.user_public_id is not None
+    if payload.user_public_id == current_user.public_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Нельзя создать личный чат с самим собой")
+
+    user = db.execute(select(User).where(User.public_id == payload.user_public_id)).scalar_one_or_none()
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден")
+    return user
+
+
 @router.get("", response_model=list[ConversationSummary])
 def list_conversations(
     current_user: User = Depends(get_current_user),
@@ -157,12 +181,7 @@ def open_direct_conversation(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> ConversationSummary:
-    if payload.user_id == current_user.id:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Нельзя создать личный чат с самим собой")
-
-    peer_user = db.get(User, payload.user_id)
-    if peer_user is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден")
+    peer_user = _resolve_conversation_target_user(payload, current_user, db)
 
     direct_key = _build_direct_key(current_user.id, peer_user.id)
     existing_server = db.execute(
@@ -235,10 +254,11 @@ def create_group_conversation(
     db: Session = Depends(get_db),
 ) -> ConversationSummary:
     member_ids = {member_id for member_id in payload.member_ids if member_id != current_user.id}
-    if not member_ids:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Нужно выбрать хотя бы одного участника")
-
-    users = db.execute(select(User).where(User.id.in_(member_ids)).order_by(User.username)).scalars().all()
+    users = (
+        db.execute(select(User).where(User.id.in_(member_ids)).order_by(User.username)).scalars().all()
+        if member_ids
+        else []
+    )
     if len(users) != len(member_ids):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Не все участники найдены")
 

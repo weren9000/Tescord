@@ -1361,15 +1361,15 @@
               <span>Поиск по нику, почте или ID</span>
               <input
                 [ngModel]="directDirectoryQuery()"
-                (ngModelChange)="directDirectoryQuery.set($event)"
+                (ngModelChange)="directDirectoryQuery.set($event); createConversationForm.directUserId = ''"
                 name="conversation_direct_query"
                 maxlength="120"
-                placeholder="Введите ник или ID пользователя"
+                placeholder="Введите ник, почту или пятизначный ID"
                 type="text"
               />
             </label>
 
-            <p class="modal-note">Выберите участника, чтобы открыть личный чат или начать звонок.</p>
+            <p class="modal-note">Можно выбрать участника из списка или сразу ввести его пятизначный ID.</p>
 
             <div class="conversation-picker-list">
               @for (user of personalDirectoryCandidates(); track user.user_id) {
@@ -1418,7 +1418,7 @@
               </select>
             </label>
 
-            <p class="modal-note">Выберите от 2 до 9 участников, которых хотите добавить в мини-группу.</p>
+            <p class="modal-note">Группу можно создать одному и потом добавить людей. Либо сразу выбрать до 9 участников.</p>
 
             <div class="conversation-picker-list">
               @for (user of createConversationAvailableUsers(); track user.user_id) {
@@ -1495,15 +1495,15 @@
             <span>Поиск по нику, почте или ID</span>
             <input
               [ngModel]="addGroupMemberQuery()"
-              (ngModelChange)="addGroupMemberQuery.set($event)"
+              (ngModelChange)="addGroupMemberQuery.set($event); addGroupMemberUserId.set('')"
               name="group_member_query"
               maxlength="120"
-              placeholder="Введите ник или ID пользователя"
+              placeholder="Введите ник, почту или пятизначный ID"
               type="text"
             />
           </label>
 
-          <p class="modal-note">Можно добавить только уже известных вам пользователей.</p>
+          <p class="modal-note">Можно выбрать пользователя из списка или добавить его по пятизначному ID.</p>
 
           <div class="conversation-picker-list">
             @for (user of activeGroupKnownCandidates(); track user.user_id) {
@@ -1544,7 +1544,7 @@
         <button
           class="primary-button"
           type="button"
-          [disabled]="!addGroupMemberUserId() || addGroupMemberLoading()"
+          [disabled]="!canAddGroupMember()"
           (click)="submitAddGroupMember()"
         >
           {{ addGroupMemberLoading() ? 'Добавляем...' : 'Добавить в группу' }}

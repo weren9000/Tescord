@@ -29,7 +29,8 @@ export interface ConversationDirectoryUser {
 }
 
 export interface CreateDirectConversationRequest {
-  user_id: string;
+  user_id?: string | null;
+  user_public_id?: number | null;
 }
 
 export interface CreateGroupConversationRequest {
