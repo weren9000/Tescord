@@ -234,7 +234,6 @@ def open_direct_conversation(
         ]
     )
     db.flush()
-    ensure_group_chat_defaults(db, server, created_by_id=current_user.id)
     db.commit()
 
     created_server = _load_conversation(server.id, db)

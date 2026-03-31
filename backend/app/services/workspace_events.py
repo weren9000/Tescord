@@ -38,6 +38,7 @@ def _build_server_member_summary(
     return ServerMemberSummary(
         id=member.id,
         user_id=user.id,
+        public_id=user.public_id,
         login=user.email,
         nick=user.username,
         avatar_updated_at=user.avatar_updated_at,
@@ -57,6 +58,7 @@ def _build_voice_channel_presence_summary(
             VoicePresenceParticipantSummary(
                 participant_id=str(participant["id"]),
                 user_id=UUID(str(participant["user_id"])),
+                public_id=int(participant.get("public_id", 0)),
                 nick=str(participant["nick"]),
                 avatar_updated_at=(
                     datetime.fromisoformat(str(participant["avatar_updated_at"]))
