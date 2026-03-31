@@ -1,5 +1,6 @@
 export interface ConversationMemberPreview {
   user_id: string;
+  public_id: number;
   login: string;
   nick: string;
   avatar_updated_at: string | null;
@@ -20,6 +21,7 @@ export interface ConversationSummary {
 
 export interface ConversationDirectoryUser {
   user_id: string;
+  public_id: number;
   login: string;
   nick: string;
   avatar_updated_at: string | null;

@@ -43,6 +43,7 @@ class ChannelSummary(BaseModel):
 class ServerMemberSummary(BaseModel):
     id: UUID
     user_id: UUID
+    public_id: int
     login: str
     nick: str
     avatar_updated_at: datetime | None
@@ -53,6 +54,7 @@ class ServerMemberSummary(BaseModel):
 class VoicePresenceParticipantSummary(BaseModel):
     participant_id: str
     user_id: UUID
+    public_id: int
     nick: str
     avatar_updated_at: datetime | None
     muted: bool
@@ -73,6 +75,7 @@ class CreateChannelRequest(BaseModel):
 
 class MessageAuthorSummary(BaseModel):
     id: UUID
+    public_id: int
     login: str
     nick: str
     avatar_updated_at: datetime | None
@@ -80,6 +83,7 @@ class MessageAuthorSummary(BaseModel):
 
 class MessageReadUserSummary(BaseModel):
     id: UUID
+    public_id: int
     nick: str
     avatar_updated_at: datetime | None
 

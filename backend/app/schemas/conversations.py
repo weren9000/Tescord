@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 
 class ConversationMemberPreview(BaseModel):
     user_id: UUID
+    public_id: int
     login: str
     nick: str
     avatar_updated_at: datetime | None
@@ -28,6 +29,7 @@ class ConversationSummary(BaseModel):
 
 class ConversationDirectoryUserSummary(BaseModel):
     user_id: UUID
+    public_id: int
     login: str
     nick: str
     avatar_updated_at: datetime | None

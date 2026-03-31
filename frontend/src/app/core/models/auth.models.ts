@@ -12,6 +12,7 @@ export interface AuthRegisterRequest {
 
 export interface AuthUser {
   id: string;
+  public_id: number;
   email: string;
   nick: string;
   avatar_updated_at: string | null;

@@ -110,6 +110,7 @@ interface ServerIconOption {
 interface GroupMemberItem {
   id: string;
   userId: string;
+  publicId: number;
   login: string;
   nick: string;
   avatarUpdatedAt: string | null;
@@ -868,7 +869,7 @@ export class AppComponent {
         return (
           this.displayNick(user.nick).toLowerCase().includes(query)
           || user.login.toLowerCase().includes(query)
-          || user.user_id.toLowerCase().includes(query)
+          || this.formatPublicUserId(user.public_id).includes(query)
         );
       })
       .sort((left, right) => {
@@ -892,7 +893,7 @@ export class AppComponent {
         return (
           this.displayNick(user.nick).toLowerCase().includes(query)
           || user.login.toLowerCase().includes(query)
-          || user.user_id.toLowerCase().includes(query)
+          || this.formatPublicUserId(user.public_id).includes(query)
         );
       })
       .sort((left, right) => {
@@ -1110,6 +1111,7 @@ export class AppComponent {
         return {
           id: member.id,
           userId: member.user_id,
+          publicId: member.public_id,
           login: member.login,
           nick: member.nick,
           avatarUpdatedAt: member.avatar_updated_at,
@@ -2434,6 +2436,7 @@ export class AppComponent {
     this.openMemberCall({
       id: peer.user_id,
       userId: peer.user_id,
+      publicId: peer.public_id,
       login: peer.login,
       nick: peer.nick,
       avatarUpdatedAt: peer.avatar_updated_at,
@@ -4046,6 +4049,7 @@ export class AppComponent {
           read_by: [
             {
               id: readerId,
+              public_id: event.state.public_id,
               nick: event.state.nick,
               avatar_updated_at: event.state.avatar_updated_at,
             },
@@ -5598,6 +5602,14 @@ export class AppComponent {
     return label.slice(0, 2).toUpperCase();
   }
 
+  formatPublicUserId(publicId: number | null | undefined): string {
+    if (typeof publicId !== 'number' || !Number.isFinite(publicId)) {
+      return '00000';
+    }
+
+    return Math.trunc(publicId).toString().padStart(5, '0');
+  }
+
   userAvatarUrl(userId: string | null | undefined, avatarUpdatedAt: string | null | undefined): string | null {
     return this.buildUserAvatarUrl(userId ?? null, avatarUpdatedAt ?? null);
   }
@@ -5619,7 +5631,7 @@ export class AppComponent {
   conversationMetaLabel(conversation: ConversationSummary): string {
     if (conversation.kind === 'direct') {
       const peer = this.conversationPeer(conversation);
-      return peer ? `ID: ${peer.user_id}` : 'Личный чат';
+      return peer ? `ID: ${this.formatPublicUserId(peer.public_id)}` : 'Личный чат';
     }
 
     return conversation.subtitle ?? 'Групповой чат';
@@ -5628,7 +5640,7 @@ export class AppComponent {
   activeSpaceMetaLabel(): string {
     if (this.isChatsMode()) {
       const peer = this.activeDirectPeer();
-      return peer ? `ID: ${peer.user_id}` : 'Личный чат';
+      return peer ? `ID: ${this.formatPublicUserId(peer.public_id)}` : 'Личный чат';
     }
 
     const group = this.activeGroupConversation();

@@ -122,10 +122,10 @@
 
     <header class="app-header">
       <div class="app-header__start">
-        <button class="icon-button app-header__menu" type="button" aria-label="????" title="????" (click)="toggleSideMenu()">
-          ?
+        <button class="icon-button app-header__menu" type="button" aria-label="Открыть меню" title="Открыть меню" (click)="toggleSideMenu()">
+          ☰
         </button>
-        <button class="secondary-button app-header__sidebar-toggle" type="button" aria-label="??????? ??????" title="??????? ??????" (click)="toggleMobilePanel('servers')">
+        <button class="secondary-button app-header__sidebar-toggle" type="button" aria-label="Открыть список" title="Открыть список" (click)="toggleMobilePanel('servers')">
           <span>{{ activeSpaceListTitle() }}</span>
         </button>
         <img class="app-header__logo" src="/assets/KVA-chat.png" alt="KVA Chat" />
@@ -137,13 +137,13 @@
           <small>{{ activeSpaceMetaLabel() }}</small>
         } @else {
           <strong>KVA Chat</strong>
-          <small>???????? ??? ??? ??????</small>
+          <small>Выберите чат или группу</small>
         }
       </div>
 
       <div class="app-header__actions">
         @if (isChatsMode() && activeDirectPeer()) {
-          <button class="primary-button header-call-button" type="button" title="?????????" aria-label="?????????" (click)="openActiveDirectPeerCall()">
+          <button class="primary-button header-call-button" type="button" title="Позвонить" aria-label="Позвонить" (click)="openActiveDirectPeerCall()">
             <img src="/assets/Phone_connect.svg" alt="" />
           </button>
         }
@@ -152,8 +152,8 @@
             class="secondary-button header-call-button"
             type="button"
             [class.header-call-button--active]="connectedVoiceChannelId() === activeGroupVoiceChannel()?.id"
-            [attr.title]="connectedVoiceChannelId() === activeGroupVoiceChannel()?.id ? '????? ?? ?????????? ????' : '????? ? ????????? ???'"
-            [attr.aria-label]="connectedVoiceChannelId() === activeGroupVoiceChannel()?.id ? '????? ?? ?????????? ????' : '????? ? ????????? ???'"
+            [attr.title]="connectedVoiceChannelId() === activeGroupVoiceChannel()?.id ? 'Выйти из голосового чата' : 'Войти в голосовой чат'"
+            [attr.aria-label]="connectedVoiceChannelId() === activeGroupVoiceChannel()?.id ? 'Выйти из голосового чата' : 'Войти в голосовой чат'"
             (click)="toggleActiveGroupVoice()"
           >
             <img [src]="connectedVoiceChannelId() === activeGroupVoiceChannel()?.id ? '/assets/Phone outgoing.svg' : '/assets/Phone_connect.svg'" alt="" />
@@ -163,14 +163,14 @@
     </header>
 
     @if (sideMenuOpen()) {
-      <button class="drawer-backdrop" type="button" aria-label="??????? ????" (click)="closeSideMenu()"></button>
+      <button class="drawer-backdrop" type="button" aria-label="Закрыть меню" (click)="closeSideMenu()"></button>
       <aside class="side-drawer">
         <div class="side-drawer__profile">
           <button
             class="profile-avatar-button"
             type="button"
             [disabled]="!currentUser() || profileSaving()"
-            title="???????, ????? ????????? ????????"
+            title="Нажмите, чтобы изменить аватарку"
             (click)="openProfileAvatarPicker('instant')"
           >
             @if (currentUserAvatarUrl(); as avatarUrl) {
@@ -182,7 +182,7 @@
           <div class="side-drawer__identity">
             <strong>{{ displayNick(currentUser()?.nick ?? '') }}</strong>
             @if (currentUser(); as user) {
-              <small>ID: {{ user.id }}</small>
+              <small>ID: {{ formatPublicUserId(user.public_id) }}</small>
               <span>{{ user.email }}</span>
             }
           </div>
@@ -191,36 +191,36 @@
         <div class="side-drawer__actions">
           <button class="side-drawer__action" type="button" (click)="closeSideMenu(); openProfileEditor()">
             <img src="/assets/User_Profile.svg" alt="" />
-            <span>???????</span>
+            <span>Профиль</span>
           </button>
           <button class="side-drawer__action" type="button" (click)="openCreateGroupShortcut()">
-            <span>?</span>
-            <span>??????? ??????</span>
+            <span>+</span>
+            <span>Создать группу</span>
           </button>
           <button class="side-drawer__action" type="button" (click)="openAddUserShortcut()">
-            <span>?</span>
-            <span>???????? ????????????</span>
+            <span>+</span>
+            <span>Добавить пользователя</span>
           </button>
           @if (isAdmin()) {
             <button class="side-drawer__action" type="button" (click)="closeSideMenu(); openVoiceAdminPanel()">
-              <span>?</span>
-              <span>?????? ? ??????</span>
+              <span>◉</span>
+              <span>Доступ к голосу</span>
             </button>
           }
           <button class="side-drawer__action" type="button" (click)="closeSideMenu(); openVoiceSettings()">
-            <span>?</span>
-            <span>?????????</span>
+            <span>⚙</span>
+            <span>Настройки</span>
           </button>
           <button class="side-drawer__action side-drawer__action--danger" type="button" (click)="closeSideMenu(); logout()">
             <img src="/assets/Log out.svg" alt="" />
-            <span>?????</span>
+            <span>Выйти</span>
           </button>
         </div>
       </aside>
     }
 
     @if (mobilePanel() === 'servers') {
-      <button class="mobile-backdrop" type="button" aria-label="??????? ??????" (click)="closeMobilePanel()"></button>
+      <button class="mobile-backdrop" type="button" aria-label="Закрыть список" (click)="closeMobilePanel()"></button>
     }
 
     <div class="messenger-layout">
@@ -232,7 +232,7 @@
             type="button"
             (click)="selectWorkspaceMode('chats')"
           >
-            ??????
+            Личные
           </button>
           <button
             class="conversation-sidebar__tab"
@@ -240,20 +240,20 @@
             type="button"
             (click)="selectWorkspaceMode('groups')"
           >
-            ?????????
+            Групповые
           </button>
         </div>
 
         <div class="conversation-sidebar__header">
           <div>
             <strong>{{ activeSpaceListTitle() }}</strong>
-            <small>{{ isChatsMode() ? '?????? ??????? ? ??????' : '?????? ? ????? ??????' }}</small>
+            <small>{{ isChatsMode() ? 'Ваши личные диалоги' : 'Ваши группы и чаты' }}</small>
           </div>
           <button
             class="conversation-sidebar__add"
             type="button"
-            [attr.title]="isChatsMode() ? '???????? ????????????' : '??????? ??????'"
-            [attr.aria-label]="isChatsMode() ? '???????? ????????????' : '??????? ??????'"
+            [attr.title]="isChatsMode() ? 'Добавить пользователя' : 'Создать группу'"
+            [attr.aria-label]="isChatsMode() ? 'Добавить пользователя' : 'Создать группу'"
             (click)="isChatsMode() ? openAddUserShortcut() : openCreateGroupShortcut()"
           >
             +
@@ -286,7 +286,7 @@
                 }
               }
             } @else {
-              <div class="sidebar-empty">?????? ????? ???? ???</div>
+              <div class="sidebar-empty">Личных чатов пока нет</div>
             }
           } @else {
             @if (groupChatEntries().length) {
@@ -313,7 +313,7 @@
                 }
               }
             } @else {
-              <div class="sidebar-empty">????? ???? ???</div>
+              <div class="sidebar-empty">Групп пока нет</div>
             }
           }
         </div>
@@ -338,7 +338,7 @@
                 }
               </div>
               <div class="conversation-head__copy">
-                <p class="eyebrow">{{ isChatsMode() ? '?????? ???' : '??????' }}</p>
+                <p class="eyebrow">{{ isChatsMode() ? 'Личный чат' : 'Группа' }}</p>
                 <strong>{{ activeServer()?.name }}</strong>
                 <small>{{ activeSpaceMetaLabel() }}</small>
               </div>
@@ -352,12 +352,12 @@
               }
               @if (isGroupsMode() && canManageActiveGroup()) {
                 <button class="secondary-button conversation-head__action" type="button" (click)="openAddGroupMemberModal()">
-                  ???????? ?????????
+                  Добавить участника
                 </button>
               }
               @if (isGroupsMode() && canEditActiveServerIcon()) {
                 <button class="secondary-button conversation-head__action" type="button" (click)="openServerIconModal()">
-                  ??????
+                  Иконка
                 </button>
               }
             </div>
@@ -377,7 +377,7 @@
                     </span>
                     <span class="group-member-pill__copy">
                       <strong>{{ displayNick(member.nick) }}</strong>
-                      <small>ID: {{ member.userId }}</small>
+                      <small>ID: {{ formatPublicUserId(member.publicId) }}</small>
                     </span>
                   </button>
                 }
@@ -386,15 +386,15 @@
               @if (activeGroupVoiceChannel(); as groupVoiceChannel) {
                 <div class="group-voice-card" [class.group-voice-card--active]="connectedVoiceChannelId() === groupVoiceChannel.id">
                   <div class="group-voice-card__copy">
-                    <p class="eyebrow">????? ????????? ???</p>
+                    <p class="eyebrow">Голосовой чат</p>
                     <strong>{{ groupVoiceChannel.name }}</strong>
                     <small>
                       @if (connectedVoiceChannelId() === groupVoiceChannel.id) {
-                        ?? ? ???????
+                        Вы в канале
                       } @else {
-                        ????? ????? ? ????? ??????
+                        Можно войти в любой момент
                       }
-                      ? ??????????: {{ activeGroupVoiceParticipants().length }}
+                      · участников: {{ activeGroupVoiceParticipants().length }}
                     </small>
                   </div>
                   <button class="secondary-button group-voice-card__action" type="button" (click)="toggleActiveGroupVoice()">
@@ -411,7 +411,7 @@
                 @if (!messagesLoading()) {
                   @if (messagesHasMore()) {
                     <div class="message-list__status">
-                      {{ messagesLoadingMore() ? '?????????? ?????? ?????????...' : '?????????? ?????, ????? ?????????? ?????? ?????????' }}
+                      {{ messagesLoadingMore() ? 'Загружаем старые сообщения...' : 'Прокрутите выше, чтобы загрузить старые сообщения' }}
                     </div>
                   }
 
@@ -436,14 +436,14 @@
                           <div class="message-card__meta">
                             <div class="message-card__author">
                               <strong>{{ displayNick(message.author.nick) }}</strong>
-                              <span>ID: {{ message.author.id }}</span>
+                              <span>ID: {{ formatPublicUserId(message.author.public_id) }}</span>
                             </div>
                             <time>{{ formatMessageTime(message.created_at) }}</time>
                           </div>
                           @if (message.reply_to; as replyTo) {
                             <button class="message-card__reply-preview" type="button" (click)="startReplyToMessage(message)">
                               <span class="message-card__reply-label">
-                                ????? ?? {{ displayNick(replyTo.author.nick) }}
+                                Ответ на {{ displayNick(replyTo.author.nick) }}
                               </span>
                               <strong>{{ replyPreviewText(replyTo) }}</strong>
                             </button>
@@ -468,7 +468,7 @@
                                     <button class="attachment-chip" type="button" [disabled]="isAttachmentPreviewLoading(attachment)" (click)="openImageAttachment(attachment)">
                                       <strong>{{ attachment.filename }}</strong>
                                       <small>
-                                        {{ isAttachmentPreviewLoading(attachment) ? '????????? ???????????...' : '???????? ? ' + formatFileSize(attachment.size_bytes) }}
+                                        {{ isAttachmentPreviewLoading(attachment) ? 'Загрузка изображения...' : 'Открыть · ' + formatFileSize(attachment.size_bytes) }}
                                       </small>
                                     </button>
                                   }
@@ -485,7 +485,7 @@
                                     <button class="attachment-chip" type="button" [disabled]="isAttachmentPreviewLoading(attachment)" (click)="loadAudioAttachment(attachment)">
                                       <strong>{{ attachment.filename }}</strong>
                                       <small>
-                                        {{ isAttachmentPreviewLoading(attachment) ? '????????? ?????...' : '?????????? ? ' + formatFileSize(attachment.size_bytes) }}
+                                        {{ isAttachmentPreviewLoading(attachment) ? 'Загрузка аудио...' : 'Прослушать · ' + formatFileSize(attachment.size_bytes) }}
                                       </small>
                                     </button>
                                   }
@@ -502,10 +502,10 @@
                             <button
                               class="message-card__action"
                               type="button"
-                              title="????????"
+                              title="Ответить"
                               (click)="startReplyToMessage(message)"
                             >
-                              ????????
+                              Ответить
                             </button>
                           </div>
                           <div class="message-reactions">
@@ -534,10 +534,10 @@
                               class="reaction-picker-toggle"
                               type="button"
                               [class.reaction-picker-toggle--active]="openedMessageReactionPickerId() === message.id"
-                              title="???????? ???????"
+                              title="Добавить реакцию"
                               (click)="toggleMessageReactionPicker(message.id)"
                             >
-                              <span>??</span>
+                              <span>😊</span>
                             </button>
                           </div>
                           @if (openedMessageReactionPickerId() === message.id) {
@@ -573,11 +573,11 @@
                       </article>
                     }
                   } @else if (!messageError()) {
-                    <div class="message-list__empty">????????? ???? ???</div>
+                    <div class="message-list__empty">Сообщений пока нет</div>
                   }
                 }
               } @else {
-                <div class="message-list__status">???????? ???, ????? ?????? ?????????.</div>
+                <div class="message-list__status">Чат недоступен, пока канал не выбран.</div>
               }
             </div>
 
@@ -589,11 +589,11 @@
                   <div class="composer__reply">
                     <div class="composer__reply-copy">
                       <span class="composer__reply-label">
-                        ????? ?? {{ displayNick(replyMessage.author.nick) }}
+                        Ответ на {{ displayNick(replyMessage.author.nick) }}
                       </span>
                       <strong>{{ replyPreviewText(replyMessage) }}</strong>
                     </div>
-                    <button class="composer__reply-close" type="button" (click)="clearReplyTarget()">?</button>
+                    <button class="composer__reply-close" type="button" (click)="clearReplyTarget()">✕</button>
                   </div>
                 }
 
@@ -607,7 +607,7 @@
                       >
                         <strong>{{ file.name }}</strong>
                         <small>{{ formatFileSize(file.size) }}</small>
-                        <span class="composer-file__remove">?</span>
+                        <span class="composer-file__remove">✕</span>
                       </button>
                     }
                   </div>
@@ -619,8 +619,8 @@
                     type="button"
                     [disabled]="messageSubmitting()"
                     (click)="openAttachmentPicker()"
-                    aria-label="?????????? ????"
-                    title="?????????? ????"
+                    aria-label="Прикрепить файл"
+                    title="Прикрепить файл"
                   >
                     +
                   </button>
@@ -633,7 +633,7 @@
                       (keydown)="onMessageComposerKeydown($event)"
                       (paste)="onMessageComposerPaste($event)"
                       [disabled]="messageSubmitting()"
-                      placeholder="???????? ?????????"
+                      placeholder="Введите сообщение"
                       rows="1"
                     ></textarea>
                   </label>
@@ -643,8 +643,8 @@
                     type="button"
                     [disabled]="!canSendMessage()"
                     (click)="submitMessage()"
-                    aria-label="????????? ?????????"
-                    title="????????? ?????????"
+                    aria-label="Отправить сообщение"
+                    title="Отправить сообщение"
                   >
                     @if (messageSubmitting()) {
                       ...
@@ -657,9 +657,9 @@
                 <div class="composer__meta">
                   <small>
                     @if (pendingFiles().length) {
-                      ??????: {{ pendingFiles().length }} ? ?? 50 ?? ?? ????
+                      Файлы: {{ pendingFiles().length }} · до 50 МБ за файл
                     } @else {
-                      ????? ?????????? ?????, ????? ? ????????? ???????? ?? ??????
+                      Можно отправить текст, фото и файлы без сжатия
                     }
                   </small>
                 </div>
@@ -667,7 +667,7 @@
                 <div class="composer__surface composer__surface--disabled">
                   <button class="secondary-button composer__attach" type="button" disabled>+</button>
                   <label class="composer__field">
-                    <textarea disabled placeholder="???????? ???" rows="1"></textarea>
+                    <textarea disabled placeholder="Чат недоступен" rows="1"></textarea>
                   </label>
                   <button class="primary-button composer__submit" type="button" disabled>
                     <img src="/assets/Enter.svg" alt="" />
@@ -679,8 +679,8 @@
         } @else {
           <section class="workspace-empty-state">
             <img class="workspace-empty-state__logo" src="/assets/KVA-chat.png" alt="KVA Chat" />
-            <strong>???????? ??? ??? ??????</strong>
-            <small>????? ????? ??????? ????? ??? ??????? ????????? ?????????</small>
+            <strong>Выберите чат или группу</strong>
+            <small>Слева можно открыть личный диалог или перейти в нужную группу</small>
           </section>
         }
       </main>
@@ -1388,7 +1388,7 @@
                   </span>
                   <span class="conversation-picker-row__copy">
                     <strong>{{ displayNick(user.nick) }}</strong>
-                    <small>ID: {{ user.user_id }}</small>
+                    <small>ID: {{ formatPublicUserId(user.public_id) }}</small>
                     <small>&#64;{{ user.nick }} · {{ user.is_online ? 'онлайн' : 'офлайн' }}</small>
                   </span>
                 </button>
@@ -1522,7 +1522,7 @@
                 </span>
                 <span class="conversation-picker-row__copy">
                   <strong>{{ displayNick(user.nick) }}</strong>
-                  <small>ID: {{ user.user_id }}</small>
+                  <small>ID: {{ formatPublicUserId(user.public_id) }}</small>
                   <small>&#64;{{ user.nick }} · {{ user.is_online ? 'онлайн' : 'офлайн' }}</small>
                 </span>
               </button>

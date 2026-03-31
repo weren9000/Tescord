@@ -13,6 +13,7 @@ from fastapi import WebSocket
 class VoiceParticipant:
     id: str
     user_id: str
+    public_id: int
     nick: str
     avatar_updated_at: datetime | None = None
     muted: bool = False
@@ -22,6 +23,7 @@ class VoiceParticipant:
         return {
             "id": self.id,
             "user_id": self.user_id,
+            "public_id": self.public_id,
             "nick": self.nick,
             "avatar_updated_at": self.avatar_updated_at.isoformat() if self.avatar_updated_at is not None else None,
             "muted": self.muted,
@@ -46,6 +48,7 @@ class VoiceSignalingManager:
         channel_id: str,
         *,
         user_id: str,
+        public_id: int,
         nick: str,
         avatar_updated_at: datetime | None = None,
         owner_muted: bool = False,
@@ -53,6 +56,7 @@ class VoiceSignalingManager:
         participant = VoiceParticipant(
             id=uuid4().hex,
             user_id=user_id,
+            public_id=public_id,
             nick=nick,
             avatar_updated_at=avatar_updated_at,
             owner_muted=owner_muted,

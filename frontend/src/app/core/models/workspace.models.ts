@@ -1,5 +1,6 @@
 export interface CurrentUserResponse {
   id: string;
+  public_id: number;
   email: string;
   nick: string;
   avatar_updated_at: string | null;
@@ -30,6 +31,7 @@ export interface WorkspaceChannel {
 export interface WorkspaceMember {
   id: string;
   user_id: string;
+  public_id: number;
   login: string;
   nick: string;
   avatar_updated_at: string | null;
@@ -40,6 +42,7 @@ export interface WorkspaceMember {
 export interface WorkspaceVoicePresenceParticipant {
   participant_id: string;
   user_id: string;
+  public_id: number;
   nick: string;
   avatar_updated_at: string | null;
   muted: boolean;
@@ -65,6 +68,7 @@ export interface CreateWorkspaceChannelRequest {
 
 export interface WorkspaceMessageAuthor {
   id: string;
+  public_id: number;
   login: string;
   nick: string;
   avatar_updated_at: string | null;
@@ -72,6 +76,7 @@ export interface WorkspaceMessageAuthor {
 
 export interface WorkspaceMessageReadUser {
   id: string;
+  public_id: number;
   nick: string;
   avatar_updated_at: string | null;
 }

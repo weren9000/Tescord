@@ -47,6 +47,7 @@ def _member_preview(member: ServerMember, online_user_ids: set[UUID]) -> Convers
     user = member.user
     return ConversationMemberPreview(
         user_id=user.id,
+        public_id=user.public_id,
         login=user.email,
         nick=user.username,
         avatar_updated_at=user.avatar_updated_at,
@@ -140,6 +141,7 @@ def list_conversation_directory(
     return [
         ConversationDirectoryUserSummary(
             user_id=user.id,
+            public_id=user.public_id,
             login=user.email,
             nick=user.username,
             avatar_updated_at=user.avatar_updated_at,

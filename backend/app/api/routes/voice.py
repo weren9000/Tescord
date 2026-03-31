@@ -732,6 +732,7 @@ async def connect_to_voice_channel(websocket: WebSocket, channel_id: UUID) -> No
             websocket,
             str(channel.id),
             user_id=str(current_user.id),
+            public_id=current_user.public_id,
             nick=current_user.username,
             avatar_updated_at=current_user.avatar_updated_at,
             owner_muted=bool(access.owner_muted),

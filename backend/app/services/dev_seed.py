@@ -10,6 +10,7 @@ from app.core.security import hash_password, verify_password
 from app.db.models import Channel, ChannelType, MemberRole, Message, MessageType, Server, ServerMember, User
 from app.db.session import SessionLocal
 from app.services.default_tavern import ensure_default_tavern_access_for_users, ensure_default_tavern_channel
+from app.services.user_public_id import generate_next_public_user_id
 from app.services.voice_access import ensure_voice_channel_owner_permission
 
 
@@ -37,6 +38,7 @@ def ensure_development_seed_data() -> None:
 
         if user is None:
             user = User(
+                public_id=generate_next_public_user_id(db),
                 email=settings.demo_login.lower(),
                 username=settings.demo_nick,
                 password_hash=hash_password(settings.demo_password),

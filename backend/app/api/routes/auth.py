@@ -10,6 +10,7 @@ from app.db.models import User
 from app.db.session import get_db
 from app.schemas.auth import AuthUserResponse, LoginRequest, RegisterRequest, TokenResponse
 from app.services.default_tavern import ensure_default_tavern_access_for_user
+from app.services.user_public_id import generate_next_public_user_id
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -41,6 +42,7 @@ def register_user(payload: RegisterRequest, db: Session = Depends(get_db)) -> To
         )
 
     user = User(
+        public_id=generate_next_public_user_id(db),
         email=email,
         username=nick,
         password_hash=hash_password(payload.password),
