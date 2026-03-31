@@ -16,6 +16,7 @@ export interface WorkspaceServer {
   description: string | null;
   icon_asset: string | null;
   member_role: string;
+  kind: 'workspace' | 'direct' | 'group_chat';
 }
 
 export interface WorkspaceChannel {

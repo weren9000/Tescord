@@ -4,6 +4,11 @@ import { Observable } from 'rxjs';
 
 import { API_BASE_URL } from './api-base';
 import {
+  ConversationDirectoryUser,
+  ConversationSummary,
+  CreateGroupConversationRequest,
+} from '../models/conversation.models';
+import {
   CreateWorkspaceChannelRequest,
   CreateWorkspaceServerRequest,
   CurrentUserResponse,
@@ -57,6 +62,37 @@ export class WorkspaceApiService {
 
   getServers(token: string): Observable<WorkspaceServer[]> {
     return this.http.get<WorkspaceServer[]>(`${API_BASE_URL}/api/servers`, {
+      headers: this.buildAuthHeaders(token)
+    });
+  }
+
+  getConversations(token: string): Observable<ConversationSummary[]> {
+    return this.http.get<ConversationSummary[]>(`${API_BASE_URL}/api/conversations`, {
+      headers: this.buildAuthHeaders(token)
+    });
+  }
+
+  getConversationDirectory(token: string): Observable<ConversationDirectoryUser[]> {
+    return this.http.get<ConversationDirectoryUser[]>(`${API_BASE_URL}/api/conversations/directory`, {
+      headers: this.buildAuthHeaders(token)
+    });
+  }
+
+  openDirectConversation(token: string, userId: string): Observable<ConversationSummary> {
+    return this.http.post<ConversationSummary>(
+      `${API_BASE_URL}/api/conversations/direct`,
+      { user_id: userId },
+      {
+        headers: this.buildAuthHeaders(token)
+      }
+    );
+  }
+
+  createGroupConversation(
+    token: string,
+    payload: CreateGroupConversationRequest
+  ): Observable<ConversationSummary> {
+    return this.http.post<ConversationSummary>(`${API_BASE_URL}/api/conversations/group`, payload, {
       headers: this.buildAuthHeaders(token)
     });
   }

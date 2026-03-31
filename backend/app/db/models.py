@@ -28,6 +28,12 @@ class MemberRole(str, enum.Enum):
     MEMBER = "member"
 
 
+class ServerKind(str, enum.Enum):
+    WORKSPACE = "workspace"
+    DIRECT = "direct"
+    GROUP_CHAT = "group_chat"
+
+
 class VoiceAccessRole(str, enum.Enum):
     OWNER = "owner"
     RESIDENT = "resident"
@@ -110,6 +116,13 @@ class Server(TimestampMixin, Base):
     slug: Mapped[str] = mapped_column(String(80), unique=True, nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     icon_asset: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    kind: Mapped[ServerKind] = mapped_column(
+        Enum(ServerKind, name="serverkind", values_callable=enum_values),
+        default=ServerKind.WORKSPACE,
+        nullable=False,
+        server_default=ServerKind.WORKSPACE.value,
+    )
+    direct_key: Mapped[str | None] = mapped_column(String(72), unique=True, nullable=True)
     owner_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
 
     owner: Mapped["User"] = relationship(back_populates="owned_servers")

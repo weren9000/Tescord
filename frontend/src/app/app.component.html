@@ -140,6 +140,24 @@
         @if (activeChannel()) {
           <small>{{ mobileWorkspaceSubtitle() }}</small>
         }
+        <div class="space-mode-toggle space-mode-toggle--mobile">
+          <button
+            class="space-mode-toggle__button"
+            [class.space-mode-toggle__button--active]="isChatsMode()"
+            type="button"
+            (click)="selectWorkspaceMode('chats')"
+          >
+            Чаты
+          </button>
+          <button
+            class="space-mode-toggle__button"
+            [class.space-mode-toggle__button--active]="isGroupsMode()"
+            type="button"
+            (click)="selectWorkspaceMode('groups')"
+          >
+            Группы
+          </button>
+        </div>
       </div>
 
       <div class="mobile-toolbar__actions">
@@ -201,7 +219,12 @@
               } @else {
                 <span class="server-token__mark">{{ server.label }}</span>
               }
-              <span class="server-token__name">{{ server.name }}</span>
+              <span class="server-token__copy">
+                <span class="server-token__name">{{ server.name }}</span>
+                @if (server.meta) {
+                  <small class="server-token__meta">{{ server.meta }}</small>
+                }
+              </span>
             </button>
           }
         } @else {
@@ -212,7 +235,10 @@
       </div>
 
       <div class="server-rail__footer">
-        @if (isAdmin()) {
+        @if (isChatsMode()) {
+          <button class="server-add" type="button" (click)="openCreateConversationModal()">+</button>
+        }
+        @if (!isChatsMode() && isAdmin()) {
           <button class="server-add" type="button" (click)="openCreateGroupModal()">+</button>
         }
       </div>
@@ -238,6 +264,63 @@
         </div>
       </header>
 
+      @if (isChatsMode()) {
+        <section class="channel-group channel-group--conversation">
+          <div class="section-head">
+            <div class="section-title">Чат</div>
+            <button class="section-action" type="button" (click)="openCreateConversationModal()">+</button>
+          </div>
+
+          @if (activeConversation(); as conversation) {
+            <div class="conversation-summary">
+              <strong>{{ conversation.title }}</strong>
+              @if (conversation.subtitle) {
+                <small>{{ conversation.subtitle }}</small>
+              }
+            </div>
+
+            <div class="conversation-members">
+              @for (member of conversation.members; track member.user_id) {
+                <button
+                  class="conversation-member"
+                  type="button"
+                  (click)="openMemberCall({
+                    id: member.user_id,
+                    userId: member.user_id,
+                    login: member.login,
+                    nick: member.nick,
+                    fullName: member.full_name,
+                    characterName: member.character_name,
+                    avatarUpdatedAt: member.avatar_updated_at,
+                    role: member.role,
+                    roleLabel: formatMemberRole(member.role),
+                    isSelf: member.user_id === currentUser()?.id,
+                    presenceLabel: formatOnlineStatus(member.is_online),
+                    isOnline: member.is_online,
+                    voiceParticipant: null
+                  })"
+                >
+                  <div class="conversation-member__avatar">
+                    @if (userAvatarUrl(member.user_id, member.avatar_updated_at); as avatarUrl) {
+                      <img [src]="avatarUrl" [alt]="displayCharacterName(member.character_name, member.nick)" loading="lazy" />
+                    } @else {
+                      <span>{{ displayCharacterInitials(member.character_name, member.nick) }}</span>
+                    }
+                  </div>
+                  <div class="conversation-member__copy">
+                    <strong>{{ displayCharacterName(member.character_name, member.nick) }}</strong>
+                    <small>{{ member.is_online ? 'онлайн' : 'офлайн' }}</small>
+                  </div>
+                </button>
+              }
+            </div>
+          } @else {
+            <div class="rail-empty">Выберите личный чат или мини-группу</div>
+          }
+        </section>
+      }
+
+      @if (isGroupsMode()) {
       <section class="channel-group">
         <div class="section-head">
           <div class="section-title">текстовые каналы</div>
@@ -500,6 +583,7 @@
           </div>
         }
       </section>
+      }
     </aside>
 
     <main class="workspace">
@@ -1719,6 +1803,147 @@
   </div>
 }
 
+@if (createConversationModalOpen()) {
+  <div class="modal-backdrop" (click)="closeCreateConversationModal()">
+    <section class="modal modal--wide modal--conversation-create" (click)="$event.stopPropagation()">
+      <div class="modal__header">
+        <div>
+          <p class="eyebrow">Чаты</p>
+          <h3>{{ conversationCreateTab() === 'direct' ? 'Новый личный чат' : 'Новая мини-группа' }}</h3>
+        </div>
+        <button class="icon-button" type="button" (click)="closeCreateConversationModal()">Г—</button>
+      </div>
+
+      <div class="modal__body conversation-create">
+        <div class="conversation-create__tabs">
+          <button
+            class="secondary-button"
+            [class.secondary-button--active]="conversationCreateTab() === 'direct'"
+            type="button"
+            (click)="conversationCreateTab.set('direct')"
+          >
+            Личный чат
+          </button>
+          <button
+            class="secondary-button"
+            [class.secondary-button--active]="conversationCreateTab() === 'group'"
+            type="button"
+            (click)="conversationCreateTab.set('group')"
+          >
+            Мини-группа
+          </button>
+        </div>
+
+        @if (conversationCreateTab() === 'direct') {
+          <div class="conversation-create__section">
+            <p class="modal-note">Выберите участника, чтобы открыть личный чат 1-на-1.</p>
+
+            <div class="conversation-picker-list">
+              @for (user of createConversationAvailableUsers(); track user.user_id) {
+                <button
+                  class="conversation-picker-row"
+                  [class.conversation-picker-row--active]="createConversationForm.directUserId === user.user_id"
+                  type="button"
+                  (click)="createConversationForm.directUserId = user.user_id"
+                >
+                  <span class="conversation-picker-row__avatar">
+                    @if (userAvatarUrl(user.user_id, user.avatar_updated_at); as avatarUrl) {
+                      <img [src]="avatarUrl" [alt]="displayCharacterName(user.character_name, user.nick)" loading="lazy" />
+                    } @else {
+                      <span>{{ displayCharacterInitials(user.character_name, user.nick) }}</span>
+                    }
+                  </span>
+                  <span class="conversation-picker-row__copy">
+                    <strong>{{ displayCharacterName(user.character_name, user.nick) }}</strong>
+                    <small>&#64;{{ user.nick }} · {{ user.is_online ? 'онлайн' : 'офлайн' }}</small>
+                  </span>
+                </button>
+              }
+            </div>
+          </div>
+        } @else {
+          <div class="conversation-create__section">
+            <label class="form-field">
+              <span>Название мини-группы</span>
+              <input
+                [(ngModel)]="createConversationForm.name"
+                name="conversation_group_name"
+                maxlength="80"
+                placeholder="Например, Проект KVA"
+                type="text"
+              />
+            </label>
+
+            <label class="form-field">
+              <span>Иконка группы</span>
+              <select [(ngModel)]="createConversationForm.iconAsset" name="conversation_group_icon">
+                <option value="">Без иконки</option>
+                @for (icon of serverIconOptions; track icon.asset) {
+                  <option [value]="icon.asset">{{ icon.label }}</option>
+                }
+              </select>
+            </label>
+
+            <p class="modal-note">Выберите от 2 до 9 участников, которых хотите добавить в мини-группу.</p>
+
+            <div class="conversation-picker-list">
+              @for (user of createConversationAvailableUsers(); track user.user_id) {
+                <label class="conversation-picker-row conversation-picker-row--check">
+                  <input
+                    type="checkbox"
+                    [checked]="createConversationGroupMemberIds().includes(user.user_id)"
+                    (change)="toggleCreateConversationMember(user.user_id, $any($event.target).checked)"
+                  />
+                  <span class="conversation-picker-row__avatar">
+                    @if (userAvatarUrl(user.user_id, user.avatar_updated_at); as avatarUrl) {
+                      <img [src]="avatarUrl" [alt]="displayCharacterName(user.character_name, user.nick)" loading="lazy" />
+                    } @else {
+                      <span>{{ displayCharacterInitials(user.character_name, user.nick) }}</span>
+                    }
+                  </span>
+                  <span class="conversation-picker-row__copy">
+                    <strong>{{ displayCharacterName(user.character_name, user.nick) }}</strong>
+                    <small>&#64;{{ user.nick }} · {{ user.is_online ? 'онлайн' : 'офлайн' }}</small>
+                  </span>
+                </label>
+              }
+            </div>
+          </div>
+        }
+
+        @if (managementError()) {
+          <p class="modal-note modal-note--error">{{ managementError() }}</p>
+        } @else if (managementSuccess()) {
+          <p class="modal-note modal-note--success">{{ managementSuccess() }}</p>
+        }
+      </div>
+
+      <div class="modal__actions">
+        <button class="secondary-button" type="button" (click)="closeCreateConversationModal()">Отмена</button>
+        @if (conversationCreateTab() === 'direct') {
+          <button
+            class="primary-button"
+            type="button"
+            [disabled]="!canCreateDirectConversation()"
+            (click)="startDirectConversationFromModal()"
+          >
+            {{ createConversationLoading() ? 'Открываем...' : 'Открыть чат' }}
+          </button>
+        } @else {
+          <button
+            class="primary-button"
+            type="button"
+            [disabled]="!canCreateConversationGroup()"
+            (click)="submitCreateConversationGroup()"
+          >
+            {{ createConversationLoading() ? 'Создаем...' : 'Создать мини-группу' }}
+          </button>
+        }
+      </div>
+    </section>
+  </div>
+}
+
 @if (createGroupModalOpen()) {
   <div class="modal-backdrop" (click)="closeCreateGroupModal()">
     <section class="modal modal--compact" (click)="$event.stopPropagation()">
@@ -2024,6 +2249,14 @@
             }
           } @else {
             <div class="modal-toolbar">
+              <button
+                class="secondary-button"
+                type="button"
+                [disabled]="member.isSelf || createConversationLoading()"
+                (click)="openDirectChatWithSelectedMember()"
+              >
+                {{ createConversationLoading() ? 'Открываем чат...' : 'Открыть чат' }}
+              </button>
               <button class="primary-button direct-call-button" type="button" (click)="startDirectCallToSelectedMember()" [disabled]="!canStartDirectCallToSelectedMember()">
                 <img src="/assets/Phone_connect.svg" alt="" />
                 <span>Позвонить</span>

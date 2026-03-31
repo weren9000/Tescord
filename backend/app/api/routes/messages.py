@@ -20,6 +20,7 @@ from app.db.models import (
     MessageReaction,
     MessageReactionKind,
     MessageType,
+    ServerKind,
     User,
 )
 from app.db.session import get_db
@@ -40,6 +41,7 @@ from app.services.app_events import (
     publish_message_read_updated,
     publish_message_reactions_updated,
 )
+from app.services.server_access import ensure_channel_server_access
 from app.services.voice_access import can_view_voice_channel, get_voice_channel_access
 
 router = APIRouter(tags=["messages"])
@@ -235,6 +237,32 @@ def _message_load_options():
         selectinload(Message.reactions),
         selectinload(Message.read_states).joinedload(ChannelReadState.user),
     )
+
+
+def _conversation_safe_accessible_message_channel(db: Session, channel_id: UUID, current_user: User) -> Channel:
+    channel = db.get(Channel, channel_id)
+    if channel is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Канал не найден")
+
+    if channel.type not in {ChannelType.TEXT, ChannelType.VOICE}:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Сообщения доступны только в текстовых и голосовых каналах",
+        )
+
+    server, _ = ensure_channel_server_access(db, channel, current_user)
+    if server.kind in {ServerKind.DIRECT, ServerKind.GROUP_CHAT} and channel.type != ChannelType.TEXT:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Канал не найден")
+
+    if channel.type == ChannelType.VOICE:
+        access = get_voice_channel_access(db, channel.id, current_user.id)
+        if not can_view_voice_channel(access):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Канал не найден")
+
+    return channel
+
+
+_get_accessible_message_channel = _conversation_safe_accessible_message_channel
 
 
 def _load_message(db: Session, message_id: UUID) -> Message | None:

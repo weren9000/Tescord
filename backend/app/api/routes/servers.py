@@ -6,11 +6,10 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, select
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.dependencies.auth import get_current_user
-from app.db.models import Channel, ChannelType, MemberRole, Server, ServerMember, User
+from app.db.models import Channel, ChannelType, MemberRole, Server, ServerKind, ServerMember, User
 from app.db.session import get_db
 from app.schemas.workspace import (
     ChannelSummary,
@@ -25,10 +24,14 @@ from app.schemas.workspace import (
 from app.services.app_events import (
     publish_channels_updated,
     publish_channels_updated_from_sync,
-    publish_members_updated_from_sync,
     publish_servers_changed_from_sync,
 )
-from app.services.default_tavern import ensure_default_tavern_access_for_users, ensure_default_tavern_channel, is_default_tavern_channel
+from app.services.default_tavern import (
+    ensure_default_tavern_access_for_users,
+    ensure_default_tavern_channel,
+    is_default_tavern_channel,
+)
+from app.services.server_access import get_accessible_server
 from app.services.server_icons import get_default_server_icon_asset, normalize_server_icon_asset
 from app.services.site_presence import site_presence_manager
 from app.services.voice_access import (
@@ -54,6 +57,7 @@ def _build_server_summary(server: Server, role: MemberRole) -> ServerSummary:
         description=server.description,
         icon_asset=server.icon_asset,
         member_role=role.value,
+        kind=server.kind.value,
     )
 
 
@@ -88,7 +92,8 @@ def _build_server_member_summary(
 
 
 def _build_voice_channel_presence_summary(
-    channel: Channel, participants: list[dict[str, object]]
+    channel: Channel,
+    participants: list[dict[str, object]],
 ) -> VoiceChannelPresenceSummary:
     return VoiceChannelPresenceSummary(
         channel_id=channel.id,
@@ -128,51 +133,10 @@ def _ensure_unique_slug(db: Session, base_slug: str) -> str:
     return slug
 
 
-def _get_membership(db: Session, server_id: UUID, user_id: UUID) -> ServerMember | None:
-    return db.execute(
-        select(ServerMember).where(ServerMember.server_id == server_id, ServerMember.user_id == user_id)
-    ).scalar_one_or_none()
-
-
-def _ensure_membership(db: Session, server_id: UUID, current_user: User) -> ServerMember:
-    membership = _get_membership(db, server_id, current_user.id)
-    if membership is not None:
-        return membership
-
-    membership = ServerMember(
-        server_id=server_id,
-        user_id=current_user.id,
-        role=MemberRole.MEMBER,
-        nickname=current_user.username,
-    )
-    db.add(membership)
-
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        membership = _get_membership(db, server_id, current_user.id)
-        if membership is None:
-            raise
-        return membership
-
-    db.refresh(membership)
-    publish_members_updated_from_sync(server_id, reason="member_joined")
-    return membership
-
-
-def _get_accessible_server(db: Session, server_id: UUID, current_user: User) -> tuple[Server, ServerMember | None]:
-    server = db.get(Server, server_id)
-    if server is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Группа не найдена")
-
-    return server, _ensure_membership(db, server_id, current_user)
-
-
 def _get_server_channel_or_404(db: Session, server_id: UUID, channel_id: UUID) -> Channel:
     channel = db.get(Channel, channel_id)
     if channel is None or channel.server_id != server_id:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="РљР°РЅР°Р» РЅРµ РЅР°Р№РґРµРЅ")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Канал не найден")
 
     return channel
 
@@ -187,13 +151,22 @@ def _ensure_manage_permission(membership: ServerMember | None, current_user: Use
     return membership.role
 
 
+def _ensure_workspace_manageable(server: Server) -> None:
+    if server.kind != ServerKind.WORKSPACE:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Группа не найдена")
+
+
 @router.get("", response_model=list[ServerSummary])
 def list_servers(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> list[ServerSummary]:
-    servers = db.execute(select(Server).order_by(Server.name)).scalars().all()
+    servers = db.execute(
+        select(Server).where(Server.kind == ServerKind.WORKSPACE).order_by(Server.name)
+    ).scalars().all()
     member_roles = {
         server_id: role
         for server_id, role in db.execute(
-            select(ServerMember.server_id, ServerMember.role).where(ServerMember.user_id == current_user.id)
+            select(ServerMember.server_id, ServerMember.role)
+            .join(Server, Server.id == ServerMember.server_id)
+            .where(ServerMember.user_id == current_user.id, Server.kind == ServerKind.WORKSPACE)
         ).all()
     }
 
@@ -224,6 +197,7 @@ def create_server(
         slug=slug,
         description=description,
         icon_asset=get_default_server_icon_asset(name),
+        kind=ServerKind.WORKSPACE,
         owner_id=current_user.id,
     )
     db.add(server)
@@ -253,7 +227,7 @@ def update_server_icon(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> ServerSummary:
-    server, membership = _get_accessible_server(db, server_id, current_user)
+    server, membership = get_accessible_server(db, server_id, current_user)
     role = _ensure_manage_permission(membership, current_user)
 
     try:
@@ -273,7 +247,7 @@ def list_server_channels(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> list[ChannelSummary]:
-    server, _ = _get_accessible_server(db, server_id, current_user)
+    server, _ = get_accessible_server(db, server_id, current_user)
     channels = db.execute(
         select(Channel).where(Channel.server_id == server.id).order_by(Channel.position, Channel.name)
     ).scalars().all()
@@ -299,7 +273,7 @@ def list_server_members(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> list[ServerMemberSummary]:
-    server, _ = _get_accessible_server(db, server_id, current_user)
+    server, _ = get_accessible_server(db, server_id, current_user)
     rows = db.execute(
         select(ServerMember, User)
         .join(User, User.id == ServerMember.user_id)
@@ -320,7 +294,7 @@ async def list_server_voice_presence(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> list[VoiceChannelPresenceSummary]:
-    server, _ = _get_accessible_server(db, server_id, current_user)
+    server, _ = get_accessible_server(db, server_id, current_user)
     voice_channels = db.execute(
         select(Channel)
         .where(Channel.server_id == server.id, Channel.type == ChannelType.VOICE)
@@ -328,7 +302,9 @@ async def list_server_voice_presence(
     ).scalars().all()
 
     voice_access_map = list_voice_channel_access_map(db, [channel.id for channel in voice_channels], current_user.id)
-    visible_voice_channels = [channel for channel in voice_channels if can_view_voice_channel(voice_access_map.get(channel.id))]
+    visible_voice_channels = [
+        channel for channel in voice_channels if can_view_voice_channel(voice_access_map.get(channel.id))
+    ]
 
     if not visible_voice_channels:
         return []
@@ -349,7 +325,8 @@ def create_server_channel(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> ChannelSummary:
-    server, membership = _get_accessible_server(db, server_id, current_user)
+    server, membership = get_accessible_server(db, server_id, current_user)
+    _ensure_workspace_manageable(server)
     _ensure_manage_permission(membership, current_user)
 
     channel_name = payload.name.strip()
@@ -382,10 +359,7 @@ def create_server_channel(
     db.refresh(channel)
     publish_channels_updated_from_sync(server.id, reason="channel_created")
 
-    return _build_channel_summary(
-        channel,
-        "owner" if channel.type == ChannelType.VOICE else None,
-    )
+    return _build_channel_summary(channel, "owner" if channel.type == ChannelType.VOICE else None)
 
 
 @router.delete("/{server_id}/channels/{channel_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -395,7 +369,8 @@ async def delete_server_channel(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> None:
-    _, membership = _get_accessible_server(db, server_id, current_user)
+    server, membership = get_accessible_server(db, server_id, current_user)
+    _ensure_workspace_manageable(server)
     _ensure_manage_permission(membership, current_user)
 
     channel = _get_server_channel_or_404(db, server_id, channel_id)

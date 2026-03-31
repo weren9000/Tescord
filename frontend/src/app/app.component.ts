@@ -10,6 +10,11 @@ import { API_BASE_URL } from './core/api/api-base';
 import { SystemApiService } from './core/api/system-api.service';
 import { WorkspaceApiService } from './core/api/workspace-api.service';
 import {
+  ConversationDirectoryUser,
+  ConversationSummary,
+  CreateGroupConversationRequest,
+} from './core/models/conversation.models';
+import {
   AppEventsMessage,
   AppChannelsUpdatedEvent,
   AppMessageCreatedEvent,
@@ -49,11 +54,13 @@ import { VoiceParticipant, VoiceRoomService } from './core/services/voice-room.s
 
 type AuthMode = 'login' | 'register';
 type ChannelKind = 'text' | 'voice';
+type WorkspaceMode = 'chats' | 'groups';
 type VoicePresenceTone = 'speaking' | 'open' | 'muted' | 'blocked';
 type MemberPresenceTone = VoicePresenceTone | 'inactive';
 type MobilePanel = 'servers' | 'channels' | 'members' | null;
 type VoiceAccessRole = 'owner' | 'resident' | 'stranger';
 type VoiceWorkspaceTab = 'chat' | 'channel';
+type ConversationCreateTab = 'direct' | 'group';
 
 interface LoginFormModel {
   login: string;
@@ -73,6 +80,12 @@ interface CreateGroupFormModel {
   description: string;
 }
 
+interface CreateConversationFormModel {
+  directUserId: string;
+  name: string;
+  iconAsset: string;
+}
+
 interface CreateChannelFormModel {
   name: string;
   topic: string;
@@ -85,6 +98,7 @@ interface ServerShortcut {
   name: string;
   iconUrl: string | null;
   active: boolean;
+  meta: string | null;
 }
 
 interface ServerIconOption {
@@ -175,6 +189,17 @@ interface CreateChannelTrigger {
   token: string;
   serverId: string;
   payload: CreateWorkspaceChannelRequest;
+}
+
+interface CreateConversationTrigger {
+  token: string;
+  payload: CreateGroupConversationRequest;
+}
+
+interface OpenDirectConversationTrigger {
+  token: string;
+  userId: string;
+  closeModal: boolean;
 }
 
 interface DeleteChannelTrigger {
@@ -425,6 +450,8 @@ export class AppComponent {
   private readonly loginSubmit$ = new Subject<AuthLoginRequest>();
   private readonly registrationSubmit$ = new Subject<AuthRegisterRequest>();
   private readonly voiceAdminAccessMutation$ = new Subject<VoiceAdminAccessMutation>();
+  private readonly openDirectConversationTrigger$ = new Subject<OpenDirectConversationTrigger>();
+  private readonly createConversationSubmit$ = new Subject<CreateConversationTrigger>();
   private readonly createGroupSubmit$ = new Subject<CreateGroupTrigger>();
   private readonly createChannelSubmit$ = new Subject<CreateChannelTrigger>();
   private readonly deleteChannelTrigger$ = new Subject<DeleteChannelTrigger>();
@@ -498,6 +525,7 @@ export class AppComponent {
   readonly messagesLoading = signal(false);
   readonly messagesLoadingMore = signal(false);
   readonly messageSubmitting = signal(false);
+  readonly createConversationLoading = signal(false);
   readonly createGroupLoading = signal(false);
   readonly createChannelLoading = signal(false);
   readonly deletingChannelId = signal<string | null>(null);
@@ -506,7 +534,10 @@ export class AppComponent {
 
   readonly session = signal<AuthSessionResponse | null>(null);
   readonly currentUser = signal<CurrentUserResponse | null>(null);
+  readonly workspaceMode = signal<WorkspaceMode>('chats');
   readonly servers = signal<WorkspaceServer[]>([]);
+  readonly conversations = signal<ConversationSummary[]>([]);
+  readonly conversationDirectory = signal<ConversationDirectoryUser[]>([]);
   readonly channels = signal<WorkspaceChannel[]>([]);
   readonly members = signal<WorkspaceMember[]>([]);
   readonly voicePresence = signal<WorkspaceVoicePresenceChannel[]>([]);
@@ -520,6 +551,7 @@ export class AppComponent {
   readonly settingsPanelOpen = signal(false);
   readonly voiceAdminPanelOpen = signal(false);
   readonly profileEditorOpen = signal(false);
+  readonly createConversationModalOpen = signal(false);
   readonly createGroupModalOpen = signal(false);
   readonly createChannelModalOpen = signal(false);
   readonly serverIconModalOpen = signal(false);
@@ -556,6 +588,8 @@ export class AppComponent {
   readonly voiceAdminSelectedChannelId = signal<string | null>(null);
   readonly voiceAccessEntriesByChannelId = signal<Record<string, VoiceChannelAccessEntry[]>>({});
   readonly pendingServerSwitch = signal<PendingServerSwitchState | null>(null);
+  readonly conversationCreateTab = signal<ConversationCreateTab>('direct');
+  readonly createConversationGroupMemberIds = signal<string[]>([]);
   readonly serverIconOptions: ServerIconOption[] = SERVER_ICON_ASSETS.map((asset) => ({
     asset,
     label: asset.replace(/\.png$/i, ''),
@@ -578,6 +612,12 @@ export class AppComponent {
   readonly createGroupForm: CreateGroupFormModel = {
     name: '',
     description: ''
+  };
+
+  readonly createConversationForm: CreateConversationFormModel = {
+    directUserId: '',
+    name: '',
+    iconAsset: ''
   };
 
   readonly createChannelForm: CreateChannelFormModel = {
@@ -618,11 +658,39 @@ export class AppComponent {
   readonly hasAnyDirectCallScreen = computed(
     () => this.directCallHasRemoteScreen() || this.directCallScreenSharing()
   );
+  readonly isChatsMode = computed(() => this.workspaceMode() === 'chats');
+  readonly isGroupsMode = computed(() => this.workspaceMode() === 'groups');
+  readonly conversationSpaces = computed<WorkspaceServer[]>(() =>
+    this.conversations().map((conversation) => ({
+      id: conversation.id,
+      name: conversation.title,
+      slug: conversation.id,
+      description: conversation.subtitle,
+      icon_asset: conversation.icon_asset,
+      member_role: conversation.member_role,
+      kind: conversation.kind,
+    }))
+  );
+  readonly currentSpaceList = computed<WorkspaceServer[]>(() =>
+    this.isChatsMode() ? this.conversationSpaces() : this.servers()
+  );
 
   readonly activeServer = computed(() => {
     const serverId = this.selectedServerId();
-    return this.servers().find((server) => server.id === serverId) ?? null;
+    return this.currentSpaceList().find((server) => server.id === serverId) ?? null;
   });
+  readonly activeConversation = computed(() => {
+    if (!this.isChatsMode()) {
+      return null;
+    }
+
+    const serverId = this.selectedServerId();
+    return this.conversations().find((conversation) => conversation.id === serverId) ?? null;
+  });
+  readonly activeConversationMemberIds = computed(() =>
+    new Set(this.activeConversation()?.members.map((member) => member.user_id) ?? [])
+  );
+  readonly activeConversationPrimaryChannelId = computed(() => this.activeConversation()?.primary_channel_id ?? null);
 
   readonly activeChannel = computed(() => {
     const channelId = this.selectedChannelId();
@@ -698,7 +766,7 @@ export class AppComponent {
   readonly canManageActiveGroup = computed(() => {
     const activeServer = this.activeServer();
     const currentUser = this.currentUser();
-    if (!activeServer || !currentUser) {
+    if (!activeServer || !currentUser || activeServer.kind !== 'workspace') {
       return false;
     }
 
@@ -706,6 +774,28 @@ export class AppComponent {
   });
 
   readonly canEditActiveServerIcon = computed(() => this.canManageActiveGroup() && !this.isCompactVoiceWorkspaceViewport());
+  readonly canCreateConversationGroup = computed(() => {
+    const selectedCount = this.createConversationGroupMemberIds().length;
+    return (
+      this.createConversationForm.name.trim().length >= 2
+      && selectedCount >= 2
+      && selectedCount <= 9
+      && !this.createConversationLoading()
+    );
+  });
+  readonly canCreateDirectConversation = computed(() =>
+    this.createConversationForm.directUserId.trim().length > 0 && !this.createConversationLoading()
+  );
+  readonly createConversationAvailableUsers = computed(() =>
+    [...this.conversationDirectory()].sort((left, right) => {
+      if (left.is_online !== right.is_online) {
+        return left.is_online ? -1 : 1;
+      }
+
+      return this.displayCharacterName(left.character_name, left.nick)
+        .localeCompare(this.displayCharacterName(right.character_name, right.nick), 'ru');
+    })
+  );
   readonly currentUserAvatarUrl = computed(() =>
     this.buildUserAvatarUrl(this.currentUser()?.id ?? null, this.currentUser()?.avatar_updated_at ?? null)
   );
@@ -868,12 +958,17 @@ export class AppComponent {
   });
 
   readonly serverShortcuts = computed<ServerShortcut[]>(() =>
-    this.servers().map((server) => ({
+    this.currentSpaceList().map((server) => ({
       id: server.id,
       label: this.buildServerLabel(server.name),
       name: server.name,
-      iconUrl: this.serverIconUrl(server),
-      active: server.id === this.selectedServerId()
+      iconUrl: this.resolveSpaceIconUrl(server.id, server.icon_asset),
+      active: server.id === this.selectedServerId(),
+      meta: server.kind === 'workspace'
+        ? 'Группа'
+        : server.kind === 'direct'
+          ? 'Личный чат'
+          : 'Мини-группа'
     }))
   );
 
@@ -1315,6 +1410,63 @@ export class AppComponent {
   }
 
   private bindWorkspaceMutationPipelines(): void {
+    this.openDirectConversationTrigger$
+      .pipe(
+        exhaustMap(({ token, userId, closeModal }) =>
+          this.workspaceApi.openDirectConversation(token, userId).pipe(
+            tap((conversation) => {
+              this.conversations.set(this.mergeConversationsById([...this.conversations(), conversation]));
+              this.workspaceMode.set('chats');
+              this.managementSuccess.set(`Личный чат «${conversation.title}» готов`);
+              if (closeModal) {
+                this.createConversationModalOpen.set(false);
+                this.closeMemberVolume();
+              }
+              this.createConversationForm.directUserId = '';
+              this.loadServerWorkspace(token, conversation.id);
+            }),
+            catchError((error) => {
+              this.managementError.set(this.extractErrorMessage(error, 'Не удалось открыть личный чат'));
+              return EMPTY;
+            }),
+            finalize(() => {
+              this.createConversationLoading.set(false);
+            })
+          )
+        ),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe();
+
+    this.createConversationSubmit$
+      .pipe(
+        exhaustMap(({ token, payload }) =>
+          this.workspaceApi.createGroupConversation(token, payload).pipe(
+            tap((conversation) => {
+              this.conversations.set(this.mergeConversationsById([...this.conversations(), conversation]));
+              this.workspaceMode.set('chats');
+              this.createConversationModalOpen.set(false);
+              this.conversationCreateTab.set('direct');
+              this.createConversationForm.name = '';
+              this.createConversationForm.iconAsset = '';
+              this.createConversationForm.directUserId = '';
+              this.createConversationGroupMemberIds.set([]);
+              this.managementSuccess.set(`Мини-группа «${conversation.title}» создана`);
+              this.loadServerWorkspace(token, conversation.id);
+            }),
+            catchError((error) => {
+              this.managementError.set(this.extractErrorMessage(error, 'Не удалось создать мини-группу'));
+              return EMPTY;
+            }),
+            finalize(() => {
+              this.createConversationLoading.set(false);
+            })
+          )
+        ),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe();
+
     this.createGroupSubmit$
       .pipe(
         exhaustMap(({ token, payload }) =>
@@ -1944,6 +2096,38 @@ export class AppComponent {
     this.settingsPanelOpen.set(false);
   }
 
+  selectWorkspaceMode(mode: WorkspaceMode): void {
+    if (this.workspaceMode() === mode) {
+      return;
+    }
+
+    this.workspaceMode.set(mode);
+    const spaces = mode === 'groups' ? this.servers() : this.conversations().map((conversation) => ({
+      id: conversation.id,
+      name: conversation.title,
+      slug: conversation.id,
+      description: conversation.subtitle,
+      icon_asset: conversation.icon_asset,
+      member_role: conversation.member_role,
+      kind: conversation.kind,
+    }));
+
+    if (!spaces.some((space) => space.id === this.selectedServerId())) {
+      const token = this.session()?.access_token;
+      const nextSpaceId = spaces[0]?.id ?? null;
+      if (token && nextSpaceId) {
+        this.loadServerWorkspace(token, nextSpaceId);
+      } else {
+        this.selectedServerId.set(null);
+        this.selectedChannelId.set(null);
+        this.channels.set([]);
+        this.members.set([]);
+        this.voicePresence.set([]);
+        this.resetTextChannelState();
+      }
+    }
+  }
+
   openCreateGroupModal(): void {
     if (!this.isAdmin()) {
       return;
@@ -1957,6 +2141,43 @@ export class AppComponent {
 
   closeCreateGroupModal(): void {
     this.createGroupModalOpen.set(false);
+  }
+
+  openCreateConversationModal(tab: ConversationCreateTab = 'direct'): void {
+    const token = this.session()?.access_token;
+    if (!token) {
+      return;
+    }
+
+    this.closeMobilePanel();
+    this.workspaceMode.set('chats');
+    this.conversationCreateTab.set(tab);
+    this.createConversationForm.directUserId = '';
+    this.createConversationForm.name = '';
+    this.createConversationForm.iconAsset = '';
+    this.createConversationGroupMemberIds.set([]);
+    this.createConversationModalOpen.set(true);
+    this.managementError.set(null);
+    this.managementSuccess.set(null);
+    void this.loadConversationDirectory(token);
+  }
+
+  closeCreateConversationModal(): void {
+    this.createConversationModalOpen.set(false);
+    this.conversationCreateTab.set('direct');
+  }
+
+  toggleCreateConversationMember(userId: string, selected: boolean): void {
+    this.createConversationGroupMemberIds.update((memberIds) => {
+      const nextIds = new Set(memberIds);
+      if (selected) {
+        nextIds.add(userId);
+      } else {
+        nextIds.delete(userId);
+      }
+
+      return [...nextIds];
+    });
   }
 
   openCreateChannelModal(type: ChannelKind): void {
@@ -2037,6 +2258,22 @@ export class AppComponent {
     this.directCall.clearFeedback();
     this.selectedMemberUserId.set(member.userId);
     this.selectedVoiceMemberChannelId.set(null);
+  }
+
+  openDirectChatWithSelectedMember(): void {
+    const token = this.session()?.access_token;
+    const member = this.selectedMember();
+    if (!token || !member || member.isSelf) {
+      return;
+    }
+
+    this.createConversationLoading.set(true);
+    this.managementError.set(null);
+    this.openDirectConversationTrigger$.next({
+      token,
+      userId: member.userId,
+      closeModal: true,
+    });
   }
 
   closeMemberVolume(): void {
@@ -2273,6 +2510,52 @@ export class AppComponent {
     this.managementError.set(null);
     this.managementSuccess.set(null);
     this.createGroupSubmit$.next({ token, payload });
+  }
+
+  startDirectConversationFromModal(): void {
+    const token = this.session()?.access_token;
+    const userId = this.createConversationForm.directUserId.trim();
+    if (!token || !userId) {
+      this.managementError.set('Выберите пользователя для личного чата');
+      return;
+    }
+
+    this.createConversationLoading.set(true);
+    this.managementError.set(null);
+    this.managementSuccess.set(null);
+    this.openDirectConversationTrigger$.next({
+      token,
+      userId,
+      closeModal: true,
+    });
+  }
+
+  submitCreateConversationGroup(): void {
+    const token = this.session()?.access_token;
+    if (!token) {
+      return;
+    }
+
+    const payload: CreateGroupConversationRequest = {
+      name: this.createConversationForm.name.trim(),
+      member_ids: this.createConversationGroupMemberIds(),
+      icon_asset: this.createConversationForm.iconAsset.trim() || null,
+    };
+
+    if (payload.name.length < 2) {
+      this.managementError.set('Введите название мини-группы');
+      return;
+    }
+
+    if (payload.member_ids.length < 2) {
+      this.managementError.set('Выберите минимум двух участников');
+      return;
+    }
+
+    this.createConversationLoading.set(true);
+    this.managementError.set(null);
+    this.managementSuccess.set(null);
+    this.createConversationSubmit$.next({ token, payload });
   }
 
   submitCreateChannel(): void {
@@ -2686,7 +2969,10 @@ export class AppComponent {
     this.lastPresenceHeartbeatAt = 0;
     this.session.set(null);
     this.currentUser.set(null);
+    this.workspaceMode.set('chats');
     this.servers.set([]);
+    this.conversations.set([]);
+    this.conversationDirectory.set([]);
     this.channels.set([]);
     this.members.set([]);
     this.voicePresence.set([]);
@@ -2695,6 +2981,8 @@ export class AppComponent {
     this.selectedChannelId.set(null);
     this.settingsPanelOpen.set(false);
     this.voiceAdminPanelOpen.set(false);
+    this.profileEditorOpen.set(false);
+    this.createConversationModalOpen.set(false);
     this.createGroupModalOpen.set(false);
     this.createChannelModalOpen.set(false);
     this.selectedMemberUserId.set(null);
@@ -2711,6 +2999,11 @@ export class AppComponent {
     this.voiceAdminSelectedServerId.set(null);
     this.voiceAdminSelectedChannelId.set(null);
     this.voiceAccessEntriesByChannelId.set({});
+    this.conversationCreateTab.set('direct');
+    this.createConversationGroupMemberIds.set([]);
+    this.createConversationForm.directUserId = '';
+    this.createConversationForm.name = '';
+    this.createConversationForm.iconAsset = '';
     this.authError.set(null);
     this.workspaceError.set(null);
     this.messageError.set(null);
@@ -2718,6 +3011,7 @@ export class AppComponent {
     this.managementSuccess.set(null);
     this.authLoading.set(false);
     this.workspaceLoading.set(false);
+    this.createConversationLoading.set(false);
     this.createGroupLoading.set(false);
     this.createChannelLoading.set(false);
     this.authMode.set('login');
@@ -2737,7 +3031,7 @@ export class AppComponent {
       return;
     }
 
-    const nextServer = this.servers().find((server) => server.id === serverId) ?? null;
+    const nextServer = this.currentSpaceList().find((server) => server.id === serverId) ?? null;
     const currentServer = this.activeServer();
     if (this.hasVoiceConnection() && currentServer && nextServer) {
       this.pendingServerSwitch.set({
@@ -3421,6 +3715,7 @@ export class AppComponent {
         const token = this.session()?.access_token;
         if (token) {
           await this.refreshServersList(token);
+          await this.refreshConversationsList(token);
         }
         return;
       }
@@ -3443,6 +3738,7 @@ export class AppComponent {
     }
 
     await this.refreshServersList(token);
+    await this.refreshConversationsList(token);
 
     if (this.selectedServerId()) {
       await this.refreshChannelsForCurrentServer(token);
@@ -3674,6 +3970,21 @@ export class AppComponent {
     return [...serversById.values()].sort((left, right) => this.compareServers(left, right));
   }
 
+  private mergeConversationsById(conversations: ConversationSummary[]): ConversationSummary[] {
+    const conversationsById = new Map<string, ConversationSummary>();
+    for (const conversation of conversations) {
+      conversationsById.set(conversation.id, conversation);
+    }
+
+    return [...conversationsById.values()].sort((left, right) => {
+      if (left.kind !== right.kind) {
+        return left.kind === 'direct' ? -1 : 1;
+      }
+
+      return left.title.localeCompare(right.title, 'ru');
+    });
+  }
+
   private mergeChannelsById(channels: WorkspaceChannel[]): WorkspaceChannel[] {
     const channelsById = new Map<string, WorkspaceChannel>();
     for (const channel of channels) {
@@ -3714,7 +4025,7 @@ export class AppComponent {
         next: (servers) => {
           this.servers.set(this.mergeServersById(servers));
 
-          if (!servers.length) {
+          if (!servers.length && this.isGroupsMode()) {
             this.appEvents.setActiveServer(null);
             this.selectedServerId.set(null);
             this.selectedChannelId.set(null);
@@ -3725,12 +4036,63 @@ export class AppComponent {
             return;
           }
 
-          if (!previousSelectedServerId || !servers.some((server) => server.id === previousSelectedServerId)) {
+          if (
+            this.isGroupsMode()
+            && (!previousSelectedServerId || !servers.some((server) => server.id === previousSelectedServerId))
+          ) {
             this.loadServerWorkspace(token, servers[0].id);
           }
         },
         error: () => {
           // Silent realtime refresh should not interrupt the current session.
+        }
+      });
+  }
+
+  private async refreshConversationsList(token: string): Promise<void> {
+    const previousSelectedServerId = this.selectedServerId();
+
+    this.workspaceApi
+      .getConversations(token)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (conversations) => {
+          this.conversations.set(this.mergeConversationsById(conversations));
+
+          if (!conversations.length && this.isChatsMode()) {
+            this.appEvents.setActiveServer(null);
+            this.selectedServerId.set(null);
+            this.selectedChannelId.set(null);
+            this.channels.set([]);
+            this.members.set([]);
+            this.voicePresence.set([]);
+            this.resetTextChannelState();
+            return;
+          }
+
+          if (
+            this.isChatsMode()
+            && (!previousSelectedServerId || !conversations.some((conversation) => conversation.id === previousSelectedServerId))
+          ) {
+            this.loadServerWorkspace(token, conversations[0].id);
+          }
+        },
+        error: () => {
+          // Silent realtime refresh should not interrupt the current session.
+        }
+      });
+  }
+
+  private async loadConversationDirectory(token: string): Promise<void> {
+    this.workspaceApi
+      .getConversationDirectory(token)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (users) => {
+          this.conversationDirectory.set(users);
+        },
+        error: () => {
+          // Keep existing directory until the next successful refresh.
         }
       });
   }
@@ -3892,16 +4254,19 @@ export class AppComponent {
 
     forkJoin({
       me: this.workspaceApi.getCurrentUser(token),
-      servers: this.workspaceApi.getServers(token)
+      servers: this.workspaceApi.getServers(token),
+      conversations: this.workspaceApi.getConversations(token)
     })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: ({ me, servers }) => {
+        next: ({ me, servers, conversations }) => {
           this.currentUser.set(me);
           this.servers.set(this.mergeServersById(servers));
+          this.conversations.set(this.mergeConversationsById(conversations));
           this.schedulePresenceHeartbeat(true);
+          void this.loadConversationDirectory(token);
 
-          if (!servers.length) {
+          if (!servers.length && !conversations.length) {
             this.appEvents.setActiveServer(null);
             this.stopMemberPolling();
             this.stopVoicePresencePolling();
@@ -3917,10 +4282,23 @@ export class AppComponent {
           }
 
           const selectedServerId = this.selectedServerId();
+          const previousMode = this.workspaceMode();
+          const preferredMode = previousMode === 'groups'
+            ? (servers.length ? 'groups' : 'chats')
+            : (conversations.length ? 'chats' : 'groups');
+          this.workspaceMode.set(preferredMode);
+
+          const preferredSpaceList = preferredMode === 'groups' ? servers : this.mapConversationSpaces(conversations);
+          const fallbackSpaceList = preferredMode === 'groups' ? this.mapConversationSpaces(conversations) : servers;
           const preferredServerId =
-            selectedServerId && servers.some((server) => server.id === selectedServerId)
+            selectedServerId && preferredSpaceList.some((server) => server.id === selectedServerId)
               ? selectedServerId
-              : servers[0].id;
+              : preferredSpaceList[0]?.id ?? fallbackSpaceList[0]?.id ?? null;
+
+          if (!preferredServerId) {
+            this.workspaceLoading.set(false);
+            return;
+          }
 
           this.loadServerWorkspace(token, preferredServerId);
         },
@@ -3936,6 +4314,8 @@ export class AppComponent {
           this.session.set(null);
           this.currentUser.set(null);
           this.servers.set([]);
+          this.conversations.set([]);
+          this.conversationDirectory.set([]);
           this.channels.set([]);
           this.members.set([]);
           this.voicePresence.set([]);
@@ -4907,6 +5287,18 @@ export class AppComponent {
     return SERVER_ICON_URL_BY_ASSET[iconAsset as keyof typeof SERVER_ICON_URL_BY_ASSET] ?? '';
   }
 
+  private mapConversationSpaces(conversations: ConversationSummary[]): WorkspaceServer[] {
+    return conversations.map((conversation) => ({
+      id: conversation.id,
+      name: conversation.title,
+      slug: conversation.id,
+      description: conversation.subtitle,
+      icon_asset: conversation.icon_asset,
+      member_role: conversation.member_role,
+      kind: conversation.kind,
+    }));
+  }
+
   private resolveServerIconAsset(server: WorkspaceServer): string | null {
     return server.icon_asset ?? DEFAULT_SERVER_ICON_ASSET_BY_NAME[server.name] ?? null;
   }
@@ -4916,13 +5308,40 @@ export class AppComponent {
     return iconAsset ? this.buildServerIconAssetUrl(iconAsset) : null;
   }
 
+  private resolveConversationIconUrl(conversationId: string): string | null {
+    const conversation = this.conversations().find((item) => item.id === conversationId);
+    if (!conversation) {
+      return null;
+    }
+
+    if (conversation.kind === 'direct') {
+      const peer = conversation.members.find((member) => member.user_id !== this.currentUser()?.id) ?? conversation.members[0];
+      return this.buildUserAvatarUrl(peer?.user_id ?? null, peer?.avatar_updated_at ?? null);
+    }
+
+    return conversation.icon_asset ? this.buildServerIconAssetUrl(conversation.icon_asset) : null;
+  }
+
+  private resolveSpaceIconUrl(spaceId: string, iconAsset: string | null): string | null {
+    if (this.isChatsMode()) {
+      return this.resolveConversationIconUrl(spaceId);
+    }
+
+    const server = this.servers().find((item) => item.id === spaceId);
+    if (!server) {
+      return iconAsset ? this.buildServerIconAssetUrl(iconAsset) : null;
+    }
+
+    return this.serverIconUrl(server);
+  }
+
   private buildServerLabel(name: string): string {
     const words = name.trim().split(/\s+/).filter(Boolean);
     const initials = words.slice(0, 2).map((word) => word[0]?.toUpperCase() ?? '').join('');
     return initials || name.slice(0, 2).toUpperCase();
   }
 
-  private formatMemberRole(role: string): string {
+  formatMemberRole(role: string): string {
     if (role === 'owner') {
       return 'владелец';
     }
@@ -4990,7 +5409,7 @@ export class AppComponent {
     return 4;
   }
 
-  private formatOnlineStatus(isOnline: boolean): string {
+  formatOnlineStatus(isOnline: boolean): string {
     return isOnline ? 'Онлайн' : 'Офлайн';
   }
 
