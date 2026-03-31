@@ -32,7 +32,6 @@ import { ApiHealthResponse } from './core/models/system.models';
 import {
   AddWorkspaceMemberRequest,
   CreateWorkspaceChannelRequest,
-  CreateWorkspaceServerRequest,
   CurrentUserResponse,
   VoiceAdminChannel,
   VoiceAdminUser,
@@ -78,7 +77,6 @@ interface RegisterFormModel {
 
 interface CreateGroupFormModel {
   name: string;
-  description: string;
 }
 
 interface CreateConversationFormModel {
@@ -174,7 +172,7 @@ interface VoiceAdminAccessMutation {
 
 interface CreateGroupTrigger {
   token: string;
-  payload: CreateWorkspaceServerRequest;
+  payload: CreateGroupConversationRequest;
 }
 
 interface CreateChannelTrigger {
@@ -614,7 +612,6 @@ export class AppComponent {
 
   readonly createGroupForm: CreateGroupFormModel = {
     name: '',
-    description: ''
   };
 
   readonly createConversationForm: CreateConversationFormModel = {
@@ -1599,15 +1596,14 @@ export class AppComponent {
     this.createGroupSubmit$
       .pipe(
         exhaustMap(({ token, payload }) =>
-          this.workspaceApi.createServer(token, payload).pipe(
-            tap((server) => {
-              const updatedServers = this.mergeServersById([...this.servers(), server]);
-              this.servers.set(updatedServers);
+          this.workspaceApi.createGroupConversation(token, payload).pipe(
+            tap((conversation) => {
+              this.conversations.set(this.mergeConversationsById([...this.conversations(), conversation]));
+              this.workspaceMode.set('groups');
               this.createGroupForm.name = '';
-              this.createGroupForm.description = '';
-              this.managementSuccess.set(`Группа «${server.name}» создана`);
+              this.managementSuccess.set(`Группа «${conversation.title}» создана`);
               this.createGroupModalOpen.set(false);
-              this.selectServer(server.id);
+              this.loadServerWorkspace(token, conversation.id);
             }),
             catchError((error) => {
               this.managementError.set(this.extractErrorMessage(error, 'Не удалось создать группу'));
@@ -2234,7 +2230,7 @@ export class AppComponent {
 
   openCreateGroupShortcut(): void {
     this.closeSideMenu();
-    this.openCreateConversationModal('group');
+    this.openCreateGroupModal();
   }
 
   openAddUserShortcut(): void {
@@ -2303,10 +2299,6 @@ export class AppComponent {
   }
 
   openCreateGroupModal(): void {
-    if (!this.isAdmin()) {
-      return;
-    }
-
     this.closeMobilePanel();
     this.createGroupModalOpen.set(true);
     this.managementError.set(null);
@@ -2754,9 +2746,9 @@ export class AppComponent {
       return;
     }
 
-    const payload: CreateWorkspaceServerRequest = {
+    const payload: CreateGroupConversationRequest = {
       name: this.createGroupForm.name.trim(),
-      description: this.createGroupForm.description.trim() || null
+      member_ids: [],
     };
 
     if (!payload.name) {

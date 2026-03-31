@@ -1514,15 +1514,7 @@
           <input [(ngModel)]="createGroupForm.name" name="group_name" placeholder="Например, Стратеги" type="text" />
         </label>
 
-        <label class="field">
-          <span>Описание</span>
-          <input
-            [(ngModel)]="createGroupForm.description"
-            name="group_description"
-            placeholder="Короткое описание группы"
-            type="text"
-          />
-        </label>
+        <p class="modal-note">Группа создается сразу, даже если вы пока один. Участников можно добавить потом.</p>
 
         <div class="modal__actions">
           <button class="secondary-button" type="button" (click)="closeCreateGroupModal()">Отмена</button>
