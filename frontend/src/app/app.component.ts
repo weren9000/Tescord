@@ -4055,6 +4055,18 @@ export class AppComponent {
   }
 
   private handleMessageCreatedEvent(event: AppMessageCreatedEvent): void {
+    const preview = this.buildConversationListPreview(event.message);
+    this.conversations.update((conversations) =>
+      conversations.map((conversation) =>
+        conversation.id === event.server_id
+          ? {
+              ...conversation,
+              subtitle: preview,
+            }
+          : conversation
+      )
+    );
+
     if (event.server_id !== this.selectedServerId()) {
       return;
     }
@@ -5742,12 +5754,7 @@ export class AppComponent {
   }
 
   conversationMetaLabel(conversation: ConversationSummary): string {
-    if (conversation.kind === 'direct') {
-      const peer = this.conversationPeer(conversation);
-      return peer ? `ID: ${this.formatPublicUserId(peer.public_id)}` : 'Личный чат';
-    }
-
-    return conversation.subtitle ?? 'Групповой чат';
+    return conversation.subtitle ?? 'Сообщений пока нет';
   }
 
   activeSpaceMetaLabel(): string {
@@ -5762,6 +5769,23 @@ export class AppComponent {
     }
 
     return `${this.activeGroupMemberCount()} участников`;
+  }
+
+  private buildConversationListPreview(message: WorkspaceMessage): string {
+    const normalizedContent = message.content.trim().replace(/\s+/gu, ' ');
+    if (normalizedContent) {
+      return normalizedContent;
+    }
+
+    if (message.attachments.length > 1) {
+      return `Вложения: ${message.attachments.length}`;
+    }
+
+    if (message.attachments.length === 1) {
+      return 'Вложение';
+    }
+
+    return 'Новое сообщение';
   }
 
   directConversationById(conversationId: string): ConversationSummary | null {

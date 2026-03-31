@@ -3,11 +3,11 @@ from __future__ import annotations
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import and_, func, select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.api.dependencies.auth import get_current_user
-from app.db.models import Channel, ChannelType, MemberRole, Server, ServerKind, ServerMember, User
+from app.db.models import Channel, ChannelType, MemberRole, Message, Server, ServerKind, ServerMember, User
 from app.db.session import get_db
 from app.schemas.conversations import (
     ConversationDirectoryUserSummary,
@@ -69,13 +69,67 @@ def _conversation_title(server: Server, current_user_id: UUID) -> tuple[str, str
     return server.name, subtitle
 
 
+def _build_message_preview(message: Message | None) -> str:
+    if message is None:
+        return "Сообщений пока нет"
+
+    content = " ".join((message.content or "").split())
+    if content:
+        return content
+
+    attachments_count = len(message.attachments)
+    if attachments_count > 1:
+        return f"Вложения: {attachments_count}"
+    if attachments_count == 1:
+        return "Вложение"
+
+    return "Новое сообщение"
+
+
+def _load_last_messages_by_channel_id(db: Session, channel_ids: list[UUID]) -> dict[UUID, Message]:
+    if not channel_ids:
+        return {}
+
+    latest_message_subquery = (
+        select(
+            Message.channel_id.label("channel_id"),
+            func.max(Message.created_at).label("last_created_at"),
+        )
+        .where(Message.channel_id.in_(channel_ids))
+        .group_by(Message.channel_id)
+        .subquery()
+    )
+
+    messages = db.execute(
+        select(Message)
+        .join(
+            latest_message_subquery,
+            and_(
+                Message.channel_id == latest_message_subquery.c.channel_id,
+                Message.created_at == latest_message_subquery.c.last_created_at,
+            ),
+        )
+        .options(selectinload(Message.attachments))
+        .order_by(Message.channel_id, Message.created_at.desc(), Message.id.desc())
+    ).scalars().unique().all()
+
+    last_messages: dict[UUID, Message] = {}
+    for message in messages:
+        last_messages.setdefault(message.channel_id, message)
+
+    return last_messages
+
+
 def _build_conversation_summary(
     server: Server,
     membership: ServerMember,
     current_user_id: UUID,
     online_user_ids: set[UUID],
+    last_messages_by_channel_id: dict[UUID, Message] | None = None,
 ) -> ConversationSummary:
-    title, subtitle = _conversation_title(server, current_user_id)
+    title, _ = _conversation_title(server, current_user_id)
+    primary_channel = _first_text_channel(server)
+    subtitle = _build_message_preview((last_messages_by_channel_id or {}).get(primary_channel.id))
     members = sorted(server.members, key=lambda member: ((member.user_id != current_user_id), member.user.username.casefold()))
     return ConversationSummary(
         id=server.id,
@@ -85,7 +139,7 @@ def _build_conversation_summary(
         icon_asset=server.icon_asset,
         icon_updated_at=server.icon_updated_at,
         member_role=membership.role.value,
-        primary_channel_id=_first_text_channel(server).id,
+        primary_channel_id=primary_channel.id,
         members=[_member_preview(member, online_user_ids) for member in members],
     )
 
@@ -146,8 +200,16 @@ def list_conversations(
     online_user_ids = site_presence_manager.online_user_ids(
         [member.user_id for membership in memberships for member in membership.server.members]
     )
+    primary_channel_ids = [_first_text_channel(membership.server).id for membership in memberships]
+    last_messages_by_channel_id = _load_last_messages_by_channel_id(db, primary_channel_ids)
     summaries = [
-        _build_conversation_summary(membership.server, membership, current_user.id, online_user_ids)
+        _build_conversation_summary(
+            membership.server,
+            membership,
+            current_user.id,
+            online_user_ids,
+            last_messages_by_channel_id,
+        )
         for membership in memberships
     ]
     summaries.sort(key=lambda item: (0 if item.kind == ServerKind.DIRECT.value else 1, item.title.casefold()))
