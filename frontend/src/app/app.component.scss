@@ -4325,19 +4325,21 @@ select {
 
 .conversation-sidebar__tabs {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
+  align-items: center;
   gap: 6px;
-  padding: 12px 12px 0;
+  padding: 10px 10px 8px;
 }
 
 .conversation-sidebar__tab {
   border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 16px;
+  border-radius: 11px;
   background: rgba(255, 255, 255, 0.03);
   color: rgba(231, 240, 246, 0.88);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
-  padding: 10px 10px;
+  min-height: 34px;
+  padding: 8px 10px;
   cursor: pointer;
   transition: 180ms ease;
 }
@@ -4349,38 +4351,18 @@ select {
   color: #f6ffd9;
 }
 
-.conversation-sidebar__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 14px 14px 10px;
-}
-
-.conversation-sidebar__header strong {
-  display: block;
-  font-size: 14px;
-  font-weight: 700;
-}
-
-.conversation-sidebar__header small {
-  display: block;
-  margin-top: 2px;
-  color: rgba(222, 236, 245, 0.58);
-  font-size: 11px;
-}
-
 .conversation-sidebar__add {
   width: 34px;
   height: 34px;
   display: inline-grid;
   place-items: center;
   padding: 0;
-  border-radius: 12px;
+  border-radius: 11px;
   border: 1px solid rgba(157, 253, 56, 0.32);
   background: rgba(157, 253, 56, 0.08);
   color: #ecffd1;
-  font-size: 18px;
+  font-size: 17px;
+  font-weight: 500;
   line-height: 1;
   cursor: pointer;
 }
@@ -4389,18 +4371,18 @@ select {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 0 8px 8px;
+  padding: 0 10px 10px;
 }
 
 .sidebar-entry {
   width: 100%;
   display: grid;
-  grid-template-columns: 42px minmax(0, 1fr);
-  gap: 9px;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 8px;
   align-items: center;
-  padding: 8px 9px;
+  padding: 7px 8px;
   border: 0;
-  border-radius: 12px;
+  border-radius: 10px;
   background: rgba(255, 255, 255, 0.012);
   color: inherit;
   text-align: left;
@@ -4409,7 +4391,7 @@ select {
 }
 
 .sidebar-entry + .sidebar-entry {
-  margin-top: 4px;
+  margin-top: 3px;
 }
 
 .sidebar-entry:hover,
@@ -4422,8 +4404,8 @@ select {
 }
 
 .sidebar-entry__avatar {
-  width: 42px;
-  height: 42px;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
   overflow: hidden;
   background: linear-gradient(135deg, rgba(61, 214, 198, 0.18), rgba(157, 253, 56, 0.12));
@@ -4431,7 +4413,7 @@ select {
   align-items: center;
   justify-content: center;
   color: rgba(255, 255, 255, 0.82);
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 700;
 }
 
@@ -4458,14 +4440,14 @@ select {
 }
 
 .sidebar-entry__copy strong {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
 }
 
 .sidebar-entry__copy small {
   margin-top: 2px;
   color: rgba(222, 236, 245, 0.58);
-  font-size: 10.5px;
+  font-size: 10px;
 }
 
 .sidebar-empty {
@@ -4486,8 +4468,8 @@ select {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 14px 16px 12px;
+  gap: 10px;
+  padding: 10px 12px 9px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
@@ -4495,29 +4477,29 @@ select {
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .conversation-head__avatar {
-  width: 50px;
-  height: 50px;
+  width: 42px;
+  height: 42px;
   appearance: none;
   padding: 0;
-  border-radius: 18px;
+  border-radius: 14px;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: linear-gradient(135deg, rgba(61, 214, 198, 0.18), rgba(157, 253, 56, 0.12));
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 700;
   color: rgba(255, 255, 255, 0.84);
   cursor: default;
 }
 
 .conversation-head__avatar--group {
-  border-radius: 18px;
+  border-radius: 14px;
 }
 
 .conversation-head__avatar--editable {
@@ -4543,7 +4525,7 @@ select {
 .conversation-head__copy {
   min-width: 0;
   display: grid;
-  gap: 2px;
+  gap: 1px;
 }
 
 .conversation-head__copy strong,
@@ -4555,36 +4537,36 @@ select {
 }
 
 .conversation-head__copy strong {
-  font-size: 17px;
+  font-size: 15px;
   font-weight: 700;
 }
 
 .conversation-head__copy small {
   color: rgba(222, 236, 245, 0.62);
-  font-size: 11px;
+  font-size: 10px;
 }
 
 .conversation-head__actions {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
   justify-content: flex-end;
 }
 
 .conversation-head__action {
-  min-height: 36px;
-  padding-inline: 12px;
+  min-height: 32px;
+  padding-inline: 10px;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .group-overview {
-  padding: 10px 14px 0;
+  padding: 8px 12px 0;
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .group-overview__members {
