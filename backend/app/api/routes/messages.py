@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Respon
 from fastapi import UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy import and_, or_, select
-from sqlalchemy.orm import Session, joinedload, selectinload
+from sqlalchemy.orm import Session, joinedload, load_only, selectinload
 
 from app.api.dependencies.auth import get_current_user
 from app.db.models import (
@@ -233,12 +233,33 @@ def _get_accessible_message_channel(db: Session, channel_id: UUID, current_user:
 
 
 def _message_load_options():
+    attachment_summary_load = selectinload(Message.attachments).load_only(
+        Attachment.id,
+        Attachment.message_id,
+        Attachment.filename,
+        Attachment.mime_type,
+        Attachment.size_bytes,
+        Attachment.checksum_sha256,
+        Attachment.storage_path,
+        Attachment.created_at,
+    )
+    reply_attachment_summary_load = selectinload(Message.reply_to).selectinload(Message.attachments).load_only(
+        Attachment.id,
+        Attachment.message_id,
+        Attachment.filename,
+        Attachment.mime_type,
+        Attachment.size_bytes,
+        Attachment.checksum_sha256,
+        Attachment.storage_path,
+        Attachment.created_at,
+    )
+
     return (
         joinedload(Message.author),
         joinedload(Message.channel),
         joinedload(Message.reply_to).joinedload(Message.author),
-        joinedload(Message.reply_to).selectinload(Message.attachments),
-        selectinload(Message.attachments),
+        reply_attachment_summary_load,
+        attachment_summary_load,
         selectinload(Message.reactions),
         selectinload(Message.read_states).joinedload(ChannelReadState.user),
     )
