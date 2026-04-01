@@ -336,10 +336,9 @@
 }
 
 .message-list {
-  padding: 10px 4px 6px 2px;
-  border-radius: 24px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.015), rgba(255, 255, 255, 0.01));
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
 .message-list__empty,
@@ -1979,7 +1978,9 @@ select {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding-right: 6px;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
   overflow: auto;
 }
 
