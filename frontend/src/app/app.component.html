@@ -652,16 +652,6 @@
                     }
                   </button>
                 </div>
-
-                <div class="composer__meta">
-                  <small>
-                    @if (pendingFiles().length) {
-                      Файлы: {{ pendingFiles().length }} · до 50 МБ за файл
-                    } @else {
-                      Можно отправить текст, фото и файлы без сжатия
-                    }
-                  </small>
-                </div>
               } @else {
                 <div class="composer__surface composer__surface--disabled">
                   <button class="secondary-button composer__attach" type="button" disabled>
