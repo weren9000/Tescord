@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { Component, DestroyRef, ElementRef, ViewChild, computed, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { EMPTY, Subject, catchError, exhaustMap, finalize, forkJoin, mergeMap, switchMap, tap } from 'rxjs';
+import { EMPTY, Subject, catchError, exhaustMap, finalize, forkJoin, mergeMap, switchMap, takeUntil, tap } from 'rxjs';
 
 import { AuthApiService } from './core/api/auth-api.service';
 import { API_BASE_URL } from './core/api/api-base';
@@ -461,6 +461,7 @@ export class AppComponent {
   private readonly createChannelSubmit$ = new Subject<CreateChannelTrigger>();
   private readonly deleteChannelTrigger$ = new Subject<DeleteChannelTrigger>();
   private readonly sendMessageTrigger$ = new Subject<SendMessageTrigger>();
+  private readonly cancelMessageUploadTrigger$ = new Subject<void>();
   private readonly markChannelReadTrigger$ = new Subject<MarkChannelReadTrigger>();
   private readonly downloadAttachmentTrigger$ = new Subject<DownloadAttachmentTrigger>();
   private readonly loadAttachmentPreviewTrigger$ = new Subject<LoadAttachmentPreviewTrigger>();
@@ -1725,6 +1726,7 @@ export class AppComponent {
       .pipe(
         exhaustMap(({ token, channelId, payload }) =>
           this.workspaceApi.sendMessage(token, channelId, payload).pipe(
+            takeUntil(this.cancelMessageUploadTrigger$),
             tap((event: WorkspaceMessageUploadEvent) => {
               if (event.kind === 'progress') {
                 this.messageUploadProgress.set({
@@ -3017,10 +3019,18 @@ export class AppComponent {
     const channelId = activeChannel.id;
 
     this.messageSubmitting.set(true);
-    this.messageUploadProgress.set({ loaded: 0, total: null, percent: null });
+    this.messageUploadProgress.set(payload.files.length ? { loaded: 0, total: null, percent: null } : null);
     this.messageError.set(null);
     this.schedulePresenceHeartbeat(true);
     this.sendMessageTrigger$.next({ token, channelId, payload });
+  }
+
+  cancelMessageUpload(): void {
+    if (!this.messageSubmitting()) {
+      return;
+    }
+
+    this.cancelMessageUploadTrigger$.next();
   }
 
   messageUploadPercent(progress: MessageUploadProgressState | null): number {

@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from hashlib import sha256
 from urllib.parse import quote
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, status
 from fastapi import UploadFile
+from fastapi.responses import FileResponse
 from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
@@ -40,6 +40,12 @@ from app.services.app_events import (
     publish_message_created,
     publish_message_read_updated,
     publish_message_reactions_updated,
+)
+from app.services.attachment_storage import (
+    AttachmentTooLargeError,
+    delete_stored_attachment,
+    resolve_attachment_path,
+    store_upload_file,
 )
 from app.services.server_access import ensure_channel_server_access
 from app.services.voice_access import can_view_voice_channel, get_voice_channel_access
@@ -381,29 +387,52 @@ async def create_channel_message(
     db.add(message)
     db.flush()
 
+    created_storage_paths: list[str] = []
     try:
         for upload in uploads:
-            payload = await upload.read()
-            if len(payload) > MAX_ATTACHMENT_SIZE_BYTES:
+            attachment_id = uuid4()
+            sanitized_filename = _sanitize_filename(upload.filename)
+            try:
+                stored_attachment = await store_upload_file(
+                    upload,
+                    attachment_id=attachment_id,
+                    filename=sanitized_filename,
+                    max_size_bytes=MAX_ATTACHMENT_SIZE_BYTES,
+                )
+            except AttachmentTooLargeError as exc:
                 raise HTTPException(
                     status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
                     detail=f"Файл {upload.filename!r} превышает лимит 500 МБ",
-                )
+                ) from exc
+
+            created_storage_paths.append(stored_attachment.storage_path)
 
             attachment = Attachment(
+                id=attachment_id,
                 message_id=message.id,
-                filename=_sanitize_filename(upload.filename),
-                mime_type=upload.content_type or "application/octet-stream",
-                size_bytes=len(payload),
-                checksum_sha256=sha256(payload).hexdigest(),
-                content=payload,
+                filename=stored_attachment.filename,
+                mime_type=stored_attachment.mime_type,
+                size_bytes=stored_attachment.size_bytes,
+                checksum_sha256=stored_attachment.checksum_sha256,
+                storage_path=stored_attachment.storage_path,
+                content=None,
             )
             db.add(attachment)
+
+        db.commit()
+    except HTTPException:
+        db.rollback()
+        for storage_path in created_storage_paths:
+            delete_stored_attachment(storage_path)
+        raise
+    except Exception:
+        db.rollback()
+        for storage_path in created_storage_paths:
+            delete_stored_attachment(storage_path)
+        raise
     finally:
         for upload in uploads:
             await upload.close()
-
-    db.commit()
 
     created_message = _load_message(db, message.id)
     if created_message is None:
@@ -568,4 +597,10 @@ def download_attachment(
         "Content-Length": str(attachment.size_bytes),
         "X-Content-Type-Options": "nosniff",
     }
-    return Response(content=attachment.content, media_type=attachment.mime_type, headers=headers)
+    if attachment.storage_path:
+        file_path = resolve_attachment_path(attachment.storage_path)
+        if not file_path.exists():
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Файл не найден")
+        return FileResponse(file_path, media_type=attachment.mime_type, headers=headers)
+
+    return Response(content=attachment.content or b"", media_type=attachment.mime_type, headers=headers)

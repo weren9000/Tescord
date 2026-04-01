@@ -608,13 +608,14 @@
                   <button
                     class="primary-button composer__submit"
                     type="button"
-                    [disabled]="!canSendMessage()"
-                    (click)="submitMessage()"
-                    aria-label="Отправить сообщение"
-                    title="Отправить сообщение"
+                    [disabled]="!messageSubmitting() && !canSendMessage()"
+                    (click)="messageSubmitting() ? cancelMessageUpload() : submitMessage()"
+                    [attr.aria-label]="messageSubmitting() ? 'Отменить загрузку' : 'Отправить сообщение'"
+                    [attr.title]="messageSubmitting() ? 'Отменить загрузку' : 'Отправить сообщение'"
+                    [class.composer__submit--cancel]="messageSubmitting()"
                   >
                     @if (messageSubmitting()) {
-                      ...
+                      ×
                     } @else {
                       <img src="/assets/Enter.svg" alt="" />
                     }

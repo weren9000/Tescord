@@ -10,7 +10,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.api.dependencies.auth import get_current_user
-from app.db.models import Channel, ChannelType, MemberRole, Server, ServerKind, ServerMember, User
+from app.db.models import Attachment, Channel, ChannelType, MemberRole, Message, Server, ServerKind, ServerMember, User
 from app.db.session import get_db
 from app.schemas.workspace import (
     AddServerMemberRequest,
@@ -35,6 +35,7 @@ from app.services.default_tavern import (
     is_default_tavern_channel,
 )
 from app.services.group_chat_defaults import ensure_group_chat_defaults
+from app.services.attachment_storage import delete_stored_attachment
 from app.services.server_access import get_accessible_server
 from app.services.server_icons import get_default_server_icon_asset, normalize_server_icon_asset
 from app.services.site_presence import site_presence_manager
@@ -525,6 +526,14 @@ async def delete_server_channel(
             )
         await voice_signaling_manager.disconnect_channel_sessions(str(channel.id))
 
+    attachment_storage_paths = db.execute(
+        select(Attachment.storage_path)
+        .join(Message, Message.id == Attachment.message_id)
+        .where(Message.channel_id == channel.id, Attachment.storage_path.is_not(None))
+    ).scalars().all()
+
     db.delete(channel)
     db.commit()
+    for storage_path in attachment_storage_paths:
+        delete_stored_attachment(storage_path)
     await publish_channels_updated(server_id, reason="channel_deleted")

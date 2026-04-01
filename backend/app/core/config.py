@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     demo_password: str = "Vfrfhjys9000"
     demo_is_admin: bool = True
     demo_server_name: str = "Altgramm"
+    uploads_dir: str = "./storage/uploads"
 
     model_config = SettingsConfigDict(
         env_file=".env",

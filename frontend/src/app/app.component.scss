@@ -2495,6 +2495,14 @@ select {
   box-shadow: 0 8px 16px rgba(40, 164, 142, 0.18);
 }
 
+.composer__submit--cancel {
+  font-size: 1.3rem;
+  line-height: 1;
+  background: rgba(255, 111, 124, 0.16);
+  color: #ffd8dd;
+  box-shadow: none;
+}
+
 .composer__attach {
   background: rgba(255, 255, 255, 0.05);
   color: rgba(238, 245, 248, 0.92);
@@ -2509,6 +2517,11 @@ select {
   background: linear-gradient(135deg, rgba(72, 224, 206, 0.98), rgba(101, 255, 158, 0.92));
   box-shadow: 0 10px 18px rgba(40, 164, 142, 0.22);
   transform: translateY(-1px);
+}
+
+.composer__submit--cancel:hover:not(:disabled) {
+  background: rgba(255, 111, 124, 0.22);
+  box-shadow: none;
 }
 
 .composer__attach-icon {
