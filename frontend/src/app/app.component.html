@@ -214,15 +214,6 @@
           >
             Групповые
           </button>
-          <button
-            class="conversation-sidebar__add"
-            type="button"
-            [attr.title]="isChatsMode() ? 'Открыть личку по ID' : 'Создать группу'"
-            [attr.aria-label]="isChatsMode() ? 'Открыть личку по ID' : 'Создать группу'"
-            (click)="isChatsMode() ? openAddUserShortcut() : openCreateGroupShortcut()"
-          >
-            +
-          </button>
         </div>
 
         <div class="conversation-sidebar__list">

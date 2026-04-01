@@ -4325,7 +4325,7 @@ select {
 
 .conversation-sidebar__tabs {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: center;
   gap: 6px;
   padding: 10px 10px 8px;
@@ -4349,22 +4349,6 @@ select {
   border-color: rgba(157, 253, 56, 0.42);
   background: rgba(157, 253, 56, 0.12);
   color: #f6ffd9;
-}
-
-.conversation-sidebar__add {
-  width: 34px;
-  height: 34px;
-  display: inline-grid;
-  place-items: center;
-  padding: 0;
-  border-radius: 11px;
-  border: 1px solid rgba(157, 253, 56, 0.32);
-  background: rgba(157, 253, 56, 0.08);
-  color: #ecffd1;
-  font-size: 17px;
-  font-weight: 500;
-  line-height: 1;
-  cursor: pointer;
 }
 
 .conversation-sidebar__list {
