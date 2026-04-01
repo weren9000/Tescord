@@ -131,16 +131,6 @@
         <img class="app-header__logo" src="/assets/KVA-chat.png" alt="KVA Chat" />
       </div>
 
-      <div class="app-header__center">
-        @if (activeServer()) {
-          <strong>{{ activeServer()?.name }}</strong>
-          <small>{{ activeSpaceMetaLabel() }}</small>
-        } @else {
-          <strong>KVA Chat</strong>
-          <small>Выберите чат или группу</small>
-        }
-      </div>
-
       <div class="app-header__actions">
         @if (isChatsMode() && activeDirectPeer()) {
           <button class="primary-button header-call-button" type="button" title="Позвонить" aria-label="Позвонить" (click)="openActiveDirectPeerCall()">
