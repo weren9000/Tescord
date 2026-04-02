@@ -34,6 +34,14 @@ class ServerKind(str, enum.Enum):
     GROUP_CHAT = "group_chat"
 
 
+class FriendRequestStatus(str, enum.Enum):
+    PENDING = "pending"
+    ACCEPTED = "accepted"
+    REJECTED = "rejected"
+    BLOCKED = "blocked"
+    CANCELLED = "cancelled"
+
+
 class VoiceAccessRole(str, enum.Enum):
     OWNER = "owner"
     RESIDENT = "resident"
@@ -103,6 +111,16 @@ class User(TimestampMixin, Base):
     voice_permissions: Mapped[list["VoiceChannelAccess"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     requested_voice_joins: Mapped[list["VoiceJoinRequest"]] = relationship(
         back_populates="requester",
+        cascade="all, delete-orphan",
+    )
+    sent_friend_requests: Mapped[list["FriendRequest"]] = relationship(
+        foreign_keys="FriendRequest.requester_user_id",
+        back_populates="requester",
+        cascade="all, delete-orphan",
+    )
+    received_friend_requests: Mapped[list["FriendRequest"]] = relationship(
+        foreign_keys="FriendRequest.target_user_id",
+        back_populates="target",
         cascade="all, delete-orphan",
     )
 
@@ -184,6 +202,35 @@ class ServerMember(Base):
 
     server: Mapped["Server"] = relationship(back_populates="members")
     user: Mapped["User"] = relationship(back_populates="memberships")
+
+
+class FriendRequest(TimestampMixin, Base):
+    __tablename__ = "friend_requests"
+    __table_args__ = (
+        UniqueConstraint("requester_user_id", "target_user_id", name="uq_friend_requests_requester_target"),
+        Index("ix_friend_requests_target_status", "target_user_id", "status"),
+        Index("ix_friend_requests_requester_status", "requester_user_id", "status"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    requester_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    target_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    status: Mapped[FriendRequestStatus] = mapped_column(
+        Enum(FriendRequestStatus, name="friendrequeststatus", values_callable=enum_values),
+        default=FriendRequestStatus.PENDING,
+        nullable=False,
+        server_default=FriendRequestStatus.PENDING.value,
+    )
+    responded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    requester: Mapped["User"] = relationship(
+        foreign_keys=[requester_user_id],
+        back_populates="sent_friend_requests",
+    )
+    target: Mapped["User"] = relationship(
+        foreign_keys=[target_user_id],
+        back_populates="received_friend_requests",
+    )
 
 
 class Message(TimestampMixin, Base):

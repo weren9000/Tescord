@@ -9,9 +9,9 @@ from uuid import UUID, uuid4
 
 from anyio import from_thread
 from fastapi import WebSocket
-from sqlalchemy import select
+from sqlalchemy import func, select
 
-from app.db.models import ServerMember
+from app.db.models import FriendRequest, FriendRequestStatus, ServerMember
 from app.db.session import SessionLocal
 from app.services.workspace_events import (
     list_server_channels_for_user,
@@ -309,6 +309,13 @@ def build_voice_request_resolved_event(request: dict[str, Any]) -> dict[str, Any
     }
 
 
+def build_friend_requests_changed_event(*, pending_incoming_count: int) -> dict[str, Any]:
+    return {
+        "type": "friend_requests_changed",
+        "pending_incoming_count": pending_incoming_count,
+    }
+
+
 def _run_async_or_schedule(function, *args) -> None:
     try:
         loop = asyncio.get_running_loop()
@@ -444,6 +451,45 @@ async def publish_voice_request_resolved(user_id: UUID | str, request: dict[str,
     await app_event_manager.send_to_user(user_id, build_voice_request_resolved_event(request))
 
 
+async def publish_friend_requests_changed(user_id: UUID | str) -> None:
+    normalized_user_id = _normalize_user_id(user_id)
+    with SessionLocal() as db:
+        pending_incoming_count = db.execute(
+            select(func.count(FriendRequest.id)).where(
+                FriendRequest.target_user_id == UUID(normalized_user_id),
+                FriendRequest.status == FriendRequestStatus.PENDING,
+            )
+        ).scalar_one()
+
+    await app_event_manager.send_to_user(
+        normalized_user_id,
+        build_friend_requests_changed_event(pending_incoming_count=pending_incoming_count),
+    )
+
+
+async def publish_friend_requests_changed_for_users(user_ids: Iterable[UUID | str]) -> None:
+    normalized_user_ids = {_normalize_user_id(user_id) for user_id in user_ids}
+    if not normalized_user_ids:
+        return
+
+    with SessionLocal() as db:
+        pending_by_user_id = {
+            user_id: db.execute(
+                select(func.count(FriendRequest.id)).where(
+                    FriendRequest.target_user_id == UUID(user_id),
+                    FriendRequest.status == FriendRequestStatus.PENDING,
+                )
+            ).scalar_one()
+            for user_id in normalized_user_ids
+        }
+
+    for user_id, pending_incoming_count in pending_by_user_id.items():
+        await app_event_manager.send_to_user(
+            user_id,
+            build_friend_requests_changed_event(pending_incoming_count=pending_incoming_count),
+        )
+
+
 async def publish_server_changed(server_id: UUID | str, reason: str) -> None:
     await publish_channels_updated(server_id, reason)
 
@@ -474,3 +520,7 @@ def publish_voice_inbox_changed_from_sync(user_ids: Iterable[UUID | str]) -> Non
 
 def publish_server_changed_from_sync(server_id: UUID | str, *, reason: str) -> None:
     _run_async_or_schedule(publish_server_changed, server_id, reason)
+
+
+def publish_friend_requests_changed_from_sync(user_ids: Iterable[UUID | str]) -> None:
+    _run_async_or_schedule(publish_friend_requests_changed_for_users, list(user_ids))

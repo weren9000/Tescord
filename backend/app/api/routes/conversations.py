@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.api.dependencies.auth import get_current_user
-from app.db.models import Channel, ChannelType, MemberRole, Message, Server, ServerKind, ServerMember, User
+from app.db.models import FriendRequest, FriendRequestStatus, MemberRole, Message, Server, ServerKind, ServerMember, User
 from app.db.session import get_db
 from app.schemas.conversations import (
     ConversationDirectoryUserSummary,
@@ -17,6 +17,7 @@ from app.schemas.conversations import (
     CreateGroupConversationRequest,
 )
 from app.services.app_events import publish_servers_changed_from_sync
+from app.services.direct_conversations import conversation_slug, ensure_direct_conversation, load_direct_conversation
 from app.services.group_chat_defaults import ensure_group_chat_defaults
 from app.services.server_icons import normalize_server_icon_asset
 from app.services.site_presence import site_presence_manager
@@ -24,22 +25,16 @@ from app.services.site_presence import site_presence_manager
 router = APIRouter(prefix="/conversations", tags=["conversations"])
 
 
-def _build_direct_key(left_user_id: UUID, right_user_id: UUID) -> str:
-    left, right = sorted([left_user_id.hex, right_user_id.hex])
-    return f"{left}:{right}"
-
-
-def _conversation_slug(prefix: str) -> str:
-    return f"{prefix}-{uuid4().hex[:12]}"
-
-
-def _first_text_channel(server: Server) -> Channel:
+def _first_text_channel(server: Server):
     text_channels = sorted(
-        (channel for channel in server.channels if channel.type == ChannelType.TEXT),
+        (channel for channel in server.channels if channel.type.value == "text"),
         key=lambda channel: (channel.position, channel.name.casefold()),
     )
     if not text_channels:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="У беседы нет текстового канала")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="У беседы нет текстового канала",
+        )
     return text_channels[0]
 
 
@@ -65,8 +60,7 @@ def _conversation_title(server: Server, current_user_id: UUID) -> tuple[str, str
         peer_user = peer_member.user
         return peer_user.username, peer_user.email
 
-    subtitle = f"{len(server.members)} участников"
-    return server.name, subtitle
+    return server.name, f"{len(server.members)} участников"
 
 
 def _build_message_preview(message: Message | None) -> str:
@@ -179,6 +173,27 @@ def _resolve_conversation_target_user(
     return user
 
 
+def _has_accepted_friend_request(left_user_id: UUID, right_user_id: UUID, db: Session) -> bool:
+    return (
+        db.execute(
+            select(FriendRequest.id).where(
+                or_(
+                    and_(
+                        FriendRequest.requester_user_id == left_user_id,
+                        FriendRequest.target_user_id == right_user_id,
+                    ),
+                    and_(
+                        FriendRequest.requester_user_id == right_user_id,
+                        FriendRequest.target_user_id == left_user_id,
+                    ),
+                ),
+                FriendRequest.status == FriendRequestStatus.ACCEPTED,
+            )
+        ).scalar_one_or_none()
+        is not None
+    )
+
+
 @router.get("", response_model=list[ConversationSummary])
 def list_conversations(
     current_user: User = Depends(get_current_user),
@@ -221,9 +236,25 @@ def list_conversation_directory(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> list[ConversationDirectoryUserSummary]:
-    users = db.execute(
-        select(User).where(User.id != current_user.id).order_by(User.username)
+    memberships = db.execute(
+        select(ServerMember)
+        .join(Server, Server.id == ServerMember.server_id)
+        .where(
+            ServerMember.user_id == current_user.id,
+            Server.kind == ServerKind.DIRECT,
+        )
+        .options(
+            joinedload(ServerMember.server).selectinload(Server.members).joinedload(ServerMember.user),
+        )
     ).scalars().all()
+
+    users_by_id: dict[UUID, User] = {}
+    for membership in memberships:
+        for member in membership.server.members:
+            if member.user_id != current_user.id:
+                users_by_id.setdefault(member.user_id, member.user)
+
+    users = sorted(users_by_id.values(), key=lambda user: user.username.casefold())
     online_user_ids = site_presence_manager.online_user_ids([user.id for user in users])
     return [
         ConversationDirectoryUserSummary(
@@ -246,64 +277,24 @@ def open_direct_conversation(
 ) -> ConversationSummary:
     peer_user = _resolve_conversation_target_user(payload, current_user, db)
 
-    direct_key = _build_direct_key(current_user.id, peer_user.id)
-    existing_server = db.execute(
-        select(Server)
-        .where(Server.direct_key == direct_key, Server.kind == ServerKind.DIRECT)
-        .options(
-            selectinload(Server.channels),
-            selectinload(Server.members).joinedload(ServerMember.user),
-        )
-    ).scalar_one_or_none()
+    existing_server = load_direct_conversation(db, current_user.id, peer_user.id)
     if existing_server is not None:
-        membership = next(
-            member for member in existing_server.members if member.user_id == current_user.id
-        )
+        membership = next(member for member in existing_server.members if member.user_id == current_user.id)
         online_user_ids = site_presence_manager.online_user_ids([member.user_id for member in existing_server.members])
         return _build_conversation_summary(existing_server, membership, current_user.id, online_user_ids)
 
-    server = Server(
-        name=f"{current_user.username} / {peer_user.username}",
-        slug=_conversation_slug("direct"),
-        kind=ServerKind.DIRECT,
-        direct_key=direct_key,
-        owner_id=current_user.id,
-    )
-    db.add(server)
-    db.flush()
+    if not _has_accepted_friend_request(current_user.id, peer_user.id, db):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Личный чат откроется только после подтверждения запроса в друзья",
+        )
 
-    db.add_all(
-        [
-            ServerMember(
-                server_id=server.id,
-                user_id=current_user.id,
-                role=MemberRole.OWNER,
-                nickname=current_user.username,
-            ),
-            ServerMember(
-                server_id=server.id,
-                user_id=peer_user.id,
-                role=MemberRole.MEMBER,
-                nickname=peer_user.username,
-            ),
-            Channel(
-                server_id=server.id,
-                created_by_id=current_user.id,
-                name="Личные сообщения",
-                topic=None,
-                type=ChannelType.TEXT,
-                position=0,
-            ),
-        ]
-    )
-    db.flush()
+    created_server, created = ensure_direct_conversation(db, current_user, peer_user)
     db.commit()
 
-    created_server = _load_conversation(server.id, db)
-    if created_server is None:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Не удалось создать личный чат")
+    if created:
+        publish_servers_changed_from_sync(reason="conversation_created")
 
-    publish_servers_changed_from_sync(reason="conversation_created")
     membership = next(member for member in created_server.members if member.user_id == current_user.id)
     online_user_ids = site_presence_manager.online_user_ids([member.user_id for member in created_server.members])
     return _build_conversation_summary(created_server, membership, current_user.id, online_user_ids)
@@ -335,7 +326,7 @@ def create_group_conversation(
 
     server = Server(
         name=payload.name.strip(),
-        slug=_conversation_slug("group"),
+        slug=conversation_slug("group"),
         description=f"Мини-группа · {total_participants} участников",
         icon_asset=icon_asset,
         kind=ServerKind.GROUP_CHAT,

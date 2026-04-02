@@ -100,6 +100,11 @@ export interface AppVoiceRequestResolvedEvent {
   request: VoiceJoinRequestSummary;
 }
 
+export interface AppFriendRequestsChangedEvent {
+  type: 'friend_requests_changed';
+  pending_incoming_count: number;
+}
+
 export type AppEventsMessage =
   | AppEventsReadyEvent
   | AppEventsPongEvent
@@ -115,4 +120,5 @@ export type AppEventsMessage =
   | AppServersChangedEvent
   | AppServerChangedEvent
   | AppVoiceInboxChangedEvent
-  | AppVoiceRequestResolvedEvent;
+  | AppVoiceRequestResolvedEvent
+  | AppFriendRequestsChangedEvent;

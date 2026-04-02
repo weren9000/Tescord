@@ -128,10 +128,23 @@
         <button class="secondary-button app-header__sidebar-toggle" type="button" aria-label="Открыть список" title="Открыть список" (click)="toggleMobilePanel('servers')">
           <span>{{ activeSpaceListTitle() }}</span>
         </button>
-        <img class="app-header__logo" src="/assets/KVA-chat.png" alt="KVA Chat" />
+        <img class="app-header__logo" src="/assets/Label_Frog.png" alt="KVA Chat" />
       </div>
 
-      <div class="app-header__actions"></div>
+      <div class="app-header__actions">
+        <button
+          class="secondary-button conversation-head__action conversation-head__action--icon app-header__notifications"
+          type="button"
+          aria-label="Запросы в друзья"
+          title="Запросы в друзья"
+          (click)="openFriendRequestsModal()"
+        >
+          <img
+            [src]="friendRequestBadgeVisible() ? '/assets/Bell_pin_fill.svg' : '/assets/Bell_fill.svg'"
+            alt=""
+          />
+        </button>
+      </div>
     </header>
 
     @if (sideMenuOpen()) {
@@ -176,7 +189,7 @@
           </button>
           <button class="side-drawer__action" type="button" (click)="openAddUserShortcut()">
             <span>+</span>
-            <span>Личка по ID</span>
+            <span>Добавить друга</span>
           </button>
           @if (isAdmin()) {
             <button class="side-drawer__action" type="button" (click)="closeSideMenu(); openVoiceAdminPanel()">
@@ -209,7 +222,7 @@
             type="button"
             (click)="selectWorkspaceMode('chats')"
           >
-            Личные
+            Друзья
           </button>
           <button
             class="conversation-sidebar__tab"
@@ -247,7 +260,7 @@
                 }
               }
             } @else {
-              <div class="sidebar-empty">Личных чатов пока нет</div>
+              <div class="sidebar-empty">Друзей пока нет</div>
             }
           } @else {
             @if (groupChatEntries().length) {
@@ -308,7 +321,7 @@
                 }
               </button>
               <div class="conversation-head__copy">
-                <p class="eyebrow">{{ isChatsMode() ? 'Личный чат' : 'Группа' }}</p>
+                <p class="eyebrow">{{ isChatsMode() ? 'Друг' : 'Группа' }}</p>
                 <strong>{{ activeServer()?.name }}</strong>
                 <small>{{ activeSpaceMetaLabel() }}</small>
               </div>
@@ -977,6 +990,81 @@
   </div>
 }
 
+@if (friendRequestsModalOpen()) {
+  <div class="modal-backdrop" (click)="closeFriendRequestsModal()">
+    <section class="modal modal--compact modal--friend-requests" (click)="$event.stopPropagation()">
+      <div class="modal__header">
+        <div>
+          <p class="eyebrow">Уведомления</p>
+          <h3>Запросы в друзья</h3>
+        </div>
+        <button class="icon-button" type="button" (click)="closeFriendRequestsModal()">×</button>
+      </div>
+
+      <div class="modal__body">
+        @if (friendRequestsError()) {
+          <p class="modal-note modal-note--error">{{ friendRequestsError() }}</p>
+        }
+
+        @if (friendRequestsLoading()) {
+          <p class="modal-note">Загружаем запросы...</p>
+        } @else if (incomingFriendRequests().length) {
+          <div class="friend-request-list">
+            @for (request of incomingFriendRequests(); track request.id) {
+              <div class="friend-request-row">
+                <div class="friend-request-row__avatar">
+                  @if (userAvatarUrl(request.user.user_id, request.user.avatar_updated_at); as avatarUrl) {
+                    <img [src]="avatarUrl" [alt]="displayNick(request.user.nick)" loading="lazy" />
+                  } @else {
+                    <span>{{ displayNickInitials(request.user.nick) }}</span>
+                  }
+                </div>
+                <div class="friend-request-row__copy">
+                  <strong>{{ displayNick(request.user.nick) }}</strong>
+                  <small>ID: {{ formatPublicUserId(request.user.public_id) }}</small>
+                  <small>{{ request.user.is_online ? 'онлайн' : 'офлайн' }} · {{ formatMessageTime(request.created_at) }}</small>
+                </div>
+                <div class="friend-request-row__actions">
+                  <button
+                    class="secondary-button"
+                    type="button"
+                    [disabled]="isFriendRequestActionPending(request.id)"
+                    (click)="respondToFriendRequest(request.id, 'reject')"
+                  >
+                    Отклонить
+                  </button>
+                  <button
+                    class="secondary-button"
+                    type="button"
+                    [disabled]="isFriendRequestActionPending(request.id)"
+                    (click)="respondToFriendRequest(request.id, 'block')"
+                  >
+                    Заблокировать
+                  </button>
+                  <button
+                    class="primary-button"
+                    type="button"
+                    [disabled]="isFriendRequestActionPending(request.id)"
+                    (click)="respondToFriendRequest(request.id, 'accept')"
+                  >
+                    {{ isFriendRequestActionPending(request.id) ? 'Обрабатываем...' : 'Принять' }}
+                  </button>
+                </div>
+              </div>
+            }
+          </div>
+        } @else {
+          <p class="modal-note">Новых запросов в друзья пока нет.</p>
+        }
+      </div>
+
+      <div class="modal__actions">
+        <button class="secondary-button" type="button" (click)="closeFriendRequestsModal()">Закрыть</button>
+      </div>
+    </section>
+  </div>
+}
+
 @if (chatFilesModalOpen()) {
   <div class="modal-backdrop" (click)="closeChatFilesModal()">
     <section class="modal modal--compact modal--chat-files" (click)="$event.stopPropagation()">
@@ -1460,7 +1548,7 @@
       <div class="modal__header">
         <div>
           <p class="eyebrow">Чаты</p>
-          <h3>{{ conversationCreateTab() === 'direct' ? 'Новый личный чат' : 'Новая мини-группа' }}</h3>
+          <h3>{{ conversationCreateTab() === 'direct' ? 'Добавить друга' : 'Новая мини-группа' }}</h3>
         </div>
         <button class="icon-button" type="button" (click)="closeCreateConversationModal()">×</button>
       </div>
@@ -1473,7 +1561,7 @@
             type="button"
             (click)="conversationCreateTab.set('direct')"
           >
-            Личный чат
+            Друзья
           </button>
           <button
             class="secondary-button"
@@ -1500,7 +1588,7 @@
               />
             </label>
 
-            <p class="modal-note">Личный чат открывается только по полному пятизначному ID. Список пользователей здесь не показывается.</p>
+            <p class="modal-note">Введите полный пятизначный ID. Чат появится только после того, как пользователь подтвердит запрос в друзья.</p>
           </div>
         } @else {
           <div class="conversation-create__section">
@@ -1535,7 +1623,7 @@
             [disabled]="!canCreateDirectConversation()"
             (click)="startDirectConversationFromModal()"
           >
-            {{ createConversationLoading() ? 'Открываем...' : 'Открыть чат' }}
+            {{ createConversationLoading() ? 'Отправляем...' : 'Отправить запрос' }}
           </button>
         } @else {
           <button
@@ -1566,7 +1654,7 @@
       <div class="modal__body conversation-create">
         <div class="conversation-create__section">
           <label class="form-field">
-            <span>Поиск по нику или ID из личных</span>
+            <span>Поиск по нику или ID из друзей</span>
             <input
               [ngModel]="addGroupMemberQuery()"
               (ngModelChange)="addGroupMemberQuery.set($event); addGroupMemberUserId.set('')"
@@ -1577,7 +1665,7 @@
             />
           </label>
 
-          <p class="modal-note">В группу можно добавить только пользователя из раздела «Личные».</p>
+          <p class="modal-note">В группу можно добавить только пользователя из раздела «Друзья».</p>
 
           <div class="conversation-picker-list">
             @for (user of activeGroupKnownCandidates(); track user.user_id) {
@@ -1601,7 +1689,7 @@
                 </span>
               </button>
             } @empty {
-              <div class="rail-empty">Сначала добавьте пользователя в раздел «Личные», потом сможете пригласить его в группу</div>
+              <div class="rail-empty">Сначала добавьте пользователя в раздел «Друзья», потом сможете пригласить его в группу</div>
             }
           </div>
         </div>
@@ -1951,7 +2039,11 @@
                 [disabled]="member.isSelf || createConversationLoading()"
                 (click)="openDirectChatWithSelectedMember()"
               >
-                {{ createConversationLoading() ? 'Открываем чат...' : 'Открыть чат' }}
+                {{
+                  createConversationLoading()
+                    ? (selectedMemberDirectConversation() ? 'Открываем чат...' : 'Отправляем запрос...')
+                    : (selectedMemberDirectConversation() ? 'Открыть чат' : 'Добавить в друзья')
+                }}
               </button>
               <button class="primary-button direct-call-button" type="button" (click)="startDirectCallToSelectedMember()" [disabled]="!canStartDirectCallToSelectedMember()">
                 <img src="/assets/Phone_connect.svg" alt="" />

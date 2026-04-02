@@ -10,6 +10,11 @@ import {
   CreateGroupConversationRequest,
 } from '../models/conversation.models';
 import {
+  CreateFriendRequestRequest,
+  FriendRequestsOverview,
+  FriendRequestSummary,
+} from '../models/friend.models';
+import {
   AddWorkspaceMemberRequest,
   CreateWorkspaceChannelRequest,
   CreateWorkspaceServerRequest,
@@ -123,6 +128,36 @@ export class WorkspaceApiService {
 
   removeServerMember(token: string, serverId: string, userId: string): Observable<void> {
     return this.http.delete<void>(`${API_BASE_URL}/api/servers/${serverId}/members/${userId}`, {
+      headers: this.buildAuthHeaders(token)
+    });
+  }
+
+  getFriendRequests(token: string): Observable<FriendRequestsOverview> {
+    return this.http.get<FriendRequestsOverview>(`${API_BASE_URL}/api/friends/requests`, {
+      headers: this.buildAuthHeaders(token)
+    });
+  }
+
+  createFriendRequest(token: string, payload: CreateFriendRequestRequest): Observable<FriendRequestSummary> {
+    return this.http.post<FriendRequestSummary>(`${API_BASE_URL}/api/friends/requests`, payload, {
+      headers: this.buildAuthHeaders(token)
+    });
+  }
+
+  acceptFriendRequest(token: string, requestId: string): Observable<FriendRequestSummary> {
+    return this.http.post<FriendRequestSummary>(`${API_BASE_URL}/api/friends/requests/${requestId}/accept`, null, {
+      headers: this.buildAuthHeaders(token)
+    });
+  }
+
+  rejectFriendRequest(token: string, requestId: string): Observable<FriendRequestSummary> {
+    return this.http.post<FriendRequestSummary>(`${API_BASE_URL}/api/friends/requests/${requestId}/reject`, null, {
+      headers: this.buildAuthHeaders(token)
+    });
+  }
+
+  blockFriendRequest(token: string, requestId: string): Observable<FriendRequestSummary> {
+    return this.http.post<FriendRequestSummary>(`${API_BASE_URL}/api/friends/requests/${requestId}/block`, null, {
       headers: this.buildAuthHeaders(token)
     });
   }

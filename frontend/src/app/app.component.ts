@@ -16,9 +16,14 @@ import {
   CreateGroupConversationRequest,
 } from './core/models/conversation.models';
 import {
+  CreateFriendRequestRequest,
+  FriendRequestSummary,
+} from './core/models/friend.models';
+import {
   AppEventsMessage,
   AppChannelsUpdatedEvent,
   AppAttachmentDeletedEvent,
+  AppFriendRequestsChangedEvent,
   AppMessageCreatedEvent,
   AppMessageReadUpdatedEvent,
   AppMessageReactionsUpdatedEvent,
@@ -175,6 +180,19 @@ interface VoiceAdminAccessMutation {
 interface CreateGroupTrigger {
   token: string;
   payload: CreateGroupConversationRequest;
+}
+
+interface SendFriendRequestTrigger {
+  token: string;
+  payload: CreateFriendRequestRequest;
+  successMessage: string;
+  closeModal?: boolean;
+}
+
+interface RespondFriendRequestTrigger {
+  token: string;
+  requestId: string;
+  action: 'accept' | 'reject' | 'block';
 }
 
 interface CreateChannelTrigger {
@@ -472,6 +490,8 @@ export class AppComponent {
   private readonly loginSubmit$ = new Subject<AuthLoginRequest>();
   private readonly registrationSubmit$ = new Subject<AuthRegisterRequest>();
   private readonly voiceAdminAccessMutation$ = new Subject<VoiceAdminAccessMutation>();
+  private readonly sendFriendRequestTrigger$ = new Subject<SendFriendRequestTrigger>();
+  private readonly respondFriendRequestTrigger$ = new Subject<RespondFriendRequestTrigger>();
   private readonly openDirectConversationTrigger$ = new Subject<OpenDirectConversationTrigger>();
   private readonly createConversationSubmit$ = new Subject<CreateConversationTrigger>();
   private readonly addServerMemberTrigger$ = new Subject<AddServerMemberTrigger>();
@@ -562,6 +582,13 @@ export class AppComponent {
   readonly chatFilesError = signal<string | null>(null);
   readonly chatAttachments = signal<WorkspaceChatAttachmentSummary[]>([]);
   readonly deletingChatAttachmentId = signal<string | null>(null);
+  readonly friendRequestsModalOpen = signal(false);
+  readonly friendRequestsLoading = signal(false);
+  readonly friendRequestsError = signal<string | null>(null);
+  readonly incomingFriendRequests = signal<FriendRequestSummary[]>([]);
+  readonly outgoingFriendRequests = signal<FriendRequestSummary[]>([]);
+  readonly pendingFriendRequestCount = signal(0);
+  readonly friendRequestActionId = signal<string | null>(null);
   readonly createConversationLoading = signal(false);
   readonly createGroupLoading = signal(false);
   readonly createChannelLoading = signal(false);
@@ -634,6 +661,7 @@ export class AppComponent {
   readonly pendingServerSwitch = signal<PendingServerSwitchState | null>(null);
   readonly conversationCreateTab = signal<ConversationCreateTab>('direct');
   readonly createConversationGroupMemberIds = signal<string[]>([]);
+  readonly friendRequestBadgeVisible = computed(() => this.pendingFriendRequestCount() > 0);
 
   readonly loginForm: LoginFormModel = {
     email: '',
@@ -966,7 +994,7 @@ export class AppComponent {
         return this.displayNick(left.nick).localeCompare(this.displayNick(right.nick), 'ru');
       });
   });
-  readonly activeSpaceListTitle = computed(() => this.isChatsMode() ? 'Личные' : 'Групповые');
+  readonly activeSpaceListTitle = computed(() => this.isChatsMode() ? 'Друзья' : 'Групповые');
   readonly currentUserAvatarUrl = computed(() =>
     this.buildUserAvatarUrl(this.currentUser()?.id ?? null, this.currentUser()?.avatar_updated_at ?? null)
   );
@@ -1124,7 +1152,7 @@ export class AppComponent {
       meta: server.kind === 'workspace'
         ? 'Группа'
         : server.kind === 'direct'
-          ? 'Личный чат'
+          ? 'Друг'
           : 'Мини-группа'
     }))
   );
@@ -1198,6 +1226,10 @@ export class AppComponent {
   readonly selectedMember = computed(() => {
     const userId = this.selectedMemberUserId();
     return this.groupMembers().find((member) => member.userId === userId) ?? null;
+  });
+  readonly selectedMemberDirectConversation = computed(() => {
+    const member = this.selectedMember();
+    return member ? this.findDirectConversationByUserId(member.userId) : null;
   });
 
   readonly selectedMemberVolume = computed(() => {
@@ -1492,6 +1524,7 @@ export class AppComponent {
     this.bindAuthPipelines();
     this.bindProfilePipeline();
     this.bindVoiceAdminPipelines();
+    this.bindFriendRequestPipelines();
     this.bindWorkspaceMutationPipelines();
     this.bindMessagePipelines();
     this.bindVoiceOwnershipPipelines();
@@ -1532,6 +1565,73 @@ export class AppComponent {
             })
           )
         ),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe();
+  }
+
+  private bindFriendRequestPipelines(): void {
+    this.sendFriendRequestTrigger$
+      .pipe(
+        exhaustMap(({ token, payload, successMessage, closeModal }) =>
+          this.workspaceApi.createFriendRequest(token, payload).pipe(
+            tap(() => {
+              this.managementSuccess.set(successMessage);
+              this.managementError.set(null);
+              this.createConversationForm.directUserId = '';
+              this.directDirectoryQuery.set('');
+              void this.refreshFriendRequests(token);
+              if (closeModal) {
+                this.createConversationModalOpen.set(false);
+                this.closeMemberVolume();
+              }
+            }),
+            catchError((error) => {
+              this.managementError.set(this.extractErrorMessage(error, 'Не удалось отправить запрос в друзья'));
+              return EMPTY;
+            }),
+            finalize(() => {
+              this.createConversationLoading.set(false);
+            })
+          )
+        ),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe();
+
+    this.respondFriendRequestTrigger$
+      .pipe(
+        exhaustMap(({ token, requestId, action }) => {
+          const request$ = action === 'accept'
+            ? this.workspaceApi.acceptFriendRequest(token, requestId)
+            : action === 'reject'
+              ? this.workspaceApi.rejectFriendRequest(token, requestId)
+              : this.workspaceApi.blockFriendRequest(token, requestId);
+
+          const successMessage = action === 'accept'
+            ? 'Пользователь добавлен в друзья'
+            : action === 'reject'
+              ? 'Запрос отклонен'
+              : 'Пользователь заблокирован';
+
+          return request$.pipe(
+            tap(() => {
+              this.managementSuccess.set(successMessage);
+              this.friendRequestsError.set(null);
+              void this.refreshFriendRequests(token);
+              if (action === 'accept') {
+                void this.refreshConversationsList(token);
+              }
+            }),
+            catchError((error) => {
+              this.friendRequestsError.set(this.extractErrorMessage(error, 'Не удалось обработать запрос'));
+              return EMPTY;
+            }),
+            finalize(() => {
+              this.friendRequestActionId.set(null);
+            })
+          );
+        }),
         takeUntilDestroyed(this.destroyRef)
       )
       .subscribe();
@@ -2393,6 +2493,39 @@ export class AppComponent {
     this.openCreateConversationModal('direct');
   }
 
+  openFriendRequestsModal(): void {
+    const token = this.session()?.access_token;
+    if (!token) {
+      return;
+    }
+
+    this.friendRequestsModalOpen.set(true);
+    this.friendRequestsLoading.set(true);
+    this.friendRequestsError.set(null);
+    void this.refreshFriendRequests(token);
+  }
+
+  closeFriendRequestsModal(): void {
+    this.friendRequestsModalOpen.set(false);
+    this.friendRequestsLoading.set(false);
+    this.friendRequestsError.set(null);
+  }
+
+  respondToFriendRequest(requestId: string, action: 'accept' | 'reject' | 'block'): void {
+    const token = this.session()?.access_token;
+    if (!token || this.friendRequestActionId()) {
+      return;
+    }
+
+    this.friendRequestActionId.set(requestId);
+    this.friendRequestsError.set(null);
+    this.respondFriendRequestTrigger$.next({ token, requestId, action });
+  }
+
+  isFriendRequestActionPending(requestId: string): boolean {
+    return this.friendRequestActionId() === requestId;
+  }
+
   openAddGroupMemberModal(): void {
     if (!this.session()?.access_token || !this.activeGroupConversation() || !this.canManageActiveGroup()) {
       return;
@@ -2765,11 +2898,20 @@ export class AppComponent {
       return;
     }
 
+    const existingConversation = this.findDirectConversationByUserId(member.userId);
+    if (existingConversation) {
+      this.closeMemberVolume();
+      this.workspaceMode.set('chats');
+      this.loadServerWorkspace(token, existingConversation.id);
+      return;
+    }
+
     this.createConversationLoading.set(true);
     this.managementError.set(null);
-    this.openDirectConversationTrigger$.next({
+    this.sendFriendRequestTrigger$.next({
       token,
       payload: { user_id: member.userId },
+      successMessage: `Запрос в друзья отправлен пользователю ${this.displayNick(member.nick)}`,
       closeModal: true,
     });
   }
@@ -3012,16 +3154,30 @@ export class AppComponent {
     const token = this.session()?.access_token;
     const payload = this.resolveUserLookupPayload(this.createConversationForm.directUserId, this.directDirectoryQuery());
     if (!token || !payload) {
-      this.managementError.set('Выберите пользователя для личного чата');
+      this.managementError.set('Введите полный пятизначный ID пользователя');
       return;
+    }
+
+    if (payload.user_public_id) {
+      const existingConversation = this.findDirectConversationByPublicId(payload.user_public_id);
+      if (existingConversation) {
+        this.createConversationLoading.set(false);
+        this.managementError.set(null);
+        this.managementSuccess.set(`Чат с ${existingConversation.title} уже открыт`);
+        this.createConversationModalOpen.set(false);
+        this.workspaceMode.set('chats');
+        this.loadServerWorkspace(token, existingConversation.id);
+        return;
+      }
     }
 
     this.createConversationLoading.set(true);
     this.managementError.set(null);
     this.managementSuccess.set(null);
-    this.openDirectConversationTrigger$.next({
+    this.sendFriendRequestTrigger$.next({
       token,
       payload,
+      successMessage: 'Запрос в друзья отправлен',
       closeModal: true,
     });
   }
@@ -3522,6 +3678,9 @@ export class AppComponent {
     this.servers.set([]);
     this.conversations.set([]);
     this.conversationDirectory.set([]);
+    this.incomingFriendRequests.set([]);
+    this.outgoingFriendRequests.set([]);
+    this.pendingFriendRequestCount.set(0);
     this.channels.set([]);
     this.members.set([]);
     this.voicePresence.set([]);
@@ -3534,6 +3693,7 @@ export class AppComponent {
     this.createConversationModalOpen.set(false);
     this.createGroupModalOpen.set(false);
     this.createChannelModalOpen.set(false);
+    this.friendRequestsModalOpen.set(false);
     this.groupMembersModalOpen.set(false);
     this.selectedMemberUserId.set(null);
     this.selectedVoiceMemberChannelId.set(null);
@@ -3561,8 +3721,10 @@ export class AppComponent {
     this.authLoading.set(false);
     this.workspaceLoading.set(false);
     this.createConversationLoading.set(false);
+    this.friendRequestsLoading.set(false);
     this.createGroupLoading.set(false);
     this.createChannelLoading.set(false);
+    this.friendRequestsError.set(null);
     this.authMode.set('login');
     this.clearStoredSession();
   }
@@ -4300,6 +4462,9 @@ export class AppComponent {
       case 'voice_request_resolved':
         await this.handleVoiceRequestResolvedEvent(event);
         return;
+      case 'friend_requests_changed':
+        await this.handleFriendRequestsChangedEvent(event);
+        return;
     }
   }
 
@@ -4323,6 +4488,7 @@ export class AppComponent {
     }
 
     await this.refreshVoiceJoinInbox();
+    await this.refreshFriendRequests(token);
     this.refreshCurrentChannelMessages();
   }
 
@@ -4668,6 +4834,24 @@ export class AppComponent {
       });
   }
 
+  private async refreshFriendRequests(token: string): Promise<void> {
+    this.workspaceApi
+      .getFriendRequests(token)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (overview) => {
+          this.incomingFriendRequests.set(overview.incoming);
+          this.outgoingFriendRequests.set(overview.outgoing);
+          this.pendingFriendRequestCount.set(overview.incoming.length);
+          this.friendRequestsLoading.set(false);
+        },
+        error: (error) => {
+          this.friendRequestsLoading.set(false);
+          this.friendRequestsError.set(this.extractErrorMessage(error, 'Не удалось загрузить запросы в друзья'));
+        }
+      });
+  }
+
   private async loadConversationDirectory(token: string): Promise<void> {
     this.workspaceApi
       .getConversationDirectory(token)
@@ -4717,6 +4901,16 @@ export class AppComponent {
     }
 
     await this.handleResolvedVoiceJoinRequest(event.request);
+  }
+
+  private async handleFriendRequestsChangedEvent(event: AppFriendRequestsChangedEvent): Promise<void> {
+    this.pendingFriendRequestCount.set(event.pending_incoming_count);
+    const token = this.session()?.access_token;
+    if (!token) {
+      return;
+    }
+
+    await this.refreshFriendRequests(token);
   }
 
   private async handleResolvedVoiceJoinRequest(request: VoiceJoinRequestSummary): Promise<void> {
@@ -4834,6 +5028,8 @@ export class AppComponent {
   private bootstrapWorkspace(token: string): void {
     this.workspaceLoading.set(true);
     this.workspaceError.set(null);
+    this.friendRequestsLoading.set(true);
+    this.friendRequestsError.set(null);
     this.mobilePanel.set(this.isCompactVoiceWorkspaceViewport() ? 'servers' : null);
     this.voiceRoom.leave();
 
@@ -4851,6 +5047,7 @@ export class AppComponent {
           this.conversations.set(mergedConversations);
           this.schedulePresenceHeartbeat(true);
           void this.loadConversationDirectory(token);
+          void this.refreshFriendRequests(token);
 
           const directSpaces = mergedConversations.filter((conversation) => conversation.kind === 'direct');
           const groupSpaces = mergedConversations.filter((conversation) => conversation.kind === 'group_chat');
@@ -4896,6 +5093,7 @@ export class AppComponent {
           this.loadServerWorkspace(token, preferredServerId);
         },
         error: (error) => {
+          this.friendRequestsLoading.set(false);
           this.stopMemberPolling();
           this.stopVoicePresencePolling();
           this.stopMessageAutoRefreshPolling();
@@ -6126,7 +6324,7 @@ export class AppComponent {
   activeSpaceMetaLabel(): string {
     if (this.isChatsMode()) {
       const peer = this.activeDirectPeer();
-      return peer ? `ID: ${this.formatPublicUserId(peer.public_id)}` : 'Личный чат';
+      return peer ? `ID: ${this.formatPublicUserId(peer.public_id)}` : 'Друг';
     }
 
     const group = this.activeGroupConversation();
@@ -6156,6 +6354,18 @@ export class AppComponent {
 
   directConversationById(conversationId: string): ConversationSummary | null {
     return this.directConversations().find((conversation) => conversation.id === conversationId) ?? null;
+  }
+
+  findDirectConversationByUserId(userId: string): ConversationSummary | null {
+    return this.directConversations().find((conversation) =>
+      conversation.members.some((member) => member.user_id === userId)
+    ) ?? null;
+  }
+
+  private findDirectConversationByPublicId(publicId: number): ConversationSummary | null {
+    return this.directConversations().find((conversation) =>
+      conversation.members.some((member) => member.public_id === publicId)
+    ) ?? null;
   }
 
   groupConversationById(conversationId: string): ConversationSummary | null {
