@@ -194,6 +194,12 @@ interface AddServerMemberTrigger {
   payload: AddWorkspaceMemberRequest;
 }
 
+interface RemoveServerMemberTrigger {
+  token: string;
+  serverId: string;
+  member: GroupMemberItem;
+}
+
 interface OpenDirectConversationTrigger {
   token: string;
   payload: {
@@ -469,6 +475,7 @@ export class AppComponent {
   private readonly openDirectConversationTrigger$ = new Subject<OpenDirectConversationTrigger>();
   private readonly createConversationSubmit$ = new Subject<CreateConversationTrigger>();
   private readonly addServerMemberTrigger$ = new Subject<AddServerMemberTrigger>();
+  private readonly removeServerMemberTrigger$ = new Subject<RemoveServerMemberTrigger>();
   private readonly createGroupSubmit$ = new Subject<CreateGroupTrigger>();
   private readonly createChannelSubmit$ = new Subject<CreateChannelTrigger>();
   private readonly deleteChannelTrigger$ = new Subject<DeleteChannelTrigger>();
@@ -614,6 +621,7 @@ export class AppComponent {
   readonly activeOwnerRequestId = signal<string | null>(null);
   readonly ownerVoiceRequestModalOpen = signal(false);
   readonly addGroupMemberLoading = signal(false);
+  readonly removingGroupMemberUserId = signal<string | null>(null);
   readonly directDirectoryQuery = signal('');
   readonly addGroupMemberQuery = signal('');
   readonly addGroupMemberUserId = signal<string>('');
@@ -1185,6 +1193,7 @@ export class AppComponent {
         return left.nick.localeCompare(right.nick, 'ru');
       });
   });
+  readonly canManageGroupMembers = computed(() => this.canManageActiveGroup());
 
   readonly selectedMember = computed(() => {
     const userId = this.selectedMemberUserId();
@@ -1637,6 +1646,36 @@ export class AppComponent {
             }),
             finalize(() => {
               this.addGroupMemberLoading.set(false);
+            })
+          )
+        ),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe();
+
+    this.removeServerMemberTrigger$
+      .pipe(
+        exhaustMap(({ token, serverId, member }) =>
+          this.workspaceApi.removeServerMember(token, serverId, member.userId).pipe(
+            tap(() => {
+              this.members.update((currentMembers) =>
+                currentMembers.filter((entry) => entry.user_id !== member.userId)
+              );
+
+              if (this.selectedMemberUserId() === member.userId) {
+                this.closeMemberVolume();
+              }
+
+              this.managementSuccess.set(`Участник ${this.displayNick(member.nick)} удален из группы`);
+              void this.refreshConversationsList(token);
+              void this.refreshMembers();
+            }),
+            catchError((error) => {
+              this.managementError.set(this.extractErrorMessage(error, 'Не удалось удалить участника из группы'));
+              return EMPTY;
+            }),
+            finalize(() => {
+              this.removingGroupMemberUserId.set(null);
             })
           )
         ),
@@ -2612,6 +2651,40 @@ export class AppComponent {
 
   closeGroupMembersPanel(): void {
     this.groupMembersModalOpen.set(false);
+    this.removingGroupMemberUserId.set(null);
+  }
+
+  canRemoveGroupMember(member: GroupMemberItem): boolean {
+    if (!this.canManageGroupMembers()) {
+      return false;
+    }
+
+    if (member.isSelf) {
+      return false;
+    }
+
+    return member.role !== 'owner';
+  }
+
+  isRemovingGroupMember(userId: string): boolean {
+    return this.removingGroupMemberUserId() === userId;
+  }
+
+  removeGroupMember(member: GroupMemberItem): void {
+    const token = this.session()?.access_token;
+    const serverId = this.selectedServerId();
+    if (!token || !serverId || !this.canRemoveGroupMember(member) || this.isRemovingGroupMember(member.userId)) {
+      return;
+    }
+
+    this.managementError.set(null);
+    this.managementSuccess.set(null);
+    this.removingGroupMemberUserId.set(member.userId);
+    this.removeServerMemberTrigger$.next({
+      token,
+      serverId,
+      member,
+    });
   }
 
   toggleGroupVoiceParticipantsExpanded(): void {

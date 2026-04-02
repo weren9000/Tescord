@@ -121,6 +121,12 @@ export class WorkspaceApiService {
     );
   }
 
+  removeServerMember(token: string, serverId: string, userId: string): Observable<void> {
+    return this.http.delete<void>(`${API_BASE_URL}/api/servers/${serverId}/members/${userId}`, {
+      headers: this.buildAuthHeaders(token)
+    });
+  }
+
   getVoicePresence(token: string, serverId: string): Observable<WorkspaceVoicePresenceChannel[]> {
     return this.http.get<WorkspaceVoicePresenceChannel[]>(`${API_BASE_URL}/api/servers/${serverId}/voice-presence`, {
       headers: this.buildAuthHeaders(token)

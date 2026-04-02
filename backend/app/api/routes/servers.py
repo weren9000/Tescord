@@ -429,6 +429,39 @@ def add_server_member(
     return _build_server_member_summary(existing_member, user, online_user_ids)
 
 
+@router.delete("/{server_id}/members/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+def remove_server_member(
+    server_id: UUID,
+    user_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Response:
+    server, membership = get_accessible_server(db, server_id, current_user, allow_workspace_auto_join=False)
+    if server.kind == ServerKind.DIRECT:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Нельзя удалять участников из личного чата")
+
+    _ensure_manage_permission(membership, current_user)
+
+    if current_user.id == user_id and not current_user.is_admin:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Нельзя удалить себя из группы этим действием")
+
+    member_to_remove = db.execute(
+        select(ServerMember).where(ServerMember.server_id == server.id, ServerMember.user_id == user_id)
+    ).scalar_one_or_none()
+    if member_to_remove is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Участник группы не найден")
+
+    if member_to_remove.role == MemberRole.OWNER and not current_user.is_admin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Нельзя удалить создателя группы")
+
+    db.delete(member_to_remove)
+    db.commit()
+
+    publish_members_updated_from_sync(server.id, reason="member_removed")
+    publish_servers_changed_from_sync(reason="server_member_removed")
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 @router.get("/{server_id}/voice-presence", response_model=list[VoiceChannelPresenceSummary])
 async def list_server_voice_presence(
     server_id: UUID,

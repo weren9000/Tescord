@@ -321,7 +321,7 @@
                 </button>
               }
               @if (isChatsMode() && activeDirectPeer()) {
-                <button class="secondary-button conversation-head__action" type="button" (click)="openActiveDirectPeerCall()">
+                <button class="secondary-button conversation-head__action conversation-head__action--icon conversation-head__action--call" type="button" aria-label="Позвонить" title="Позвонить" (click)="openActiveDirectPeerCall()">
                   <img src="/assets/Phone_connect.svg" alt="" />
                 </button>
               }
@@ -358,16 +358,8 @@
                     (click)="toggleGroupVoiceParticipantsExpanded()"
                   >
                     <div class="group-voice-card__copy">
-                      <p class="eyebrow">Голосовой чат</p>
                       <strong>{{ groupVoiceChannel.name }}</strong>
-                      <small>
-                        @if (connectedVoiceChannelId() === groupVoiceChannel.id) {
-                          Вы в канале
-                        } @else {
-                          Можно войти в любой момент
-                        }
-                        · участников: {{ activeGroupVoiceParticipants().length }}
-                      </small>
+                      <small>Участников: {{ activeGroupVoiceParticipants().length }}</small>
                     </div>
                   </button>
                   <button class="secondary-button group-voice-card__action" type="button" (click)="toggleActiveGroupVoice()">
@@ -1714,7 +1706,7 @@
 
 @if (groupMembersModalOpen()) {
   <div class="modal-backdrop" (click)="closeGroupMembersPanel()">
-    <section class="modal modal--wide modal--conversation-create" (click)="$event.stopPropagation()">
+    <section class="modal modal--wide modal--conversation-create modal--group-members" (click)="$event.stopPropagation()">
       <div class="modal__header">
         <div>
           <p class="eyebrow">Группа</p>
@@ -1726,20 +1718,34 @@
       <div class="modal__body conversation-create">
         <div class="conversation-picker-list">
           @for (member of groupMembers(); track member.userId) {
-            <button class="conversation-picker-row" type="button" (click)="openGroupMemberFromPanel(member)">
-              <span class="conversation-picker-row__avatar">
-                @if (userAvatarUrl(member.userId, member.avatarUpdatedAt); as avatarUrl) {
-                  <img [src]="avatarUrl" [alt]="displayNick(member.nick)" loading="lazy" />
-                } @else {
-                  <span>{{ displayNickInitials(member.nick) }}</span>
-                }
-              </span>
-              <span class="conversation-picker-row__copy">
-                <strong>{{ displayNick(member.nick) }}</strong>
-                <small>ID: {{ formatPublicUserId(member.publicId) }}</small>
-                <small>{{ member.isOnline ? 'онлайн' : 'офлайн' }}</small>
-              </span>
-            </button>
+            <div class="conversation-picker-row conversation-picker-row--member-manage">
+              <button class="conversation-picker-row__main" type="button" (click)="openGroupMemberFromPanel(member)">
+                <span class="conversation-picker-row__avatar">
+                  @if (userAvatarUrl(member.userId, member.avatarUpdatedAt); as avatarUrl) {
+                    <img [src]="avatarUrl" [alt]="displayNick(member.nick)" loading="lazy" />
+                  } @else {
+                    <span>{{ displayNickInitials(member.nick) }}</span>
+                  }
+                </span>
+                <span class="conversation-picker-row__copy">
+                  <strong>{{ displayNick(member.nick) }}</strong>
+                  <small>ID: {{ formatPublicUserId(member.publicId) }}</small>
+                  <small>{{ member.isOnline ? 'онлайн' : 'офлайн' }}</small>
+                </span>
+              </button>
+              @if (canRemoveGroupMember(member)) {
+                <button
+                  class="conversation-picker-row__remove"
+                  type="button"
+                  [disabled]="isRemovingGroupMember(member.userId)"
+                  title="Удалить из группы"
+                  aria-label="Удалить из группы"
+                  (click)="removeGroupMember(member)"
+                >
+                  ×
+                </button>
+              }
+            </div>
           } @empty {
             <div class="rail-empty">В группе пока нет участников</div>
           }
