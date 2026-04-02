@@ -104,6 +104,11 @@ class MessageAttachmentSummary(BaseModel):
     created_at: datetime
 
 
+class AttachmentDownloadLinkResponse(BaseModel):
+    url: str
+    expires_at: datetime
+
+
 class MessageReactionSummary(BaseModel):
     code: str
     count: int

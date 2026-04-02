@@ -59,6 +59,22 @@ def create_access_token(subject: str, secret_key: str, expires_in_minutes: int) 
     return f"{header_segment}.{payload_segment}.{_b64url_encode(signature)}"
 
 
+def create_signed_token(payload: dict[str, Any], secret_key: str, expires_in_seconds: int) -> str:
+    header = {"alg": "HS256", "typ": "SIGNED"}
+    now = int(time.time())
+    token_payload = {
+        **payload,
+        "iat": now,
+        "exp": now + expires_in_seconds,
+    }
+
+    header_segment = _b64url_encode(json.dumps(header, separators=(",", ":")).encode("utf-8"))
+    payload_segment = _b64url_encode(json.dumps(token_payload, separators=(",", ":")).encode("utf-8"))
+    signing_input = f"{header_segment}.{payload_segment}".encode("ascii")
+    signature = hmac.new(secret_key.encode("utf-8"), signing_input, hashlib.sha256).digest()
+    return f"{header_segment}.{payload_segment}.{_b64url_encode(signature)}"
+
+
 def decode_access_token(token: str, secret_key: str) -> dict[str, Any]:
     try:
         header_segment, payload_segment, signature_segment = token.split(".", maxsplit=2)
@@ -76,5 +92,26 @@ def decode_access_token(token: str, secret_key: str) -> dict[str, Any]:
 
     if not isinstance(expires_at, int) or expires_at < int(time.time()):
         raise TokenError("Access token has expired")
+
+    return payload
+
+
+def decode_signed_token(token: str, secret_key: str) -> dict[str, Any]:
+    try:
+        header_segment, payload_segment, signature_segment = token.split(".", maxsplit=2)
+    except ValueError as exc:
+        raise TokenError("Malformed signed token") from exc
+
+    signing_input = f"{header_segment}.{payload_segment}".encode("ascii")
+    expected_signature = hmac.new(secret_key.encode("utf-8"), signing_input, hashlib.sha256).digest()
+
+    if not hmac.compare_digest(expected_signature, _b64url_decode(signature_segment)):
+        raise TokenError("Invalid signed token signature")
+
+    payload = json.loads(_b64url_decode(payload_segment).decode("utf-8"))
+    expires_at = payload.get("exp")
+
+    if not isinstance(expires_at, int) or expires_at < int(time.time()):
+        raise TokenError("Signed token has expired")
 
     return payload

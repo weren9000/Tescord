@@ -535,6 +535,7 @@ export class AppComponent {
   readonly messagesLoadingMore = signal(false);
   readonly messageSubmitting = signal(false);
   readonly messageUploadProgress = signal<MessageUploadProgressState | null>(null);
+  readonly downloadingAttachmentIds = signal<string[]>([]);
   readonly createConversationLoading = signal(false);
   readonly createGroupLoading = signal(false);
   readonly createChannelLoading = signal(false);
@@ -1779,18 +1780,23 @@ export class AppComponent {
     this.downloadAttachmentTrigger$
       .pipe(
         exhaustMap(({ token, attachment }) =>
-          this.workspaceApi.downloadAttachment(token, attachment.id).pipe(
-            tap((blob) => {
-              const objectUrl = URL.createObjectURL(blob);
+          this.workspaceApi.createAttachmentDownloadLink(token, attachment.id).pipe(
+            tap(({ url }) => {
               const anchor = document.createElement('a');
-              anchor.href = objectUrl;
+              anchor.href = this.resolveApiUrl(url);
               anchor.download = attachment.filename;
+              anchor.rel = 'noopener';
+              anchor.style.display = 'none';
+              document.body.appendChild(anchor);
               anchor.click();
-              window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+              anchor.remove();
             }),
             catchError((error) => {
               this.messageError.set(this.extractErrorMessage(error, 'Не удалось скачать файл'));
               return EMPTY;
+            }),
+            finalize(() => {
+              this.downloadingAttachmentIds.update((ids) => ids.filter((id) => id !== attachment.id));
             })
           )
         ),
@@ -3130,11 +3136,16 @@ export class AppComponent {
 
   downloadAttachment(attachment: WorkspaceMessageAttachment): void {
     const token = this.session()?.access_token;
-    if (!token) {
+    if (!token || this.isAttachmentDownloading(attachment)) {
       return;
     }
 
+    this.downloadingAttachmentIds.update((ids) => (ids.includes(attachment.id) ? ids : [...ids, attachment.id]));
     this.downloadAttachmentTrigger$.next({ token, attachment });
+  }
+
+  isAttachmentDownloading(attachment: WorkspaceMessageAttachment): boolean {
+    return this.downloadingAttachmentIds().includes(attachment.id);
   }
 
   async joinActiveVoiceChannel(): Promise<void> {
@@ -6019,6 +6030,14 @@ export class AppComponent {
     }
 
     return `${sizeBytes} Б`;
+  }
+
+  private resolveApiUrl(path: string): string {
+    if (/^https?:\/\//i.test(path)) {
+      return path;
+    }
+
+    return new URL(path, API_BASE_URL).toString();
   }
 
   private toRangeValue(value: number | string): number {

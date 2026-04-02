@@ -2133,9 +2133,9 @@ select {
 
 .attachment-chip {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 3px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   min-width: 0;
   padding: 7px 8px;
   border-radius: 10px;
@@ -2143,12 +2143,39 @@ select {
   background: rgba(255, 255, 255, 0.045);
   color: var(--text);
   text-align: left;
-  cursor: pointer;
   max-width: 220px;
 }
 
+.attachment-chip__body,
+.attachment-chip__copy {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+}
+
+.attachment-chip__body {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.attachment-chip__body:disabled {
+  cursor: default;
+  opacity: 0.72;
+}
+
 .attachment-chip strong,
-.attachment-chip small {
+.attachment-chip small,
+.attachment-chip__body strong,
+.attachment-chip__body small,
+.attachment-chip__copy strong,
+.attachment-chip__copy small {
   display: block;
   max-width: 100%;
   overflow: hidden;
@@ -2156,7 +2183,9 @@ select {
   white-space: nowrap;
 }
 
-.attachment-chip small {
+.attachment-chip small,
+.attachment-chip__body small,
+.attachment-chip__copy small {
   color: var(--muted);
   font-size: 0.68rem;
 }
@@ -2172,6 +2201,12 @@ select {
   background: rgba(255, 255, 255, 0.045);
   color: var(--text);
   text-align: left;
+}
+
+.attachment-preview__media {
+  padding: 0;
+  border: 0;
+  background: transparent;
   cursor: pointer;
 }
 
@@ -2184,8 +2219,17 @@ select {
   background: rgba(255, 255, 255, 0.02);
 }
 
+.attachment-preview__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .attachment-preview span {
   display: block;
+  min-width: 0;
+  flex: 1;
   color: var(--muted);
   font-size: 0.72rem;
   white-space: nowrap;
@@ -2202,6 +2246,12 @@ select {
   border-radius: 12px;
   border: 0;
   background: rgba(255, 255, 255, 0.045);
+}
+
+.audio-attachment__content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .audio-attachment__meta {
@@ -2225,6 +2275,41 @@ select {
 .audio-attachment audio {
   width: 100%;
   height: 28px;
+  min-width: 0;
+  flex: 1;
+}
+
+.attachment-download {
+  width: 30px;
+  height: 30px;
+  min-width: 30px;
+  flex: 0 0 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  cursor: pointer;
+  transition: background 160ms ease, transform 160ms ease, opacity 160ms ease;
+}
+
+.attachment-download:hover:not(:disabled) {
+  background: rgba(157, 253, 56, 0.16);
+  transform: translateY(-1px);
+}
+
+.attachment-download:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.attachment-download img {
+  width: 18px;
+  height: 18px;
+  display: block;
 }
 
 .message-reactions {

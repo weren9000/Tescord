@@ -20,6 +20,7 @@ import {
   VoiceJoinRequestCreateResponse,
   VoiceJoinRequestSummary,
   WorkspaceChannel,
+  WorkspaceAttachmentDownloadLink,
   WorkspaceMessage,
   WorkspaceChannelReadState,
   WorkspaceMessageReactionCode,
@@ -352,6 +353,16 @@ export class WorkspaceApiService {
   ): Observable<WorkspaceMessageReactionsSnapshot> {
     return this.http.delete<WorkspaceMessageReactionsSnapshot>(
       `${API_BASE_URL}/api/messages/${messageId}/reactions/${reactionCode}`,
+      {
+        headers: this.buildAuthHeaders(token)
+      }
+    );
+  }
+
+  createAttachmentDownloadLink(token: string, attachmentId: string): Observable<WorkspaceAttachmentDownloadLink> {
+    return this.http.post<WorkspaceAttachmentDownloadLink>(
+      `${API_BASE_URL}/api/attachments/${attachmentId}/download-link`,
+      null,
       {
         headers: this.buildAuthHeaders(token)
       }

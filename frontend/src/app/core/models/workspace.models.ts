@@ -95,6 +95,11 @@ export interface WorkspaceMessageAttachment {
   created_at: string;
 }
 
+export interface WorkspaceAttachmentDownloadLink {
+  url: string;
+  expires_at: string;
+}
+
 export type WorkspaceMessageReactionCode =
   | 'heart'
   | 'like'

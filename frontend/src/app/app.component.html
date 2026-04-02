@@ -448,21 +448,47 @@
                               @for (attachment of message.attachments; track attachment.id) {
                                 @if (isInlineImageAttachment(attachment)) {
                                   @if (imagePreviewUrl(attachment); as previewUrl) {
-                                    <button
-                                      class="attachment-preview"
-                                      type="button"
-                                      (click)="openImageAttachment(attachment)"
-                                    >
-                                      <img [src]="previewUrl" [alt]="attachment.filename" loading="lazy" />
-                                      <span>{{ attachment.filename }}</span>
-                                    </button>
+                                    <div class="attachment-preview">
+                                      <button
+                                        class="attachment-preview__media"
+                                        type="button"
+                                        (click)="openImageAttachment(attachment)"
+                                      >
+                                        <img [src]="previewUrl" [alt]="attachment.filename" loading="lazy" />
+                                      </button>
+                                      <div class="attachment-preview__footer">
+                                        <span>{{ attachment.filename }}</span>
+                                        <button
+                                          class="attachment-download"
+                                          type="button"
+                                          [disabled]="isAttachmentDownloading(attachment)"
+                                          title="Скачать файл"
+                                          aria-label="Скачать файл"
+                                          (click)="downloadAttachment(attachment)"
+                                        >
+                                          <img src="/assets/Download_circle.svg" alt="" />
+                                        </button>
+                                      </div>
+                                    </div>
                                   } @else {
-                                    <button class="attachment-chip" type="button" [disabled]="isAttachmentPreviewLoading(attachment)" (click)="openImageAttachment(attachment)">
-                                      <strong>{{ attachment.filename }}</strong>
-                                      <small>
-                                        {{ isAttachmentPreviewLoading(attachment) ? 'Загрузка изображения...' : 'Открыть · ' + formatFileSize(attachment.size_bytes) }}
-                                      </small>
-                                    </button>
+                                    <div class="attachment-chip attachment-chip--file">
+                                      <button class="attachment-chip__body" type="button" [disabled]="isAttachmentPreviewLoading(attachment)" (click)="openImageAttachment(attachment)">
+                                        <strong>{{ attachment.filename }}</strong>
+                                        <small>
+                                          {{ isAttachmentPreviewLoading(attachment) ? 'Загрузка изображения...' : 'Открыть · ' + formatFileSize(attachment.size_bytes) }}
+                                        </small>
+                                      </button>
+                                      <button
+                                        class="attachment-download"
+                                        type="button"
+                                        [disabled]="isAttachmentDownloading(attachment)"
+                                        title="Скачать файл"
+                                        aria-label="Скачать файл"
+                                        (click)="downloadAttachment(attachment)"
+                                      >
+                                        <img src="/assets/Download_circle.svg" alt="" />
+                                      </button>
+                                    </div>
                                   }
                                 } @else if (isInlineAudioAttachment(attachment)) {
                                   @if (audioPreviewUrl(attachment); as audioUrl) {
@@ -471,21 +497,57 @@
                                         <strong>{{ attachment.filename }}</strong>
                                         <small>{{ formatFileSize(attachment.size_bytes) }}</small>
                                       </div>
-                                      <audio [src]="audioUrl" controls preload="none"></audio>
+                                      <div class="audio-attachment__content">
+                                        <audio [src]="audioUrl" controls preload="none"></audio>
+                                        <button
+                                          class="attachment-download"
+                                          type="button"
+                                          [disabled]="isAttachmentDownloading(attachment)"
+                                          title="Скачать файл"
+                                          aria-label="Скачать файл"
+                                          (click)="downloadAttachment(attachment)"
+                                        >
+                                          <img src="/assets/Download_circle.svg" alt="" />
+                                        </button>
+                                      </div>
                                     </div>
                                   } @else {
-                                    <button class="attachment-chip" type="button" [disabled]="isAttachmentPreviewLoading(attachment)" (click)="loadAudioAttachment(attachment)">
-                                      <strong>{{ attachment.filename }}</strong>
-                                      <small>
-                                        {{ isAttachmentPreviewLoading(attachment) ? 'Загрузка аудио...' : 'Прослушать · ' + formatFileSize(attachment.size_bytes) }}
-                                      </small>
-                                    </button>
+                                    <div class="attachment-chip attachment-chip--file">
+                                      <button class="attachment-chip__body" type="button" [disabled]="isAttachmentPreviewLoading(attachment)" (click)="loadAudioAttachment(attachment)">
+                                        <strong>{{ attachment.filename }}</strong>
+                                        <small>
+                                          {{ isAttachmentPreviewLoading(attachment) ? 'Загрузка аудио...' : 'Прослушать · ' + formatFileSize(attachment.size_bytes) }}
+                                        </small>
+                                      </button>
+                                      <button
+                                        class="attachment-download"
+                                        type="button"
+                                        [disabled]="isAttachmentDownloading(attachment)"
+                                        title="Скачать файл"
+                                        aria-label="Скачать файл"
+                                        (click)="downloadAttachment(attachment)"
+                                      >
+                                        <img src="/assets/Download_circle.svg" alt="" />
+                                      </button>
+                                    </div>
                                   }
                                 } @else {
-                                  <button class="attachment-chip" type="button" (click)="downloadAttachment(attachment)">
-                                    <strong>{{ attachment.filename }}</strong>
-                                    <small>{{ formatFileSize(attachment.size_bytes) }}</small>
-                                  </button>
+                                  <div class="attachment-chip attachment-chip--file">
+                                    <div class="attachment-chip__copy">
+                                      <strong>{{ attachment.filename }}</strong>
+                                      <small>{{ formatFileSize(attachment.size_bytes) }}</small>
+                                    </div>
+                                    <button
+                                      class="attachment-download"
+                                      type="button"
+                                      [disabled]="isAttachmentDownloading(attachment)"
+                                      title="Скачать файл"
+                                      aria-label="Скачать файл"
+                                      (click)="downloadAttachment(attachment)"
+                                    >
+                                      <img src="/assets/Download_circle.svg" alt="" />
+                                    </button>
+                                  </div>
                                 }
                               }
                             </div>
