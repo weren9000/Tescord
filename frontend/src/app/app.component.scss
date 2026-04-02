@@ -4504,6 +4504,14 @@ select {
 
 .app-header__menu {
   padding: 6px 8px;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+.app-header__menu:hover:not(:disabled) {
+  border: none;
+  background: transparent;
 }
 
 .app-header__menu-art {
@@ -4795,6 +4803,10 @@ select {
   min-width: 38px;
   width: 38px;
   min-height: 38px;
+}
+
+.conversation-head__action--push-right {
+  margin-left: auto;
 }
 
 .floating-menu-backdrop {

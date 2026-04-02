@@ -348,11 +348,6 @@
                   <img src="/assets/Uploaded_sheet_files.svg" alt="" />
                 </button>
               }
-              @if (isChatsMode() && activeDirectPeer()) {
-                <button class="secondary-button conversation-head__action conversation-head__action--icon conversation-head__action--call" type="button" aria-label="Позвонить" title="Позвонить" (click)="openActiveDirectPeerCall()">
-                  <img src="/assets/Phone_connect.svg" alt="" />
-                </button>
-              }
               @if (isGroupsMode()) {
                 <button class="secondary-button conversation-head__action conversation-head__action--icon" type="button" aria-label="Пользователи" title="Пользователи" (click)="openGroupMembersPanel()">
                   <img src="/assets/Group_fill.svg" alt="" />
@@ -366,6 +361,11 @@
               @if (activeDirectPeer() || activeGroupConversation()) {
                 <button class="secondary-button conversation-head__action conversation-head__action--icon" type="button" aria-label="Управление" title="Управление" (click)="toggleConversationActionMenu()">
                   <img src="/assets/Trash.svg" alt="" />
+                </button>
+              }
+              @if (isChatsMode() && activeDirectPeer()) {
+                <button class="secondary-button conversation-head__action conversation-head__action--icon conversation-head__action--call conversation-head__action--push-right" type="button" aria-label="Позвонить" title="Позвонить" (click)="openActiveDirectPeerCall()">
+                  <img src="/assets/Phone_connect.svg" alt="" />
                 </button>
               }
               @if (conversationActionMenuOpen()) {
