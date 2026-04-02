@@ -123,12 +123,11 @@
     <header class="app-header">
       <div class="app-header__start">
         <button class="icon-button app-header__menu" type="button" aria-label="Открыть меню" title="Открыть меню" (click)="toggleSideMenu()">
-          ☰
+          <img class="app-header__menu-art" src="/assets/burger_menu.png" alt="" />
         </button>
         <button class="secondary-button app-header__sidebar-toggle" type="button" aria-label="Открыть список" title="Открыть список" (click)="toggleMobilePanel('servers')">
           <span>{{ activeSpaceListTitle() }}</span>
         </button>
-        <img class="app-header__logo" src="/assets/Label_Frog.png" alt="KVA Chat" />
       </div>
 
       <div class="app-header__actions">
@@ -190,6 +189,14 @@
           <button class="side-drawer__action" type="button" (click)="openAddUserShortcut()">
             <span>+</span>
             <span>Добавить друга</span>
+          </button>
+          <button class="side-drawer__action" type="button" (click)="openBlockedFriendsModal()">
+            <span>⛔</span>
+            <span>Заблокированные пользователи</span>
+          </button>
+          <button class="side-drawer__action" type="button" (click)="openBlockedServersModal()">
+            <span>⛔</span>
+            <span>Заблокированные группы</span>
           </button>
           @if (isAdmin()) {
             <button class="side-drawer__action" type="button" (click)="closeSideMenu(); openVoiceAdminPanel()">
@@ -302,6 +309,14 @@
         }
 
         @if (activeServer()) {
+          @if (conversationActionMenuOpen()) {
+            <button
+              class="floating-menu-backdrop"
+              type="button"
+              aria-label="Закрыть меню действий"
+              (click)="closeConversationActionMenu()"
+            ></button>
+          }
           <section class="conversation-head">
             <div class="conversation-head__identity">
               <button
@@ -347,6 +362,34 @@
                 <button class="secondary-button conversation-head__action conversation-head__action--icon" type="button" aria-label="Добавить участника" title="Добавить участника" (click)="openAddGroupMemberModal()">
                   <img src="/assets/User_fill_add.svg" alt="" />
                 </button>
+              }
+              @if (activeDirectPeer() || activeGroupConversation()) {
+                <button class="secondary-button conversation-head__action conversation-head__action--icon" type="button" aria-label="Управление" title="Управление" (click)="toggleConversationActionMenu()">
+                  <img src="/assets/Trash.svg" alt="" />
+                </button>
+              }
+              @if (conversationActionMenuOpen()) {
+                <div class="conversation-action-menu">
+                  @if (isChatsMode() && activeDirectPeer(); as directPeer) {
+                    <button class="conversation-action-menu__item conversation-action-menu__item--danger" type="button" [disabled]="isFriendManagementPending(directPeer.user_id)" (click)="removeActiveFriend()">
+                      Убрать из друзей
+                    </button>
+                    <button class="conversation-action-menu__item conversation-action-menu__item--danger" type="button" [disabled]="isFriendManagementPending(directPeer.user_id)" (click)="blockActiveFriend()">
+                      Заблокировать
+                    </button>
+                  }
+                  @if (isGroupsMode() && activeGroupConversation(); as groupConversation) {
+                    <button class="conversation-action-menu__item" type="button" [disabled]="isServerMembershipActionPending(groupConversation.id)" (click)="leaveActiveGroup()">
+                      Выйти из группы
+                    </button>
+                    <button class="conversation-action-menu__item conversation-action-menu__item--danger" type="button" [disabled]="isServerMembershipActionPending(groupConversation.id)" (click)="blockActiveGroup()">
+                      Заблокировать группу
+                    </button>
+                  }
+                  <button class="conversation-action-menu__item" type="button" (click)="closeConversationActionMenu()">
+                    Отмена
+                  </button>
+                </div>
               }
             </div>
 
@@ -1060,6 +1103,192 @@
 
       <div class="modal__actions">
         <button class="secondary-button" type="button" (click)="closeFriendRequestsModal()">Закрыть</button>
+      </div>
+    </section>
+  </div>
+}
+
+@if (blockedFriendsModalOpen()) {
+  <div class="modal-backdrop" (click)="closeBlockedFriendsModal()">
+    <section class="modal modal--compact modal--friend-requests" (click)="$event.stopPropagation()">
+      <div class="modal__header">
+        <div>
+          <p class="eyebrow">Безопасность</p>
+          <h3>Заблокированные пользователи</h3>
+        </div>
+        <button class="icon-button" type="button" (click)="closeBlockedFriendsModal()">×</button>
+      </div>
+
+      <div class="modal__body">
+        @if (blockedFriendsError()) {
+          <p class="modal-note modal-note--error">{{ blockedFriendsError() }}</p>
+        }
+
+        @if (blockedFriendsLoading()) {
+          <p class="modal-note">Загружаем список...</p>
+        } @else if (blockedFriends().length) {
+          <div class="friend-request-list">
+            @for (blockedUser of blockedFriends(); track blockedUser.user_id) {
+              <div class="friend-request-row">
+                <div class="friend-request-row__avatar">
+                  @if (userAvatarUrl(blockedUser.user_id, blockedUser.avatar_updated_at); as avatarUrl) {
+                    <img [src]="avatarUrl" [alt]="displayNick(blockedUser.nick)" loading="lazy" />
+                  } @else {
+                    <span>{{ displayNickInitials(blockedUser.nick) }}</span>
+                  }
+                </div>
+                <div class="friend-request-row__copy">
+                  <strong>{{ displayNick(blockedUser.nick) }}</strong>
+                  <small>ID: {{ formatPublicUserId(blockedUser.public_id) }}</small>
+                  <small>Блок: {{ formatMessageTime(blockedUser.blocked_at) }}</small>
+                </div>
+                <div class="friend-request-row__actions">
+                  <button
+                    class="primary-button"
+                    type="button"
+                    [disabled]="isFriendManagementPending(blockedUser.user_id)"
+                    (click)="unblockFriend(blockedUser.user_id)"
+                  >
+                    {{ isFriendManagementPending(blockedUser.user_id) ? 'Снимаем...' : 'Разблокировать' }}
+                  </button>
+                </div>
+              </div>
+            }
+          </div>
+        } @else {
+          <p class="modal-note">Заблокированных пользователей пока нет.</p>
+        }
+      </div>
+
+      <div class="modal__actions">
+        <button class="secondary-button" type="button" (click)="closeBlockedFriendsModal()">Закрыть</button>
+      </div>
+    </section>
+  </div>
+}
+
+@if (blockedServersModalOpen()) {
+  <div class="modal-backdrop" (click)="closeBlockedServersModal()">
+    <section class="modal modal--compact modal--friend-requests" (click)="$event.stopPropagation()">
+      <div class="modal__header">
+        <div>
+          <p class="eyebrow">Безопасность</p>
+          <h3>Заблокированные группы</h3>
+        </div>
+        <button class="icon-button" type="button" (click)="closeBlockedServersModal()">×</button>
+      </div>
+
+      <div class="modal__body">
+        @if (blockedServersError()) {
+          <p class="modal-note modal-note--error">{{ blockedServersError() }}</p>
+        }
+
+        @if (blockedServersLoading()) {
+          <p class="modal-note">Загружаем список...</p>
+        } @else if (blockedServers().length) {
+          <div class="friend-request-list">
+            @for (blockedServer of blockedServers(); track blockedServer.server_id) {
+              <div class="friend-request-row">
+                <div class="friend-request-row__avatar friend-request-row__avatar--group">
+                  @if (resolveSpaceIconUrl(blockedServer.server_id, blockedServer.icon_asset, blockedServer.icon_updated_at); as iconUrl) {
+                    <img [src]="iconUrl" [alt]="blockedServer.name" loading="lazy" />
+                  } @else {
+                    <span>{{ displayNickInitials(blockedServer.name) }}</span>
+                  }
+                </div>
+                <div class="friend-request-row__copy">
+                  <strong>{{ blockedServer.name }}</strong>
+                  <small>Блок: {{ formatMessageTime(blockedServer.blocked_at) }}</small>
+                </div>
+                <div class="friend-request-row__actions">
+                  <button
+                    class="primary-button"
+                    type="button"
+                    [disabled]="isServerMembershipActionPending(blockedServer.server_id)"
+                    (click)="unblockServer(blockedServer.server_id)"
+                  >
+                    {{ isServerMembershipActionPending(blockedServer.server_id) ? 'Снимаем...' : 'Разблокировать' }}
+                  </button>
+                </div>
+              </div>
+            }
+          </div>
+        } @else {
+          <p class="modal-note">Заблокированных групп пока нет.</p>
+        }
+      </div>
+
+      <div class="modal__actions">
+        <button class="secondary-button" type="button" (click)="closeBlockedServersModal()">Закрыть</button>
+      </div>
+    </section>
+  </div>
+}
+
+@if (groupOwnershipModalOpen()) {
+  <div class="modal-backdrop" (click)="closeGroupOwnershipModal()">
+    <section class="modal modal--wide modal--conversation-create" (click)="$event.stopPropagation()">
+      <div class="modal__header">
+        <div>
+          <p class="eyebrow">Управление группой</p>
+          <h3>{{ activeServer()?.name ?? 'Текущая группа' }}</h3>
+        </div>
+        <button class="icon-button" type="button" (click)="closeGroupOwnershipModal()">×</button>
+      </div>
+
+      <div class="modal__body">
+        <p class="modal-note">
+          Перед уходом из группы нужно передать ее другому участнику или закрыть навсегда.
+        </p>
+
+        @if (groupOwnershipCandidates().length) {
+          <div class="conversation-picker-list">
+            @for (member of groupOwnershipCandidates(); track member.userId) {
+              <button
+                class="conversation-picker-row"
+                [class.conversation-picker-row--active]="groupOwnershipTransferUserId() === member.userId"
+                type="button"
+                (click)="groupOwnershipTransferUserId.set(member.userId)"
+              >
+                <span class="conversation-picker-row__avatar">
+                  @if (userAvatarUrl(member.userId, member.avatarUpdatedAt); as avatarUrl) {
+                    <img [src]="avatarUrl" [alt]="displayNick(member.nick)" loading="lazy" />
+                  } @else {
+                    <span>{{ displayNickInitials(member.nick) }}</span>
+                  }
+                </span>
+                <span class="conversation-picker-row__copy">
+                  <strong>{{ displayNick(member.nick) }}</strong>
+                  <small>ID: {{ formatPublicUserId(member.publicId) }} · {{ member.roleLabel }}</small>
+                </span>
+              </button>
+            }
+          </div>
+        } @else {
+          <p class="modal-note">Передать группу некому. Ее можно только закрыть навсегда.</p>
+        }
+      </div>
+
+      <div class="modal__actions modal__actions--spread">
+        <button
+          class="secondary-button secondary-button--danger"
+          type="button"
+          [disabled]="isActiveGroupActionPending()"
+          (click)="closeGroupForever()"
+        >
+          Закрыть группу навсегда
+        </button>
+        <div class="modal__actions-inline">
+          <button class="secondary-button" type="button" (click)="closeGroupOwnershipModal()">Отмена</button>
+          <button
+            class="primary-button"
+            type="button"
+            [disabled]="!groupOwnershipTransferUserId() || isActiveGroupActionPending()"
+            (click)="submitGroupOwnershipTransfer()"
+          >
+            Передать группу
+          </button>
+        </div>
       </div>
     </section>
   </div>

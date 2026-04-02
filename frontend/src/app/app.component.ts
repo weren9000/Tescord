@@ -16,6 +16,7 @@ import {
   CreateGroupConversationRequest,
 } from './core/models/conversation.models';
 import {
+  BlockedFriendSummary,
   CreateFriendRequestRequest,
   FriendRequestSummary,
 } from './core/models/friend.models';
@@ -37,8 +38,10 @@ import { AuthLoginRequest, AuthRegisterRequest, AuthSessionResponse } from './co
 import { ApiHealthResponse } from './core/models/system.models';
 import {
   AddWorkspaceMemberRequest,
+  BlockedServerSummary,
   CreateWorkspaceChannelRequest,
   CurrentUserResponse,
+  LeaveWorkspaceServerRequest,
   VoiceAdminChannel,
   VoiceAdminUser,
   VoiceChannelAccessEntry,
@@ -195,6 +198,13 @@ interface RespondFriendRequestTrigger {
   action: 'accept' | 'reject' | 'block';
 }
 
+interface FriendManagementTrigger {
+  token: string;
+  userId: string;
+  action: 'remove' | 'block' | 'unblock';
+  successMessage: string;
+}
+
 interface CreateChannelTrigger {
   token: string;
   serverId: string;
@@ -210,6 +220,14 @@ interface AddServerMemberTrigger {
   token: string;
   serverId: string;
   payload: AddWorkspaceMemberRequest;
+}
+
+interface ServerMembershipActionTrigger {
+  token: string;
+  serverId: string;
+  action: 'leave' | 'block' | 'unblock';
+  payload?: LeaveWorkspaceServerRequest;
+  successMessage: string;
 }
 
 interface RemoveServerMemberTrigger {
@@ -492,10 +510,12 @@ export class AppComponent {
   private readonly voiceAdminAccessMutation$ = new Subject<VoiceAdminAccessMutation>();
   private readonly sendFriendRequestTrigger$ = new Subject<SendFriendRequestTrigger>();
   private readonly respondFriendRequestTrigger$ = new Subject<RespondFriendRequestTrigger>();
+  private readonly friendManagementTrigger$ = new Subject<FriendManagementTrigger>();
   private readonly openDirectConversationTrigger$ = new Subject<OpenDirectConversationTrigger>();
   private readonly createConversationSubmit$ = new Subject<CreateConversationTrigger>();
   private readonly addServerMemberTrigger$ = new Subject<AddServerMemberTrigger>();
   private readonly removeServerMemberTrigger$ = new Subject<RemoveServerMemberTrigger>();
+  private readonly serverMembershipActionTrigger$ = new Subject<ServerMembershipActionTrigger>();
   private readonly createGroupSubmit$ = new Subject<CreateGroupTrigger>();
   private readonly createChannelSubmit$ = new Subject<CreateChannelTrigger>();
   private readonly deleteChannelTrigger$ = new Subject<DeleteChannelTrigger>();
@@ -589,6 +609,16 @@ export class AppComponent {
   readonly outgoingFriendRequests = signal<FriendRequestSummary[]>([]);
   readonly pendingFriendRequestCount = signal(0);
   readonly friendRequestActionId = signal<string | null>(null);
+  readonly blockedFriendsModalOpen = signal(false);
+  readonly blockedFriendsLoading = signal(false);
+  readonly blockedFriendsError = signal<string | null>(null);
+  readonly blockedFriends = signal<BlockedFriendSummary[]>([]);
+  readonly blockedServersModalOpen = signal(false);
+  readonly blockedServersLoading = signal(false);
+  readonly blockedServersError = signal<string | null>(null);
+  readonly blockedServers = signal<BlockedServerSummary[]>([]);
+  readonly friendManagementPendingUserId = signal<string | null>(null);
+  readonly serverMembershipActionPendingServerId = signal<string | null>(null);
   readonly createConversationLoading = signal(false);
   readonly createGroupLoading = signal(false);
   readonly createChannelLoading = signal(false);
@@ -622,6 +652,10 @@ export class AppComponent {
   readonly groupMembersModalOpen = signal(false);
   readonly groupVoiceParticipantsExpanded = signal(false);
   readonly sideMenuOpen = signal(false);
+  readonly conversationActionMenuOpen = signal(false);
+  readonly pendingGroupOwnershipAction = signal<'leave' | 'block' | null>(null);
+  readonly groupOwnershipModalOpen = signal(false);
+  readonly groupOwnershipTransferUserId = signal('');
   readonly selectedMemberUserId = signal<string | null>(null);
   readonly selectedVoiceMemberChannelId = signal<string | null>(null);
   readonly openedImageAttachmentId = signal<string | null>(null);
@@ -662,6 +696,7 @@ export class AppComponent {
   readonly conversationCreateTab = signal<ConversationCreateTab>('direct');
   readonly createConversationGroupMemberIds = signal<string[]>([]);
   readonly friendRequestBadgeVisible = computed(() => this.pendingFriendRequestCount() > 0);
+  readonly isActiveGroupOwner = computed(() => this.activeGroupConversation()?.member_role === 'owner');
 
   readonly loginForm: LoginFormModel = {
     email: '',
@@ -1221,6 +1256,9 @@ export class AppComponent {
         return left.nick.localeCompare(right.nick, 'ru');
       });
   });
+  readonly groupOwnershipCandidates = computed(() =>
+    this.groupMembers().filter((member) => !member.isSelf)
+  );
   readonly canManageGroupMembers = computed(() => this.canManageActiveGroup());
 
   readonly selectedMember = computed(() => {
@@ -1525,6 +1563,7 @@ export class AppComponent {
     this.bindProfilePipeline();
     this.bindVoiceAdminPipelines();
     this.bindFriendRequestPipelines();
+    this.bindRelationshipManagementPipelines();
     this.bindWorkspaceMutationPipelines();
     this.bindMessagePipelines();
     this.bindVoiceOwnershipPipelines();
@@ -1621,6 +1660,10 @@ export class AppComponent {
               void this.refreshFriendRequests(token);
               if (action === 'accept') {
                 void this.refreshConversationsList(token);
+                void this.loadConversationDirectory(token);
+              }
+              if (action === 'block' && this.blockedFriendsModalOpen()) {
+                void this.refreshBlockedFriends(token);
               }
             }),
             catchError((error) => {
@@ -1629,6 +1672,112 @@ export class AppComponent {
             }),
             finalize(() => {
               this.friendRequestActionId.set(null);
+            })
+          );
+        }),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe();
+  }
+
+  private bindRelationshipManagementPipelines(): void {
+    this.friendManagementTrigger$
+      .pipe(
+        exhaustMap(({ token, userId, action, successMessage }) => {
+          const request$ = action === 'remove'
+            ? this.workspaceApi.removeFriend(token, userId)
+            : action === 'block'
+              ? this.workspaceApi.blockFriend(token, userId)
+              : this.workspaceApi.unblockFriend(token, userId);
+
+          return request$.pipe(
+            tap(() => {
+              this.managementSuccess.set(successMessage);
+              this.managementError.set(null);
+
+              if (action === 'remove' || action === 'block') {
+                const peer = this.activeDirectPeer();
+                if (peer?.user_id === userId) {
+                  void this.directCall.hangUp();
+                  this.closeConversationActionMenu();
+                }
+                if (this.selectedMemberUserId() === userId) {
+                  this.closeMemberVolume();
+                }
+                void this.refreshConversationsList(token);
+                void this.loadConversationDirectory(token);
+              }
+
+              if (this.blockedFriendsModalOpen() || action === 'unblock' || action === 'block') {
+                void this.refreshBlockedFriends(token);
+              }
+            }),
+            catchError((error) => {
+              this.managementError.set(
+                this.extractErrorMessage(
+                  error,
+                  action === 'remove'
+                    ? 'Не удалось удалить пользователя из друзей'
+                    : action === 'block'
+                      ? 'Не удалось заблокировать пользователя'
+                      : 'Не удалось разблокировать пользователя'
+                )
+              );
+              return EMPTY;
+            }),
+            finalize(() => {
+              this.friendManagementPendingUserId.set(null);
+            })
+          );
+        }),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe();
+
+    this.serverMembershipActionTrigger$
+      .pipe(
+        exhaustMap(({ token, serverId, action, payload, successMessage }) => {
+          const request$ = action === 'leave'
+            ? this.workspaceApi.leaveServer(token, serverId, payload ?? {})
+            : action === 'block'
+              ? this.workspaceApi.blockServer(token, serverId, payload ?? {})
+              : this.workspaceApi.unblockServer(token, serverId);
+
+          return request$.pipe(
+            tap(() => {
+              this.managementSuccess.set(successMessage);
+              this.managementError.set(null);
+
+              if (action === 'leave' || action === 'block') {
+                if (this.selectedServerId() === serverId) {
+                  this.closeConversationActionMenu();
+                  this.closeGroupOwnershipModal();
+                  this.closeGroupMembersPanel();
+                  this.closeAddGroupMemberModal();
+                  this.voiceRoom.leave();
+                }
+                void this.refreshConversationsList(token);
+              }
+
+              if (this.blockedServersModalOpen() || action === 'unblock' || action === 'block') {
+                void this.refreshBlockedServers(token);
+              }
+            }),
+            catchError((error) => {
+              this.managementError.set(
+                this.extractErrorMessage(
+                  error,
+                  action === 'leave'
+                    ? 'Не удалось выйти из группы'
+                    : action === 'block'
+                      ? 'Не удалось заблокировать группу'
+                      : 'Не удалось разблокировать группу'
+                )
+              );
+              return EMPTY;
+            }),
+            finalize(() => {
+              this.serverMembershipActionPendingServerId.set(null);
             })
           );
         }),
@@ -2526,6 +2675,182 @@ export class AppComponent {
     return this.friendRequestActionId() === requestId;
   }
 
+  openBlockedFriendsModal(): void {
+    const token = this.session()?.access_token;
+    if (!token) {
+      return;
+    }
+
+    this.closeSideMenu();
+    this.blockedFriendsModalOpen.set(true);
+    this.blockedFriendsLoading.set(true);
+    this.blockedFriendsError.set(null);
+    void this.refreshBlockedFriends(token);
+  }
+
+  closeBlockedFriendsModal(): void {
+    this.blockedFriendsModalOpen.set(false);
+    this.blockedFriendsLoading.set(false);
+    this.blockedFriendsError.set(null);
+  }
+
+  openBlockedServersModal(): void {
+    const token = this.session()?.access_token;
+    if (!token) {
+      return;
+    }
+
+    this.closeSideMenu();
+    this.blockedServersModalOpen.set(true);
+    this.blockedServersLoading.set(true);
+    this.blockedServersError.set(null);
+    void this.refreshBlockedServers(token);
+  }
+
+  closeBlockedServersModal(): void {
+    this.blockedServersModalOpen.set(false);
+    this.blockedServersLoading.set(false);
+    this.blockedServersError.set(null);
+  }
+
+  toggleConversationActionMenu(): void {
+    this.conversationActionMenuOpen.update((opened) => !opened);
+  }
+
+  closeConversationActionMenu(): void {
+    this.conversationActionMenuOpen.set(false);
+  }
+
+  closeGroupOwnershipModal(): void {
+    this.groupOwnershipModalOpen.set(false);
+    this.pendingGroupOwnershipAction.set(null);
+    this.groupOwnershipTransferUserId.set('');
+  }
+
+  isFriendManagementPending(userId: string): boolean {
+    return this.friendManagementPendingUserId() === userId;
+  }
+
+  isServerMembershipActionPending(serverId: string): boolean {
+    return this.serverMembershipActionPendingServerId() === serverId;
+  }
+
+  isActiveGroupActionPending(): boolean {
+    const group = this.activeGroupConversation();
+    return !!group && this.isServerMembershipActionPending(group.id);
+  }
+
+  removeActiveFriend(): void {
+    const token = this.session()?.access_token;
+    const peer = this.activeDirectPeer();
+    if (!token || !peer || this.friendManagementPendingUserId()) {
+      return;
+    }
+
+    this.friendManagementPendingUserId.set(peer.user_id);
+    this.friendManagementTrigger$.next({
+      token,
+      userId: peer.user_id,
+      action: 'remove',
+      successMessage: `Пользователь ${this.displayNick(peer.nick)} удален из друзей`,
+    });
+  }
+
+  blockActiveFriend(): void {
+    const token = this.session()?.access_token;
+    const peer = this.activeDirectPeer();
+    if (!token || !peer || this.friendManagementPendingUserId()) {
+      return;
+    }
+
+    this.friendManagementPendingUserId.set(peer.user_id);
+    this.friendManagementTrigger$.next({
+      token,
+      userId: peer.user_id,
+      action: 'block',
+      successMessage: `Пользователь ${this.displayNick(peer.nick)} заблокирован`,
+    });
+  }
+
+  unblockFriend(userId: string): void {
+    const token = this.session()?.access_token;
+    if (!token || this.friendManagementPendingUserId()) {
+      return;
+    }
+
+    this.friendManagementPendingUserId.set(userId);
+    this.friendManagementTrigger$.next({
+      token,
+      userId,
+      action: 'unblock',
+      successMessage: 'Пользователь разблокирован',
+    });
+  }
+
+  leaveActiveGroup(): void {
+    this.startActiveGroupMembershipAction('leave');
+  }
+
+  blockActiveGroup(): void {
+    this.startActiveGroupMembershipAction('block');
+  }
+
+  unblockServer(serverId: string): void {
+    const token = this.session()?.access_token;
+    if (!token || this.serverMembershipActionPendingServerId()) {
+      return;
+    }
+
+    this.serverMembershipActionPendingServerId.set(serverId);
+    this.serverMembershipActionTrigger$.next({
+      token,
+      serverId,
+      action: 'unblock',
+      successMessage: 'Группа разблокирована',
+    });
+  }
+
+  submitGroupOwnershipTransfer(): void {
+    const token = this.session()?.access_token;
+    const group = this.activeGroupConversation();
+    const action = this.pendingGroupOwnershipAction();
+    const newOwnerUserId = this.groupOwnershipTransferUserId().trim();
+    if (!token || !group || !action || !newOwnerUserId || this.serverMembershipActionPendingServerId()) {
+      return;
+    }
+
+    this.serverMembershipActionPendingServerId.set(group.id);
+    this.serverMembershipActionTrigger$.next({
+      token,
+      serverId: group.id,
+      action,
+      payload: {
+        new_owner_user_id: newOwnerUserId,
+      },
+      successMessage: action === 'block' ? 'Группа передана и заблокирована' : 'Группа передана новому владельцу',
+    });
+  }
+
+  closeGroupForever(): void {
+    const token = this.session()?.access_token;
+    const group = this.activeGroupConversation();
+    const action = this.pendingGroupOwnershipAction();
+    if (!token || !group || !action || this.serverMembershipActionPendingServerId()) {
+      return;
+    }
+
+    this.serverMembershipActionPendingServerId.set(group.id);
+    this.serverMembershipActionTrigger$.next({
+      token,
+      serverId: group.id,
+      action,
+      payload: {
+        close_group: true,
+      },
+      successMessage: 'Группа закрыта навсегда',
+    });
+  }
+
   openAddGroupMemberModal(): void {
     if (!this.session()?.access_token || !this.activeGroupConversation() || !this.canManageActiveGroup()) {
       return;
@@ -2620,6 +2945,8 @@ export class AppComponent {
       return;
     }
 
+    this.closeConversationActionMenu();
+    this.closeGroupOwnershipModal();
     this.workspaceMode.set(mode);
     const spaces = mode === 'groups' ? this.groupConversationSpaces() : this.directConversationSpaces();
 
@@ -2874,6 +3201,31 @@ export class AppComponent {
       presenceLabel: this.formatOnlineStatus(peer.is_online),
       isOnline: peer.is_online,
       voiceParticipant: null
+    });
+  }
+
+  private startActiveGroupMembershipAction(action: 'leave' | 'block'): void {
+    const token = this.session()?.access_token;
+    const group = this.activeGroupConversation();
+    if (!token || !group || this.serverMembershipActionPendingServerId()) {
+      return;
+    }
+
+    this.closeConversationActionMenu();
+    if (this.isActiveGroupOwner()) {
+      this.pendingGroupOwnershipAction.set(action);
+      this.groupOwnershipTransferUserId.set('');
+      this.groupOwnershipModalOpen.set(true);
+      return;
+    }
+
+    this.serverMembershipActionPendingServerId.set(group.id);
+    this.serverMembershipActionTrigger$.next({
+      token,
+      serverId: group.id,
+      action,
+      payload: {},
+      successMessage: action === 'block' ? 'Группа скрыта и заблокирована' : 'Вы вышли из группы',
     });
   }
 
@@ -3680,6 +4032,8 @@ export class AppComponent {
     this.conversationDirectory.set([]);
     this.incomingFriendRequests.set([]);
     this.outgoingFriendRequests.set([]);
+    this.blockedFriends.set([]);
+    this.blockedServers.set([]);
     this.pendingFriendRequestCount.set(0);
     this.channels.set([]);
     this.members.set([]);
@@ -3694,7 +4048,11 @@ export class AppComponent {
     this.createGroupModalOpen.set(false);
     this.createChannelModalOpen.set(false);
     this.friendRequestsModalOpen.set(false);
+    this.blockedFriendsModalOpen.set(false);
+    this.blockedServersModalOpen.set(false);
     this.groupMembersModalOpen.set(false);
+    this.groupOwnershipModalOpen.set(false);
+    this.conversationActionMenuOpen.set(false);
     this.selectedMemberUserId.set(null);
     this.selectedVoiceMemberChannelId.set(null);
     this.mobilePanel.set(null);
@@ -4852,6 +5210,38 @@ export class AppComponent {
       });
   }
 
+  private async refreshBlockedFriends(token: string): Promise<void> {
+    this.workspaceApi
+      .getBlockedFriends(token)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (blockedFriends) => {
+          this.blockedFriends.set(blockedFriends);
+          this.blockedFriendsLoading.set(false);
+        },
+        error: (error) => {
+          this.blockedFriendsLoading.set(false);
+          this.blockedFriendsError.set(this.extractErrorMessage(error, 'Не удалось загрузить заблокированных пользователей'));
+        }
+      });
+  }
+
+  private async refreshBlockedServers(token: string): Promise<void> {
+    this.workspaceApi
+      .getBlockedServers(token)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (blockedServers) => {
+          this.blockedServers.set(blockedServers);
+          this.blockedServersLoading.set(false);
+        },
+        error: (error) => {
+          this.blockedServersLoading.set(false);
+          this.blockedServersError.set(this.extractErrorMessage(error, 'Не удалось загрузить заблокированные группы'));
+        }
+      });
+  }
+
   private async loadConversationDirectory(token: string): Promise<void> {
     this.workspaceApi
       .getConversationDirectory(token)
@@ -5131,6 +5521,8 @@ export class AppComponent {
     this.selectedServerId.set(serverId);
     this.appEvents.setActiveServer(serverId);
     this.selectedChannelId.set(null);
+    this.closeConversationActionMenu();
+    this.closeGroupOwnershipModal();
     this.groupMembersModalOpen.set(false);
     this.groupVoiceParticipantsExpanded.set(false);
     this.closeChatFilesModal();
@@ -6168,7 +6560,7 @@ export class AppComponent {
     return conversation.icon_asset ? this.buildServerIconAssetUrl(conversation.icon_asset) : null;
   }
 
-  private resolveSpaceIconUrl(
+  resolveSpaceIconUrl(
     spaceId: string,
     iconAsset: string | null,
     iconUpdatedAt: string | null | undefined = null,

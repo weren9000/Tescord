@@ -56,6 +56,14 @@ export interface WorkspaceVoicePresenceChannel {
   participants: WorkspaceVoicePresenceParticipant[];
 }
 
+export interface BlockedServerSummary {
+  server_id: string;
+  name: string;
+  icon_asset: string | null;
+  icon_updated_at: string | null;
+  blocked_at: string;
+}
+
 export interface CreateWorkspaceServerRequest {
   name: string;
   description: string | null;
@@ -64,6 +72,12 @@ export interface CreateWorkspaceServerRequest {
 export interface AddWorkspaceMemberRequest {
   user_id?: string | null;
   user_public_id?: number | null;
+}
+
+export interface LeaveWorkspaceServerRequest {
+  new_owner_user_id?: string | null;
+  close_group?: boolean;
+  block_after_leave?: boolean;
 }
 
 export interface CreateWorkspaceChannelRequest {

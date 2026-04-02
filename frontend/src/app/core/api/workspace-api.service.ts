@@ -10,15 +10,18 @@ import {
   CreateGroupConversationRequest,
 } from '../models/conversation.models';
 import {
+  BlockedFriendSummary,
   CreateFriendRequestRequest,
   FriendRequestsOverview,
   FriendRequestSummary,
 } from '../models/friend.models';
 import {
   AddWorkspaceMemberRequest,
+  BlockedServerSummary,
   CreateWorkspaceChannelRequest,
   CreateWorkspaceServerRequest,
   CurrentUserResponse,
+  LeaveWorkspaceServerRequest,
   VoiceAdminChannel,
   VoiceAdminUser,
   VoiceChannelAccessEntry,
@@ -132,6 +135,30 @@ export class WorkspaceApiService {
     });
   }
 
+  getBlockedServers(token: string): Observable<BlockedServerSummary[]> {
+    return this.http.get<BlockedServerSummary[]>(`${API_BASE_URL}/api/servers/blocked`, {
+      headers: this.buildAuthHeaders(token)
+    });
+  }
+
+  leaveServer(token: string, serverId: string, payload: LeaveWorkspaceServerRequest): Observable<void> {
+    return this.http.post<void>(`${API_BASE_URL}/api/servers/${serverId}/leave`, payload, {
+      headers: this.buildAuthHeaders(token)
+    });
+  }
+
+  blockServer(token: string, serverId: string, payload: LeaveWorkspaceServerRequest): Observable<void> {
+    return this.http.post<void>(`${API_BASE_URL}/api/servers/${serverId}/block`, payload, {
+      headers: this.buildAuthHeaders(token)
+    });
+  }
+
+  unblockServer(token: string, serverId: string): Observable<void> {
+    return this.http.delete<void>(`${API_BASE_URL}/api/servers/blocked/${serverId}`, {
+      headers: this.buildAuthHeaders(token)
+    });
+  }
+
   getFriendRequests(token: string): Observable<FriendRequestsOverview> {
     return this.http.get<FriendRequestsOverview>(`${API_BASE_URL}/api/friends/requests`, {
       headers: this.buildAuthHeaders(token)
@@ -158,6 +185,30 @@ export class WorkspaceApiService {
 
   blockFriendRequest(token: string, requestId: string): Observable<FriendRequestSummary> {
     return this.http.post<FriendRequestSummary>(`${API_BASE_URL}/api/friends/requests/${requestId}/block`, null, {
+      headers: this.buildAuthHeaders(token)
+    });
+  }
+
+  getBlockedFriends(token: string): Observable<BlockedFriendSummary[]> {
+    return this.http.get<BlockedFriendSummary[]>(`${API_BASE_URL}/api/friends/blocked`, {
+      headers: this.buildAuthHeaders(token)
+    });
+  }
+
+  removeFriend(token: string, userId: string): Observable<void> {
+    return this.http.delete<void>(`${API_BASE_URL}/api/friends/${userId}`, {
+      headers: this.buildAuthHeaders(token)
+    });
+  }
+
+  blockFriend(token: string, userId: string): Observable<void> {
+    return this.http.post<void>(`${API_BASE_URL}/api/friends/${userId}/block`, null, {
+      headers: this.buildAuthHeaders(token)
+    });
+  }
+
+  unblockFriend(token: string, userId: string): Observable<void> {
+    return this.http.delete<void>(`${API_BASE_URL}/api/friends/blocked/${userId}`, {
       headers: this.buildAuthHeaders(token)
     });
   }

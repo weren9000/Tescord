@@ -34,6 +34,18 @@ class AddServerMemberRequest(BaseModel):
         return self
 
 
+class LeaveServerRequest(BaseModel):
+    new_owner_user_id: UUID | None = None
+    close_group: bool = False
+    block_after_leave: bool = False
+
+    @model_validator(mode="after")
+    def validate_leave_action(self) -> "LeaveServerRequest":
+        if self.close_group and self.new_owner_user_id is not None:
+            raise ValueError("Нельзя одновременно передать группу и закрыть ее")
+        return self
+
+
 class UpdateServerIconRequest(BaseModel):
     icon_asset: str | None = Field(default=None, max_length=255)
 
@@ -73,6 +85,14 @@ class VoiceChannelPresenceSummary(BaseModel):
     channel_id: UUID
     channel_name: str
     participants: list[VoicePresenceParticipantSummary]
+
+
+class BlockedServerSummary(BaseModel):
+    server_id: UUID
+    name: str
+    icon_asset: str | None = None
+    icon_updated_at: datetime | None = None
+    blocked_at: datetime
 
 
 class CreateChannelRequest(BaseModel):

@@ -29,6 +29,16 @@ class FriendRequestsOverview(BaseModel):
     outgoing: list[FriendRequestSummary]
 
 
+class BlockedFriendSummary(BaseModel):
+    user_id: UUID
+    public_id: int
+    login: str
+    nick: str
+    avatar_updated_at: datetime | None
+    is_online: bool
+    blocked_at: datetime
+
+
 class CreateFriendRequestRequest(BaseModel):
     user_id: UUID | None = None
     user_public_id: int | None = Field(default=None, ge=10000, le=99999)

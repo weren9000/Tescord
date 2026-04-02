@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.db.models import Channel, MemberRole, Server, ServerKind, ServerMember, User
+from app.db.models import Channel, MemberRole, Server, ServerBlock, ServerKind, ServerMember, User
 from app.services.app_events import publish_members_updated_from_sync
 
 
@@ -17,7 +17,18 @@ def get_membership(db: Session, server_id: UUID, user_id: UUID) -> ServerMember 
     ).scalar_one_or_none()
 
 
+def is_server_blocked(db: Session, server_id: UUID, user_id: UUID) -> bool:
+    return (
+        db.execute(select(ServerBlock.id).where(ServerBlock.server_id == server_id, ServerBlock.user_id == user_id))
+        .scalar_one_or_none()
+        is not None
+    )
+
+
 def ensure_workspace_membership(db: Session, server_id: UUID, current_user: User) -> ServerMember:
+    if is_server_blocked(db, server_id, current_user.id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Чат не найден")
+
     membership = get_membership(db, server_id, current_user.id)
     if membership is not None:
         return membership

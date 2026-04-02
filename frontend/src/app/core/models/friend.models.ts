@@ -21,6 +21,16 @@ export interface FriendRequestsOverview {
   outgoing: FriendRequestSummary[];
 }
 
+export interface BlockedFriendSummary {
+  user_id: string;
+  public_id: number;
+  login: string;
+  nick: string;
+  avatar_updated_at: string | null;
+  is_online: boolean;
+  blocked_at: string;
+}
+
 export interface CreateFriendRequestRequest {
   user_id?: string | null;
   user_public_id?: number | null;

@@ -4493,13 +4493,6 @@ select {
   min-width: 0;
 }
 
-.app-header__logo {
-  height: 34px;
-  width: auto;
-  object-fit: contain;
-  filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.24));
-}
-
 .app-header__menu,
 .app-header__sidebar-toggle {
   min-height: 42px;
@@ -4507,6 +4500,17 @@ select {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+.app-header__menu {
+  padding: 6px 8px;
+}
+
+.app-header__menu-art {
+  display: block;
+  height: 34px;
+  width: auto;
+  object-fit: contain;
 }
 
 .app-header__sidebar-toggle {
@@ -4766,6 +4770,7 @@ select {
   gap: 6px;
   flex-wrap: wrap;
   justify-content: flex-end;
+  position: relative;
 }
 
 .conversation-head__action {
@@ -4790,6 +4795,58 @@ select {
   min-width: 38px;
   width: 38px;
   min-height: 38px;
+}
+
+.floating-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  border: 0;
+  background: transparent;
+}
+
+.conversation-action-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 30;
+  min-width: 220px;
+  padding: 8px;
+  display: grid;
+  gap: 4px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(10, 18, 28, 0.98);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.36);
+}
+
+.conversation-action-menu__item {
+  min-height: 38px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(242, 250, 247, 0.9);
+  text-align: left;
+  cursor: pointer;
+  transition: background 160ms ease, color 160ms ease;
+}
+
+.conversation-action-menu__item:hover:not(:disabled) {
+  background: rgba(81, 240, 168, 0.12);
+}
+
+.conversation-action-menu__item--danger {
+  color: rgba(255, 211, 215, 0.96);
+}
+
+.conversation-action-menu__item--danger:hover:not(:disabled) {
+  background: rgba(255, 111, 124, 0.14);
+}
+
+.conversation-action-menu__item:disabled {
+  opacity: 0.55;
+  cursor: default;
 }
 
 .attachment-chip--deleted {
@@ -4852,6 +4909,10 @@ select {
   object-fit: cover;
 }
 
+.friend-request-row__avatar--group {
+  border-radius: 14px;
+}
+
 .friend-request-row__copy {
   min-width: 0;
   display: grid;
@@ -4880,6 +4941,30 @@ select {
   gap: 8px;
   flex-wrap: wrap;
   justify-content: flex-end;
+}
+
+.secondary-button--danger {
+  border-color: rgba(255, 111, 124, 0.22);
+  color: #ffd6da;
+}
+
+.secondary-button--danger:hover:not(:disabled) {
+  border-color: rgba(255, 111, 124, 0.32);
+  background: rgba(255, 111, 124, 0.12);
+}
+
+.modal__actions--spread {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.modal__actions-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .chat-files-list {
@@ -5276,10 +5361,6 @@ select {
   .app-header {
     grid-template-columns: minmax(0, 1fr) auto;
     padding: 12px 14px;
-  }
-
-  .app-header__logo {
-    height: 30px;
   }
 
   .app-header__sidebar-toggle {

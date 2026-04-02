@@ -7,16 +7,18 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile, status
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.api.dependencies.auth import get_current_user
-from app.db.models import Attachment, Channel, ChannelType, MemberRole, Message, Server, ServerKind, ServerMember, User
+from app.db.models import Attachment, Channel, ChannelType, MemberRole, Message, Server, ServerBlock, ServerKind, ServerMember, User
 from app.db.session import get_db
 from app.schemas.workspace import (
     AddServerMemberRequest,
+    BlockedServerSummary,
     ChannelSummary,
     CreateChannelRequest,
     CreateServerRequest,
+    LeaveServerRequest,
     ServerMemberSummary,
     ServerSummary,
     UpdateServerIconRequest,
@@ -36,7 +38,7 @@ from app.services.default_tavern import (
 )
 from app.services.group_chat_defaults import ensure_group_chat_defaults
 from app.services.attachment_storage import delete_stored_attachment
-from app.services.server_access import get_accessible_server
+from app.services.server_access import get_accessible_server, is_server_blocked
 from app.services.server_icons import get_default_server_icon_asset, normalize_server_icon_asset
 from app.services.site_presence import site_presence_manager
 from app.services.voice_access import (
@@ -125,6 +127,16 @@ def _build_voice_channel_presence_summary(
     )
 
 
+def _build_blocked_server_summary(block: ServerBlock) -> BlockedServerSummary:
+    return BlockedServerSummary(
+        server_id=block.server.id,
+        name=block.server.name,
+        icon_asset=block.server.icon_asset,
+        icon_updated_at=block.server.icon_updated_at,
+        blocked_at=block.created_at,
+    )
+
+
 def _ensure_unique_slug(db: Session, base_slug: str) -> str:
     slug = base_slug
     counter = 2
@@ -167,6 +179,19 @@ def _sanitize_filename(filename: str | None, fallback: str = "group-icon") -> st
     return sanitized or fallback
 
 
+def _collect_server_attachment_storage_paths(db: Session, server_id: UUID) -> list[str]:
+    return [
+        path
+        for path in db.execute(
+            select(Attachment.storage_path)
+            .join(Message, Message.id == Attachment.message_id)
+            .join(Channel, Channel.id == Message.channel_id)
+            .where(Channel.server_id == server_id, Attachment.storage_path.is_not(None))
+        ).scalars().all()
+        if path
+    ]
+
+
 @router.get("", response_model=list[ServerSummary])
 def list_servers(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> list[ServerSummary]:
     servers = db.execute(
@@ -185,6 +210,22 @@ def list_servers(current_user: User = Depends(get_current_user), db: Session = D
         _build_server_summary(server, member_roles.get(server.id, MemberRole.MEMBER))
         for server in servers
     ]
+
+
+@router.get("/blocked", response_model=list[BlockedServerSummary])
+def list_blocked_servers(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> list[BlockedServerSummary]:
+    blocks = db.execute(
+        select(ServerBlock)
+        .join(Server, Server.id == ServerBlock.server_id)
+        .where(ServerBlock.user_id == current_user.id, Server.kind == ServerKind.GROUP_CHAT)
+        .options(joinedload(ServerBlock.server))
+        .order_by(ServerBlock.created_at.desc())
+    ).scalars().all()
+
+    return [_build_blocked_server_summary(block) for block in blocks]
 
 
 @router.post("", response_model=ServerSummary, status_code=status.HTTP_201_CREATED)
@@ -388,6 +429,12 @@ def add_server_member(
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден")
 
+    if server.kind == ServerKind.GROUP_CHAT and is_server_blocked(db, server.id, user.id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Пользователь заблокировал эту группу и не может быть приглашен повторно",
+        )
+
     existing_member = db.execute(
         select(ServerMember).where(ServerMember.server_id == server.id, ServerMember.user_id == user.id)
     ).scalar_one_or_none()
@@ -460,6 +507,110 @@ def remove_server_member(
     publish_members_updated_from_sync(server.id, reason="member_removed")
     publish_servers_changed_from_sync(reason="server_member_removed")
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.delete("/blocked/{server_id}", status_code=status.HTTP_204_NO_CONTENT)
+def unblock_server(
+    server_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Response:
+    block = db.execute(
+        select(ServerBlock).where(ServerBlock.server_id == server_id, ServerBlock.user_id == current_user.id)
+    ).scalar_one_or_none()
+    if block is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Группа не найдена в заблокированных")
+
+    db.delete(block)
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/{server_id}/leave", status_code=status.HTTP_204_NO_CONTENT)
+async def leave_server(
+    server_id: UUID,
+    payload: LeaveServerRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Response:
+    server, membership = get_accessible_server(db, server_id, current_user, allow_workspace_auto_join=False)
+    if server.kind != ServerKind.GROUP_CHAT:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Выйти можно только из группы")
+
+    is_owner = server.owner_id == current_user.id or membership.role == MemberRole.OWNER
+    should_close_group = bool(payload.close_group)
+
+    if is_owner:
+        if should_close_group:
+            voice_channel_ids = db.execute(
+                select(Channel.id).where(Channel.server_id == server.id, Channel.type == ChannelType.VOICE)
+            ).scalars().all()
+            storage_paths = _collect_server_attachment_storage_paths(db, server.id)
+            db.delete(server)
+            db.commit()
+
+            for channel_id in voice_channel_ids:
+                await voice_signaling_manager.disconnect_channel_sessions(str(channel_id))
+            for storage_path in storage_paths:
+                delete_stored_attachment(storage_path)
+
+            publish_servers_changed_from_sync(reason="group_closed")
+            return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+        if payload.new_owner_user_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Перед уходом нужно передать группу новому владельцу или закрыть ее полностью",
+            )
+
+        if payload.new_owner_user_id == current_user.id:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Новый владелец должен быть другим участником")
+
+        next_owner_member = db.execute(
+            select(ServerMember).where(
+                ServerMember.server_id == server.id,
+                ServerMember.user_id == payload.new_owner_user_id,
+            )
+        ).scalar_one_or_none()
+        if next_owner_member is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Новый владелец группы не найден")
+
+        server.owner_id = payload.new_owner_user_id
+        next_owner_member.role = MemberRole.OWNER
+        membership.role = MemberRole.MEMBER
+
+    if payload.block_after_leave:
+        existing_block = db.execute(
+            select(ServerBlock).where(ServerBlock.server_id == server.id, ServerBlock.user_id == current_user.id)
+        ).scalar_one_or_none()
+        if existing_block is None:
+            db.add(ServerBlock(server_id=server.id, user_id=current_user.id))
+
+    db.delete(membership)
+    db.commit()
+
+    publish_members_updated_from_sync(server.id, reason="member_left")
+    publish_servers_changed_from_sync(reason="server_left")
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/{server_id}/block", status_code=status.HTTP_204_NO_CONTENT)
+async def block_server(
+    server_id: UUID,
+    payload: LeaveServerRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Response:
+    return await leave_server(
+        server_id=server_id,
+        payload=LeaveServerRequest(
+            new_owner_user_id=payload.new_owner_user_id,
+            close_group=payload.close_group,
+            block_after_leave=True,
+        ),
+        current_user=current_user,
+        db=db,
+    )
 
 
 @router.get("/{server_id}/voice-presence", response_model=list[VoiceChannelPresenceSummary])

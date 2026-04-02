@@ -123,6 +123,20 @@ class User(TimestampMixin, Base):
         back_populates="target",
         cascade="all, delete-orphan",
     )
+    sent_friend_blocks: Mapped[list["FriendBlock"]] = relationship(
+        foreign_keys="FriendBlock.blocker_user_id",
+        back_populates="blocker",
+        cascade="all, delete-orphan",
+    )
+    received_friend_blocks: Mapped[list["FriendBlock"]] = relationship(
+        foreign_keys="FriendBlock.blocked_user_id",
+        back_populates="blocked",
+        cascade="all, delete-orphan",
+    )
+    server_blocks: Mapped[list["ServerBlock"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
 
 
 class Server(TimestampMixin, Base):
@@ -150,6 +164,7 @@ class Server(TimestampMixin, Base):
     owner: Mapped["User"] = relationship(back_populates="owned_servers")
     channels: Mapped[list["Channel"]] = relationship(back_populates="server", cascade="all, delete-orphan")
     members: Mapped[list["ServerMember"]] = relationship(back_populates="server", cascade="all, delete-orphan")
+    blocks: Mapped[list["ServerBlock"]] = relationship(back_populates="server", cascade="all, delete-orphan")
 
 
 class Channel(TimestampMixin, Base):
@@ -231,6 +246,42 @@ class FriendRequest(TimestampMixin, Base):
         foreign_keys=[target_user_id],
         back_populates="received_friend_requests",
     )
+
+
+class FriendBlock(TimestampMixin, Base):
+    __tablename__ = "friend_blocks"
+    __table_args__ = (
+        UniqueConstraint("blocker_user_id", "blocked_user_id", name="uq_friend_blocks_blocker_blocked"),
+        Index("ix_friend_blocks_blocked_user_id", "blocked_user_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    blocker_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    blocked_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+
+    blocker: Mapped["User"] = relationship(
+        foreign_keys=[blocker_user_id],
+        back_populates="sent_friend_blocks",
+    )
+    blocked: Mapped["User"] = relationship(
+        foreign_keys=[blocked_user_id],
+        back_populates="received_friend_blocks",
+    )
+
+
+class ServerBlock(TimestampMixin, Base):
+    __tablename__ = "server_blocks"
+    __table_args__ = (
+        UniqueConstraint("server_id", "user_id", name="uq_server_blocks_server_user"),
+        Index("ix_server_blocks_user_id", "user_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    server_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("servers.id", ondelete="CASCADE"), nullable=False)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+
+    server: Mapped["Server"] = relationship(back_populates="blocks")
+    user: Mapped["User"] = relationship(back_populates="server_blocks")
 
 
 class Message(TimestampMixin, Base):

@@ -1,12 +1,42 @@
 from __future__ import annotations
 
+from uuid import UUID
+
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from sqlalchemy import and_, or_, select
 
 from app.api.dependencies.auth import resolve_user_from_token
+from app.db.models import FriendBlock
 from app.db.session import SessionLocal
 from app.services.direct_call_signaling import direct_call_signaling_manager
+from app.services.direct_conversations import load_direct_conversation
 
 router = APIRouter(prefix="/calls", tags=["calls"])
+
+
+def _can_start_direct_call(current_user_id: UUID, target_user_id: UUID) -> bool:
+    with SessionLocal() as db:
+        has_block = (
+            db.execute(
+                select(FriendBlock.id).where(
+                    or_(
+                        and_(
+                            FriendBlock.blocker_user_id == current_user_id,
+                            FriendBlock.blocked_user_id == target_user_id,
+                        ),
+                        and_(
+                            FriendBlock.blocker_user_id == target_user_id,
+                            FriendBlock.blocked_user_id == current_user_id,
+                        ),
+                    )
+                )
+            ).scalar_one_or_none()
+            is not None
+        )
+        if has_block:
+            return False
+
+        return load_direct_conversation(db, current_user_id, target_user_id) is not None
 
 
 @router.websocket("/ws")
@@ -43,6 +73,16 @@ async def connect_to_direct_calls(websocket: WebSocket) -> None:
                 target_user_id = message.get("target_user_id")
                 if not isinstance(target_user_id, str) or not target_user_id:
                     await websocket.send_json({"type": "error", "detail": "Нужно указать target_user_id"})
+                    continue
+
+                try:
+                    target_user_uuid = UUID(target_user_id)
+                except ValueError:
+                    await websocket.send_json({"type": "error", "detail": "Некорректный target_user_id"})
+                    continue
+
+                if not _can_start_direct_call(current_user.id, target_user_uuid):
+                    await websocket.send_json({"type": "error", "detail": "Личный звонок доступен только для друзей"})
                     continue
 
                 await direct_call_signaling_manager.request_call(user_id, target_user_id)
