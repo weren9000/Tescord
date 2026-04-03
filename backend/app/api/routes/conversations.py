@@ -7,7 +7,18 @@ from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.api.dependencies.auth import get_current_user
-from app.db.models import ChannelReadState, FriendRequest, FriendRequestStatus, MemberRole, Message, Server, ServerKind, ServerMember, User
+from app.db.models import (
+    ChannelReadState,
+    ConversationPushSetting,
+    FriendRequest,
+    FriendRequestStatus,
+    MemberRole,
+    Message,
+    Server,
+    ServerKind,
+    ServerMember,
+    User,
+)
 from app.db.session import get_db
 from app.schemas.conversations import (
     ConversationDirectoryUserSummary,
@@ -160,6 +171,24 @@ def _load_unread_counts_by_channel_id(
     return {channel_id: unread_counts.get(channel_id, 0) for channel_id in channel_ids}
 
 
+def _load_push_enabled_by_server_id(
+    db: Session,
+    server_ids: list[UUID],
+    current_user_id: UUID,
+) -> dict[UUID, bool]:
+    if not server_ids:
+        return {}
+
+    rows = db.execute(
+        select(ConversationPushSetting.server_id, ConversationPushSetting.push_enabled).where(
+            ConversationPushSetting.user_id == current_user_id,
+            ConversationPushSetting.server_id.in_(server_ids),
+        )
+    ).all()
+    push_enabled_by_server_id = {server_id: push_enabled for server_id, push_enabled in rows}
+    return {server_id: push_enabled_by_server_id.get(server_id, False) for server_id in server_ids}
+
+
 def _build_conversation_summary(
     server: Server,
     membership: ServerMember,
@@ -167,6 +196,7 @@ def _build_conversation_summary(
     online_user_ids: set[UUID],
     last_messages_by_channel_id: dict[UUID, Message] | None = None,
     unread_counts_by_channel_id: dict[UUID, int] | None = None,
+    push_enabled_by_server_id: dict[UUID, bool] | None = None,
 ) -> ConversationSummary:
     title, _ = _conversation_title(server, current_user_id)
     primary_channel = _first_text_channel(server)
@@ -183,6 +213,7 @@ def _build_conversation_summary(
         member_role=membership.role.value,
         primary_channel_id=primary_channel.id,
         unread_count=unread_count,
+        push_enabled=(push_enabled_by_server_id or {}).get(server.id, False),
         members=[_member_preview(member, online_user_ids) for member in members],
     )
 
@@ -265,8 +296,10 @@ def list_conversations(
         [member.user_id for membership in memberships for member in membership.server.members]
     )
     primary_channel_ids = [_first_text_channel(membership.server).id for membership in memberships]
+    server_ids = [membership.server.id for membership in memberships]
     last_messages_by_channel_id = _load_last_messages_by_channel_id(db, primary_channel_ids)
     unread_counts_by_channel_id = _load_unread_counts_by_channel_id(db, primary_channel_ids, current_user.id)
+    push_enabled_by_server_id = _load_push_enabled_by_server_id(db, server_ids, current_user.id)
     summaries = [
         _build_conversation_summary(
             membership.server,
@@ -275,6 +308,7 @@ def list_conversations(
             online_user_ids,
             last_messages_by_channel_id,
             unread_counts_by_channel_id,
+            push_enabled_by_server_id,
         )
         for membership in memberships
     ]
@@ -334,12 +368,14 @@ def open_direct_conversation(
         online_user_ids = site_presence_manager.online_user_ids([member.user_id for member in existing_server.members])
         primary_channel_id = _first_text_channel(existing_server).id
         unread_counts_by_channel_id = _load_unread_counts_by_channel_id(db, [primary_channel_id], current_user.id)
+        push_enabled_by_server_id = _load_push_enabled_by_server_id(db, [existing_server.id], current_user.id)
         return _build_conversation_summary(
             existing_server,
             membership,
             current_user.id,
             online_user_ids,
             unread_counts_by_channel_id=unread_counts_by_channel_id,
+            push_enabled_by_server_id=push_enabled_by_server_id,
         )
 
     if not _has_accepted_friend_request(current_user.id, peer_user.id, db):
@@ -358,12 +394,14 @@ def open_direct_conversation(
     online_user_ids = site_presence_manager.online_user_ids([member.user_id for member in created_server.members])
     primary_channel_id = _first_text_channel(created_server).id
     unread_counts_by_channel_id = _load_unread_counts_by_channel_id(db, [primary_channel_id], current_user.id)
+    push_enabled_by_server_id = _load_push_enabled_by_server_id(db, [created_server.id], current_user.id)
     return _build_conversation_summary(
         created_server,
         membership,
         current_user.id,
         online_user_ids,
         unread_counts_by_channel_id=unread_counts_by_channel_id,
+        push_enabled_by_server_id=push_enabled_by_server_id,
     )
 
 
@@ -434,10 +472,12 @@ def create_group_conversation(
     online_user_ids = site_presence_manager.online_user_ids([member.user_id for member in created_server.members])
     primary_channel_id = _first_text_channel(created_server).id
     unread_counts_by_channel_id = _load_unread_counts_by_channel_id(db, [primary_channel_id], current_user.id)
+    push_enabled_by_server_id = _load_push_enabled_by_server_id(db, [created_server.id], current_user.id)
     return _build_conversation_summary(
         created_server,
         membership,
         current_user.id,
         online_user_ids,
         unread_counts_by_channel_id=unread_counts_by_channel_id,
+        push_enabled_by_server_id=push_enabled_by_server_id,
     )

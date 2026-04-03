@@ -18,6 +18,7 @@ export interface ConversationSummary {
   member_role: string;
   primary_channel_id: string;
   unread_count: number;
+  push_enabled: boolean;
   members: ConversationMemberPreview[];
 }
 

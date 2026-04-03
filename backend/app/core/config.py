@@ -23,6 +23,17 @@ class Settings(BaseSettings):
     demo_is_admin: bool = True
     demo_server_name: str = "Altgramm"
     uploads_dir: str = "./storage/uploads"
+    push_vapid_public_key: str | None = None
+    push_vapid_private_key_path: str | None = None
+    push_vapid_subject: str | None = None
+
+    @property
+    def push_notifications_enabled(self) -> bool:
+        return bool(
+            self.push_vapid_public_key
+            and self.push_vapid_private_key_path
+            and self.push_vapid_subject
+        )
 
     model_config = SettingsConfigDict(
         env_file=".env",

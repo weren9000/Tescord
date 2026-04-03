@@ -364,6 +364,18 @@
             </div>
 
             <div class="conversation-head__actions">
+              @if (activeConversation()) {
+                <button
+                  class="secondary-button conversation-head__action conversation-head__action--icon"
+                  type="button"
+                  [disabled]="isActiveConversationPushPending()"
+                  [attr.aria-label]="activeConversationPushActionLabel()"
+                  [attr.title]="activeConversationPushActionLabel()"
+                  (click)="toggleActiveConversationPush()"
+                >
+                  <img [src]="activeConversationPushIcon()" alt="" />
+                </button>
+              }
               @if (canUseActiveChannelChat()) {
                 <button class="secondary-button conversation-head__action conversation-head__action--icon" type="button" aria-label="Файлы чата" title="Файлы чата" (click)="openChatFilesModal()">
                   <img src="/assets/Uploaded_sheet_files.svg" alt="" />

@@ -26,6 +26,7 @@ class ConversationSummary(BaseModel):
     member_role: str
     primary_channel_id: UUID
     unread_count: int = 0
+    push_enabled: bool = False
     members: list[ConversationMemberPreview] = Field(default_factory=list)
 
 

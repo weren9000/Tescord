@@ -53,6 +53,7 @@ from app.services.attachment_storage import (
     resolve_attachment_path,
     store_upload_file,
 )
+from app.services.push_notifications import publish_message_push_notifications
 from app.services.server_access import ensure_channel_server_access
 from app.services.voice_access import can_view_voice_channel, get_voice_channel_access
 
@@ -591,6 +592,13 @@ async def create_channel_message(
 
     message_summary = _build_message_summary(created_message, current_user.id)
     await publish_message_created(channel.server_id, message_summary.model_dump(mode="json"))
+    await publish_message_push_notifications(
+        server_id=channel.server_id,
+        author_id=current_user.id,
+        author_nick=current_user.username,
+        content=created_message.content,
+        attachments_count=len(created_message.attachments),
+    )
     return message_summary
 
 

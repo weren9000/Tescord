@@ -39,6 +39,12 @@ import {
   WorkspaceServer,
   WorkspaceVoicePresenceChannel
 } from '../models/workspace.models';
+import {
+  ConversationPushSettingRequest,
+  ConversationPushSettingSummary,
+  PushConfigResponse,
+  PushSubscriptionUpsertRequest,
+} from '../models/push.models';
 
 @Injectable({
   providedIn: 'root'
@@ -80,6 +86,32 @@ export class WorkspaceApiService {
     return this.http.get<ConversationSummary[]>(`${API_BASE_URL}/api/conversations`, {
       headers: this.buildAuthHeaders(token)
     });
+  }
+
+  getPushConfig(token: string): Observable<PushConfigResponse> {
+    return this.http.get<PushConfigResponse>(`${API_BASE_URL}/api/push/config`, {
+      headers: this.buildAuthHeaders(token)
+    });
+  }
+
+  registerPushSubscription(token: string, payload: PushSubscriptionUpsertRequest): Observable<void> {
+    return this.http.post<void>(`${API_BASE_URL}/api/push/subscriptions`, payload, {
+      headers: this.buildAuthHeaders(token)
+    });
+  }
+
+  updateConversationPushSetting(
+    token: string,
+    conversationId: string,
+    payload: ConversationPushSettingRequest
+  ): Observable<ConversationPushSettingSummary> {
+    return this.http.put<ConversationPushSettingSummary>(
+      `${API_BASE_URL}/api/push/conversations/${conversationId}/setting`,
+      payload,
+      {
+        headers: this.buildAuthHeaders(token)
+      }
+    );
   }
 
   getConversationDirectory(token: string): Observable<ConversationDirectoryUser[]> {

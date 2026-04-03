@@ -60,6 +60,7 @@ import {
   WorkspaceVoicePresenceChannel
 } from './core/models/workspace.models';
 import { AppEventsService } from './core/services/app-events.service';
+import { BrowserPushService } from './core/services/browser-push.service';
 import { DirectCallPeer, DirectCallService } from './core/services/direct-call.service';
 import { VoiceParticipant, VoiceRoomService } from './core/services/voice-room.service';
 
@@ -475,6 +476,7 @@ export class AppComponent {
   private readonly authApi = inject(AuthApiService);
   private readonly workspaceApi = inject(WorkspaceApiService);
   private readonly appEvents = inject(AppEventsService);
+  private readonly browserPush = inject(BrowserPushService);
   private readonly directCall = inject(DirectCallService);
   private readonly voiceRoom = inject(VoiceRoomService);
   private readonly destroyRef = inject(DestroyRef);
@@ -536,6 +538,7 @@ export class AppComponent {
   private readonly profileUpdateTrigger$ = new Subject<ProfileUpdateTrigger>();
   private readonly pendingMessageReactionKeys = new Set<string>();
   private readonly lastMarkedReadMessageIdByChannel = new Map<string, string | null>();
+  private pendingPushConversationId: string | null = null;
   private profileAvatarSelectionMode: 'instant' | 'editor' = 'instant';
   private profileAvatarPreviewObjectUrl: string | null = null;
 
@@ -622,6 +625,7 @@ export class AppComponent {
   readonly createConversationLoading = signal(false);
   readonly createGroupLoading = signal(false);
   readonly createChannelLoading = signal(false);
+  readonly conversationPushPendingId = signal<string | null>(null);
   readonly deletingChannelId = signal<string | null>(null);
   readonly authMode = signal<AuthMode>('login');
   readonly directCallScreenExpanded = signal(false);
@@ -698,6 +702,7 @@ export class AppComponent {
   readonly createConversationGroupMemberIds = signal<string[]>([]);
   readonly friendRequestBadgeVisible = computed(() => this.pendingFriendRequestCount() > 0);
   readonly isActiveGroupOwner = computed(() => this.activeGroupConversation()?.member_role === 'owner');
+  readonly activeConversationPushEnabled = computed(() => this.activeConversation()?.push_enabled === true);
 
   readonly loginForm: LoginFormModel = {
     email: '',
@@ -1548,6 +1553,9 @@ export class AppComponent {
       queueMicrotask(() => this.syncDirectCallScreenVideos());
     });
     this.bindActionPipelines();
+    this.browserPush.navigationRequests$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((conversationId) => this.handlePushConversationRequest(conversationId));
     this.appEvents.events$
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((event) => void this.handleAppEvent(event));
@@ -4054,6 +4062,7 @@ export class AppComponent {
     this.blockedFriends.set([]);
     this.blockedServers.set([]);
     this.pendingFriendRequestCount.set(0);
+    this.pendingPushConversationId = null;
     this.channels.set([]);
     this.members.set([]);
     this.voicePresence.set([]);
@@ -4102,6 +4111,7 @@ export class AppComponent {
     this.friendRequestsLoading.set(false);
     this.createGroupLoading.set(false);
     this.createChannelLoading.set(false);
+    this.conversationPushPendingId.set(null);
     this.friendRequestsError.set(null);
     this.authMode.set('login');
     this.clearStoredSession();
@@ -5275,6 +5285,7 @@ export class AppComponent {
         next: (conversations) => {
           const mergedConversations = this.mergeConversationsById(conversations);
           this.conversations.set(mergedConversations);
+          this.tryOpenPendingPushConversation(token);
 
           const spaces = this.isGroupsMode()
             ? this.groupConversationSpaces()
@@ -5465,6 +5476,51 @@ export class AppComponent {
       });
   }
 
+  private async initializeBrowserPush(token: string): Promise<void> {
+    try {
+      await this.browserPush.initialize(token);
+      this.tryOpenPendingPushConversation(token);
+    } catch {
+      // Push initialization should stay silent until the user explicitly toggles it.
+    }
+  }
+
+  private handlePushConversationRequest(conversationId: string): void {
+    if (!conversationId) {
+      return;
+    }
+
+    this.pendingPushConversationId = conversationId;
+    const token = this.session()?.access_token;
+    if (!token) {
+      return;
+    }
+
+    this.tryOpenPendingPushConversation(token);
+  }
+
+  private tryOpenPendingPushConversation(token: string): void {
+    const conversationId = this.pendingPushConversationId;
+    if (!conversationId) {
+      return;
+    }
+
+    const conversation = this.conversations().find((item) => item.id === conversationId);
+    if (!conversation) {
+      return;
+    }
+
+    this.pendingPushConversationId = null;
+    this.workspaceMode.set(conversation.kind === 'group_chat' ? 'groups' : 'chats');
+
+    if (conversation.id === this.selectedServerId()) {
+      this.closeMobilePanel();
+      return;
+    }
+
+    this.selectServer(conversation.id);
+  }
+
   private loadHealth(): void {
     this.systemApi
       .getHealth()
@@ -5501,6 +5557,7 @@ export class AppComponent {
       this.currentUser.set(session.user);
       this.appEvents.start(session.access_token);
       this.directCall.start(session.access_token);
+      void this.initializeBrowserPush(session.access_token);
       this.schedulePresenceHeartbeat(true);
       this.startVoiceJoinInboxPolling();
       this.bootstrapWorkspace(session.access_token);
@@ -5514,6 +5571,7 @@ export class AppComponent {
     this.currentUser.set(session.user);
     this.appEvents.start(session.access_token);
     this.directCall.start(session.access_token);
+    void this.initializeBrowserPush(session.access_token);
     this.persistSession(session);
     this.schedulePresenceHeartbeat(true);
     this.startVoiceJoinInboxPolling();
@@ -5544,6 +5602,7 @@ export class AppComponent {
           this.servers.set(this.mergeServersById(servers));
           const mergedConversations = this.mergeConversationsById(conversations);
           this.conversations.set(mergedConversations);
+          this.tryOpenPendingPushConversation(token);
           this.schedulePresenceHeartbeat(true);
           void this.loadConversationDirectory(token);
           void this.refreshFriendRequests(token);
@@ -6832,6 +6891,19 @@ export class AppComponent {
     return unreadCount > 99 ? '99+' : String(unreadCount);
   }
 
+  activeConversationPushIcon(): string {
+    return this.activeConversationPushEnabled() ? '/assets/push_on.svg' : '/assets/push_off.svg';
+  }
+
+  activeConversationPushActionLabel(): string {
+    return this.activeConversationPushEnabled() ? 'Отключить push-уведомления' : 'Включить push-уведомления';
+  }
+
+  isActiveConversationPushPending(): boolean {
+    const conversationId = this.activeConversation()?.id;
+    return !!conversationId && this.conversationPushPendingId() === conversationId;
+  }
+
   activeSpaceMetaLabel(): string {
     if (this.isChatsMode()) {
       const peer = this.activeDirectPeer();
@@ -6883,6 +6955,44 @@ export class AppComponent {
     return this.groupConversations().find((conversation) => conversation.id === conversationId) ?? null;
   }
 
+  async toggleActiveConversationPush(): Promise<void> {
+    const token = this.session()?.access_token;
+    const conversation = this.activeConversation();
+    if (!token || !conversation || this.isActiveConversationPushPending()) {
+      return;
+    }
+
+    const nextEnabled = !conversation.push_enabled;
+    this.conversationPushPendingId.set(conversation.id);
+    this.managementError.set(null);
+
+    try {
+      if (nextEnabled) {
+        await this.browserPush.enableConversationPush(token, conversation.id);
+      } else {
+        await this.browserPush.disableConversationPush(token, conversation.id);
+      }
+
+      this.setConversationPushEnabled(conversation.id, nextEnabled);
+      this.managementSuccess.set(
+        nextEnabled
+          ? 'Push-уведомления включены для этого чата'
+          : 'Push-уведомления выключены для этого чата'
+      );
+    } catch (error) {
+      this.managementError.set(
+        this.extractErrorMessage(
+          error,
+          nextEnabled
+            ? 'Не удалось включить push-уведомления'
+            : 'Не удалось выключить push-уведомления'
+        )
+      );
+    } finally {
+      this.conversationPushPendingId.set(null);
+    }
+  }
+
   private setConversationUnreadCount(serverId: string, unreadCount: number): void {
     const normalizedUnreadCount = Math.max(0, unreadCount);
     this.conversations.update((conversations) =>
@@ -6891,6 +7001,19 @@ export class AppComponent {
           ? {
               ...conversation,
               unread_count: normalizedUnreadCount,
+            }
+          : conversation
+      )
+    );
+  }
+
+  private setConversationPushEnabled(serverId: string, pushEnabled: boolean): void {
+    this.conversations.update((conversations) =>
+      conversations.map((conversation) =>
+        conversation.id === serverId
+          ? {
+              ...conversation,
+              push_enabled: pushEnabled,
             }
           : conversation
       )

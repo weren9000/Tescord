@@ -137,6 +137,14 @@ class User(TimestampMixin, Base):
         back_populates="user",
         cascade="all, delete-orphan",
     )
+    push_subscriptions: Mapped[list["PushSubscription"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    conversation_push_settings: Mapped[list["ConversationPushSetting"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
 
 
 class Server(TimestampMixin, Base):
@@ -165,6 +173,10 @@ class Server(TimestampMixin, Base):
     channels: Mapped[list["Channel"]] = relationship(back_populates="server", cascade="all, delete-orphan")
     members: Mapped[list["ServerMember"]] = relationship(back_populates="server", cascade="all, delete-orphan")
     blocks: Mapped[list["ServerBlock"]] = relationship(back_populates="server", cascade="all, delete-orphan")
+    push_settings: Mapped[list["ConversationPushSetting"]] = relationship(
+        back_populates="server",
+        cascade="all, delete-orphan",
+    )
 
 
 class Channel(TimestampMixin, Base):
@@ -282,6 +294,51 @@ class ServerBlock(TimestampMixin, Base):
 
     server: Mapped["Server"] = relationship(back_populates="blocks")
     user: Mapped["User"] = relationship(back_populates="server_blocks")
+
+
+class PushSubscription(TimestampMixin, Base):
+    __tablename__ = "push_subscriptions"
+    __table_args__ = (
+        UniqueConstraint("endpoint", name="uq_push_subscriptions_endpoint"),
+        Index("ix_push_subscriptions_user_id", "user_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    endpoint: Mapped[str] = mapped_column(Text, nullable=False)
+    p256dh: Mapped[str] = mapped_column(String(255), nullable=False)
+    auth: Mapped[str] = mapped_column(String(255), nullable=False)
+    user_agent: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    last_seen_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+    user: Mapped["User"] = relationship(back_populates="push_subscriptions")
+
+
+class ConversationPushSetting(Base):
+    __tablename__ = "conversation_push_settings"
+    __table_args__ = (
+        UniqueConstraint("user_id", "server_id", name="uq_conversation_push_settings_user_server"),
+        Index("ix_conversation_push_settings_server_id", "server_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    server_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("servers.id", ondelete="CASCADE"), nullable=False)
+    push_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, server_default="false")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    user: Mapped["User"] = relationship(back_populates="conversation_push_settings")
+    server: Mapped["Server"] = relationship(back_populates="push_settings")
 
 
 class Message(TimestampMixin, Base):
