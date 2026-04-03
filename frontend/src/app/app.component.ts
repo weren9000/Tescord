@@ -73,6 +73,7 @@ type MobilePanel = 'servers' | 'channels' | 'members' | null;
 type VoiceAccessRole = 'owner' | 'resident' | 'stranger';
 type VoiceWorkspaceTab = 'chat' | 'channel';
 type ConversationCreateTab = 'direct' | 'group';
+type PushFeedbackTone = 'success' | 'warning' | 'error';
 
 interface LoginFormModel {
   email: string;
@@ -593,6 +594,7 @@ export class AppComponent {
   readonly messageError = signal<string | null>(null);
   readonly managementError = signal<string | null>(null);
   readonly managementSuccess = signal<string | null>(null);
+  readonly pushFeedback = signal<{ tone: PushFeedbackTone; message: string } | null>(null);
   readonly authLoading = signal(false);
   readonly workspaceLoading = signal(false);
   readonly messagesLoading = signal(false);
@@ -4063,6 +4065,7 @@ export class AppComponent {
     this.blockedServers.set([]);
     this.pendingFriendRequestCount.set(0);
     this.pendingPushConversationId = null;
+    this.pushFeedback.set(null);
     this.channels.set([]);
     this.members.set([]);
     this.voicePresence.set([]);
@@ -5686,6 +5689,7 @@ export class AppComponent {
     this.workspaceError.set(null);
     this.managementError.set(null);
     this.managementSuccess.set(null);
+    this.pushFeedback.set(null);
     this.selectedServerId.set(serverId);
     this.appEvents.setActiveServer(serverId);
     this.selectedChannelId.set(null);
@@ -6566,6 +6570,10 @@ export class AppComponent {
   }
 
   private extractErrorMessage(error: unknown, fallback: string): string {
+    if (error instanceof Error && error.message.trim()) {
+      return error.message;
+    }
+
     if (error instanceof HttpErrorResponse) {
       const detail =
         typeof error.error === 'object' && error.error !== null
@@ -6964,30 +6972,34 @@ export class AppComponent {
 
     const nextEnabled = !conversation.push_enabled;
     this.conversationPushPendingId.set(conversation.id);
-    this.managementError.set(null);
+    this.pushFeedback.set(null);
 
     try {
       if (nextEnabled) {
-        await this.browserPush.enableConversationPush(token, conversation.id);
+        const result = await this.browserPush.enableConversationPush(token, conversation.id);
+        this.setConversationPushEnabled(conversation.id, true);
+        this.pushFeedback.set({
+          tone: result.warning ? 'warning' : 'success',
+          message: result.warning ?? 'Push-уведомления включены для этого чата'
+        });
       } else {
         await this.browserPush.disableConversationPush(token, conversation.id);
+        this.setConversationPushEnabled(conversation.id, false);
+        this.pushFeedback.set({
+          tone: 'success',
+          message: 'Push-уведомления выключены для этого чата'
+        });
       }
-
-      this.setConversationPushEnabled(conversation.id, nextEnabled);
-      this.managementSuccess.set(
-        nextEnabled
-          ? 'Push-уведомления включены для этого чата'
-          : 'Push-уведомления выключены для этого чата'
-      );
     } catch (error) {
-      this.managementError.set(
-        this.extractErrorMessage(
+      this.pushFeedback.set({
+        tone: 'error',
+        message: this.extractErrorMessage(
           error,
           nextEnabled
             ? 'Не удалось включить push-уведомления'
             : 'Не удалось выключить push-уведомления'
         )
-      );
+      });
     } finally {
       this.conversationPushPendingId.set(null);
     }

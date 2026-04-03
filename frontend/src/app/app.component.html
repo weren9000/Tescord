@@ -426,6 +426,17 @@
               }
             </div>
 
+            @if (pushFeedback(); as pushFeedback) {
+              <p
+                class="conversation-head__feedback"
+                [class.conversation-head__feedback--success]="pushFeedback.tone === 'success'"
+                [class.conversation-head__feedback--warning]="pushFeedback.tone === 'warning'"
+                [class.conversation-head__feedback--error]="pushFeedback.tone === 'error'"
+              >
+                {{ pushFeedback.message }}
+              </p>
+            }
+
             <input
               #serverIconInput
               hidden

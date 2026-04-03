@@ -4884,6 +4884,24 @@ select {
   margin-left: auto;
 }
 
+.conversation-head__feedback {
+  margin: -2px 0 0;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.conversation-head__feedback--success {
+  color: rgba(157, 253, 56, 0.84);
+}
+
+.conversation-head__feedback--warning {
+  color: rgba(255, 214, 122, 0.9);
+}
+
+.conversation-head__feedback--error {
+  color: rgba(255, 146, 146, 0.92);
+}
+
 .floating-menu-backdrop {
   position: fixed;
   inset: 0;

@@ -9,6 +9,10 @@ interface PushNavigationMessage {
   conversationId: string;
 }
 
+export interface BrowserPushEnableResult {
+  warning: string | null;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -24,7 +28,13 @@ export class BrowserPushService {
     this.bindServiceWorkerMessages();
     this.emitConversationFromLocation();
 
-    if (!this.isSupported() || typeof Notification === 'undefined' || Notification.permission !== 'granted') {
+    if (
+      !this.isSupported()
+      || !this.isSecureContextAvailable()
+      || this.requiresStandaloneMode()
+      || typeof Notification === 'undefined'
+      || Notification.permission !== 'granted'
+    ) {
       return;
     }
 
@@ -52,34 +62,26 @@ export class BrowserPushService {
     );
   }
 
-  async enableConversationPush(token: string, conversationId: string): Promise<void> {
-    if (!this.isSupported()) {
-      throw new Error('Браузер не поддерживает push-уведомления');
-    }
-
+  async enableConversationPush(token: string, conversationId: string): Promise<BrowserPushEnableResult> {
     const config = await this.getPushConfig(token);
     if (!config.enabled || !config.vapid_public_key) {
       throw new Error('Push-уведомления еще не настроены на сервере');
     }
 
-    const permission = await Notification.requestPermission();
-    if (permission !== 'granted') {
-      throw new Error('Разрешение на уведомления не выдано');
+    let warning = this.getCapabilityWarning();
+    if (!warning) {
+      try {
+        await this.ensureBrowserSubscription(token, config);
+      } catch (error) {
+        warning = this.describePushSetupIssue(error);
+      }
     }
 
-    const registration = await this.ensureServiceWorkerRegistration();
-    let subscription = await registration.pushManager.getSubscription();
-    if (!subscription) {
-      subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: this.urlBase64ToUint8Array(config.vapid_public_key),
-      });
-    }
-
-    await this.syncSubscription(token, subscription);
     await firstValueFrom(
       this.workspaceApi.updateConversationPushSetting(token, conversationId, { push_enabled: true })
     );
+
+    return { warning };
   }
 
   async disableConversationPush(token: string, conversationId: string): Promise<void> {
@@ -133,6 +135,36 @@ export class BrowserPushService {
     return registration;
   }
 
+  private async ensureBrowserSubscription(token: string, config: PushConfigResponse): Promise<void> {
+    if (!this.isSupported()) {
+      throw new Error('Этот браузер не поддерживает web push-уведомления');
+    }
+
+    if (!this.isSecureContextAvailable()) {
+      throw new Error('Для push нужен защищенный HTTPS-домен с доверенным сертификатом');
+    }
+
+    if (this.requiresStandaloneMode()) {
+      throw new Error('На iPhone push работают после добавления сайта на экран домой');
+    }
+
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') {
+      throw new Error('Браузер не разрешил уведомления. Разрешите их в настройках сайта');
+    }
+
+    const registration = await this.ensureServiceWorkerRegistration();
+    let subscription = await registration.pushManager.getSubscription();
+    if (!subscription) {
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: this.urlBase64ToUint8Array(config.vapid_public_key ?? ''),
+      });
+    }
+
+    await this.syncSubscription(token, subscription);
+  }
+
   private async syncSubscription(token: string, subscription: PushSubscription): Promise<void> {
     const serialized = subscription.toJSON();
     const endpoint = serialized.endpoint;
@@ -140,7 +172,7 @@ export class BrowserPushService {
     const auth = serialized.keys?.['auth'];
 
     if (!endpoint || !p256dh || !auth) {
-      throw new Error('Не удалось подготовить push-подписку');
+      throw new Error('Не удалось подготовить push-подписку браузера');
     }
 
     await firstValueFrom(
@@ -150,6 +182,55 @@ export class BrowserPushService {
         user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
       })
     );
+  }
+
+  private isSecureContextAvailable(): boolean {
+    return typeof window !== 'undefined' && window.isSecureContext === true;
+  }
+
+  private requiresStandaloneMode(): boolean {
+    return this.isAppleMobileDevice() && !this.isStandaloneDisplayMode();
+  }
+
+  private isAppleMobileDevice(): boolean {
+    if (typeof navigator === 'undefined') {
+      return false;
+    }
+
+    return /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  }
+
+  private isStandaloneDisplayMode(): boolean {
+    if (typeof window === 'undefined') {
+      return false;
+    }
+
+    const navigatorWithStandalone = navigator as Navigator & { standalone?: boolean };
+    return window.matchMedia('(display-mode: standalone)').matches || navigatorWithStandalone.standalone === true;
+  }
+
+  private getCapabilityWarning(): string | null {
+    if (!this.isSupported()) {
+      return 'Этот браузер не поддерживает web push-уведомления';
+    }
+
+    if (!this.isSecureContextAvailable()) {
+      return 'Для реальных push нужен защищенный HTTPS-домен с доверенным сертификатом';
+    }
+
+    if (this.requiresStandaloneMode()) {
+      return 'На iPhone push работают после добавления сайта на экран домой';
+    }
+
+    return null;
+  }
+
+  private describePushSetupIssue(error: unknown): string {
+    if (error instanceof Error && error.message.trim()) {
+      return error.message;
+    }
+
+    return 'Не удалось подготовить push-уведомления в браузере';
   }
 
   private urlBase64ToUint8Array(base64String: string): Uint8Array {
