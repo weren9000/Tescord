@@ -5007,7 +5007,13 @@ export class AppComponent {
       )
     );
 
-    if (event.server_id !== this.selectedServerId()) {
+    const isOwnMessage = event.message.author.id === this.currentUser()?.id;
+    const isSelectedConversation = event.server_id === this.selectedServerId();
+
+    if (!isSelectedConversation) {
+      if (!isOwnMessage) {
+        this.bumpConversationUnreadCount(event.server_id);
+      }
       return;
     }
 
@@ -5017,6 +5023,9 @@ export class AppComponent {
       || (activeChannel.type !== 'text' && activeChannel.type !== 'voice')
       || activeChannel.id !== event.message.channel_id
     ) {
+      if (!isOwnMessage) {
+        this.bumpConversationUnreadCount(event.server_id);
+      }
       return;
     }
 
@@ -5027,16 +5036,16 @@ export class AppComponent {
     this.messages.update((messages) => this.mergeMessagesChronologically([...messages, event.message]));
     this.preloadInlineImagePreviews([event.message]);
 
-    if (isNearBottom || event.message.author.id === this.currentUser()?.id) {
+    if (isNearBottom || isOwnMessage) {
       this.scrollMessagesToBottom();
     }
 
-    if (event.message.author.id !== this.currentUser()?.id && isNearBottom) {
+    if (!isOwnMessage && isNearBottom) {
       this.markChannelAsRead(event.message.channel_id, event.message.id);
       return;
     }
 
-    if (event.message.author.id !== this.currentUser()?.id) {
+    if (!isOwnMessage) {
       this.bumpConversationUnreadCount(event.server_id);
     }
   }
@@ -5059,15 +5068,16 @@ export class AppComponent {
   }
 
   private handleMessageReadUpdatedEvent(event: AppMessageReadUpdatedEvent): void {
-    if (event.server_id !== this.selectedServerId()) {
-      return;
-    }
-
     const readerId = event.state.user_id;
     const currentUserId = this.currentUser()?.id;
     if (readerId === currentUserId) {
       this.setConversationUnreadCountByChannelId(event.channel_id, 0);
     }
+
+    if (event.server_id !== this.selectedServerId()) {
+      return;
+    }
+
     this.messages.update((messages) =>
       messages.map((message) => {
         const withoutReader = message.read_by.filter((reader) => reader.id !== readerId);
