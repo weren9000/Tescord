@@ -17,6 +17,7 @@ export interface WorkspaceServer {
   icon_updated_at: string | null;
   member_role: string;
   kind: 'workspace' | 'direct' | 'group_chat';
+  unread_count: number;
 }
 
 export interface WorkspaceChannel {
@@ -27,6 +28,7 @@ export interface WorkspaceChannel {
   type: 'text' | 'voice' | 'announcement';
   position: number;
   voice_access_role: 'owner' | 'resident' | 'stranger' | null;
+  unread_count: number;
 }
 
 export interface WorkspaceMember {
@@ -61,6 +63,7 @@ export interface BlockedServerSummary {
   name: string;
   icon_asset: string | null;
   icon_updated_at: string | null;
+  kind: 'workspace' | 'group_chat';
   blocked_at: string;
 }
 

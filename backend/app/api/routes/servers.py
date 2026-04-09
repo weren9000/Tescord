@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from datetime import datetime, timezone
 import re
@@ -38,6 +38,7 @@ from app.services.server_access import get_accessible_server, is_server_blocked
 from app.services.server_icons import get_default_server_icon_asset, normalize_server_icon_asset
 from app.services.site_presence import site_presence_manager
 from app.services.workspace_defaults import ensure_workspace_defaults
+from app.services.workspace_events import list_server_channels_for_user
 from app.services.voice_access import (
     can_view_voice_channel,
     ensure_voice_channel_owner_permission,
@@ -56,7 +57,7 @@ def _slugify(value: str) -> str:
     return slug or "group"
 
 
-def _build_server_summary(server: Server, role: MemberRole) -> ServerSummary:
+def _build_server_summary(server: Server, role: MemberRole, unread_count: int = 0) -> ServerSummary:
     return ServerSummary(
         id=server.id,
         name=server.name,
@@ -66,10 +67,15 @@ def _build_server_summary(server: Server, role: MemberRole) -> ServerSummary:
         icon_updated_at=server.icon_updated_at,
         member_role=role.value,
         kind=server.kind.value,
+        unread_count=max(0, unread_count),
     )
 
 
-def _build_channel_summary(channel: Channel, voice_access_role: str | None = None) -> ChannelSummary:
+def _build_channel_summary(
+    channel: Channel,
+    voice_access_role: str | None = None,
+    unread_count: int = 0,
+) -> ChannelSummary:
     return ChannelSummary(
         id=channel.id,
         server_id=channel.server_id,
@@ -78,6 +84,7 @@ def _build_channel_summary(channel: Channel, voice_access_role: str | None = Non
         type=channel.type.value,
         position=channel.position,
         voice_access_role=voice_access_role,
+        unread_count=max(0, unread_count),
     )
 
 
@@ -130,6 +137,7 @@ def _build_blocked_server_summary(block: ServerBlock) -> BlockedServerSummary:
         name=block.server.name,
         icon_asset=block.server.icon_asset,
         icon_updated_at=block.server.icon_updated_at,
+        kind=block.server.kind.value,
         blocked_at=block.created_at,
     )
 
@@ -206,7 +214,13 @@ def list_servers(current_user: User = Depends(get_current_user), db: Session = D
         ).all()
     }
 
-    return [_build_server_summary(server, member_roles[server.id]) for server in servers]
+    summaries: list[ServerSummary] = []
+    for server in servers:
+        visible_channels = list_server_channels_for_user(db, server.id, current_user.id)
+        unread_count = sum(channel.unread_count for channel in visible_channels)
+        summaries.append(_build_server_summary(server, member_roles[server.id], unread_count))
+
+    return summaries
 
 
 @router.get("/blocked", response_model=list[BlockedServerSummary])
@@ -217,7 +231,10 @@ def list_blocked_servers(
     blocks = db.execute(
         select(ServerBlock)
         .join(Server, Server.id == ServerBlock.server_id)
-        .where(ServerBlock.user_id == current_user.id, Server.kind == ServerKind.GROUP_CHAT)
+        .where(
+            ServerBlock.user_id == current_user.id,
+            Server.kind.in_((ServerKind.GROUP_CHAT, ServerKind.WORKSPACE)),
+        )
         .options(joinedload(ServerBlock.server))
         .order_by(ServerBlock.created_at.desc())
     ).scalars().all()
@@ -362,23 +379,7 @@ def list_server_channels(
     elif server.kind == ServerKind.WORKSPACE:
         ensure_workspace_defaults(db, server)
         db.commit()
-    channels = db.execute(
-        select(Channel).where(Channel.server_id == server.id).order_by(Channel.position, Channel.name)
-    ).scalars().all()
-    voice_channel_ids = [channel.id for channel in channels if channel.type == ChannelType.VOICE]
-    voice_access_map = list_voice_channel_access_map(db, voice_channel_ids, current_user.id)
-
-    visible_channels: list[ChannelSummary] = []
-    for channel in channels:
-        if channel.type != ChannelType.VOICE:
-            visible_channels.append(_build_channel_summary(channel))
-            continue
-
-        access = voice_access_map.get(channel.id)
-        if can_view_voice_channel(access):
-            visible_channels.append(_build_channel_summary(channel, access.role.value))
-
-    return visible_channels
+    return list_server_channels_for_user(db, server.id, current_user.id)
 
 
 @router.get("/{server_id}/members", response_model=list[ServerMemberSummary])
@@ -424,7 +425,7 @@ def add_server_member(
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден")
 
-    if server.kind == ServerKind.GROUP_CHAT and is_server_blocked(db, server.id, user.id):
+    if server.kind in {ServerKind.GROUP_CHAT, ServerKind.WORKSPACE} and is_server_blocked(db, server.id, user.id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Пользователь заблокировал эту группу и не может быть приглашен повторно",
@@ -526,11 +527,13 @@ async def leave_server(
     db: Session = Depends(get_db),
 ) -> Response:
     server, membership = get_accessible_server(db, server_id, current_user, allow_workspace_auto_join=False)
-    if server.kind != ServerKind.GROUP_CHAT:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Выйти можно только из группы")
+    if server.kind not in {ServerKind.GROUP_CHAT, ServerKind.WORKSPACE}:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Выйти можно только из группы или площадки")
 
-    is_owner = server.owner_id == current_user.id or membership.role == MemberRole.OWNER
+    is_owner = server.owner_id == current_user.id or (membership is not None and membership.role == MemberRole.OWNER)
     should_close_group = bool(payload.close_group)
+    accusative_label = "площадку" if server.kind == ServerKind.WORKSPACE else "группу"
+    nominative_label = "площадка" if server.kind == ServerKind.WORKSPACE else "группа"
 
     if is_owner:
         if should_close_group:
@@ -546,13 +549,13 @@ async def leave_server(
             for storage_path in storage_paths:
                 delete_stored_attachment(storage_path)
 
-            publish_servers_changed_from_sync(reason="group_closed")
+            publish_servers_changed_from_sync(reason="server_closed")
             return Response(status_code=status.HTTP_204_NO_CONTENT)
 
         if payload.new_owner_user_id is None:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Перед уходом нужно передать группу новому владельцу или закрыть ее полностью",
+                detail=f"Перед уходом нужно передать {accusative_label} новому владельцу или закрыть ее полностью",
             )
 
         if payload.new_owner_user_id == current_user.id:
@@ -565,11 +568,12 @@ async def leave_server(
             )
         ).scalar_one_or_none()
         if next_owner_member is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Новый владелец группы не найден")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Новый владелец {nominative_label} не найден")
 
         server.owner_id = payload.new_owner_user_id
         next_owner_member.role = MemberRole.OWNER
-        membership.role = MemberRole.MEMBER
+        if membership is not None:
+            membership.role = MemberRole.MEMBER
 
     if payload.block_after_leave:
         existing_block = db.execute(
@@ -578,13 +582,13 @@ async def leave_server(
         if existing_block is None:
             db.add(ServerBlock(server_id=server.id, user_id=current_user.id))
 
-    db.delete(membership)
+    if membership is not None:
+        db.delete(membership)
     db.commit()
 
     publish_members_updated_from_sync(server.id, reason="member_left")
     publish_servers_changed_from_sync(reason="server_left")
     return Response(status_code=status.HTTP_204_NO_CONTENT)
-
 
 @router.post("/{server_id}/block", status_code=status.HTTP_204_NO_CONTENT)
 async def block_server(
@@ -716,3 +720,4 @@ async def delete_server_channel(
     for storage_path in attachment_storage_paths:
         delete_stored_attachment(storage_path)
     await publish_channels_updated(server_id, reason="channel_deleted")
+

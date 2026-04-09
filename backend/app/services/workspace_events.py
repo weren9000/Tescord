@@ -3,10 +3,10 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
-from app.db.models import Channel, ChannelType, ServerMember, User
+from app.db.models import Channel, ChannelReadState, ChannelType, Message, ServerMember, User
 from app.schemas.workspace import (
     ChannelSummary,
     ServerMemberSummary,
@@ -18,7 +18,11 @@ from app.services.voice_access import can_view_voice_channel, list_voice_channel
 from app.services.voice_signaling import voice_signaling_manager
 
 
-def _build_channel_summary(channel: Channel, voice_access_role: str | None = None) -> ChannelSummary:
+def _build_channel_summary(
+    channel: Channel,
+    voice_access_role: str | None = None,
+    unread_count: int = 0,
+) -> ChannelSummary:
     return ChannelSummary(
         id=channel.id,
         server_id=channel.server_id,
@@ -27,6 +31,7 @@ def _build_channel_summary(channel: Channel, voice_access_role: str | None = Non
         type=channel.type.value,
         position=channel.position,
         voice_access_role=voice_access_role,
+        unread_count=max(0, unread_count),
     )
 
 
@@ -73,6 +78,52 @@ def _build_voice_channel_presence_summary(
     )
 
 
+def load_unread_counts_by_channel_id(
+    db: Session,
+    channel_ids: list[UUID],
+    current_user_id: UUID,
+) -> dict[UUID, int]:
+    if not channel_ids:
+        return {}
+
+    last_read_state_subquery = (
+        select(
+            ChannelReadState.channel_id.label("channel_id"),
+            Message.created_at.label("last_read_created_at"),
+            Message.id.label("last_read_message_id"),
+        )
+        .select_from(ChannelReadState)
+        .outerjoin(Message, Message.id == ChannelReadState.last_read_message_id)
+        .where(
+            ChannelReadState.user_id == current_user_id,
+            ChannelReadState.channel_id.in_(channel_ids),
+        )
+        .subquery()
+    )
+
+    unread_rows = db.execute(
+        select(Message.channel_id, func.count(Message.id))
+        .select_from(Message)
+        .outerjoin(last_read_state_subquery, last_read_state_subquery.c.channel_id == Message.channel_id)
+        .where(
+            Message.channel_id.in_(channel_ids),
+            Message.author_id != current_user_id,
+            or_(
+                last_read_state_subquery.c.last_read_created_at.is_(None),
+                Message.created_at > last_read_state_subquery.c.last_read_created_at,
+                and_(
+                    Message.created_at == last_read_state_subquery.c.last_read_created_at,
+                    Message.id > last_read_state_subquery.c.last_read_message_id,
+                ),
+            ),
+        )
+        .group_by(Message.channel_id)
+    ).all()
+
+    unread_counts = {channel_id: count for channel_id, count in unread_rows}
+    return {channel_id: unread_counts.get(channel_id, 0) for channel_id in channel_ids}
+
+
 def list_server_channels_for_user(
     db: Session,
     server_id: UUID,
@@ -83,16 +134,32 @@ def list_server_channels_for_user(
     ).scalars().all()
     voice_channel_ids = [channel.id for channel in channels if channel.type == ChannelType.VOICE]
     voice_access_map = list_voice_channel_access_map(db, voice_channel_ids, user_id)
+    unread_counts_by_channel_id = load_unread_counts_by_channel_id(
+        db,
+        [channel.id for channel in channels],
+        user_id,
+    )
 
     visible_channels: list[ChannelSummary] = []
     for channel in channels:
         if channel.type != ChannelType.VOICE:
-            visible_channels.append(_build_channel_summary(channel))
+            visible_channels.append(
+                _build_channel_summary(
+                    channel,
+                    unread_count=unread_counts_by_channel_id.get(channel.id, 0),
+                )
+            )
             continue
 
         access = voice_access_map.get(channel.id)
         if can_view_voice_channel(access):
-            visible_channels.append(_build_channel_summary(channel, access.role.value))
+            visible_channels.append(
+                _build_channel_summary(
+                    channel,
+                    access.role.value,
+                    unread_counts_by_channel_id.get(channel.id, 0),
+                )
+            )
 
     return visible_channels
 

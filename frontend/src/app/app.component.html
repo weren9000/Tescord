@@ -197,7 +197,7 @@
           </button>
           <button class="side-drawer__action" type="button" (click)="openBlockedServersModal()">
             <span>⛔</span>
-            <span>Заблокированные группы</span>
+            <span>Заблокированные группы и площадки</span>
           </button>
           @if (isAdmin()) {
             <button class="side-drawer__action" type="button" (click)="closeSideMenu(); openVoiceAdminPanel()">
@@ -351,6 +351,9 @@
                   <div class="sidebar-entry__copy">
                     <div class="sidebar-entry__headline">
                       <strong>{{ space.name }}</strong>
+                      @if (platformUnreadCount(space) > 0) {
+                        <span class="sidebar-entry__unread-badge">{{ platformUnreadBadgeLabel(space) }}</span>
+                      }
                     </div>
                     <small>{{ platformMetaLabel(space) }}</small>
                   </div>
@@ -433,7 +436,7 @@
                   <img src="/assets/User_fill_add.svg" alt="" />
                 </button>
               }
-              @if (activeDirectPeer() || activeGroupConversation()) {
+              @if (activeDirectPeer() || activeGroupConversation() || isPlatformsMode()) {
                 <button class="secondary-button conversation-head__action conversation-head__action--icon" type="button" aria-label="Управление" title="Управление" (click)="toggleConversationActionMenu()">
                   <img src="/assets/Trash.svg" alt="" />
                 </button>
@@ -459,6 +462,14 @@
                     </button>
                     <button class="conversation-action-menu__item conversation-action-menu__item--danger" type="button" [disabled]="isServerMembershipActionPending(groupConversation.id)" (click)="blockActiveGroup()">
                       Заблокировать группу
+                    </button>
+                  }
+                  @if (isPlatformsMode() && activeServer(); as platform) {
+                    <button class="conversation-action-menu__item" type="button" [disabled]="isServerMembershipActionPending(platform.id)" (click)="leaveActivePlatform()">
+                      Выйти с площадки
+                    </button>
+                    <button class="conversation-action-menu__item conversation-action-menu__item--danger" type="button" [disabled]="isServerMembershipActionPending(platform.id)" (click)="blockActivePlatform()">
+                      Заблокировать площадку
                     </button>
                   }
                   <button class="conversation-action-menu__item" type="button" (click)="closeConversationActionMenu()">
@@ -502,17 +513,39 @@
                   </div>
                   <div class="platform-channel-list">
                     @for (channel of textChannels(); track channel.id) {
-                      <button
+                      <div
                         class="platform-channel-entry"
                         [class.platform-channel-entry--active]="selectedChannelId() === channel.id"
-                        type="button"
-                        (click)="selectChannel(channel)"
+                        [class.platform-channel-entry--managed]="canDeleteWorkspaceChannel(channel)"
                       >
-                        <div class="platform-channel-entry__copy">
-                          <strong># {{ channel.name }}</strong>
-                          <small>{{ platformChannelMetaLabel(channel) }}</small>
-                        </div>
-                      </button>
+                        <button
+                          class="platform-channel-entry__main"
+                          type="button"
+                          (click)="selectChannel(channel)"
+                        >
+                          <div class="platform-channel-entry__copy">
+                            <div class="platform-channel-entry__headline">
+                              <strong># {{ channel.name }}</strong>
+                              @if (channelUnreadCount(channel) > 0) {
+                                <span class="platform-channel-entry__unread-badge">{{ channelUnreadBadgeLabel(channel) }}</span>
+                              }
+                            </div>
+                            <small>{{ platformChannelMetaLabel(channel) }}</small>
+                          </div>
+                        </button>
+                        @if (canDeleteWorkspaceChannel(channel)) {
+                          <button
+                            class="platform-channel-entry__remove"
+                            type="button"
+                            title="Удалить канал"
+                            aria-label="Удалить канал"
+                            [disabled]="isDeletingChannel(channel.id)"
+                            (click)="deleteChannel(channel)"
+                          >
+                            <img src="/assets/Trash.svg" alt="" />
+                          </button>
+                        }
+                      </div>
                     } @empty {
                       <div class="rail-empty">Текстовых каналов пока нет</div>
                     }
@@ -530,10 +563,19 @@
                   </div>
                   <div class="platform-channel-list">
                     @for (channel of voiceChannels(); track channel.id) {
-                      <div class="platform-channel-entry platform-channel-entry--voice" [class.platform-channel-entry--active]="selectedChannelId() === channel.id">
+                      <div
+                        class="platform-channel-entry platform-channel-entry--voice"
+                        [class.platform-channel-entry--active]="selectedChannelId() === channel.id"
+                        [class.platform-channel-entry--managed]="canDeleteWorkspaceChannel(channel)"
+                      >
                         <button class="platform-channel-entry__main" type="button" (click)="selectChannel(channel)">
                           <div class="platform-channel-entry__copy">
-                            <strong>{{ channel.name }}</strong>
+                            <div class="platform-channel-entry__headline">
+                              <strong>{{ channel.name }}</strong>
+                              @if (channelUnreadCount(channel) > 0) {
+                                <span class="platform-channel-entry__unread-badge">{{ channelUnreadBadgeLabel(channel) }}</span>
+                              }
+                            </div>
                             <small>{{ platformChannelMetaLabel(channel) }}</small>
                           </div>
                         </button>
@@ -546,6 +588,18 @@
                         >
                           <img [src]="connectedVoiceChannelId() === channel.id ? '/assets/Phone outgoing.svg' : '/assets/Phone_connect.svg'" alt="" />
                         </button>
+                        @if (canDeleteWorkspaceChannel(channel)) {
+                          <button
+                            class="platform-channel-entry__remove"
+                            type="button"
+                            title="Удалить канал"
+                            aria-label="Удалить канал"
+                            [disabled]="isDeletingChannel(channel.id)"
+                            (click)="deleteChannel(channel)"
+                          >
+                            <img src="/assets/Trash.svg" alt="" />
+                          </button>
+                        }
                       </div>
                     } @empty {
                       <div class="rail-empty">Голосовых каналов пока нет</div>
@@ -1392,7 +1446,7 @@
       <div class="modal__header">
         <div>
           <p class="eyebrow">Безопасность</p>
-          <h3>Заблокированные группы</h3>
+          <h3>Заблокированные группы и площадки</h3>
         </div>
         <button class="icon-button" type="button" (click)="closeBlockedServersModal()">×</button>
       </div>
@@ -1417,7 +1471,7 @@
                 </div>
                 <div class="friend-request-row__copy">
                   <strong>{{ blockedServer.name }}</strong>
-                  <small>Блок: {{ formatMessageTime(blockedServer.blocked_at) }}</small>
+                  <small>{{ blockedServerKindLabel(blockedServer) }} · блок: {{ formatMessageTime(blockedServer.blocked_at) }}</small>
                 </div>
                 <div class="friend-request-row__actions">
                   <button
@@ -1433,7 +1487,7 @@
             }
           </div>
         } @else {
-          <p class="modal-note">Заблокированных групп пока нет.</p>
+          <p class="modal-note">Заблокированных групп и площадок пока нет.</p>
         }
       </div>
 
@@ -1449,15 +1503,15 @@
     <section class="modal modal--wide modal--conversation-create" (click)="$event.stopPropagation()">
       <div class="modal__header">
         <div>
-          <p class="eyebrow">Управление группой</p>
-          <h3>{{ activeServer()?.name ?? 'Текущая группа' }}</h3>
+          <p class="eyebrow">Управление {{ activeManagedSpaceLabel() }}</p>
+          <h3>{{ activeServer()?.name ?? ('Текущая ' + activeManagedSpaceLabel()) }}</h3>
         </div>
         <button class="icon-button" type="button" (click)="closeGroupOwnershipModal()">×</button>
       </div>
 
       <div class="modal__body">
         <p class="modal-note">
-          Перед уходом из группы нужно передать ее другому участнику или закрыть навсегда.
+          Перед уходом из {{ activeManagedSpaceGenitiveLabel() }} нужно передать ее другому участнику или закрыть навсегда.
         </p>
 
         @if (groupOwnershipCandidates().length) {
@@ -1484,7 +1538,7 @@
             }
           </div>
         } @else {
-          <p class="modal-note">Передать группу некому. Ее можно только закрыть навсегда.</p>
+          <p class="modal-note">Передать {{ activeManagedSpaceAccusativeLabel() }} некому. Ее можно только закрыть навсегда.</p>
         }
       </div>
 
@@ -1495,7 +1549,7 @@
           [disabled]="isActiveGroupActionPending()"
           (click)="closeGroupForever()"
         >
-          Закрыть группу навсегда
+          Закрыть {{ activeManagedSpaceAccusativeLabel() }} навсегда
         </button>
         <div class="modal__actions-inline">
           <button class="secondary-button" type="button" (click)="closeGroupOwnershipModal()">Отмена</button>
@@ -1505,7 +1559,7 @@
             [disabled]="!groupOwnershipTransferUserId() || isActiveGroupActionPending()"
             (click)="submitGroupOwnershipTransfer()"
           >
-            Передать группу
+            Передать {{ activeManagedSpaceAccusativeLabel() }}
           </button>
         </div>
       </div>

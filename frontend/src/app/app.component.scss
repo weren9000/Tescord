@@ -4842,12 +4842,17 @@ select {
   box-shadow: inset 2px 0 0 rgba(61, 214, 198, 0.55);
 }
 
+.platform-channel-entry--managed,
 .platform-channel-entry--voice {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
   padding: 0;
+}
+
+.platform-channel-entry--voice.platform-channel-entry--managed {
+  grid-template-columns: minmax(0, 1fr) auto auto;
 }
 
 .platform-channel-entry__main {
@@ -4866,6 +4871,13 @@ select {
   min-width: 0;
 }
 
+.platform-channel-entry__headline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
 .platform-channel-entry__copy strong,
 .platform-channel-entry__copy small {
   display: block;
@@ -4875,6 +4887,8 @@ select {
 }
 
 .platform-channel-entry__copy strong {
+  min-width: 0;
+  flex: 1 1 auto;
   font-size: 12px;
   font-weight: 700;
 }
@@ -4886,12 +4900,63 @@ select {
 }
 
 .platform-channel-entry__voice-action {
-  width: 34px;
-  min-width: 34px;
-  min-height: 34px;
+  width: 30px;
+  min-width: 30px;
+  min-height: 30px;
   padding: 0;
-  border-radius: 11px;
+  margin-right: 8px;
+  border-radius: 10px;
   justify-content: center;
+}
+
+.platform-channel-entry__voice-action img {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+
+.platform-channel-entry__remove {
+  width: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  margin-right: 8px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0.72;
+  transition: opacity 160ms ease, background 160ms ease;
+}
+
+.platform-channel-entry__remove:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.platform-channel-entry__remove img {
+  width: 13px;
+  height: 13px;
+  display: block;
+}
+
+.platform-channel-entry__unread-badge {
+  flex: 0 0 auto;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(61, 214, 198, 0.18);
+  color: rgba(222, 236, 245, 0.92);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .conversation-head {

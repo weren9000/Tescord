@@ -719,7 +719,10 @@ export class AppComponent {
   readonly conversationCreateTab = signal<ConversationCreateTab>('direct');
   readonly createConversationGroupMemberIds = signal<string[]>([]);
   readonly friendRequestBadgeVisible = computed(() => this.pendingFriendRequestCount() > 0);
-  readonly isActiveGroupOwner = computed(() => this.activeGroupConversation()?.member_role === 'owner');
+  readonly isActiveGroupOwner = computed(() => {
+    const activeServer = this.activeServer();
+    return !!activeServer && activeServer.kind !== 'direct' && activeServer.member_role === 'owner';
+  });
   readonly activeConversationPushEnabled = computed(() => this.activeConversation()?.push_enabled === true);
 
   readonly loginForm: LoginFormModel = {
@@ -810,6 +813,7 @@ export class AppComponent {
       icon_updated_at: conversation.icon_updated_at,
       member_role: conversation.member_role,
       kind: conversation.kind,
+      unread_count: conversation.unread_count,
     }))
   );
   readonly directConversationSpaces = computed<WorkspaceServer[]>(() =>
@@ -822,6 +826,7 @@ export class AppComponent {
       icon_updated_at: conversation.icon_updated_at,
       member_role: conversation.member_role,
       kind: conversation.kind,
+      unread_count: conversation.unread_count,
     }))
   );
   readonly groupConversationSpaces = computed<WorkspaceServer[]>(() =>
@@ -834,6 +839,7 @@ export class AppComponent {
       icon_updated_at: conversation.icon_updated_at,
       member_role: conversation.member_role,
       kind: conversation.kind,
+      unread_count: conversation.unread_count,
     }))
   );
   readonly currentSpaceList = computed<WorkspaceServer[]>(() =>
@@ -1802,22 +1808,28 @@ export class AppComponent {
                   this.closeAddGroupMemberModal();
                   this.voiceRoom.leave();
                 }
+                void this.refreshServersList(token);
                 void this.refreshConversationsList(token);
               }
 
               if (this.blockedServersModalOpen() || action === 'unblock' || action === 'block') {
                 void this.refreshBlockedServers(token);
               }
+
+              if (action === 'unblock') {
+                void this.refreshServersList(token);
+              }
             }),
             catchError((error) => {
+              const activeSpaceLabel = this.activeManagedSpaceLabel();
               this.managementError.set(
                 this.extractErrorMessage(
                   error,
                   action === 'leave'
-                    ? 'Не удалось выйти из группы'
+                    ? `Не удалось выйти из ${activeSpaceLabel}`
                     : action === 'block'
-                      ? 'Не удалось заблокировать группу'
-                      : 'Не удалось разблокировать группу'
+                      ? `Не удалось заблокировать ${activeSpaceLabel}`
+                      : 'Не удалось разблокировать пространство'
                 )
               );
               return EMPTY;
@@ -2829,8 +2841,8 @@ export class AppComponent {
   }
 
   isActiveGroupActionPending(): boolean {
-    const group = this.activeGroupConversation();
-    return !!group && this.isServerMembershipActionPending(group.id);
+    const activeServer = this.activeServer();
+    return !!activeServer && activeServer.kind !== 'direct' && this.isServerMembershipActionPending(activeServer.id);
   }
 
   removeActiveFriend(): void {
@@ -2888,6 +2900,14 @@ export class AppComponent {
     this.startActiveGroupMembershipAction('block');
   }
 
+  leaveActivePlatform(): void {
+    this.startActiveGroupMembershipAction('leave');
+  }
+
+  blockActivePlatform(): void {
+    this.startActiveGroupMembershipAction('block');
+  }
+
   unblockServer(serverId: string): void {
     const token = this.session()?.access_token;
     if (!token || this.serverMembershipActionPendingServerId()) {
@@ -2899,48 +2919,50 @@ export class AppComponent {
       token,
       serverId,
       action: 'unblock',
-      successMessage: 'Группа разблокирована',
+      successMessage: 'Пространство разблокировано',
     });
   }
 
   submitGroupOwnershipTransfer(): void {
     const token = this.session()?.access_token;
-    const group = this.activeGroupConversation();
+    const activeServer = this.activeServer();
     const action = this.pendingGroupOwnershipAction();
     const newOwnerUserId = this.groupOwnershipTransferUserId().trim();
-    if (!token || !group || !action || !newOwnerUserId || this.serverMembershipActionPendingServerId()) {
+    if (!token || !activeServer || activeServer.kind === 'direct' || !action || !newOwnerUserId || this.serverMembershipActionPendingServerId()) {
       return;
     }
 
-    this.serverMembershipActionPendingServerId.set(group.id);
+    const spaceLabel = activeServer.kind === 'workspace' ? 'Площадка' : 'Группа';
+    this.serverMembershipActionPendingServerId.set(activeServer.id);
     this.serverMembershipActionTrigger$.next({
       token,
-      serverId: group.id,
+      serverId: activeServer.id,
       action,
       payload: {
         new_owner_user_id: newOwnerUserId,
       },
-      successMessage: action === 'block' ? 'Группа передана и заблокирована' : 'Группа передана новому владельцу',
+      successMessage: action === 'block' ? `${spaceLabel} передана и заблокирована` : `${spaceLabel} передана новому владельцу`,
     });
   }
 
   closeGroupForever(): void {
     const token = this.session()?.access_token;
-    const group = this.activeGroupConversation();
+    const activeServer = this.activeServer();
     const action = this.pendingGroupOwnershipAction();
-    if (!token || !group || !action || this.serverMembershipActionPendingServerId()) {
+    if (!token || !activeServer || activeServer.kind === 'direct' || !action || this.serverMembershipActionPendingServerId()) {
       return;
     }
 
-    this.serverMembershipActionPendingServerId.set(group.id);
+    const spaceLabel = activeServer.kind === 'workspace' ? 'Площадка' : 'Группа';
+    this.serverMembershipActionPendingServerId.set(activeServer.id);
     this.serverMembershipActionTrigger$.next({
       token,
-      serverId: group.id,
+      serverId: activeServer.id,
       action,
       payload: {
         close_group: true,
       },
-      successMessage: 'Группа закрыта навсегда',
+      successMessage: `${spaceLabel} закрыта навсегда`,
     });
   }
 
@@ -3330,8 +3352,8 @@ export class AppComponent {
 
   private startActiveGroupMembershipAction(action: 'leave' | 'block'): void {
     const token = this.session()?.access_token;
-    const group = this.activeGroupConversation();
-    if (!token || !group || this.serverMembershipActionPendingServerId()) {
+    const activeServer = this.activeServer();
+    if (!token || !activeServer || activeServer.kind === 'direct' || this.serverMembershipActionPendingServerId()) {
       return;
     }
 
@@ -3343,13 +3365,15 @@ export class AppComponent {
       return;
     }
 
-    this.serverMembershipActionPendingServerId.set(group.id);
+    const hiddenLabel = activeServer.kind === 'workspace' ? 'Площадка скрыта и заблокирована' : 'Группа скрыта и заблокирована';
+    const leaveLabel = activeServer.kind === 'workspace' ? 'Вы вышли с площадки' : 'Вы вышли из группы';
+    this.serverMembershipActionPendingServerId.set(activeServer.id);
     this.serverMembershipActionTrigger$.next({
       token,
-      serverId: group.id,
+      serverId: activeServer.id,
       action,
       payload: {},
-      successMessage: action === 'block' ? 'Группа скрыта и заблокирована' : 'Вы вышли из группы',
+      successMessage: action === 'block' ? hiddenLabel : leaveLabel,
     });
   }
 
@@ -3391,6 +3415,10 @@ export class AppComponent {
     }
 
     return channel.topic?.trim() || 'Текстовый канал площадки';
+  }
+
+  canDeleteWorkspaceChannel(channel: WorkspaceChannel): boolean {
+    return this.canManageActiveGroup() && !(channel.type === 'voice' && this.isTavernChannel(channel));
   }
 
   openDirectChatWithSelectedMember(): void {
@@ -5152,12 +5180,17 @@ export class AppComponent {
       )
     );
 
+    const isWorkspaceServer = this.servers().some((server) => server.id === event.server_id);
     const isOwnMessage = event.message.author.id === this.currentUser()?.id;
     const isSelectedConversation = event.server_id === this.selectedServerId();
 
     if (!isSelectedConversation) {
       if (!isOwnMessage) {
-        this.bumpConversationUnreadCount(event.server_id);
+        if (isWorkspaceServer) {
+          this.bumpServerUnreadCount(event.server_id);
+        } else {
+          this.bumpConversationUnreadCount(event.server_id);
+        }
       }
       return;
     }
@@ -5169,7 +5202,12 @@ export class AppComponent {
       || activeChannel.id !== event.message.channel_id
     ) {
       if (!isOwnMessage) {
-        this.bumpConversationUnreadCount(event.server_id);
+        if (isWorkspaceServer) {
+          this.bumpChannelUnreadCount(event.message.channel_id);
+          this.bumpServerUnreadCount(event.server_id);
+        } else {
+          this.bumpConversationUnreadCount(event.server_id);
+        }
       }
       return;
     }
@@ -5191,7 +5229,12 @@ export class AppComponent {
     }
 
     if (!isOwnMessage) {
-      this.bumpConversationUnreadCount(event.server_id);
+      if (isWorkspaceServer) {
+        this.bumpChannelUnreadCount(event.message.channel_id);
+        this.bumpServerUnreadCount(event.server_id);
+      } else {
+        this.bumpConversationUnreadCount(event.server_id);
+      }
     }
   }
 
@@ -5216,7 +5259,16 @@ export class AppComponent {
     const readerId = event.state.user_id;
     const currentUserId = this.currentUser()?.id;
     if (readerId === currentUserId) {
-      this.setConversationUnreadCountByChannelId(event.channel_id, 0);
+      const activeServer = this.activeServer();
+      if (activeServer?.kind === 'workspace' && activeServer.id === event.server_id) {
+        const channelUnreadCount = this.channels().find((channel) => channel.id === event.channel_id)?.unread_count ?? 0;
+        this.setChannelUnreadCount(event.channel_id, 0);
+        if (channelUnreadCount > 0) {
+          this.bumpServerUnreadCount(activeServer.id, -channelUnreadCount);
+        }
+      } else {
+        this.setConversationUnreadCountByChannelId(event.channel_id, 0);
+      }
     }
 
     if (event.server_id !== this.selectedServerId()) {
@@ -5270,6 +5322,7 @@ export class AppComponent {
         : preferredSelectedChannelId;
 
     this.channels.set(channels);
+    this.syncActiveServerUnreadCountFromChannels(channels);
 
     if (connectedVoiceChannelId && !channels.some((channel) => channel.id === connectedVoiceChannelId)) {
       this.voiceRoom.leave();
@@ -5313,6 +5366,16 @@ export class AppComponent {
     }
 
     this.syncMessageAutoRefreshPolling();
+  }
+
+  private syncActiveServerUnreadCountFromChannels(channels: WorkspaceChannel[]): void {
+    const activeServer = this.activeServer();
+    if (!activeServer || activeServer.kind !== 'workspace') {
+      return;
+    }
+
+    const unreadCount = channels.reduce((total, channel) => total + Math.max(0, channel.unread_count ?? 0), 0);
+    this.setServerUnreadCount(activeServer.id, unreadCount);
   }
 
   private applyMembersSnapshot(members: WorkspaceMember[]): void {
@@ -5528,7 +5591,7 @@ export class AppComponent {
         },
         error: (error) => {
           this.blockedServersLoading.set(false);
-          this.blockedServersError.set(this.extractErrorMessage(error, 'Не удалось загрузить заблокированные группы'));
+          this.blockedServersError.set(this.extractErrorMessage(error, 'Не удалось загрузить заблокированные группы и площадки'));
         }
       });
   }
@@ -6393,7 +6456,16 @@ export class AppComponent {
     }
 
     this.lastMarkedReadMessageIdByChannel.set(channelId, lastMessageId);
-    this.setConversationUnreadCountByChannelId(channelId, 0);
+    const activeServer = this.activeServer();
+    if (activeServer?.kind === 'workspace') {
+      const channelUnreadCount = this.channels().find((channel) => channel.id === channelId)?.unread_count ?? 0;
+      this.setChannelUnreadCount(channelId, 0);
+      if (channelUnreadCount > 0) {
+        this.bumpServerUnreadCount(activeServer.id, -channelUnreadCount);
+      }
+    } else {
+      this.setConversationUnreadCountByChannelId(channelId, 0);
+    }
     this.markChannelReadTrigger$.next({ token, channelId, lastMessageId });
   }
 
@@ -6876,6 +6948,7 @@ export class AppComponent {
       icon_updated_at: conversation.icon_updated_at,
       member_role: conversation.member_role,
       kind: conversation.kind,
+      unread_count: conversation.unread_count,
     }));
   }
 
@@ -7092,6 +7165,24 @@ export class AppComponent {
     return unreadCount > 99 ? '99+' : String(unreadCount);
   }
 
+  platformUnreadCount(server: WorkspaceServer): number {
+    return Math.max(0, server.unread_count ?? 0);
+  }
+
+  platformUnreadBadgeLabel(server: WorkspaceServer): string {
+    const unreadCount = this.platformUnreadCount(server);
+    return unreadCount > 99 ? '99+' : String(unreadCount);
+  }
+
+  channelUnreadCount(channel: WorkspaceChannel): number {
+    return Math.max(0, channel.unread_count ?? 0);
+  }
+
+  channelUnreadBadgeLabel(channel: WorkspaceChannel): string {
+    const unreadCount = this.channelUnreadCount(channel);
+    return unreadCount > 99 ? '99+' : String(unreadCount);
+  }
+
   activeConversationPushIcon(): string {
     return this.activeConversationPushEnabled() ? '/assets/push_on.svg' : '/assets/push_off.svg';
   }
@@ -7115,6 +7206,26 @@ export class AppComponent {
     }
 
     return 'Группа';
+  }
+
+  activeManagedSpaceLabel(): string {
+    return this.isPlatformsMode() ? 'площадка' : 'группа';
+  }
+
+  activeManagedSpaceLabelCapitalized(): string {
+    return this.isPlatformsMode() ? 'Площадка' : 'Группа';
+  }
+
+  activeManagedSpaceGenitiveLabel(): string {
+    return this.isPlatformsMode() ? 'площадки' : 'группы';
+  }
+
+  activeManagedSpaceAccusativeLabel(): string {
+    return this.isPlatformsMode() ? 'площадку' : 'группу';
+  }
+
+  blockedServerKindLabel(server: BlockedServerSummary): string {
+    return server.kind === 'workspace' ? 'Площадка' : 'Группа';
   }
 
   activeSpaceMetaLabel(): string {
@@ -7239,6 +7350,68 @@ export class AppComponent {
               push_enabled: pushEnabled,
             }
           : conversation
+      )
+    );
+  }
+
+  private setServerUnreadCount(serverId: string, unreadCount: number): void {
+    const normalizedUnreadCount = Math.max(0, unreadCount);
+    this.servers.update((servers) =>
+      servers.map((server) =>
+        server.id === serverId
+          ? {
+              ...server,
+              unread_count: normalizedUnreadCount,
+            }
+          : server
+      )
+    );
+  }
+
+  private setChannelUnreadCount(channelId: string, unreadCount: number): void {
+    const normalizedUnreadCount = Math.max(0, unreadCount);
+    this.channels.update((channels) =>
+      channels.map((channel) =>
+        channel.id === channelId
+          ? {
+              ...channel,
+              unread_count: normalizedUnreadCount,
+            }
+          : channel
+      )
+    );
+  }
+
+  private bumpServerUnreadCount(serverId: string, delta = 1): void {
+    if (!delta) {
+      return;
+    }
+
+    this.servers.update((servers) =>
+      servers.map((server) =>
+        server.id === serverId
+          ? {
+              ...server,
+              unread_count: Math.max(0, (server.unread_count ?? 0) + delta),
+            }
+          : server
+      )
+    );
+  }
+
+  private bumpChannelUnreadCount(channelId: string, delta = 1): void {
+    if (!delta) {
+      return;
+    }
+
+    this.channels.update((channels) =>
+      channels.map((channel) =>
+        channel.id === channelId
+          ? {
+              ...channel,
+              unread_count: Math.max(0, (channel.unread_count ?? 0) + delta),
+            }
+          : channel
       )
     );
   }

@@ -16,6 +16,7 @@ class ServerSummary(BaseModel):
     icon_updated_at: datetime | None = None
     member_role: str
     kind: str = "workspace"
+    unread_count: int = 0
 
 
 class CreateServerRequest(BaseModel):
@@ -58,6 +59,7 @@ class ChannelSummary(BaseModel):
     type: str
     position: int
     voice_access_role: str | None = None
+    unread_count: int = 0
 
 
 class ServerMemberSummary(BaseModel):
@@ -92,6 +94,7 @@ class BlockedServerSummary(BaseModel):
     name: str
     icon_asset: str | None = None
     icon_updated_at: datetime | None = None
+    kind: str
     blocked_at: datetime
 
 
