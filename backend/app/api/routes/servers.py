@@ -615,7 +615,7 @@ async def list_server_voice_presence(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> list[VoiceChannelPresenceSummary]:
-    server, _ = get_accessible_server(db, server_id, current_user)
+    server, membership = get_accessible_server(db, server_id, current_user)
     if server.kind == ServerKind.GROUP_CHAT:
         ensure_group_chat_defaults(db, server)
         db.commit()
@@ -630,7 +630,9 @@ async def list_server_voice_presence(
 
     voice_access_map = list_voice_channel_access_map(db, [channel.id for channel in voice_channels], current_user.id)
     visible_voice_channels = [
-        channel for channel in voice_channels if can_view_voice_channel(voice_access_map.get(channel.id))
+        channel
+        for channel in voice_channels
+        if can_view_voice_channel(voice_access_map.get(channel.id), membership.role if membership is not None else None)
     ]
 
     if not visible_voice_channels:

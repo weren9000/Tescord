@@ -273,7 +273,7 @@ export class WorkspaceApiService {
     token: string,
     channelId: string,
     userId: string,
-    role: 'owner' | 'resident' | 'stranger' | null
+    role: 'owner' | 'resident' | 'guest' | 'stranger' | null
   ): Observable<VoiceChannelAccessEntry[]> {
     return this.http.put<VoiceChannelAccessEntry[]>(
       `${API_BASE_URL}/api/voice/channels/${channelId}/access/${userId}`,

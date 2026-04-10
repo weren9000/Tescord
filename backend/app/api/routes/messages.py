@@ -22,6 +22,7 @@ from app.db.models import (
     MessageReaction,
     MessageReactionKind,
     MessageType,
+    ServerMember,
     ServerKind,
     User,
 )
@@ -249,7 +250,10 @@ def _get_accessible_message_channel(db: Session, channel_id: UUID, current_user:
 
     if channel.type == ChannelType.VOICE:
         access = get_voice_channel_access(db, channel.id, current_user.id)
-        if not can_view_voice_channel(access):
+        membership = db.execute(
+            select(ServerMember).where(ServerMember.server_id == channel.server_id, ServerMember.user_id == current_user.id)
+        ).scalar_one_or_none()
+        if not can_view_voice_channel(access, membership.role if membership is not None else None):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="РљР°РЅР°Р» РЅРµ РЅР°Р№РґРµРЅ")
 
     return channel
@@ -302,13 +306,13 @@ def _conversation_safe_accessible_message_channel(db: Session, channel_id: UUID,
             detail="РЎРѕРѕР±С‰РµРЅРёСЏ РґРѕСЃС‚СѓРїРЅС‹ С‚РѕР»СЊРєРѕ РІ С‚РµРєСЃС‚РѕРІС‹С… Рё РіРѕР»РѕСЃРѕРІС‹С… РєР°РЅР°Р»Р°С…",
         )
 
-    server, _ = ensure_channel_server_access(db, channel, current_user)
+    server, membership = ensure_channel_server_access(db, channel, current_user)
     if server.kind in {ServerKind.DIRECT, ServerKind.GROUP_CHAT} and channel.type != ChannelType.TEXT:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="РљР°РЅР°Р» РЅРµ РЅР°Р№РґРµРЅ")
 
     if channel.type == ChannelType.VOICE:
         access = get_voice_channel_access(db, channel.id, current_user.id)
-        if not can_view_voice_channel(access):
+        if not can_view_voice_channel(access, membership.role if membership is not None else None):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="РљР°РЅР°Р» РЅРµ РЅР°Р№РґРµРЅ")
 
     return channel

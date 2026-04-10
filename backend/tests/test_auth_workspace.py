@@ -642,7 +642,7 @@ def test_regular_user_can_join_default_tavern_without_manual_assignment() -> Non
             delete_user(payload["email"])
 
 
-def test_stranger_can_request_voice_access_and_join_after_owner_allows() -> None:
+def test_guest_can_request_voice_access_and_join_after_owner_allows() -> None:
     with TestClient(app) as client:
         admin_token = login_admin_user(client)
         token, payload = register_regular_user(client)
@@ -652,7 +652,7 @@ def test_stranger_can_request_voice_access_and_join_after_owner_allows() -> None
             assign_response = client.put(
                 f"/api/voice/channels/{voice_channel['id']}/access/{current_user['id']}",
                 headers={"Authorization": f"Bearer {admin_token}"},
-                json={"role": "stranger"},
+                json={"role": "guest"},
             )
             assert assign_response.status_code == 200
 
@@ -664,7 +664,7 @@ def test_stranger_can_request_voice_access_and_join_after_owner_allows() -> None
             listed_voice_channel = next(
                 channel for channel in channels_response.json() if channel["id"] == voice_channel["id"]
             )
-            assert listed_voice_channel["voice_access_role"] == "stranger"
+            assert listed_voice_channel["voice_access_role"] == "guest"
 
             request_response = client.post(
                 f"/api/voice/channels/{voice_channel['id']}/requests",
@@ -698,7 +698,7 @@ def test_stranger_can_request_voice_access_and_join_after_owner_allows() -> None
             delete_user(payload["email"])
 
 
-def test_kicked_stranger_sees_retry_wait_details() -> None:
+def test_kicked_guest_sees_retry_wait_details() -> None:
     with TestClient(app) as client:
         admin_token = login_admin_user(client)
         token, payload = register_regular_user(client)
@@ -708,7 +708,7 @@ def test_kicked_stranger_sees_retry_wait_details() -> None:
             assign_response = client.put(
                 f"/api/voice/channels/{voice_channel['id']}/access/{current_user['id']}",
                 headers={"Authorization": f"Bearer {admin_token}"},
-                json={"role": "stranger"},
+                json={"role": "guest"},
             )
             assert assign_response.status_code == 200
 
@@ -747,7 +747,7 @@ def test_kicked_stranger_sees_retry_wait_details() -> None:
     assert "РџРѕРІС‚РѕСЂРёС‚СЊ РїРѕРїС‹С‚РєСѓ РјРѕР¶РЅРѕ С‡РµСЂРµР·" in detail["message"]
 
 
-def test_kicked_stranger_voice_websocket_is_closed_immediately() -> None:
+def test_kicked_guest_voice_websocket_is_closed_immediately() -> None:
     with TestClient(app) as client:
         admin_token = login_admin_user(client)
         token, payload = register_regular_user(client)
@@ -757,7 +757,7 @@ def test_kicked_stranger_voice_websocket_is_closed_immediately() -> None:
             assign_response = client.put(
                 f"/api/voice/channels/{voice_channel['id']}/access/{current_user['id']}",
                 headers={"Authorization": f"Bearer {admin_token}"},
-                json={"role": "stranger"},
+                json={"role": "guest"},
             )
             assert assign_response.status_code == 200
 

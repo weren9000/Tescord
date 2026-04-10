@@ -30,7 +30,7 @@ class VoiceChannelAccessEntry(BaseModel):
     login: str
     nick: str
     avatar_updated_at: datetime | None
-    role: Literal["owner", "resident", "stranger"]
+    role: Literal["owner", "resident", "guest", "stranger"]
     is_online: bool = False
     is_in_channel: bool = False
     muted: bool = False
@@ -40,7 +40,7 @@ class VoiceChannelAccessEntry(BaseModel):
 
 
 class VoiceChannelAccessUpdateRequest(BaseModel):
-    role: Literal["owner", "resident", "stranger"] | None
+    role: Literal["owner", "resident", "guest", "stranger"] | None
 
 
 class VoiceOwnerMuteUpdateRequest(BaseModel):

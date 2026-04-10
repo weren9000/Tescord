@@ -14,7 +14,7 @@ from app.schemas.workspace import (
     VoicePresenceParticipantSummary,
 )
 from app.services.site_presence import site_presence_manager
-from app.services.voice_access import can_view_voice_channel, list_voice_channel_access_map
+from app.services.voice_access import can_view_voice_channel, get_effective_voice_access_role, list_voice_channel_access_map
 from app.services.voice_signaling import voice_signaling_manager
 
 
@@ -129,6 +129,9 @@ def list_server_channels_for_user(
     server_id: UUID,
     user_id: UUID,
 ) -> list[ChannelSummary]:
+    membership_role = db.execute(
+        select(ServerMember.role).where(ServerMember.server_id == server_id, ServerMember.user_id == user_id)
+    ).scalar_one_or_none()
     channels = db.execute(
         select(Channel).where(Channel.server_id == server_id).order_by(Channel.position, Channel.name)
     ).scalars().all()
@@ -152,11 +155,12 @@ def list_server_channels_for_user(
             continue
 
         access = voice_access_map.get(channel.id)
-        if can_view_voice_channel(access):
+        effective_role = get_effective_voice_access_role(access, membership_role)
+        if can_view_voice_channel(access, membership_role):
             visible_channels.append(
                 _build_channel_summary(
                     channel,
-                    access.role.value,
+                    effective_role.value if effective_role is not None else None,
                     unread_counts_by_channel_id.get(channel.id, 0),
                 )
             )
@@ -184,13 +188,20 @@ async def list_server_voice_presence_for_user(
     server_id: UUID,
     user_id: UUID,
 ) -> list[VoiceChannelPresenceSummary]:
+    membership_role = db.execute(
+        select(ServerMember.role).where(ServerMember.server_id == server_id, ServerMember.user_id == user_id)
+    ).scalar_one_or_none()
     voice_channels = db.execute(
         select(Channel)
         .where(Channel.server_id == server_id, Channel.type == ChannelType.VOICE)
         .order_by(Channel.position, Channel.name)
     ).scalars().all()
     voice_access_map = list_voice_channel_access_map(db, [channel.id for channel in voice_channels], user_id)
-    visible_voice_channels = [channel for channel in voice_channels if can_view_voice_channel(voice_access_map.get(channel.id))]
+    visible_voice_channels = [
+        channel
+        for channel in voice_channels
+        if can_view_voice_channel(voice_access_map.get(channel.id), membership_role)
+    ]
     if not visible_voice_channels:
         return []
 

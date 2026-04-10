@@ -5367,6 +5367,11 @@ select {
   background: rgba(255, 255, 255, 0.025);
 }
 
+.platform-settings-row--active {
+  border-color: rgba(108, 223, 166, 0.32);
+  background: rgba(108, 223, 166, 0.08);
+}
+
 .platform-settings-row__copy {
   min-width: 0;
   display: block;
@@ -5392,6 +5397,13 @@ select {
   font-weight: 700;
 }
 
+.platform-settings-row__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.platform-settings-row__icon,
 .platform-settings-row__delete {
   width: 30px;
   height: 30px;
@@ -5401,9 +5413,12 @@ select {
   padding: 0;
   border: 0;
   border-radius: 10px;
-  background: rgba(255, 111, 124, 0.08);
   cursor: pointer;
   transition: background 160ms ease, transform 160ms ease, opacity 160ms ease;
+}
+
+.platform-settings-row__icon {
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .platform-settings-row__delete:hover:not(:disabled) {
@@ -5411,15 +5426,92 @@ select {
   transform: translateY(-1px);
 }
 
+.platform-settings-row__icon:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+  transform: translateY(-1px);
+}
+
+.platform-settings-row__icon:disabled,
 .platform-settings-row__delete:disabled {
   opacity: 0.55;
   cursor: default;
 }
 
+.platform-settings-row__delete {
+  background: rgba(255, 111, 124, 0.08);
+}
+
+.platform-settings-row__icon img,
 .platform-settings-row__delete img {
   width: 13px;
   height: 13px;
   display: block;
+}
+
+.platform-settings-row__icon .conversation-head__action-symbol,
+.platform-settings-row__delete .conversation-head__action-symbol {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.platform-settings-section--voice-access {
+  margin-top: 4px;
+}
+
+.platform-voice-access-list {
+  display: grid;
+  gap: 6px;
+  max-height: min(320px, 38vh);
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.platform-voice-access-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.platform-voice-access-row__copy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.platform-voice-access-row__copy strong,
+.platform-voice-access-row__copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.platform-voice-access-row__copy strong {
+  font-size: 12px;
+}
+
+.platform-voice-access-row__copy small {
+  font-size: 10px;
+  color: rgba(222, 236, 245, 0.58);
+}
+
+.platform-voice-access-row__select {
+  min-width: 128px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(6, 13, 16, 0.88);
+  color: rgba(240, 247, 246, 0.92);
+  font-size: 12px;
+}
+
+.platform-voice-access-row__select:disabled {
+  opacity: 0.58;
+  cursor: default;
 }
 
 .chat-file-row__delete {

@@ -45,14 +45,16 @@ from app.services.default_tavern import is_default_tavern_channel
 from app.services.site_presence import site_presence_manager
 from app.services.voice_access import (
     build_voice_join_gate,
-    block_stranger_access,
+    block_guest_access,
     can_join_voice_channel_directly,
     can_view_voice_channel,
+    get_effective_voice_access_role,
     get_voice_channel_access,
     get_voice_channel_owner_access,
-    grant_stranger_temporary_access,
+    grant_guest_temporary_access,
+    is_platform_voice_manager,
     is_voice_access_blocked,
-    mark_stranger_rejoin_grace,
+    mark_guest_rejoin_grace,
     utc_now,
 )
 from app.services.voice_signaling import voice_signaling_manager
@@ -126,9 +128,50 @@ def _ensure_server_membership(db: Session, channel: Channel, user: User) -> tupl
     return membership, True
 
 
+def _get_channel_membership(db: Session, channel: Channel, user_id: UUID) -> ServerMember | None:
+    return db.execute(
+        select(ServerMember).where(
+            ServerMember.server_id == channel.server_id,
+            ServerMember.user_id == user_id,
+        )
+    ).scalar_one_or_none()
+
+
+def _is_platform_manager_for_channel(db: Session, channel: Channel, user_id: UUID) -> bool:
+    membership = _get_channel_membership(db, channel, user_id)
+    return membership is not None and is_platform_voice_manager(membership.role)
+
+
+def _ensure_voice_channel_manager(
+    db: Session,
+    channel: Channel,
+    current_user: User,
+) -> tuple[ServerMember | None, VoiceChannelAccess | None, bool]:
+    membership = _get_channel_membership(db, channel, current_user.id)
+    access = get_voice_channel_access(db, channel.id, current_user.id)
+    has_platform_scope = current_user.is_admin or (membership is not None and is_platform_voice_manager(membership.role))
+    has_channel_scope = access is not None and access.role == VoiceAccessRole.OWNER
+    if has_platform_scope or has_channel_scope:
+        return membership, access, has_platform_scope
+
+    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="У вас нет прав на управление этим голосовым каналом")
+
+
 def _collect_voice_inbox_recipient_ids(db: Session, channel_id: UUID) -> set[UUID]:
+    channel = db.get(Channel, channel_id)
+    if channel is None:
+        return set()
+
     admin_user_ids = set(
         db.execute(select(User.id).where(User.is_admin.is_(True))).scalars().all()
+    )
+    platform_manager_user_ids = set(
+        db.execute(
+            select(ServerMember.user_id).where(
+                ServerMember.server_id == channel.server_id,
+                ServerMember.role.in_((MemberRole.OWNER, MemberRole.ADMIN)),
+            )
+        ).scalars().all()
     )
     owner_user_ids = set(
         db.execute(
@@ -138,7 +181,7 @@ def _collect_voice_inbox_recipient_ids(db: Session, channel_id: UUID) -> set[UUI
             )
         ).scalars().all()
     )
-    return admin_user_ids | owner_user_ids
+    return admin_user_ids | platform_manager_user_ids | owner_user_ids
 
 
 def _build_voice_channel_catalog_item(
@@ -182,7 +225,7 @@ def _build_voice_join_request_summary(
 ) -> VoiceJoinRequestSummary:
     blocked_until = None
     retry_after_seconds = None
-    if access is not None and access.role == VoiceAccessRole.STRANGER and is_voice_access_blocked(access):
+    if access is not None and access.role in {VoiceAccessRole.GUEST, VoiceAccessRole.STRANGER} and is_voice_access_blocked(access):
         blocked_until = access.blocked_until
         retry_after_seconds = _seconds_until(access.blocked_until)
 
@@ -222,27 +265,20 @@ def _is_channel_owner(db: Session, channel_id: UUID, user_id: UUID) -> bool:
     return access is not None and access.role == VoiceAccessRole.OWNER
 
 
-def _ensure_voice_channel_manager(db: Session, channel: Channel, current_user: User) -> None:
-    if current_user.is_admin:
-        return
-
-    access = get_voice_channel_access(db, channel.id, current_user.id)
-    if access is None or access.role != VoiceAccessRole.OWNER:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="У вас нет прав на управление этим голосовым каналом")
-
-
 async def _load_channel_access_entries(db: Session, channel_id: UUID) -> list[VoiceChannelAccessEntry]:
-    rows = db.execute(
-        select(VoiceChannelAccess, User)
-        .join(User, User.id == VoiceChannelAccess.user_id)
-        .where(VoiceChannelAccess.channel_id == channel_id)
-        .order_by(
-            VoiceChannelAccess.role,
-            User.username,
-        )
+    channel = _get_voice_channel_or_404(db, channel_id)
+    member_rows = db.execute(
+        select(ServerMember, User)
+        .join(User, User.id == ServerMember.user_id)
+        .where(ServerMember.server_id == channel.server_id)
+        .order_by(User.username)
     ).all()
+    access_rows = db.execute(
+        select(VoiceChannelAccess).where(VoiceChannelAccess.channel_id == channel_id)
+    ).scalars().all()
+    access_by_user_id = {access.user_id: access for access in access_rows}
 
-    online_user_ids = site_presence_manager.online_user_ids([user.id for _, user in rows])
+    online_user_ids = site_presence_manager.online_user_ids([user.id for _, user in member_rows])
     channel_snapshot = await voice_signaling_manager.snapshot_rooms({str(channel_id)})
     participants = channel_snapshot.get(str(channel_id), [])
     participants_by_user_id = {
@@ -251,7 +287,9 @@ async def _load_channel_access_entries(db: Session, channel_id: UUID) -> list[Vo
     }
 
     entries = []
-    for access, user in rows:
+    for member, user in member_rows:
+        access = access_by_user_id.get(user.id)
+        effective_role = get_effective_voice_access_role(access, member.role) or VoiceAccessRole.STRANGER
         participant = participants_by_user_id.get(user.id)
         entries.append(
             VoiceChannelAccessEntry(
@@ -259,17 +297,19 @@ async def _load_channel_access_entries(db: Session, channel_id: UUID) -> list[Vo
                 login=user.email,
                 nick=user.username,
                 avatar_updated_at=user.avatar_updated_at,
-                role=access.role.value,
+                role=effective_role.value,
                 is_online=user.id in online_user_ids,
                 is_in_channel=participant is not None,
                 muted=bool(participant["muted"]) if participant is not None else False,
-                owner_muted=bool(participant.get("owner_muted", access.owner_muted)) if participant is not None else access.owner_muted,
-                blocked_until=access.blocked_until,
-                temporary_access_until=access.temporary_access_until,
+                owner_muted=bool(participant.get("owner_muted", access.owner_muted if access is not None else False))
+                if participant is not None
+                else (access.owner_muted if access is not None else False),
+                blocked_until=access.blocked_until if access is not None else None,
+                temporary_access_until=access.temporary_access_until if access is not None else None,
             )
         )
 
-    role_order = {"owner": 0, "resident": 1, "stranger": 2}
+    role_order = {"owner": 0, "resident": 1, "guest": 2, "stranger": 3}
     return sorted(
         entries,
         key=lambda item: (
@@ -298,7 +338,7 @@ def _upsert_voice_access(
     else:
         access.role = role
 
-    if role in {VoiceAccessRole.OWNER, VoiceAccessRole.RESIDENT}:
+    if role in {VoiceAccessRole.OWNER, VoiceAccessRole.RESIDENT, VoiceAccessRole.GUEST}:
         access.blocked_until = None
         access.temporary_access_until = None
 
@@ -376,7 +416,7 @@ async def update_voice_channel_access(
     db: Session = Depends(get_db),
 ) -> list[VoiceChannelAccessEntry]:
     channel = _get_voice_channel_or_404(db, channel_id)
-    _ensure_voice_channel_manager(db, channel, current_user)
+    _, _, has_platform_scope = _ensure_voice_channel_manager(db, channel, current_user)
     if is_default_tavern_channel(channel):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -387,12 +427,19 @@ async def update_voice_channel_access(
     if target_user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден")
 
+    target_membership = _get_channel_membership(db, channel, user_id)
+    if target_membership is not None and is_platform_voice_manager(target_membership.role) and not has_platform_scope:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Нельзя менять доступ создателя или администратора площадки из настроек канала",
+        )
+
     current_access = get_voice_channel_access(db, channel.id, user_id)
     current_owner = get_voice_channel_owner_access(db, channel.id)
 
     if payload.role == "owner":
-        if not current_user.is_admin:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Только администратор может назначать владельца")
+        if not has_platform_scope:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Назначать владельца канала может только создатель площадки")
 
         if current_owner is not None and current_owner.user_id != user_id:
             current_owner.role = VoiceAccessRole.RESIDENT
@@ -425,7 +472,7 @@ async def update_voice_channel_access(
         return entries
 
     next_role = VoiceAccessRole(payload.role)
-    if not current_user.is_admin and next_role == VoiceAccessRole.OWNER:
+    if not has_platform_scope and next_role == VoiceAccessRole.OWNER:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Владелец канала не может назначать другого владельца")
 
     if current_access is not None and current_access.role == VoiceAccessRole.OWNER and next_role != VoiceAccessRole.OWNER:
@@ -436,6 +483,8 @@ async def update_voice_channel_access(
 
     _upsert_voice_access(db, channel, target_user, next_role)
     db.commit()
+    if next_role == VoiceAccessRole.STRANGER:
+        await voice_signaling_manager.disconnect_user_sessions(str(channel.id), str(user_id))
     entries = await _load_channel_access_entries(db, channel.id)
     await publish_channels_updated(channel.server_id, reason="voice_access_changed")
     await publish_voice_presence_updated(channel.server_id)
@@ -449,7 +498,7 @@ def create_voice_join_request(
     db: Session = Depends(get_db),
 ) -> VoiceJoinRequestCreateResponse:
     channel = _get_voice_channel_or_404(db, channel_id)
-    _, membership_created = _ensure_server_membership(db, channel, current_user)
+    membership, membership_created = _ensure_server_membership(db, channel, current_user)
     if membership_created:
         publish_members_updated_from_sync(channel.server_id, reason="member_joined")
 
@@ -464,7 +513,7 @@ def create_voice_join_request(
         db.commit()
         db.refresh(access)
 
-    gate = build_voice_join_gate(access)
+    gate = build_voice_join_gate(access, member_role=membership.role)
     if not gate.visible:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="У вас нет доступа к этому голосовому каналу")
 
@@ -533,34 +582,41 @@ def list_incoming_voice_join_requests(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> list[VoiceJoinRequestSummary]:
+    rows = db.execute(
+        select(VoiceJoinRequest, Channel, User)
+        .join(Channel, Channel.id == VoiceJoinRequest.channel_id)
+        .join(User, User.id == VoiceJoinRequest.requester_user_id)
+        .where(VoiceJoinRequest.status == VoiceJoinRequestStatus.PENDING)
+        .order_by(VoiceJoinRequest.created_at)
+    ).all()
+
     if current_user.is_admin:
-        rows = db.execute(
-            select(VoiceJoinRequest, Channel, User)
-            .join(Channel, Channel.id == VoiceJoinRequest.channel_id)
-            .join(User, User.id == VoiceJoinRequest.requester_user_id)
-            .where(VoiceJoinRequest.status == VoiceJoinRequestStatus.PENDING)
-            .order_by(VoiceJoinRequest.created_at)
-        ).all()
+        filtered_rows = rows
     else:
-        rows = db.execute(
-            select(VoiceJoinRequest, Channel, User)
-            .join(Channel, Channel.id == VoiceJoinRequest.channel_id)
-            .join(User, User.id == VoiceJoinRequest.requester_user_id)
-            .join(
-                VoiceChannelAccess,
-                (VoiceChannelAccess.channel_id == VoiceJoinRequest.channel_id)
-                & (VoiceChannelAccess.role == VoiceAccessRole.OWNER),
-            )
-            .where(
-                VoiceJoinRequest.status == VoiceJoinRequestStatus.PENDING,
-                VoiceChannelAccess.user_id == current_user.id,
-            )
-            .order_by(VoiceJoinRequest.created_at)
-        ).all()
+        owned_channel_ids = set(
+            db.execute(
+                select(VoiceChannelAccess.channel_id).where(
+                    VoiceChannelAccess.user_id == current_user.id,
+                    VoiceChannelAccess.role == VoiceAccessRole.OWNER,
+                )
+            ).scalars().all()
+        )
+        managed_server_ids = set(
+            db.execute(
+                select(ServerMember.server_id).where(
+                    ServerMember.user_id == current_user.id,
+                    ServerMember.role.in_((MemberRole.OWNER, MemberRole.ADMIN)),
+                )
+            ).scalars().all()
+        )
+        filtered_rows = [
+            row for row in rows
+            if row[1].id in owned_channel_ids or row[1].server_id in managed_server_ids
+        ]
 
     return [
         _build_voice_join_request_summary(request, channel, requester)
-        for request, channel, requester in rows
+        for request, channel, requester in filtered_rows
     ]
 
 
@@ -576,6 +632,7 @@ def get_voice_join_request(
         not current_user.is_admin
         and requester.id != current_user.id
         and not _is_channel_owner(db, channel.id, current_user.id)
+        and not _is_platform_manager_for_channel(db, channel, current_user.id)
     ):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="У вас нет доступа к этому запросу")
 
@@ -601,15 +658,15 @@ async def resolve_voice_join_request(
         access = VoiceChannelAccess(
             channel_id=channel.id,
             user_id=requester.id,
-            role=VoiceAccessRole.STRANGER,
+            role=VoiceAccessRole.GUEST,
         )
         db.add(access)
         db.flush()
 
     now = utc_now()
     if payload.action == "allow":
-        access.role = VoiceAccessRole.STRANGER
-        grant_stranger_temporary_access(access, now=now)
+        access.role = VoiceAccessRole.GUEST
+        grant_guest_temporary_access(access, now=now)
         request.status = VoiceJoinRequestStatus.ALLOWED
     elif payload.action == "resident":
         access.role = VoiceAccessRole.RESIDENT
@@ -617,8 +674,8 @@ async def resolve_voice_join_request(
         access.temporary_access_until = None
         request.status = VoiceJoinRequestStatus.RESIDENT
     else:
-        access.role = VoiceAccessRole.STRANGER
-        block_stranger_access(access, now=now)
+        access.role = VoiceAccessRole.GUEST
+        block_guest_access(access, now=now)
         request.status = VoiceJoinRequestStatus.REJECTED
         await voice_signaling_manager.disconnect_user_sessions(str(channel.id), str(requester.id))
 
@@ -645,11 +702,15 @@ async def kick_voice_participant(
     _ensure_voice_channel_manager(db, channel, current_user)
 
     access = get_voice_channel_access(db, channel.id, user_id)
-    if access is None or access.role != VoiceAccessRole.STRANGER:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Выгнать можно только чужака")
+    if access is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Участник не найден в настройках канала")
 
-    block_stranger_access(access)
-    db.commit()
+    if access.role == VoiceAccessRole.OWNER:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Нельзя выгнать владельца канала")
+
+    if access.role in {VoiceAccessRole.GUEST, VoiceAccessRole.STRANGER}:
+        block_guest_access(access)
+        db.commit()
     await voice_signaling_manager.disconnect_user_sessions(str(channel.id), str(user_id))
     await publish_channels_updated(channel.server_id, reason="voice_access_changed")
     await publish_voice_presence_updated(channel.server_id)
@@ -702,7 +763,7 @@ async def connect_to_voice_channel(websocket: WebSocket, channel_id: UUID) -> No
             await websocket.close(code=4404, reason="Voice channel not found")
             return
 
-        _, membership_created = _ensure_server_membership(db, channel, current_user)
+        membership, membership_created = _ensure_server_membership(db, channel, current_user)
         if membership_created:
             await publish_members_updated(channel.server_id, reason="member_joined")
 
@@ -717,11 +778,11 @@ async def connect_to_voice_channel(websocket: WebSocket, channel_id: UUID) -> No
             db.commit()
             db.refresh(access)
 
-        if not can_view_voice_channel(access):
+        if not can_view_voice_channel(access, membership.role):
             await websocket.close(code=4403, reason="Нет доступа к голосовому каналу")
             return
 
-        if access is None or not can_join_voice_channel_directly(access):
+        if not can_join_voice_channel_directly(access, member_role=membership.role):
             if is_voice_access_blocked(access):
                 await websocket.close(code=4403, reason="Вход временно запрещен владельцем")
             else:
@@ -735,7 +796,7 @@ async def connect_to_voice_channel(websocket: WebSocket, channel_id: UUID) -> No
             public_id=current_user.public_id,
             nick=current_user.username,
             avatar_updated_at=current_user.avatar_updated_at,
-            owner_muted=bool(access.owner_muted),
+            owner_muted=bool(access.owner_muted) if access is not None else False,
         )
         await publish_voice_presence_updated(channel.server_id)
 
@@ -786,7 +847,7 @@ async def connect_to_voice_channel(websocket: WebSocket, channel_id: UUID) -> No
         await voice_signaling_manager.disconnect(str(channel_id), participant.id)
         with SessionLocal() as db:
             access = get_voice_channel_access(db, channel_id, current_user.id)
-            if access is not None and access.role == VoiceAccessRole.STRANGER:
-                mark_stranger_rejoin_grace(access)
+            if access is not None and access.role == VoiceAccessRole.GUEST and not is_voice_access_blocked(access):
+                mark_guest_rejoin_grace(access)
                 db.commit()
         await publish_voice_presence_updated(channel.server_id)

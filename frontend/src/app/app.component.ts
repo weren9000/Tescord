@@ -70,7 +70,7 @@ type WorkspaceMode = 'chats' | 'groups' | 'platforms';
 type VoicePresenceTone = 'speaking' | 'open' | 'muted' | 'blocked';
 type MemberPresenceTone = VoicePresenceTone | 'inactive';
 type MobilePanel = 'servers' | 'channels' | 'members' | null;
-type VoiceAccessRole = 'owner' | 'resident' | 'stranger';
+type VoiceAccessRole = 'owner' | 'resident' | 'guest' | 'stranger';
 type VoiceWorkspaceTab = 'chat' | 'channel';
 type ConversationCreateTab = 'direct' | 'group';
 type PushFeedbackTone = 'success' | 'warning' | 'error';
@@ -314,7 +314,7 @@ interface VoiceMemberRoleTrigger {
   token: string;
   channelId: string;
   member: GroupMemberItem;
-  role: Extract<VoiceAccessRole, 'resident' | 'stranger'>;
+  role: Extract<VoiceAccessRole, 'resident' | 'guest' | 'stranger'>;
 }
 
 interface KickVoiceMemberTrigger {
@@ -673,6 +673,7 @@ export class AppComponent {
   readonly createChannelModalOpen = signal(false);
   readonly platformSettingsModalOpen = signal(false);
   readonly platformSettingsDangerMenuOpen = signal(false);
+  readonly platformVoiceSettingsChannelId = signal<string | null>(null);
   readonly groupMembersModalOpen = signal(false);
   readonly groupVoiceParticipantsExpanded = signal(false);
   readonly sideMenuOpen = signal(false);
@@ -957,6 +958,18 @@ export class AppComponent {
 
     return currentUser.is_admin || activeServer.member_role === 'owner' || activeServer.member_role === 'admin';
   });
+  readonly canOpenPlatformSettings = computed(() => {
+    const activeServer = this.activeServer();
+    if (!activeServer || activeServer.kind !== 'workspace') {
+      return false;
+    }
+
+    if (this.canManageActiveGroup()) {
+      return true;
+    }
+
+    return this.voiceChannels().some((channel) => channel.voice_access_role === 'owner');
+  });
 
   readonly canEditActiveServerIcon = computed(() => this.canManageActiveGroup() && !this.isCompactVoiceWorkspaceViewport());
   readonly canCreateConversationGroup = computed(() =>
@@ -1007,6 +1020,28 @@ export class AppComponent {
     return this.voiceParticipantsForChannel(voiceChannel.id);
   });
   readonly activeGroupMemberCount = computed(() => this.members().length);
+  readonly platformManageableVoiceChannels = computed(() =>
+    this.voiceChannels().filter((channel) => this.canManagePlatformVoiceChannel(channel))
+  );
+  readonly platformVoiceSettingsChannel = computed(() => {
+    const channelId = this.platformVoiceSettingsChannelId();
+    if (!channelId) {
+      return null;
+    }
+
+    return this.voiceChannels().find((channel) => channel.id === channelId) ?? null;
+  });
+  readonly platformVoiceSettingsAccessEntries = computed(() => {
+    const channelId = this.platformVoiceSettingsChannelId();
+    if (!channelId) {
+      return [];
+    }
+
+    return this.voiceAccessEntriesByChannelId()[channelId] ?? [];
+  });
+  readonly platformVoiceSettingsOwnerEntry = computed(() =>
+    this.platformVoiceSettingsAccessEntries().find((entry) => entry.role === 'owner') ?? null
+  );
   readonly directDirectoryQueryNormalized = computed(() => this.directDirectoryQuery().trim().toLowerCase());
   readonly addGroupMemberQueryNormalized = computed(() => this.addGroupMemberQuery().trim().toLowerCase());
   readonly personalDirectoryCandidates = computed(() => {
@@ -1464,7 +1499,7 @@ export class AppComponent {
       return false;
     }
 
-    if (this.currentUser()?.is_admin) {
+    if (this.currentUser()?.is_admin || this.canManageActiveGroup()) {
       return true;
     }
 
@@ -1479,6 +1514,10 @@ export class AppComponent {
 
     if (role === 'resident') {
       return 'житель';
+    }
+
+    if (role === 'guest') {
+      return 'гость';
     }
 
     if (role === 'stranger') {
@@ -2360,7 +2399,9 @@ export class AppComponent {
               this.managementSuccess.set(
                 role === 'resident'
                   ? `${memberName} теперь житель канала`
-                  : `${memberName} теперь чужак канала`
+                  : role === 'guest'
+                    ? `${memberName} теперь гость канала`
+                    : `${memberName} теперь чужак канала`
               );
             }),
             catchError((error) => {
@@ -2379,11 +2420,11 @@ export class AppComponent {
     this.kickVoiceMemberTrigger$
       .pipe(
         exhaustMap(({ token, channelId, member }) =>
-          this.workspaceApi.kickVoiceParticipant(token, channelId, member.userId).pipe(
-            tap((entries) => {
-              this.setVoiceChannelAccessEntries(channelId, entries);
-              this.managementSuccess.set(`${this.displayNick(member.nick)} выгнан из канала на 5 минут`);
-            }),
+            this.workspaceApi.kickVoiceParticipant(token, channelId, member.userId).pipe(
+              tap((entries) => {
+                this.setVoiceChannelAccessEntries(channelId, entries);
+                this.managementSuccess.set(`${this.displayNick(member.nick)} отключен от канала`);
+              }),
             catchError((error) => {
               this.managementError.set(this.extractErrorMessage(error, 'Не удалось выгнать участника'));
               return EMPTY;
@@ -2836,6 +2877,93 @@ export class AppComponent {
     this.platformSettingsDangerMenuOpen.set(false);
   }
 
+  canManagePlatformVoiceChannel(channel: WorkspaceChannel): boolean {
+    if (!this.isPlatformsMode() || channel.type !== 'voice') {
+      return false;
+    }
+
+    if (this.canManageActiveGroup()) {
+      return true;
+    }
+
+    return channel.voice_access_role === 'owner';
+  }
+
+  isPlatformVoiceSettingsSelected(channelId: string): boolean {
+    return this.platformVoiceSettingsChannelId() === channelId;
+  }
+
+  openPlatformVoiceChannelSettings(channel: WorkspaceChannel): void {
+    const token = this.session()?.access_token;
+    if (!token || !this.canManagePlatformVoiceChannel(channel)) {
+      return;
+    }
+
+    this.platformVoiceSettingsChannelId.set(channel.id);
+    this.managementError.set(null);
+    this.managementSuccess.set(null);
+    void this.ensureVoiceChannelAccessLoaded(channel.id, true);
+  }
+
+  canPromotePlatformVoiceOwner(): boolean {
+    return this.currentUser()?.is_admin === true || this.canManageActiveGroup();
+  }
+
+  isPlatformMemberManager(userId: string): boolean {
+    const member = this.groupMembers().find((entry) => entry.userId === userId);
+    return member?.role === 'owner' || member?.role === 'admin';
+  }
+
+  canEditPlatformVoiceRole(entry: VoiceChannelAccessEntry): boolean {
+    const channel = this.platformVoiceSettingsChannel();
+    if (!channel || !this.canManagePlatformVoiceChannel(channel)) {
+      return false;
+    }
+
+    if (entry.role === 'owner') {
+      return false;
+    }
+
+    if (!this.canPromotePlatformVoiceOwner() && this.isPlatformMemberManager(entry.user_id)) {
+      return false;
+    }
+
+    return true;
+  }
+
+  platformVoiceRoleOptions(entry: VoiceChannelAccessEntry): VoiceAccessRole[] {
+    const options: VoiceAccessRole[] = ['resident', 'guest', 'stranger'];
+    if (this.canPromotePlatformVoiceOwner() || entry.role === 'owner') {
+      options.unshift('owner');
+    }
+
+    return options;
+  }
+
+  updatePlatformVoiceRole(entry: VoiceChannelAccessEntry, roleValue: string): void {
+    const token = this.session()?.access_token;
+    const channel = this.platformVoiceSettingsChannel();
+    if (!token || !channel || !this.canEditPlatformVoiceRole(entry)) {
+      return;
+    }
+
+    const nextRole = roleValue as VoiceAccessRole;
+    if (!this.platformVoiceRoleOptions(entry).includes(nextRole) || entry.role === nextRole) {
+      return;
+    }
+
+    this.voiceAdminSaving.set(true);
+    this.managementError.set(null);
+    this.voiceAdminAccessMutation$.next({
+      token,
+      channelId: channel.id,
+      userId: entry.user_id,
+      role: nextRole,
+      successMessage: 'Роль доступа к голосовому каналу обновлена',
+      errorMessage: 'Не удалось обновить роль доступа к голосовому каналу',
+    });
+  }
+
   closeGroupOwnershipModal(): void {
     this.groupOwnershipModalOpen.set(false);
     this.pendingGroupOwnershipAction.set(null);
@@ -3213,13 +3341,24 @@ export class AppComponent {
 
   openPlatformSettingsModal(): void {
     const activeServer = this.activeServer();
-    if (!activeServer || activeServer.kind !== 'workspace' || !this.canManageActiveGroup()) {
+    if (!activeServer || activeServer.kind !== 'workspace' || !this.canOpenPlatformSettings()) {
       return;
     }
 
     this.closeConversationActionMenu();
     this.closePlatformSettingsDangerMenu();
     this.platformSettingsModalOpen.set(true);
+    const preferredChannel =
+      this.platformVoiceSettingsChannel()
+      ?? this.platformManageableVoiceChannels()[0]
+      ?? null;
+    this.platformVoiceSettingsChannelId.set(preferredChannel?.id ?? null);
+    if (preferredChannel) {
+      const token = this.session()?.access_token;
+      if (token) {
+        void this.ensureVoiceChannelAccessLoaded(preferredChannel.id, true);
+      }
+    }
     this.managementError.set(null);
     this.managementSuccess.set(null);
   }
@@ -3227,6 +3366,7 @@ export class AppComponent {
   closePlatformSettingsModal(): void {
     this.platformSettingsModalOpen.set(false);
     this.closePlatformSettingsDangerMenu();
+    this.platformVoiceSettingsChannelId.set(null);
   }
 
   openServerIconPicker(): void {
@@ -3343,7 +3483,7 @@ export class AppComponent {
       ? this.channels().find((channel) => channel.id === voiceChannelId) ?? null
       : null;
     const canManageVoiceChannel =
-      this.currentUser()?.is_admin === true || currentChannel?.voice_access_role === 'owner';
+      this.currentUser()?.is_admin === true || this.canManageActiveGroup() || currentChannel?.voice_access_role === 'owner';
 
     if (voiceChannelId && canManageVoiceChannel) {
       void this.ensureVoiceChannelAccessLoaded(voiceChannelId);
@@ -4189,7 +4329,7 @@ export class AppComponent {
     this.openMemberVolume(member, channelId);
   }
 
-  setSelectedVoiceMemberRole(role: Extract<VoiceAccessRole, 'resident' | 'stranger'>): void {
+  setSelectedVoiceMemberRole(role: Extract<VoiceAccessRole, 'resident' | 'guest' | 'stranger'>): void {
     const token = this.session()?.access_token;
     const channelId = this.selectedVoiceMemberChannelId();
     const member = this.selectedMember();
@@ -4297,6 +4437,7 @@ export class AppComponent {
     this.createChannelModalOpen.set(false);
     this.platformSettingsModalOpen.set(false);
     this.platformSettingsDangerMenuOpen.set(false);
+    this.platformVoiceSettingsChannelId.set(null);
     this.friendRequestsModalOpen.set(false);
     this.blockedFriendsModalOpen.set(false);
     this.blockedServersModalOpen.set(false);
@@ -5397,6 +5538,17 @@ export class AppComponent {
       this.closeMemberVolume();
     }
 
+    if (
+      this.platformVoiceSettingsChannelId()
+      && !channels.some((channel) => channel.id === this.platformVoiceSettingsChannelId())
+    ) {
+      const fallbackChannel = channels.find((channel) => this.canManagePlatformVoiceChannel(channel)) ?? null;
+      this.platformVoiceSettingsChannelId.set(fallbackChannel?.id ?? null);
+      if (fallbackChannel && this.platformSettingsModalOpen()) {
+        void this.ensureVoiceChannelAccessLoaded(fallbackChannel.id, true);
+      }
+    }
+
     const nextSelectedChannel = channels.find((channel) => channel.id === nextSelectedChannelId) ?? null;
     if (!nextSelectedChannel) {
       this.resetTextChannelState();
@@ -5713,7 +5865,7 @@ export class AppComponent {
       if (channel && channel.type === 'voice') {
         await this.connectToVoiceChannel({
           ...channel,
-          voice_access_role: request.status === 'resident' ? 'resident' : 'stranger'
+          voice_access_role: request.status === 'resident' ? 'resident' : 'guest'
         });
       }
       return;
@@ -6018,7 +6170,7 @@ export class AppComponent {
   }
 
   private async handleVoiceChannelSelection(channel: WorkspaceChannel): Promise<void> {
-    if (channel.voice_access_role === 'stranger') {
+    if (channel.voice_access_role === 'stranger' || channel.voice_access_role === 'guest') {
       await this.requestVoiceChannelEntry(channel);
       return;
     }
@@ -6049,7 +6201,7 @@ export class AppComponent {
     await this.voiceRoom.join(channel.id, token, currentUser);
     this.pendingVoiceJoin.set(null);
     this.stopVoiceJoinRequestPolling();
-    if (this.currentUser()?.is_admin || channel.voice_access_role === 'owner') {
+    if (this.currentUser()?.is_admin || this.canManageActiveGroup() || channel.voice_access_role === 'owner') {
       void this.ensureVoiceChannelAccessLoaded(channel.id, true);
     }
   }
@@ -7525,7 +7677,15 @@ export class AppComponent {
       return 'Житель';
     }
 
+    if (role === 'guest') {
+      return 'Гость';
+    }
+
     return 'Чужак';
+  }
+
+  voiceAccessRoleLabel(role: VoiceAccessRole): string {
+    return this.formatVoiceAccessRole(role);
   }
 
   buildVoiceAdminStatusChips(entry: VoiceChannelAccessEntry): VoiceAdminStatusChip[] {

@@ -45,6 +45,7 @@ class FriendRequestStatus(str, enum.Enum):
 class VoiceAccessRole(str, enum.Enum):
     OWNER = "owner"
     RESIDENT = "resident"
+    GUEST = "guest"
     STRANGER = "stranger"
 
 

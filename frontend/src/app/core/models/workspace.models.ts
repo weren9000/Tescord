@@ -27,7 +27,7 @@ export interface WorkspaceChannel {
   topic: string | null;
   type: 'text' | 'voice' | 'announcement';
   position: number;
-  voice_access_role: 'owner' | 'resident' | 'stranger' | null;
+  voice_access_role: 'owner' | 'resident' | 'guest' | 'stranger' | null;
   unread_count: number;
 }
 
@@ -211,7 +211,7 @@ export interface VoiceChannelAccessEntry {
   login: string;
   nick: string;
   avatar_updated_at: string | null;
-  role: 'owner' | 'resident' | 'stranger';
+  role: 'owner' | 'resident' | 'guest' | 'stranger';
   is_online: boolean;
   is_in_channel: boolean;
   muted: boolean;

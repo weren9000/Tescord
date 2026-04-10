@@ -436,7 +436,7 @@
                   <img src="/assets/User_fill_add.svg" alt="" />
                 </button>
               }
-              @if (isPlatformsMode() && canManageActiveGroup()) {
+              @if (isPlatformsMode() && canOpenPlatformSettings()) {
                 <button class="secondary-button conversation-head__action conversation-head__action--icon" type="button" aria-label="Настройки площадки" title="Настройки площадки" (click)="openPlatformSettingsModal()">
                   <span class="conversation-head__action-symbol" aria-hidden="true">⚙</span>
                 </button>
@@ -1917,6 +1917,7 @@
                 <select [(ngModel)]="voiceAdminAssignmentForm.role" name="voice_admin_role">
                   <option value="owner">Владелец</option>
                   <option value="resident">Житель</option>
+                  <option value="guest">Гость</option>
                   <option value="stranger">Чужак</option>
                 </select>
               </label>
@@ -1973,6 +1974,15 @@
                           [disabled]="voiceAdminSaving()"
                         >
                           Житель
+                        </button>
+                        <button
+                          class="secondary-button"
+                          type="button"
+                          title="Сделать гостем"
+                          (click)="applyVoiceAdminRole(view.entry.user_id, 'guest')"
+                          [disabled]="voiceAdminSaving()"
+                        >
+                          Гость
                         </button>
                         <button
                           class="secondary-button"
@@ -2398,30 +2408,88 @@
 
             <div class="platform-settings-list">
               @for (channel of voiceChannels(); track channel.id) {
-                <div class="platform-settings-row">
+                <div class="platform-settings-row" [class.platform-settings-row--active]="isPlatformVoiceSettingsSelected(channel.id)">
                   <div class="platform-settings-row__copy">
                     <strong>{{ channel.name }}</strong>
                   </div>
-                  @if (canDeleteWorkspaceChannel(channel)) {
-                    <button
-                      class="platform-settings-row__delete"
-                      type="button"
-                      title="Удалить канал"
-                      aria-label="Удалить канал"
-                      [disabled]="isDeletingChannel(channel.id)"
-                      (click)="deleteChannel(channel)"
-                    >
-                      <img src="/assets/Trash.svg" alt="" />
-                    </button>
-                  } @else {
-                    <span class="platform-settings-row__badge">Системный</span>
-                  }
+                  <div class="platform-settings-row__actions">
+                    @if (canManagePlatformVoiceChannel(channel)) {
+                      <button
+                        class="platform-settings-row__icon"
+                        type="button"
+                        title="Настроить канал"
+                        aria-label="Настроить канал"
+                        (click)="openPlatformVoiceChannelSettings(channel)"
+                      >
+                        <span class="conversation-head__action-symbol" aria-hidden="true">⚙</span>
+                      </button>
+                    }
+                    @if (canDeleteWorkspaceChannel(channel)) {
+                      <button
+                        class="platform-settings-row__delete"
+                        type="button"
+                        title="Удалить канал"
+                        aria-label="Удалить канал"
+                        [disabled]="isDeletingChannel(channel.id)"
+                        (click)="deleteChannel(channel)"
+                      >
+                        <img src="/assets/Trash.svg" alt="" />
+                      </button>
+                    } @else if (isProtectedWorkspaceChannel(channel)) {
+                      <span class="platform-settings-row__badge">Системный</span>
+                    }
+                  </div>
                 </div>
               } @empty {
                 <p class="modal-note">Голосовых каналов пока нет.</p>
               }
             </div>
           </section>
+
+          @if (platformVoiceSettingsChannel(); as voiceSettingsChannel) {
+            <section class="platform-settings-section platform-settings-section--voice-access">
+              <div class="platform-settings-section__head">
+                <strong>{{ voiceSettingsChannel.name }}</strong>
+                @if (platformVoiceSettingsOwnerEntry(); as voiceOwnerEntry) {
+                  <span class="platform-settings-row__badge">Владелец: {{ displayNick(voiceOwnerEntry.nick) }}</span>
+                }
+              </div>
+
+              <div class="platform-voice-access-list">
+                @if (voiceAdminAccessLoading()) {
+                  <p class="modal-note">Загружаем роли канала...</p>
+                } @else {
+                  @for (entry of platformVoiceSettingsAccessEntries(); track entry.user_id) {
+                    <div class="platform-voice-access-row">
+                      <div class="platform-voice-access-row__copy">
+                        <strong>{{ displayNick(entry.nick) }}</strong>
+                        <small>
+                          {{ entry.is_online ? 'онлайн' : 'офлайн' }}
+                          @if (isPlatformMemberManager(entry.user_id)) {
+                            · управление площадкой
+                          }
+                        </small>
+                      </div>
+
+                      <select
+                        class="platform-voice-access-row__select"
+                        [ngModel]="entry.role"
+                        [disabled]="voiceAdminSaving() || !canEditPlatformVoiceRole(entry)"
+                        [name]="'platform_voice_role_' + entry.user_id"
+                        (ngModelChange)="updatePlatformVoiceRole(entry, $event)"
+                      >
+                        @for (roleOption of platformVoiceRoleOptions(entry); track roleOption) {
+                          <option [value]="roleOption">{{ voiceAccessRoleLabel(roleOption) }}</option>
+                        }
+                      </select>
+                    </div>
+                  } @empty {
+                    <p class="modal-note">На площадке пока нет участников для настройки доступа.</p>
+                  }
+                }
+              </div>
+            </section>
+          }
         </div>
       </div>
     </section>
@@ -2563,10 +2631,16 @@
                 </button>
               }
               @if (selectedVoiceMemberAccessEntry()?.role === 'stranger') {
+                <button class="secondary-button" type="button" (click)="setSelectedVoiceMemberRole('guest')" [disabled]="voiceOwnerActionLoading()">Сделать гостем</button>
                 <button class="secondary-button" type="button" (click)="setSelectedVoiceMemberRole('resident')" [disabled]="voiceOwnerActionLoading()">Сделать жителем</button>
+              } @else if (selectedVoiceMemberAccessEntry()?.role === 'guest') {
+                <button class="secondary-button" type="button" (click)="setSelectedVoiceMemberRole('resident')" [disabled]="voiceOwnerActionLoading()">Сделать жителем</button>
+                <button class="secondary-button" type="button" (click)="setSelectedVoiceMemberRole('stranger')" [disabled]="voiceOwnerActionLoading()">Сделать чужаком</button>
                 <button class="primary-button" type="button" (click)="kickSelectedVoiceMember()" [disabled]="voiceOwnerActionLoading()">Выгнать</button>
               } @else if (selectedVoiceMemberAccessEntry()?.role === 'resident') {
+                <button class="secondary-button" type="button" (click)="setSelectedVoiceMemberRole('guest')" [disabled]="voiceOwnerActionLoading()">Сделать гостем</button>
                 <button class="secondary-button" type="button" (click)="setSelectedVoiceMemberRole('stranger')" [disabled]="voiceOwnerActionLoading()">Сделать чужаком</button>
+                <button class="primary-button" type="button" (click)="kickSelectedVoiceMember()" [disabled]="voiceOwnerActionLoading()">Выгнать</button>
               }
             </div>
           }
