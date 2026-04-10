@@ -671,6 +671,7 @@ export class AppComponent {
   readonly createPlatformModalOpen = signal(false);
   readonly addGroupMemberModalOpen = signal(false);
   readonly createChannelModalOpen = signal(false);
+  readonly platformSettingsModalOpen = signal(false);
   readonly groupMembersModalOpen = signal(false);
   readonly groupVoiceParticipantsExpanded = signal(false);
   readonly sideMenuOpen = signal(false);
@@ -3190,6 +3191,7 @@ export class AppComponent {
     }
 
     this.closeMobilePanel();
+    this.platformSettingsModalOpen.set(false);
     this.createChannelForm.type = type;
     this.createChannelModalOpen.set(true);
     this.managementError.set(null);
@@ -3198,6 +3200,22 @@ export class AppComponent {
 
   closeCreateChannelModal(): void {
     this.createChannelModalOpen.set(false);
+  }
+
+  openPlatformSettingsModal(): void {
+    const activeServer = this.activeServer();
+    if (!activeServer || activeServer.kind !== 'workspace' || !this.canManageActiveGroup()) {
+      return;
+    }
+
+    this.closeConversationActionMenu();
+    this.platformSettingsModalOpen.set(true);
+    this.managementError.set(null);
+    this.managementSuccess.set(null);
+  }
+
+  closePlatformSettingsModal(): void {
+    this.platformSettingsModalOpen.set(false);
   }
 
   openServerIconPicker(): void {
@@ -3417,8 +3435,32 @@ export class AppComponent {
     return channel.topic?.trim() || 'Текстовый канал площадки';
   }
 
+  isDefaultWorkspaceTextChannel(channel: WorkspaceChannel | null | undefined): boolean {
+    if (!channel || channel.type !== 'text' || !this.isPlatformsMode()) {
+      return false;
+    }
+
+    return channel.position === 0;
+  }
+
+  isProtectedWorkspaceChannel(channel: WorkspaceChannel | null | undefined): boolean {
+    return this.isTavernChannel(channel) || this.isDefaultWorkspaceTextChannel(channel);
+  }
+
   canDeleteWorkspaceChannel(channel: WorkspaceChannel): boolean {
-    return this.canManageActiveGroup() && !(channel.type === 'voice' && this.isTavernChannel(channel));
+    return this.canManageActiveGroup() && !this.isProtectedWorkspaceChannel(channel);
+  }
+
+  workspaceChannelDeleteStateLabel(channel: WorkspaceChannel): string {
+    if (this.isTavernChannel(channel)) {
+      return 'Системный голосовой канал';
+    }
+
+    if (this.isDefaultWorkspaceTextChannel(channel)) {
+      return 'Системный текстовый канал';
+    }
+
+    return channel.type === 'voice' ? 'Голосовой канал' : 'Текстовый канал';
   }
 
   openDirectChatWithSelectedMember(): void {
@@ -4250,6 +4292,7 @@ export class AppComponent {
     this.createGroupModalOpen.set(false);
     this.createPlatformModalOpen.set(false);
     this.createChannelModalOpen.set(false);
+    this.platformSettingsModalOpen.set(false);
     this.friendRequestsModalOpen.set(false);
     this.blockedFriendsModalOpen.set(false);
     this.blockedServersModalOpen.set(false);
@@ -5933,6 +5976,7 @@ export class AppComponent {
     this.selectedChannelId.set(null);
     this.closeConversationActionMenu();
     this.closeGroupOwnershipModal();
+    this.closePlatformSettingsModal();
     this.groupMembersModalOpen.set(false);
     this.groupVoiceParticipantsExpanded.set(false);
     this.closeChatFilesModal();

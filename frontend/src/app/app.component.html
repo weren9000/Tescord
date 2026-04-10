@@ -436,6 +436,11 @@
                   <img src="/assets/User_fill_add.svg" alt="" />
                 </button>
               }
+              @if (isPlatformsMode() && canManageActiveGroup()) {
+                <button class="secondary-button conversation-head__action conversation-head__action--icon" type="button" aria-label="Настройки площадки" title="Настройки площадки" (click)="openPlatformSettingsModal()">
+                  <span class="conversation-head__action-symbol" aria-hidden="true">⚙</span>
+                </button>
+              }
               @if (activeDirectPeer() || activeGroupConversation() || isPlatformsMode()) {
                 <button class="secondary-button conversation-head__action conversation-head__action--icon" type="button" aria-label="Управление" title="Управление" (click)="toggleConversationActionMenu()">
                   <img src="/assets/Trash.svg" alt="" />
@@ -514,9 +519,8 @@
                   <div class="platform-channel-list">
                     @for (channel of textChannels(); track channel.id) {
                       <div
-                        class="platform-channel-entry"
+                        class="platform-channel-entry platform-channel-entry--managed"
                         [class.platform-channel-entry--active]="selectedChannelId() === channel.id"
-                        [class.platform-channel-entry--managed]="canDeleteWorkspaceChannel(channel)"
                       >
                         <button
                           class="platform-channel-entry__main"
@@ -533,18 +537,6 @@
                             <small>{{ platformChannelMetaLabel(channel) }}</small>
                           </div>
                         </button>
-                        @if (canDeleteWorkspaceChannel(channel)) {
-                          <button
-                            class="platform-channel-entry__remove"
-                            type="button"
-                            title="Удалить канал"
-                            aria-label="Удалить канал"
-                            [disabled]="isDeletingChannel(channel.id)"
-                            (click)="deleteChannel(channel)"
-                          >
-                            <img src="/assets/Trash.svg" alt="" />
-                          </button>
-                        }
                       </div>
                     } @empty {
                       <div class="rail-empty">Текстовых каналов пока нет</div>
@@ -564,9 +556,8 @@
                   <div class="platform-channel-list">
                     @for (channel of voiceChannels(); track channel.id) {
                       <div
-                        class="platform-channel-entry platform-channel-entry--voice"
+                        class="platform-channel-entry platform-channel-entry--voice platform-channel-entry--managed"
                         [class.platform-channel-entry--active]="selectedChannelId() === channel.id"
-                        [class.platform-channel-entry--managed]="canDeleteWorkspaceChannel(channel)"
                       >
                         <button class="platform-channel-entry__main" type="button" (click)="selectChannel(channel)">
                           <div class="platform-channel-entry__copy">
@@ -588,18 +579,6 @@
                         >
                           <img [src]="connectedVoiceChannelId() === channel.id ? '/assets/Phone outgoing.svg' : '/assets/Phone_connect.svg'" alt="" />
                         </button>
-                        @if (canDeleteWorkspaceChannel(channel)) {
-                          <button
-                            class="platform-channel-entry__remove"
-                            type="button"
-                            title="Удалить канал"
-                            aria-label="Удалить канал"
-                            [disabled]="isDeletingChannel(channel.id)"
-                            (click)="deleteChannel(channel)"
-                          >
-                            <img src="/assets/Trash.svg" alt="" />
-                          </button>
-                        }
                       </div>
                     } @empty {
                       <div class="rail-empty">Голосовых каналов пока нет</div>
@@ -2329,6 +2308,98 @@
           </button>
         </div>
       </form>
+    </section>
+  </div>
+}
+
+@if (platformSettingsModalOpen()) {
+  <div class="modal-backdrop" (click)="closePlatformSettingsModal()">
+    <section class="modal modal--wide modal--platform-settings" (click)="$event.stopPropagation()">
+      <div class="modal__header">
+        <div>
+          <p class="eyebrow">Площадка</p>
+          <h3>Настройки площадки</h3>
+        </div>
+        <button class="icon-button" type="button" (click)="closePlatformSettingsModal()">×</button>
+      </div>
+
+      <div class="modal__body">
+        <p class="modal-note">Удаление каналов площадки перенесено сюда. Системные каналы Общий чат и Таверна защищены от удаления.</p>
+        @if (managementError(); as managementError) {
+          <p class="modal-note modal-note--error">{{ managementError }}</p>
+        }
+        @if (managementSuccess(); as managementSuccess) {
+          <p class="modal-note modal-note--success">{{ managementSuccess }}</p>
+        }
+
+        <div class="platform-settings-sections">
+          <section class="platform-settings-section">
+            <div class="platform-settings-section__head">
+              <strong>Текстовые каналы</strong>
+            </div>
+
+            <div class="platform-settings-list">
+              @for (channel of textChannels(); track channel.id) {
+                <div class="platform-settings-row">
+                  <div class="platform-settings-row__copy">
+                    <strong># {{ channel.name }}</strong>
+                    <small>{{ workspaceChannelDeleteStateLabel(channel) }}</small>
+                  </div>
+                  @if (canDeleteWorkspaceChannel(channel)) {
+                    <button
+                      class="secondary-button secondary-button--danger platform-settings-row__delete"
+                      type="button"
+                      [disabled]="isDeletingChannel(channel.id)"
+                      (click)="deleteChannel(channel)"
+                    >
+                      {{ isDeletingChannel(channel.id) ? 'Удаляем...' : 'Удалить канал' }}
+                    </button>
+                  } @else {
+                    <span class="platform-settings-row__badge">Системный</span>
+                  }
+                </div>
+              } @empty {
+                <p class="modal-note">Текстовых каналов пока нет.</p>
+              }
+            </div>
+          </section>
+
+          <section class="platform-settings-section">
+            <div class="platform-settings-section__head">
+              <strong>Голосовые каналы</strong>
+            </div>
+
+            <div class="platform-settings-list">
+              @for (channel of voiceChannels(); track channel.id) {
+                <div class="platform-settings-row">
+                  <div class="platform-settings-row__copy">
+                    <strong>{{ channel.name }}</strong>
+                    <small>{{ workspaceChannelDeleteStateLabel(channel) }}</small>
+                  </div>
+                  @if (canDeleteWorkspaceChannel(channel)) {
+                    <button
+                      class="secondary-button secondary-button--danger platform-settings-row__delete"
+                      type="button"
+                      [disabled]="isDeletingChannel(channel.id)"
+                      (click)="deleteChannel(channel)"
+                    >
+                      {{ isDeletingChannel(channel.id) ? 'Удаляем...' : 'Удалить канал' }}
+                    </button>
+                  } @else {
+                    <span class="platform-settings-row__badge">Системный</span>
+                  }
+                </div>
+              } @empty {
+                <p class="modal-note">Голосовых каналов пока нет.</p>
+              }
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <div class="modal__actions">
+        <button class="secondary-button" type="button" (click)="closePlatformSettingsModal()">Закрыть</button>
+      </div>
     </section>
   </div>
 }

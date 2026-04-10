@@ -4915,34 +4915,6 @@ select {
   display: block;
 }
 
-.platform-channel-entry__remove {
-  width: 28px;
-  min-width: 28px;
-  min-height: 28px;
-  padding: 0;
-  margin-right: 8px;
-  border: 0;
-  border-radius: 9px;
-  background: transparent;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  opacity: 0.72;
-  transition: opacity 160ms ease, background 160ms ease;
-}
-
-.platform-channel-entry__remove:hover {
-  opacity: 1;
-  background: rgba(255, 255, 255, 0.06);
-}
-
-.platform-channel-entry__remove img {
-  width: 13px;
-  height: 13px;
-  display: block;
-}
-
 .platform-channel-entry__unread-badge {
   flex: 0 0 auto;
   min-width: 18px;
@@ -5075,6 +5047,11 @@ select {
   border-radius: 12px;
 }
 
+.conversation-head__action-symbol {
+  font-size: 16px;
+  line-height: 1;
+}
+
 .conversation-head__action--call {
   min-width: 38px;
   width: 38px;
@@ -5183,6 +5160,10 @@ select {
 
 .modal--chat-files {
   max-width: 720px;
+}
+
+.modal--platform-settings {
+  max-width: 760px;
 }
 
 .modal--friend-requests {
@@ -5330,6 +5311,86 @@ select {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+}
+
+.platform-settings-sections {
+  display: grid;
+  gap: 16px;
+}
+
+.platform-settings-section {
+  display: grid;
+  gap: 10px;
+}
+
+.platform-settings-section__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.platform-settings-section__head strong {
+  font-size: 13px;
+}
+
+.platform-settings-list {
+  display: grid;
+  gap: 8px;
+  max-height: min(280px, 34vh);
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.platform-settings-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.platform-settings-row__copy {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.platform-settings-row__copy strong,
+.platform-settings-row__copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.platform-settings-row__copy strong {
+  font-size: 13px;
+}
+
+.platform-settings-row__copy small {
+  color: rgba(222, 236, 245, 0.6);
+  font-size: 11px;
+}
+
+.platform-settings-row__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(222, 236, 245, 0.66);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.platform-settings-row__delete {
+  min-height: 32px;
+  white-space: nowrap;
 }
 
 .chat-file-row__delete {

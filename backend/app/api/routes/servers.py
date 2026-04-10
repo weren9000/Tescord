@@ -701,11 +701,17 @@ async def delete_server_channel(
     _ensure_manage_permission(membership, current_user)
 
     channel = _get_server_channel_or_404(db, server_id, channel_id)
+    if server.kind == ServerKind.WORKSPACE and channel.type == ChannelType.TEXT and channel.position == 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Системный текстовый канал Общий чат нельзя удалить из площадки",
+        )
+
     if channel.type == ChannelType.VOICE:
         if is_default_tavern_channel(channel):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Системный голосовой канал Таверна нельзя удалить из группы",
+                detail="Системный голосовой канал Таверна нельзя удалить из площадки",
             )
         await voice_signaling_manager.disconnect_channel_sessions(str(channel.id))
 
