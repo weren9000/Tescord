@@ -5315,12 +5315,12 @@ select {
 
 .platform-settings-sections {
   display: grid;
-  gap: 16px;
+  gap: 12px;
 }
 
 .platform-settings-section {
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .platform-settings-section__head {
@@ -5331,12 +5331,26 @@ select {
 }
 
 .platform-settings-section__head strong {
-  font-size: 13px;
+  font-size: 12px;
+}
+
+.platform-settings__header-actions {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.platform-settings__danger-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 220px;
 }
 
 .platform-settings-list {
   display: grid;
-  gap: 8px;
+  gap: 6px;
   max-height: min(280px, 34vh);
   overflow: auto;
   padding-right: 2px;
@@ -5346,51 +5360,66 @@ select {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
+  gap: 8px;
+  padding: 8px 10px;
   border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 14px;
+  border-radius: 12px;
   background: rgba(255, 255, 255, 0.025);
 }
 
 .platform-settings-row__copy {
   min-width: 0;
-  display: grid;
-  gap: 3px;
-}
-
-.platform-settings-row__copy strong,
-.platform-settings-row__copy small {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: block;
 }
 
 .platform-settings-row__copy strong {
-  font-size: 13px;
-}
-
-.platform-settings-row__copy small {
-  color: rgba(222, 236, 245, 0.6);
-  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
 }
 
 .platform-settings-row__badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 30px;
-  padding: 0 10px;
+  min-height: 24px;
+  padding: 0 8px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.06);
   color: rgba(222, 236, 245, 0.66);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
 }
 
 .platform-settings-row__delete {
-  min-height: 32px;
-  white-space: nowrap;
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: rgba(255, 111, 124, 0.08);
+  cursor: pointer;
+  transition: background 160ms ease, transform 160ms ease, opacity 160ms ease;
+}
+
+.platform-settings-row__delete:hover:not(:disabled) {
+  background: rgba(255, 111, 124, 0.14);
+  transform: translateY(-1px);
+}
+
+.platform-settings-row__delete:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.platform-settings-row__delete img {
+  width: 13px;
+  height: 13px;
+  display: block;
 }
 
 .chat-file-row__delete {

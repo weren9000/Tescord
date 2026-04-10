@@ -672,6 +672,7 @@ export class AppComponent {
   readonly addGroupMemberModalOpen = signal(false);
   readonly createChannelModalOpen = signal(false);
   readonly platformSettingsModalOpen = signal(false);
+  readonly platformSettingsDangerMenuOpen = signal(false);
   readonly groupMembersModalOpen = signal(false);
   readonly groupVoiceParticipantsExpanded = signal(false);
   readonly sideMenuOpen = signal(false);
@@ -2827,6 +2828,14 @@ export class AppComponent {
     this.conversationActionMenuOpen.set(false);
   }
 
+  togglePlatformSettingsDangerMenu(): void {
+    this.platformSettingsDangerMenuOpen.update((opened) => !opened);
+  }
+
+  closePlatformSettingsDangerMenu(): void {
+    this.platformSettingsDangerMenuOpen.set(false);
+  }
+
   closeGroupOwnershipModal(): void {
     this.groupOwnershipModalOpen.set(false);
     this.pendingGroupOwnershipAction.set(null);
@@ -3209,6 +3218,7 @@ export class AppComponent {
     }
 
     this.closeConversationActionMenu();
+    this.closePlatformSettingsDangerMenu();
     this.platformSettingsModalOpen.set(true);
     this.managementError.set(null);
     this.managementSuccess.set(null);
@@ -3216,6 +3226,7 @@ export class AppComponent {
 
   closePlatformSettingsModal(): void {
     this.platformSettingsModalOpen.set(false);
+    this.closePlatformSettingsDangerMenu();
   }
 
   openServerIconPicker(): void {
@@ -3376,6 +3387,10 @@ export class AppComponent {
     }
 
     this.closeConversationActionMenu();
+    this.closePlatformSettingsDangerMenu();
+    if (activeServer.kind === 'workspace') {
+      this.closePlatformSettingsModal();
+    }
     if (this.isActiveGroupOwner()) {
       this.pendingGroupOwnershipAction.set(action);
       this.groupOwnershipTransferUserId.set('');
@@ -3449,18 +3464,6 @@ export class AppComponent {
 
   canDeleteWorkspaceChannel(channel: WorkspaceChannel): boolean {
     return this.canManageActiveGroup() && !this.isProtectedWorkspaceChannel(channel);
-  }
-
-  workspaceChannelDeleteStateLabel(channel: WorkspaceChannel): string {
-    if (this.isTavernChannel(channel)) {
-      return 'Системный голосовой канал';
-    }
-
-    if (this.isDefaultWorkspaceTextChannel(channel)) {
-      return 'Системный текстовый канал';
-    }
-
-    return channel.type === 'voice' ? 'Голосовой канал' : 'Текстовый канал';
   }
 
   openDirectChatWithSelectedMember(): void {
@@ -4293,6 +4296,7 @@ export class AppComponent {
     this.createPlatformModalOpen.set(false);
     this.createChannelModalOpen.set(false);
     this.platformSettingsModalOpen.set(false);
+    this.platformSettingsDangerMenuOpen.set(false);
     this.friendRequestsModalOpen.set(false);
     this.blockedFriendsModalOpen.set(false);
     this.blockedServersModalOpen.set(false);

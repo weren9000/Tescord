@@ -441,7 +441,7 @@
                   <span class="conversation-head__action-symbol" aria-hidden="true">⚙</span>
                 </button>
               }
-              @if (activeDirectPeer() || activeGroupConversation() || isPlatformsMode()) {
+              @if (activeDirectPeer() || activeGroupConversation()) {
                 <button class="secondary-button conversation-head__action conversation-head__action--icon" type="button" aria-label="Управление" title="Управление" (click)="toggleConversationActionMenu()">
                   <img src="/assets/Trash.svg" alt="" />
                 </button>
@@ -2320,11 +2320,37 @@
           <p class="eyebrow">Площадка</p>
           <h3>Настройки площадки</h3>
         </div>
-        <button class="icon-button" type="button" (click)="closePlatformSettingsModal()">×</button>
+        <div class="platform-settings__header-actions">
+          <button
+            class="secondary-button conversation-head__action conversation-head__action--icon"
+            type="button"
+            aria-label="Управление площадкой"
+            title="Управление площадкой"
+            (click)="togglePlatformSettingsDangerMenu()"
+          >
+            <img src="/assets/Trash.svg" alt="" />
+          </button>
+          <button class="icon-button" type="button" (click)="closePlatformSettingsModal()">×</button>
+
+          @if (platformSettingsDangerMenuOpen()) {
+            @if (activeServer(); as platform) {
+              <div class="platform-settings__danger-menu conversation-action-menu">
+                <button class="conversation-action-menu__item" type="button" [disabled]="isServerMembershipActionPending(platform.id)" (click)="leaveActivePlatform()">
+                  Выйти с площадки
+                </button>
+                <button class="conversation-action-menu__item conversation-action-menu__item--danger" type="button" [disabled]="isServerMembershipActionPending(platform.id)" (click)="blockActivePlatform()">
+                  Заблокировать площадку
+                </button>
+                <button class="conversation-action-menu__item" type="button" (click)="closePlatformSettingsDangerMenu()">
+                  Отмена
+                </button>
+              </div>
+            }
+          }
+        </div>
       </div>
 
       <div class="modal__body">
-        <p class="modal-note">Удаление каналов площадки перенесено сюда. Системные каналы Общий чат и Таверна защищены от удаления.</p>
         @if (managementError(); as managementError) {
           <p class="modal-note modal-note--error">{{ managementError }}</p>
         }
@@ -2343,16 +2369,17 @@
                 <div class="platform-settings-row">
                   <div class="platform-settings-row__copy">
                     <strong># {{ channel.name }}</strong>
-                    <small>{{ workspaceChannelDeleteStateLabel(channel) }}</small>
                   </div>
                   @if (canDeleteWorkspaceChannel(channel)) {
                     <button
-                      class="secondary-button secondary-button--danger platform-settings-row__delete"
+                      class="platform-settings-row__delete"
                       type="button"
+                      title="Удалить канал"
+                      aria-label="Удалить канал"
                       [disabled]="isDeletingChannel(channel.id)"
                       (click)="deleteChannel(channel)"
                     >
-                      {{ isDeletingChannel(channel.id) ? 'Удаляем...' : 'Удалить канал' }}
+                      <img src="/assets/Trash.svg" alt="" />
                     </button>
                   } @else {
                     <span class="platform-settings-row__badge">Системный</span>
@@ -2374,16 +2401,17 @@
                 <div class="platform-settings-row">
                   <div class="platform-settings-row__copy">
                     <strong>{{ channel.name }}</strong>
-                    <small>{{ workspaceChannelDeleteStateLabel(channel) }}</small>
                   </div>
                   @if (canDeleteWorkspaceChannel(channel)) {
                     <button
-                      class="secondary-button secondary-button--danger platform-settings-row__delete"
+                      class="platform-settings-row__delete"
                       type="button"
+                      title="Удалить канал"
+                      aria-label="Удалить канал"
                       [disabled]="isDeletingChannel(channel.id)"
                       (click)="deleteChannel(channel)"
                     >
-                      {{ isDeletingChannel(channel.id) ? 'Удаляем...' : 'Удалить канал' }}
+                      <img src="/assets/Trash.svg" alt="" />
                     </button>
                   } @else {
                     <span class="platform-settings-row__badge">Системный</span>
@@ -2395,10 +2423,6 @@
             </div>
           </section>
         </div>
-      </div>
-
-      <div class="modal__actions">
-        <button class="secondary-button" type="button" (click)="closePlatformSettingsModal()">Закрыть</button>
       </div>
     </section>
   </div>
