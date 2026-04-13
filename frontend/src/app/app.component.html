@@ -591,25 +591,26 @@
                         </div>
                         @if (isPlatformVoiceChannelExpanded(channel.id)) {
                           <div class="platform-channel-entry__roster">
-                            <div class="group-voice-roster">
+                            <div class="group-voice-roster" style="gap:4px;padding:6px 8px;">
                               @if (platformVoiceParticipants(channel.id).length) {
                                 @for (participant of platformVoiceParticipants(channel.id); track participant.id) {
-                                  <div class="group-voice-roster__member">
-                                    <div class="group-voice-roster__avatar">
+                                  <div class="group-voice-roster__member" style="grid-template-columns:24px minmax(0, 1fr) auto;gap:7px;padding:5px 6px;border-radius:10px;">
+                                    <div class="group-voice-roster__avatar" style="width:24px;height:24px;flex:0 0 24px;font-size:9px;">
                                       @if (userAvatarUrl(participant.user_id, participant.avatar_updated_at); as avatarUrl) {
                                         <img [src]="avatarUrl" [alt]="displayNick(participant.nick)" loading="lazy" />
                                       } @else {
                                         <span>{{ displayNickInitials(participant.nick) }}</span>
                                       }
                                     </div>
-                                    <div class="group-voice-roster__copy">
-                                      <strong>{{ displayNick(participant.nick) }}</strong>
+                                    <div class="group-voice-roster__copy" style="gap:3px;">
+                                      <strong style="font-size:11px;">{{ displayNick(participant.nick) }}</strong>
                                       @if (participant.is_self) {
-                                        <small>{{ platformVoiceSelfStatusLabel(participant) }}</small>
+                                        <small style="font-size:10px;">{{ platformVoiceSelfStatusLabel(participant) }}</small>
                                       } @else {
-                                        <div class="group-voice-roster__controls">
+                                        <div class="group-voice-roster__controls" style="gap:6px;">
                                           <input
                                             class="group-voice-roster__volume"
+                                            style="height:3px;"
                                             type="range"
                                             min="0"
                                             max="200"
@@ -618,13 +619,14 @@
                                             [attr.aria-label]="'Громкость ' + displayNick(participant.nick)"
                                             (input)="setPlatformVoiceParticipantVolume(participant, $any($event.target).value)"
                                           />
-                                          <small>{{ platformVoiceParticipantVolume(participant) }}%</small>
+                                          <small style="min-width:32px;font-size:10px;">{{ platformVoiceParticipantVolume(participant) }}%</small>
                                         </div>
                                       }
                                     </div>
                                     @if (participant.is_self) {
                                       <button
                                         class="group-voice-roster__state-button"
+                                        style="width:24px;height:24px;"
                                         type="button"
                                         [attr.title]="groupVoiceStateActionLabel(participant)"
                                         [attr.aria-label]="groupVoiceStateActionLabel(participant)"
@@ -632,14 +634,16 @@
                                       >
                                         <img
                                           class="group-voice-roster__state"
+                                          style="width:13px;height:13px;flex:0 0 13px;"
                                           [src]="groupVoiceStateIconPath(participant)"
                                           [alt]="groupVoiceStateIconAlt(participant)"
                                         />
                                       </button>
                                     } @else {
-                                      <span class="group-voice-roster__state-shell" [attr.title]="groupVoiceStateIconAlt(participant)">
+                                      <span class="group-voice-roster__state-shell" style="width:24px;height:24px;" [attr.title]="groupVoiceStateIconAlt(participant)">
                                         <img
                                           class="group-voice-roster__state"
+                                          style="width:13px;height:13px;flex:0 0 13px;"
                                           [src]="groupVoiceStateIconPath(participant)"
                                           [alt]="groupVoiceStateIconAlt(participant)"
                                         />
