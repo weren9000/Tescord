@@ -3232,10 +3232,20 @@ export class AppComponent {
   }
 
   openMobileWorkspaceMode(mode: WorkspaceMode): void {
-    this.selectWorkspaceMode(mode);
-    if (this.isCompactVoiceWorkspaceViewport()) {
-      this.mobilePanel.set('servers');
+    if (!this.isCompactVoiceWorkspaceViewport()) {
+      this.selectWorkspaceMode(mode);
+      return;
     }
+
+    const sameMode = this.workspaceMode() === mode;
+    const serversPanelOpen = this.mobilePanel() === 'servers';
+    if (sameMode && serversPanelOpen) {
+      this.mobilePanel.set(null);
+      return;
+    }
+
+    this.selectWorkspaceMode(mode);
+    this.mobilePanel.set('servers');
   }
 
   openCreateGroupModal(): void {
