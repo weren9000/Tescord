@@ -594,7 +594,7 @@
                             <div class="group-voice-roster" style="gap:3px;padding:5px 7px;">
                               @if (platformVoiceParticipants(channel.id).length) {
                                 @for (participant of platformVoiceParticipants(channel.id); track participant.id) {
-                                  <div class="group-voice-roster__member" style="grid-template-columns:22px minmax(0, 1fr) auto;gap:6px;padding:4px 5px;border-radius:9px;">
+                                  <div class="group-voice-roster__member" style="grid-template-columns:22px minmax(0, 1fr) auto;align-items:center;gap:6px;padding:4px 5px;border-radius:9px;">
                                     <div class="group-voice-roster__avatar" style="width:22px;height:22px;flex:0 0 22px;font-size:8px;">
                                       @if (userAvatarUrl(participant.user_id, participant.avatar_updated_at); as avatarUrl) {
                                         <img [src]="avatarUrl" [alt]="displayNick(participant.nick)" loading="lazy" />
