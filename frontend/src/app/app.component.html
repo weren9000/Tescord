@@ -558,27 +558,101 @@
                       <div
                         class="platform-channel-entry platform-channel-entry--voice platform-channel-entry--managed"
                         [class.platform-channel-entry--active]="selectedChannelId() === channel.id"
+                        [class.platform-channel-entry--expanded]="isPlatformVoiceChannelExpanded(channel.id)"
+                        [class.platform-channel-entry--connected]="connectedVoiceChannelId() === channel.id"
                       >
-                        <button class="platform-channel-entry__main" type="button" (click)="selectChannel(channel)">
-                          <div class="platform-channel-entry__copy">
-                            <div class="platform-channel-entry__headline">
-                              <strong>{{ channel.name }}</strong>
-                              @if (channelUnreadCount(channel) > 0) {
-                                <span class="platform-channel-entry__unread-badge">{{ channelUnreadBadgeLabel(channel) }}</span>
+                        <div class="platform-channel-entry__row">
+                          <button
+                            class="platform-channel-entry__main"
+                            type="button"
+                            [attr.aria-expanded]="isPlatformVoiceChannelExpanded(channel.id)"
+                            [attr.aria-label]="isPlatformVoiceChannelExpanded(channel.id) ? 'Скрыть участников канала' : 'Показать участников канала'"
+                            (click)="togglePlatformVoiceChannelExpanded(channel)"
+                          >
+                            <div class="platform-channel-entry__copy">
+                              <div class="platform-channel-entry__headline">
+                                <strong>{{ channel.name }}</strong>
+                                @if (channelUnreadCount(channel) > 0) {
+                                  <span class="platform-channel-entry__unread-badge">{{ channelUnreadBadgeLabel(channel) }}</span>
+                                }
+                              </div>
+                              <small>{{ platformChannelMetaLabel(channel) }}</small>
+                            </div>
+                          </button>
+                          <button
+                            class="secondary-button platform-channel-entry__voice-action"
+                            type="button"
+                            [attr.aria-label]="connectedVoiceChannelId() === channel.id ? 'Покинуть голосовой канал' : 'Подключиться к голосовому каналу'"
+                            [attr.title]="connectedVoiceChannelId() === channel.id ? 'Покинуть голосовой канал' : 'Подключиться к голосовому каналу'"
+                            (click)="togglePlatformVoiceChannel(channel, $event)"
+                          >
+                            <img [src]="connectedVoiceChannelId() === channel.id ? '/assets/Phone outgoing.svg' : '/assets/Phone_connect.svg'" alt="" />
+                          </button>
+                        </div>
+                        @if (isPlatformVoiceChannelExpanded(channel.id)) {
+                          <div class="platform-channel-entry__roster">
+                            <div class="group-voice-roster">
+                              @if (platformVoiceParticipants(channel.id).length) {
+                                @for (participant of platformVoiceParticipants(channel.id); track participant.id) {
+                                  <div class="group-voice-roster__member">
+                                    <div class="group-voice-roster__avatar">
+                                      @if (userAvatarUrl(participant.user_id, participant.avatar_updated_at); as avatarUrl) {
+                                        <img [src]="avatarUrl" [alt]="displayNick(participant.nick)" loading="lazy" />
+                                      } @else {
+                                        <span>{{ displayNickInitials(participant.nick) }}</span>
+                                      }
+                                    </div>
+                                    <div class="group-voice-roster__copy">
+                                      <strong>{{ displayNick(participant.nick) }}</strong>
+                                      @if (participant.is_self) {
+                                        <small>{{ platformVoiceSelfStatusLabel(participant) }}</small>
+                                      } @else {
+                                        <div class="group-voice-roster__controls">
+                                          <input
+                                            class="group-voice-roster__volume"
+                                            type="range"
+                                            min="0"
+                                            max="200"
+                                            step="1"
+                                            [value]="platformVoiceParticipantVolume(participant)"
+                                            [attr.aria-label]="'Громкость ' + displayNick(participant.nick)"
+                                            (input)="setPlatformVoiceParticipantVolume(participant, $any($event.target).value)"
+                                          />
+                                          <small>{{ platformVoiceParticipantVolume(participant) }}%</small>
+                                        </div>
+                                      }
+                                    </div>
+                                    @if (participant.is_self) {
+                                      <button
+                                        class="group-voice-roster__state-button"
+                                        type="button"
+                                        [attr.title]="groupVoiceStateActionLabel(participant)"
+                                        [attr.aria-label]="groupVoiceStateActionLabel(participant)"
+                                        (click)="togglePlatformVoiceParticipantMute(participant, channel.id)"
+                                      >
+                                        <img
+                                          class="group-voice-roster__state"
+                                          [src]="groupVoiceStateIconPath(participant)"
+                                          [alt]="groupVoiceStateIconAlt(participant)"
+                                        />
+                                      </button>
+                                    } @else {
+                                      <span class="group-voice-roster__state-shell" [attr.title]="groupVoiceStateIconAlt(participant)">
+                                        <img
+                                          class="group-voice-roster__state"
+                                          [src]="groupVoiceStateIconPath(participant)"
+                                          [alt]="groupVoiceStateIconAlt(participant)"
+                                        />
+                                      </span>
+                                    }
+                                  </div>
+                                }
+                              } @else {
+                                <div class="group-voice-roster__empty">В голосовом чате пока никого нет</div>
                               }
                             </div>
-                            <small>{{ platformChannelMetaLabel(channel) }}</small>
                           </div>
-                        </button>
-                        <button
-                          class="secondary-button platform-channel-entry__voice-action"
-                          type="button"
-                          [attr.aria-label]="connectedVoiceChannelId() === channel.id ? 'Покинуть голосовой канал' : 'Подключиться к голосовому каналу'"
-                          [attr.title]="connectedVoiceChannelId() === channel.id ? 'Покинуть голосовой канал' : 'Подключиться к голосовому каналу'"
-                          (click)="togglePlatformVoiceChannel(channel, $event)"
-                        >
-                          <img [src]="connectedVoiceChannelId() === channel.id ? '/assets/Phone outgoing.svg' : '/assets/Phone_connect.svg'" alt="" />
-                        </button>
+                        }
                       </div>
                     } @empty {
                       <div class="rail-empty">Голосовых каналов пока нет</div>

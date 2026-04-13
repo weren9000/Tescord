@@ -4852,7 +4852,16 @@ select {
 }
 
 .platform-channel-entry--voice.platform-channel-entry--managed {
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+}
+
+.platform-channel-entry__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
 
 .platform-channel-entry__main {
@@ -4913,6 +4922,19 @@ select {
   width: 14px;
   height: 14px;
   display: block;
+}
+
+.platform-channel-entry__roster {
+  padding: 0 10px 10px;
+}
+
+.platform-channel-entry--expanded {
+  gap: 4px;
+}
+
+.platform-channel-entry--connected .platform-channel-entry__row {
+  border-radius: 12px;
+  background: rgba(61, 214, 198, 0.05);
 }
 
 .platform-channel-entry__unread-badge {

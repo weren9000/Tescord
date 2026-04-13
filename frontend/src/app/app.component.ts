@@ -676,6 +676,7 @@ export class AppComponent {
   readonly platformVoiceSettingsChannelId = signal<string | null>(null);
   readonly groupMembersModalOpen = signal(false);
   readonly groupVoiceParticipantsExpanded = signal(false);
+  readonly platformExpandedVoiceChannelId = signal<string | null>(null);
   readonly sideMenuOpen = signal(false);
   readonly quickCreateMenuOpen = signal(false);
   readonly conversationActionMenuOpen = signal(false);
@@ -3466,6 +3467,21 @@ export class AppComponent {
     this.groupVoiceParticipantsExpanded.update((expanded) => !expanded);
   }
 
+  isPlatformVoiceChannelExpanded(channelId: string): boolean {
+    return this.platformExpandedVoiceChannelId() === channelId;
+  }
+
+  togglePlatformVoiceChannelExpanded(channel: WorkspaceChannel): void {
+    if (channel.type !== 'voice') {
+      return;
+    }
+
+    this.platformExpandedVoiceChannelId.update((expandedChannelId) =>
+      expandedChannelId === channel.id ? null : channel.id
+    );
+    void this.selectChannel(channel, { connectVoice: false });
+  }
+
   openGroupMemberFromPanel(member: GroupMemberItem): void {
     this.closeGroupMembersPanel();
     this.openMemberCall(member);
@@ -3570,16 +3586,47 @@ export class AppComponent {
       return;
     }
 
+    await this.selectChannel(channel, { connectVoice: false });
+    this.platformExpandedVoiceChannelId.set(channel.id);
+
     if (this.connectedVoiceChannelId() === channel.id) {
       this.leaveVoiceChannel();
       return;
     }
 
-    await this.selectChannel(channel);
+    await this.handleVoiceChannelSelection(channel);
   }
 
   platformVoiceParticipantCount(channelId: string): number {
     return this.voiceParticipantsForChannel(channelId).length;
+  }
+
+  platformVoiceParticipants(channelId: string): VoiceParticipant[] {
+    return this.voiceParticipantsForChannel(channelId);
+  }
+
+  platformVoiceParticipantVolume(participant: VoiceParticipant): number {
+    return this.groupVoiceParticipantVolume(participant);
+  }
+
+  setPlatformVoiceParticipantVolume(participant: VoiceParticipant, value: number | string): void {
+    this.setGroupVoiceParticipantVolume(participant, value);
+  }
+
+  platformVoiceSelfStatusLabel(participant: VoiceParticipant): string {
+    return this.groupVoiceSelfStatusLabel(participant);
+  }
+
+  canTogglePlatformVoiceParticipantMute(participant: VoiceParticipant, channelId: string): boolean {
+    return participant.is_self && this.connectedVoiceChannelId() === channelId;
+  }
+
+  togglePlatformVoiceParticipantMute(participant: VoiceParticipant, channelId: string): void {
+    if (!this.canTogglePlatformVoiceParticipantMute(participant, channelId)) {
+      return;
+    }
+
+    this.toggleVoiceMute();
   }
 
   platformChannelMetaLabel(channel: WorkspaceChannel): string {
@@ -4428,6 +4475,7 @@ export class AppComponent {
     this.resetTextChannelState();
     this.selectedServerId.set(null);
     this.selectedChannelId.set(null);
+    this.platformExpandedVoiceChannelId.set(null);
     this.settingsPanelOpen.set(false);
     this.voiceAdminPanelOpen.set(false);
     this.profileEditorOpen.set(false);
@@ -4550,7 +4598,9 @@ export class AppComponent {
     this.loadServerWorkspace(token, serverId);
   }
 
-  async selectChannel(channel: WorkspaceChannel): Promise<void> {
+  async selectChannel(channel: WorkspaceChannel, options: { connectVoice?: boolean } = {}): Promise<void> {
+    const shouldConnectVoice = options.connectVoice ?? true;
+    const selectedChannelChanged = this.selectedChannelId() !== channel.id;
     this.schedulePresenceHeartbeat();
     this.closeMobilePanel();
     this.closeChatFilesModal();
@@ -4565,13 +4615,15 @@ export class AppComponent {
     }
 
     const token = this.session()?.access_token;
-    if (token && (channel.type === 'text' || channel.type === 'voice')) {
+    if (token && (channel.type === 'text' || channel.type === 'voice') && (selectedChannelChanged || !this.messages().length)) {
       this.loadMessagesForChannel(token, channel.id);
     }
     this.syncMessageAutoRefreshPolling();
 
     if (channel.type === 'voice') {
-      await this.handleVoiceChannelSelection(channel);
+      if (shouldConnectVoice) {
+        await this.handleVoiceChannelSelection(channel);
+      }
       return;
     }
   }
@@ -5516,6 +5568,13 @@ export class AppComponent {
       this.voiceRoom.leave();
     }
 
+    if (
+      this.platformExpandedVoiceChannelId()
+      && !channels.some((channel) => channel.id === this.platformExpandedVoiceChannelId())
+    ) {
+      this.platformExpandedVoiceChannelId.set(null);
+    }
+
     const nextSelectedChannelId =
       (normalizedPreferredSelectedChannelId && channels.some((channel) => channel.id === normalizedPreferredSelectedChannelId)
         ? normalizedPreferredSelectedChannelId
@@ -6130,6 +6189,7 @@ export class AppComponent {
     this.selectedServerId.set(serverId);
     this.appEvents.setActiveServer(serverId);
     this.selectedChannelId.set(null);
+    this.platformExpandedVoiceChannelId.set(null);
     this.closeConversationActionMenu();
     this.closeGroupOwnershipModal();
     this.closePlatformSettingsModal();
@@ -6199,6 +6259,9 @@ export class AppComponent {
     this.workspaceError.set(null);
     this.closeBlockedVoiceJoinNotice();
     await this.voiceRoom.join(channel.id, token, currentUser);
+    if (this.isPlatformsMode()) {
+      this.platformExpandedVoiceChannelId.set(channel.id);
+    }
     this.pendingVoiceJoin.set(null);
     this.stopVoiceJoinRequestPolling();
     if (this.currentUser()?.is_admin || this.canManageActiveGroup() || channel.voice_access_role === 'owner') {
