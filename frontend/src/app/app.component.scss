@@ -5067,11 +5067,30 @@ select {
   padding: 0;
   justify-content: center;
   border-radius: 12px;
+  position: relative;
 }
 
 .conversation-head__action-symbol {
   font-size: 16px;
   line-height: 1;
+}
+
+.conversation-head__action-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 111, 124, 0.94);
+  color: #fff;
+  font-size: 10px;
+  line-height: 1;
+  box-shadow: 0 0 0 2px rgba(7, 12, 16, 0.92);
 }
 
 .conversation-head__action--call {
@@ -5497,28 +5516,6 @@ select {
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.platform-voice-access-row__copy {
-  min-width: 0;
-  display: grid;
-  gap: 2px;
-}
-
-.platform-voice-access-row__copy strong,
-.platform-voice-access-row__copy small {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.platform-voice-access-row__copy strong {
-  font-size: 12px;
-}
-
-.platform-voice-access-row__copy small {
-  font-size: 10px;
-  color: rgba(222, 236, 245, 0.58);
 }
 
 .platform-voice-access-row__select {
@@ -5992,6 +5989,15 @@ select {
     min-width: 36px;
     width: 36px;
     min-height: 36px;
+  }
+
+  .platform-voice-access-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .platform-voice-access-row__select {
+    width: 100%;
+    min-width: 0;
   }
 
   .conversation-sidebar__tabs {

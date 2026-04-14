@@ -680,7 +680,10 @@ def test_guest_can_request_voice_access_and_join_after_owner_allows() -> None:
                 headers={"Authorization": f"Bearer {admin_token}"},
             )
             assert inbox_response.status_code == 200
-            assert any(request["id"] == request_id for request in inbox_response.json())
+            inbox_items = inbox_response.json()
+            matching_request = next(request for request in inbox_items if request["id"] == request_id)
+            assert matching_request["server_id"] == voice_channel["server_id"]
+            assert matching_request["server_name"]
 
             resolve_response = client.post(
                 f"/api/voice/requests/{request_id}/resolve",

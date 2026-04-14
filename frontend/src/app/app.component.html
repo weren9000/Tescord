@@ -439,6 +439,9 @@
               @if (isPlatformsMode() && canOpenPlatformSettings()) {
                 <button class="secondary-button conversation-head__action conversation-head__action--icon" type="button" aria-label="Настройки площадки" title="Настройки площадки" (click)="openPlatformSettingsModal()">
                   <span class="conversation-head__action-symbol" aria-hidden="true">⚙</span>
+                  @if (activePlatformVoiceRequestCount() > 0) {
+                    <span class="conversation-head__action-badge">{{ activePlatformVoiceRequestCount() > 99 ? '99+' : activePlatformVoiceRequestCount() }}</span>
+                  }
                 </button>
               }
               @if (activeDirectPeer() || activeGroupConversation()) {
@@ -1747,10 +1750,17 @@
       </div>
 
       <div class="modal__body">
-        <p class="modal-note">{{ displayNick(activeRequest.requester_nick) }}, хочет зайти в канал {{ activeRequest.channel_name }}</p>
+        <p class="modal-note">{{ activeRequest.server_name }} · {{ activeRequest.channel_name }}</p>
+        <p class="modal-note">{{ displayNick(activeRequest.requester_nick) }} хочет зайти в голосовой канал.</p>
+        @if (ownerVoiceRequests().length > 1) {
+          <p class="modal-note">{{ ownerVoiceRequestQueueLabel() }}</p>
+        }
       </div>
 
       <div class="modal__actions">
+        @if (isPlatformsMode() && activeServer()?.id === activeRequest.server_id) {
+          <button class="secondary-button" type="button" (click)="focusPlatformVoiceRequest(activeRequest)" [disabled]="voiceOwnerActionLoading()">К каналу</button>
+        }
         <button class="secondary-button" type="button" (click)="resolveActiveVoiceRequest('allow')" [disabled]="voiceOwnerActionLoading()">Впустить</button>
         <button class="secondary-button" type="button" (click)="resolveActiveVoiceRequest('resident')" [disabled]="voiceOwnerActionLoading()">Сделать жителем</button>
         <button class="primary-button" type="button" (click)="resolveActiveVoiceRequest('reject')" [disabled]="voiceOwnerActionLoading()">Выгнать</button>
@@ -2485,10 +2495,14 @@
             <div class="platform-settings-list">
               @for (channel of voiceChannels(); track channel.id) {
                 <div class="platform-settings-row" [class.platform-settings-row--active]="isPlatformVoiceSettingsSelected(channel.id)">
-                  <div class="platform-settings-row__copy">
+                  <div class="platform-settings-row__copy" style="display:grid;gap:2px;">
                     <strong>{{ channel.name }}</strong>
+                    <small style="color:rgba(222,236,245,0.58);font-size:10px;">{{ platformChannelMetaLabel(channel) }}</small>
                   </div>
                   <div class="platform-settings-row__actions">
+                    @if (platformVoiceChannelPendingRequestCount(channel.id) > 0) {
+                      <span class="platform-settings-row__badge">{{ platformVoiceChannelPendingRequestLabel(channel.id) }} ждут</span>
+                    }
                     @if (canManagePlatformVoiceChannel(channel)) {
                       <button
                         class="platform-settings-row__icon"
@@ -2531,30 +2545,68 @@
                 }
               </div>
 
+              @if (platformVoiceSettingsPendingRequests().length) {
+                <div class="platform-voice-request-list">
+                  @for (request of platformVoiceSettingsPendingRequests(); track request.id) {
+                    <div class="platform-voice-request-row" style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;border-radius:12px;background:rgba(255,255,255,0.035);border:1px solid rgba(255,255,255,0.05);">
+                      <div class="platform-voice-request-row__identity" style="min-width:0;display:flex;align-items:center;gap:8px;flex:1 1 220px;">
+                        <span class="platform-voice-request-row__avatar" style="width:28px;height:28px;flex:0 0 28px;border-radius:50%;overflow:hidden;display:inline-flex;align-items:center;justify-content:center;background:rgba(61,214,198,0.12);color:rgba(240,247,246,0.92);font-size:10px;font-weight:700;">
+                          @if (userAvatarUrl(request.requester_user_id, request.requester_avatar_updated_at); as avatarUrl) {
+                            <img [src]="avatarUrl" [alt]="displayNick(request.requester_nick)" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" />
+                          } @else {
+                            <span>{{ displayNickInitials(request.requester_nick) }}</span>
+                          }
+                        </span>
+                        <div class="platform-voice-request-row__copy" style="min-width:0;display:grid;gap:2px;">
+                          <strong>{{ displayNick(request.requester_nick) }}</strong>
+                          <small style="color:rgba(222,236,245,0.58);font-size:10px;">{{ formatMessageTime(request.created_at) }}</small>
+                        </div>
+                      </div>
+                      <div class="platform-voice-request-row__actions" style="display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
+                        <button class="secondary-button" type="button" style="min-height:30px;padding:0 10px;font-size:11px;" [disabled]="voiceOwnerActionLoading()" (click)="resolveVoiceRequest(request, 'allow')">Впустить</button>
+                        <button class="secondary-button" type="button" style="min-height:30px;padding:0 10px;font-size:11px;" [disabled]="voiceOwnerActionLoading()" (click)="resolveVoiceRequest(request, 'resident')">Житель</button>
+                        <button class="primary-button" type="button" style="min-height:30px;padding:0 10px;font-size:11px;" [disabled]="voiceOwnerActionLoading()" (click)="resolveVoiceRequest(request, 'reject')">Блок</button>
+                      </div>
+                    </div>
+                  }
+                </div>
+              }
+
               <div class="platform-voice-access-list">
                 @if (voiceAdminAccessLoading()) {
                   <p class="modal-note">Загружаем роли канала...</p>
                 } @else {
-                  @for (entry of platformVoiceSettingsAccessEntries(); track entry.user_id) {
+                  @for (view of platformVoiceSettingsAccessView(); track view.entry.user_id) {
                     <div class="platform-voice-access-row">
-                      <div class="platform-voice-access-row__copy">
-                        <strong>{{ displayNick(entry.nick) }}</strong>
-                        <small>
-                          {{ entry.is_online ? 'онлайн' : 'офлайн' }}
-                          @if (isPlatformMemberManager(entry.user_id)) {
-                            · управление площадкой
+                      <div class="platform-voice-access-row__copy" style="min-width:0;display:grid;gap:5px;">
+                        <strong style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;">{{ displayNick(view.entry.nick) }}</strong>
+                        <div class="voice-admin__chips" style="gap:4px;">
+                          @for (chip of view.statusChips; track chip.label) {
+                            <span
+                              class="voice-admin__chip"
+                              [class.voice-admin__chip--online]="chip.tone === 'online'"
+                              [class.voice-admin__chip--active]="chip.tone === 'active'"
+                              [class.voice-admin__chip--warning]="chip.tone === 'warning'"
+                              [class.voice-admin__chip--danger]="chip.tone === 'danger'"
+                              style="min-height:20px;padding:0 7px;font-size:10px;border-radius:999px;"
+                            >
+                              {{ chip.label }}
+                            </span>
                           }
-                        </small>
+                          @if (isPlatformMemberManager(view.entry.user_id)) {
+                            <span class="voice-admin__chip" style="min-height:20px;padding:0 7px;font-size:10px;border-radius:999px;">Упр. площадкой</span>
+                          }
+                        </div>
                       </div>
 
                       <select
                         class="platform-voice-access-row__select"
-                        [ngModel]="entry.role"
-                        [disabled]="voiceAdminSaving() || !canEditPlatformVoiceRole(entry)"
-                        [name]="'platform_voice_role_' + entry.user_id"
-                        (ngModelChange)="updatePlatformVoiceRole(entry, $event)"
+                        [ngModel]="view.entry.role"
+                        [disabled]="voiceAdminSaving() || !canEditPlatformVoiceRole(view.entry)"
+                        [name]="'platform_voice_role_' + view.entry.user_id"
+                        (ngModelChange)="updatePlatformVoiceRole(view.entry, $event)"
                       >
-                        @for (roleOption of platformVoiceRoleOptions(entry); track roleOption) {
+                        @for (roleOption of platformVoiceRoleOptions(view.entry); track roleOption) {
                           <option [value]="roleOption">{{ voiceAccessRoleLabel(roleOption) }}</option>
                         }
                       </select>

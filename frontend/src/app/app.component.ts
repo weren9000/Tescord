@@ -1040,9 +1040,37 @@ export class AppComponent {
 
     return this.voiceAccessEntriesByChannelId()[channelId] ?? [];
   });
+  readonly platformVoiceSettingsAccessView = computed<VoiceAdminAccessViewModel[]>(() =>
+    [...this.platformVoiceSettingsAccessEntries()]
+      .sort((left, right) => this.compareVoiceAccessEntries(left, right))
+      .map((entry) => ({
+        entry,
+        roleLabel: this.formatVoiceAccessRole(entry.role),
+        statusChips: this.buildVoiceAdminStatusChips(entry)
+      }))
+  );
   readonly platformVoiceSettingsOwnerEntry = computed(() =>
     this.platformVoiceSettingsAccessEntries().find((entry) => entry.role === 'owner') ?? null
   );
+  readonly activePlatformVoiceRequests = computed(() => {
+    const activeServer = this.activeServer();
+    if (!activeServer || activeServer.kind !== 'workspace') {
+      return [];
+    }
+
+    return this.ownerVoiceRequests()
+      .filter((request) => request.server_id === activeServer.id && request.status === 'pending')
+      .sort((left, right) => Date.parse(left.created_at) - Date.parse(right.created_at));
+  });
+  readonly activePlatformVoiceRequestCount = computed(() => this.activePlatformVoiceRequests().length);
+  readonly platformVoiceSettingsPendingRequests = computed(() => {
+    const channelId = this.platformVoiceSettingsChannelId();
+    if (!channelId) {
+      return [];
+    }
+
+    return this.activePlatformVoiceRequests().filter((request) => request.channel_id === channelId);
+  });
   readonly directDirectoryQueryNormalized = computed(() => this.directDirectoryQuery().trim().toLowerCase());
   readonly addGroupMemberQueryNormalized = computed(() => this.addGroupMemberQuery().trim().toLowerCase());
   readonly personalDirectoryCandidates = computed(() => {
@@ -2470,9 +2498,10 @@ export class AppComponent {
         exhaustMap(({ token, request, action }) =>
           this.workspaceApi.resolveVoiceJoinRequest(token, request.id, action).pipe(
             tap(() => {
+              const keepModalOpen = this.ownerVoiceRequestModalOpen();
               this.ownerVoiceRequests.update((requests) => requests.filter((entry) => entry.id !== request.id));
               this.activeOwnerRequestId.set(this.ownerVoiceRequests()[0]?.id ?? null);
-              this.ownerVoiceRequestModalOpen.set(this.ownerVoiceRequests().length > 0);
+              this.ownerVoiceRequestModalOpen.set(keepModalOpen && this.ownerVoiceRequests().length > 0);
               this.managementSuccess.set(
                 action === 'allow'
                   ? 'Пользователь может зайти в канал'
@@ -3635,9 +3664,28 @@ export class AppComponent {
     this.toggleVoiceMute();
   }
 
+  platformVoiceChannelPendingRequestCount(channelId: string): number {
+    return this.activePlatformVoiceRequests().filter((request) => request.channel_id === channelId).length;
+  }
+
+  platformVoiceChannelPendingRequestLabel(channelId: string): string {
+    const count = this.platformVoiceChannelPendingRequestCount(channelId);
+    if (count <= 0) {
+      return '';
+    }
+
+    return count > 99 ? '99+' : String(count);
+  }
+
   platformChannelMetaLabel(channel: WorkspaceChannel): string {
     if (channel.type === 'voice') {
-      return `${this.platformVoiceParticipantCount(channel.id)} в голосе`;
+      const metaParts = [`${this.platformVoiceParticipantCount(channel.id)} в голосе`];
+      const pendingRequests = this.platformVoiceChannelPendingRequestCount(channel.id);
+      if (pendingRequests > 0 && this.canManagePlatformVoiceChannel(channel)) {
+        metaParts.push(`${pendingRequests} ждут`);
+      }
+
+      return metaParts.join(' · ');
     }
 
     return channel.topic?.trim() || 'Текстовый канал площадки';
@@ -4436,10 +4484,43 @@ export class AppComponent {
     this.activeOwnerRequestId.set(null);
   }
 
-  resolveActiveVoiceRequest(action: 'allow' | 'resident' | 'reject'): void {
+  ownerVoiceRequestQueueLabel(): string {
+    const total = this.ownerVoiceRequests().length;
+    if (total <= 0) {
+      return 'Нет заявок';
+    }
+
+    const remainder10 = total % 10;
+    const remainder100 = total % 100;
+    const noun =
+      remainder10 === 1 && remainder100 !== 11
+        ? 'заявка'
+        : remainder10 >= 2 && remainder10 <= 4 && (remainder100 < 12 || remainder100 > 14)
+          ? 'заявки'
+          : 'заявок';
+
+    return `${total} ${noun}`;
+  }
+
+  focusPlatformVoiceRequest(request: VoiceJoinRequestSummary): void {
+    const activeServer = this.activeServer();
+    if (!activeServer || activeServer.kind !== 'workspace' || request.server_id !== activeServer.id) {
+      return;
+    }
+
+    this.ownerVoiceRequestModalOpen.set(false);
+    this.openPlatformSettingsModal();
+    this.platformVoiceSettingsChannelId.set(request.channel_id);
+    this.activeOwnerRequestId.set(request.id);
     const token = this.session()?.access_token;
-    const activeRequest = this.activeOwnerRequest();
-    if (!token || !activeRequest) {
+    if (token) {
+      void this.ensureVoiceChannelAccessLoaded(request.channel_id, true);
+    }
+  }
+
+  resolveVoiceRequest(request: VoiceJoinRequestSummary, action: 'allow' | 'resident' | 'reject'): void {
+    const token = this.session()?.access_token;
+    if (!token) {
       return;
     }
 
@@ -4447,9 +4528,18 @@ export class AppComponent {
     this.managementError.set(null);
     this.resolveVoiceRequestTrigger$.next({
       token,
-      request: activeRequest,
+      request,
       action
     });
+  }
+
+  resolveActiveVoiceRequest(action: 'allow' | 'resident' | 'reject'): void {
+    const activeRequest = this.activeOwnerRequest();
+    if (!activeRequest) {
+      return;
+    }
+
+    this.resolveVoiceRequest(activeRequest, action);
   }
 
   logout(): void {
@@ -5167,11 +5257,13 @@ export class AppComponent {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (requests) => {
+          const previousRequestIds = new Set(this.ownerVoiceRequests().map((request) => request.id));
+          const hasNewRequests = requests.some((request) => !previousRequestIds.has(request.id));
           this.ownerVoiceRequests.set(requests);
-          if (requests.length) {
-            this.ownerVoiceRequestModalOpen.set(true);
-          } else {
+          if (!requests.length) {
             this.ownerVoiceRequestModalOpen.set(false);
+          } else if (hasNewRequests) {
+            this.ownerVoiceRequestModalOpen.set(true);
           }
           const activeRequestId = this.activeOwnerRequestId();
           if (activeRequestId && requests.some((request) => request.id === activeRequestId)) {
@@ -7735,6 +7827,25 @@ export class AppComponent {
     }
 
     return 2;
+  }
+
+  private compareVoiceAccessEntries(left: VoiceChannelAccessEntry, right: VoiceChannelAccessEntry): number {
+    const roleOrder = { owner: 0, resident: 1, guest: 2, stranger: 3 };
+    const leftRoleWeight = roleOrder[left.role] ?? 4;
+    const rightRoleWeight = roleOrder[right.role] ?? 4;
+    if (leftRoleWeight !== rightRoleWeight) {
+      return leftRoleWeight - rightRoleWeight;
+    }
+
+    if (left.is_in_channel !== right.is_in_channel) {
+      return left.is_in_channel ? -1 : 1;
+    }
+
+    if (left.is_online !== right.is_online) {
+      return left.is_online ? -1 : 1;
+    }
+
+    return this.displayNick(left.nick).localeCompare(this.displayNick(right.nick), 'ru');
   }
 
   private formatVoiceAccessRole(role: VoiceAccessRole): string {

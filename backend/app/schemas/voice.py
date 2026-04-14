@@ -49,6 +49,8 @@ class VoiceOwnerMuteUpdateRequest(BaseModel):
 
 class VoiceJoinRequestSummary(BaseModel):
     id: UUID
+    server_id: UUID
+    server_name: str
     channel_id: UUID
     channel_name: str
     requester_user_id: UUID

@@ -231,6 +231,8 @@ def _build_voice_join_request_summary(
 
     return VoiceJoinRequestSummary(
         id=request.id,
+        server_id=channel.server_id,
+        server_name=channel.server.name,
         channel_id=channel.id,
         channel_name=channel.name,
         requester_user_id=requester.id,

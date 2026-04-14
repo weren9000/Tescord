@@ -222,6 +222,8 @@ export interface VoiceChannelAccessEntry {
 
 export interface VoiceJoinRequestSummary {
   id: string;
+  server_id: string;
+  server_name: string;
   channel_id: string;
   channel_name: string;
   requester_user_id: string;
