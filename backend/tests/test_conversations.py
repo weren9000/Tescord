@@ -195,3 +195,51 @@ def test_user_can_create_group_conversation_alone() -> None:
                 delete_server(conversation_id)
             delete_user(owner_payload["email"])
 
+
+def test_group_conversation_tracks_mention_unread_state() -> None:
+    with TestClient(app) as client:
+        owner_token, owner_payload = register_regular_user(client)
+        member_token, member_payload = register_regular_user(client)
+        conversation_id = None
+
+        try:
+            member_profile = get_current_user_profile(client, member_token)
+
+            group_response = client.post(
+                "/api/conversations/group",
+                headers={"Authorization": f"Bearer {owner_token}"},
+                json={
+                    "name": f"group-{uuid4().hex[:6]}",
+                    "member_ids": [member_profile["id"]],
+                },
+            )
+            assert group_response.status_code == 201
+            conversation = group_response.json()
+            conversation_id = conversation["id"]
+            channel_id = conversation["primary_channel_id"]
+
+            message_response = client.post(
+                f"/api/channels/{channel_id}/messages",
+                headers={"Authorization": f"Bearer {owner_token}"},
+                data={"content": f"hello @{member_profile['public_id']}"},
+            )
+            assert message_response.status_code == 201
+            mention_message = message_response.json()
+
+            conversations_response = client.get(
+                "/api/conversations",
+                headers={"Authorization": f"Bearer {member_token}"},
+            )
+        finally:
+            if conversation_id is not None:
+                delete_server(conversation_id)
+            delete_user(owner_payload["email"])
+            delete_user(member_payload["email"])
+
+    assert conversations_response.status_code == 200
+    listed_conversation = next(item for item in conversations_response.json() if item["id"] == conversation_id)
+    assert listed_conversation["unread_count"] == 1
+    assert listed_conversation["mention_unread_count"] == 1
+    assert listed_conversation["first_unread_message_id"] == mention_message["id"]
+    assert listed_conversation["first_mention_unread_message_id"] == mention_message["id"]
+

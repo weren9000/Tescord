@@ -18,6 +18,9 @@ export interface ConversationSummary {
   member_role: string;
   primary_channel_id: string;
   unread_count: number;
+  mention_unread_count: number;
+  first_unread_message_id: string | null;
+  first_mention_unread_message_id: string | null;
   push_enabled: boolean;
   members: ConversationMemberPreview[];
 }

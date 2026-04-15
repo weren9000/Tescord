@@ -9,6 +9,7 @@ import { AuthApiService } from './core/api/auth-api.service';
 import { API_BASE_URL } from './core/api/api-base';
 import { SystemApiService } from './core/api/system-api.service';
 import { WorkspaceApiService, WorkspaceMessageUploadEvent } from './core/api/workspace-api.service';
+import { AttentionMentionItem } from './core/models/attention.models';
 import {
   ConversationDirectoryUser,
   ConversationMemberPreview,
@@ -74,6 +75,7 @@ type VoiceAccessRole = 'owner' | 'resident' | 'guest' | 'stranger';
 type VoiceWorkspaceTab = 'chat' | 'channel';
 type ConversationCreateTab = 'direct' | 'group';
 type PushFeedbackTone = 'success' | 'warning' | 'error';
+type MessageFocusKind = 'unread' | 'mention';
 
 interface LoginFormModel {
   email: string;
@@ -143,6 +145,11 @@ interface ComposerMentionQueryState {
   start: number;
   end: number;
   query: string;
+}
+
+interface MessageContentSegment {
+  text: string;
+  mentionUserId: string | null;
 }
 
 interface ProfileUpdateTrigger {
@@ -257,6 +264,13 @@ interface ServerMembershipActionTrigger {
   action: 'leave' | 'block' | 'unblock';
   payload?: LeaveWorkspaceServerRequest;
   successMessage: string;
+}
+
+interface PendingMessageNavigationState {
+  serverId: string;
+  channelId: string;
+  focusMessageId: string | null;
+  focusKind: MessageFocusKind;
 }
 
 interface RemoveServerMemberTrigger {
@@ -573,6 +587,8 @@ export class AppComponent {
   private profileAvatarSelectionMode: 'instant' | 'editor' = 'instant';
   private profileAvatarPreviewObjectUrl: string | null = null;
   private readonly openedUnreadAnchorMessageId = signal<string | null>(null);
+  private readonly openedMessageFocusKind = signal<MessageFocusKind | null>(null);
+  private readonly pendingMessageNavigation = signal<PendingMessageNavigationState | null>(null);
 
   @ViewChild('messageList')
   private messageListRef?: ElementRef<HTMLElement>;
@@ -643,6 +659,9 @@ export class AppComponent {
   readonly friendRequestsModalOpen = signal(false);
   readonly friendRequestsLoading = signal(false);
   readonly friendRequestsError = signal<string | null>(null);
+  readonly attentionInboxLoading = signal(false);
+  readonly attentionInboxError = signal<string | null>(null);
+  readonly attentionMentions = signal<AttentionMentionItem[]>([]);
   readonly incomingFriendRequests = signal<FriendRequestSummary[]>([]);
   readonly outgoingFriendRequests = signal<FriendRequestSummary[]>([]);
   readonly pendingFriendRequestCount = signal(0);
@@ -741,7 +760,16 @@ export class AppComponent {
   readonly pendingServerSwitch = signal<PendingServerSwitchState | null>(null);
   readonly conversationCreateTab = signal<ConversationCreateTab>('direct');
   readonly createConversationGroupMemberIds = signal<string[]>([]);
-  readonly friendRequestBadgeVisible = computed(() => this.pendingFriendRequestCount() > 0);
+  readonly conversationMentionTotalCount = computed(() =>
+    this.conversations().reduce((total, conversation) => total + Math.max(0, conversation.mention_unread_count ?? 0), 0)
+  );
+  readonly serverMentionTotalCount = computed(() =>
+    this.servers().reduce((total, server) => total + Math.max(0, server.mention_unread_count ?? 0), 0)
+  );
+  readonly notificationAlertCount = computed(
+    () => this.pendingFriendRequestCount() + this.ownerVoiceRequests().length + this.conversationMentionTotalCount() + this.serverMentionTotalCount()
+  );
+  readonly friendRequestBadgeVisible = computed(() => this.notificationAlertCount() > 0);
   readonly isActiveGroupOwner = computed(() => {
     const activeServer = this.activeServer();
     return !!activeServer && activeServer.kind !== 'direct' && activeServer.member_role === 'owner';
@@ -837,7 +865,7 @@ export class AppComponent {
       member_role: conversation.member_role,
       kind: conversation.kind,
       unread_count: conversation.unread_count,
-      mention_unread_count: 0,
+      mention_unread_count: conversation.mention_unread_count,
     }))
   );
   readonly directConversationSpaces = computed<WorkspaceServer[]>(() =>
@@ -851,7 +879,7 @@ export class AppComponent {
       member_role: conversation.member_role,
       kind: conversation.kind,
       unread_count: conversation.unread_count,
-      mention_unread_count: 0,
+      mention_unread_count: conversation.mention_unread_count,
     }))
   );
   readonly groupConversationSpaces = computed<WorkspaceServer[]>(() =>
@@ -865,7 +893,7 @@ export class AppComponent {
       member_role: conversation.member_role,
       kind: conversation.kind,
       unread_count: conversation.unread_count,
-      mention_unread_count: 0,
+      mention_unread_count: conversation.mention_unread_count,
     }))
   );
   readonly currentSpaceList = computed<WorkspaceServer[]>(() =>
@@ -2920,6 +2948,10 @@ export class AppComponent {
     this.friendRequestsModalOpen.set(true);
     this.friendRequestsLoading.set(true);
     this.friendRequestsError.set(null);
+    this.attentionInboxLoading.set(true);
+    this.attentionInboxError.set(null);
+    void this.refreshAttentionInbox(token);
+    void this.refreshVoiceJoinInbox();
     void this.refreshFriendRequests(token);
   }
 
@@ -2927,6 +2959,49 @@ export class AppComponent {
     this.friendRequestsModalOpen.set(false);
     this.friendRequestsLoading.set(false);
     this.friendRequestsError.set(null);
+    this.attentionInboxLoading.set(false);
+    this.attentionInboxError.set(null);
+  }
+
+  attentionMentionLocationLabel(item: AttentionMentionItem): string {
+    if (item.server_kind === 'workspace') {
+      return `${item.server_name} · ${item.channel_name ? '# ' + item.channel_name : 'канал'}`;
+    }
+
+    return item.server_name;
+  }
+
+  openAttentionMention(item: AttentionMentionItem): void {
+    const token = this.session()?.access_token;
+    if (!token) {
+      return;
+    }
+
+    this.closeFriendRequestsModal();
+    this.pendingMessageNavigation.set({
+      serverId: item.server_id,
+      channelId: item.channel_id,
+      focusMessageId: item.focus_message_id,
+      focusKind: 'mention',
+    });
+    this.workspaceMode.set(item.server_kind === 'workspace' ? 'platforms' : 'groups');
+
+    if (this.selectedServerId() === item.server_id) {
+      const targetChannel = this.channels().find((channel) => channel.id === item.channel_id) ?? null;
+      if (targetChannel) {
+        if (this.selectedChannelId() !== targetChannel.id || !this.messages().length) {
+          void this.selectChannel(targetChannel, { connectVoice: false });
+        } else {
+          this.loadMessagesForChannel(token, targetChannel.id, undefined, this.buildInitialChannelLoadOptions(targetChannel));
+        }
+        return;
+      }
+
+      this.loadServerWorkspace(token, item.server_id);
+      return;
+    }
+
+    this.selectServer(item.server_id);
   }
 
   respondToFriendRequest(requestId: string, action: 'accept' | 'reject' | 'block'): void {
@@ -4777,10 +4852,12 @@ export class AppComponent {
     this.conversationDirectory.set([]);
     this.incomingFriendRequests.set([]);
     this.outgoingFriendRequests.set([]);
+    this.attentionMentions.set([]);
     this.blockedFriends.set([]);
     this.blockedServers.set([]);
     this.pendingFriendRequestCount.set(0);
     this.pendingPushConversationId = null;
+    this.pendingMessageNavigation.set(null);
     this.pushFeedback.set(null);
     this.channels.set([]);
     this.members.set([]);
@@ -4833,11 +4910,13 @@ export class AppComponent {
     this.workspaceLoading.set(false);
     this.createConversationLoading.set(false);
     this.friendRequestsLoading.set(false);
+    this.attentionInboxLoading.set(false);
     this.createGroupLoading.set(false);
     this.createPlatformLoading.set(false);
     this.createChannelLoading.set(false);
     this.conversationPushPendingId.set(null);
     this.friendRequestsError.set(null);
+    this.attentionInboxError.set(null);
     this.authMode.set('login');
     this.clearStoredSession();
   }
@@ -5650,6 +5729,7 @@ export class AppComponent {
         if (token) {
           await this.refreshServersList(token);
           await this.refreshConversationsList(token);
+          await this.refreshAttentionInboxIfOpen();
         }
         return;
       }
@@ -5689,6 +5769,7 @@ export class AppComponent {
 
     await this.refreshVoiceJoinInbox();
     await this.refreshFriendRequests(token);
+    await this.refreshAttentionInbox(token);
     this.refreshCurrentChannelMessages();
   }
 
@@ -5746,9 +5827,16 @@ export class AppComponent {
           this.bumpServerUnreadCount(event.server_id);
           if (mentionsCurrentUser) {
             this.bumpServerMentionUnreadCount(event.server_id);
+            void this.refreshAttentionInboxIfOpen();
           }
         } else {
           this.bumpConversationUnreadCount(event.server_id);
+          this.setConversationFirstUnreadMessageIdIfMissing(event.server_id, event.message.id);
+          if (mentionsCurrentUser) {
+            this.bumpConversationMentionUnreadCount(event.server_id);
+            this.setConversationFirstMentionUnreadMessageIdIfMissing(event.server_id, event.message.id);
+            void this.refreshAttentionInboxIfOpen();
+          }
         }
       }
       return;
@@ -5768,9 +5856,17 @@ export class AppComponent {
           if (mentionsCurrentUser) {
             this.bumpChannelMentionUnreadCount(event.message.channel_id);
             this.bumpServerMentionUnreadCount(event.server_id);
+            this.setChannelFirstMentionUnreadMessageIdIfMissing(event.message.channel_id, event.message.id);
+            void this.refreshAttentionInboxIfOpen();
           }
         } else {
           this.bumpConversationUnreadCount(event.server_id);
+          this.setConversationFirstUnreadMessageIdIfMissing(event.server_id, event.message.id);
+          if (mentionsCurrentUser) {
+            this.bumpConversationMentionUnreadCount(event.server_id);
+            this.setConversationFirstMentionUnreadMessageIdIfMissing(event.server_id, event.message.id);
+            void this.refreshAttentionInboxIfOpen();
+          }
         }
       }
       return;
@@ -5800,9 +5896,17 @@ export class AppComponent {
         if (mentionsCurrentUser) {
           this.bumpChannelMentionUnreadCount(event.message.channel_id);
           this.bumpServerMentionUnreadCount(event.server_id);
+          this.setChannelFirstMentionUnreadMessageIdIfMissing(event.message.channel_id, event.message.id);
+          void this.refreshAttentionInboxIfOpen();
         }
       } else {
         this.bumpConversationUnreadCount(event.server_id);
+        this.setConversationFirstUnreadMessageIdIfMissing(event.server_id, event.message.id);
+        if (mentionsCurrentUser) {
+          this.bumpConversationMentionUnreadCount(event.server_id);
+          this.setConversationFirstMentionUnreadMessageIdIfMissing(event.server_id, event.message.id);
+          void this.refreshAttentionInboxIfOpen();
+        }
       }
     }
   }
@@ -5843,7 +5947,11 @@ export class AppComponent {
         }
       } else {
         this.setConversationUnreadCountByChannelId(event.channel_id, 0);
+        this.setConversationMentionUnreadCountByChannelId(event.channel_id, 0);
+        this.setConversationFirstUnreadMessageIdByChannelId(event.channel_id, null);
+        this.setConversationFirstMentionUnreadMessageIdByChannelId(event.channel_id, null);
       }
+      void this.refreshAttentionInboxIfOpen();
     }
 
     if (event.server_id !== this.selectedServerId()) {
@@ -6162,6 +6270,38 @@ export class AppComponent {
           this.friendRequestsError.set(this.extractErrorMessage(error, 'Не удалось загрузить запросы в друзья'));
         }
       });
+  }
+
+  private async refreshAttentionInbox(token: string): Promise<void> {
+    this.workspaceApi
+      .getAttentionInbox(token)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (inbox) => {
+          this.attentionMentions.set(inbox.mentions);
+          this.attentionInboxLoading.set(false);
+          this.attentionInboxError.set(null);
+        },
+        error: (error) => {
+          this.attentionInboxLoading.set(false);
+          this.attentionInboxError.set(this.extractErrorMessage(error, 'Не удалось загрузить упоминания'));
+        }
+      });
+  }
+
+  private async refreshAttentionInboxIfOpen(): Promise<void> {
+    if (!this.friendRequestsModalOpen()) {
+      return;
+    }
+
+    const token = this.session()?.access_token;
+    if (!token) {
+      return;
+    }
+
+    this.attentionInboxLoading.set(true);
+    this.attentionInboxError.set(null);
+    await this.refreshAttentionInbox(token);
   }
 
   private async refreshBlockedFriends(token: string): Promise<void> {
@@ -6506,6 +6646,7 @@ export class AppComponent {
           this.servers.set([]);
           this.conversations.set([]);
           this.conversationDirectory.set([]);
+          this.attentionMentions.set([]);
           this.channels.set([]);
           this.members.set([]);
           this.voicePresence.set([]);
@@ -6519,7 +6660,11 @@ export class AppComponent {
   }
 
   private loadServerWorkspace(token: string, serverId: string): void {
-    const previousSelectedChannelId = this.selectedChannelId();
+    const pendingNavigation = this.pendingMessageNavigation();
+    const previousSelectedChannelId =
+      pendingNavigation?.serverId === serverId
+        ? pendingNavigation.channelId
+        : this.selectedChannelId();
 
     this.stopMemberPolling(false);
     this.stopVoicePresencePolling();
@@ -6619,8 +6764,30 @@ export class AppComponent {
     return typeof window !== 'undefined' && window.matchMedia('(max-width: 920px)').matches;
   }
 
-  private buildInitialChannelLoadOptions(channel: WorkspaceChannel): { focusMessageId?: string | null; limit?: number } {
-    const focusMessageId = channel.first_unread_message_id;
+  private buildInitialChannelLoadOptions(
+    channel: WorkspaceChannel,
+  ): { focusMessageId?: string | null; limit?: number; focusKind?: MessageFocusKind } {
+    const pendingNavigation = this.pendingMessageNavigation();
+    if (
+      pendingNavigation
+      && pendingNavigation.serverId === this.selectedServerId()
+      && pendingNavigation.channelId === channel.id
+      && pendingNavigation.focusMessageId
+    ) {
+      return {
+        focusMessageId: pendingNavigation.focusMessageId,
+        focusKind: pendingNavigation.focusKind,
+        limit: Math.min(
+          MAX_UNREAD_FOCUS_PAGE_SIZE,
+          Math.max(MESSAGES_PAGE_SIZE, this.channelUnreadCount(channel) * 2 + UNREAD_FOCUS_PAGE_PADDING),
+        ),
+      };
+    }
+
+    const focusMessageId =
+      this.channelMentionUnreadCount(channel) > 0 && channel.first_mention_unread_message_id
+        ? channel.first_mention_unread_message_id
+        : channel.first_unread_message_id;
     const unreadCount = this.channelUnreadCount(channel);
     if (!focusMessageId || unreadCount <= 0) {
       return {};
@@ -6628,6 +6795,10 @@ export class AppComponent {
 
     return {
       focusMessageId,
+      focusKind:
+        this.channelMentionUnreadCount(channel) > 0 && channel.first_mention_unread_message_id === focusMessageId
+          ? 'mention'
+          : 'unread',
       limit: Math.min(
         MAX_UNREAD_FOCUS_PAGE_SIZE,
         Math.max(MESSAGES_PAGE_SIZE, unreadCount * 2 + UNREAD_FOCUS_PAGE_PADDING),
@@ -6639,7 +6810,7 @@ export class AppComponent {
     token: string,
     channelId: string,
     before?: string | null,
-    options: { focusMessageId?: string | null; limit?: number } = {},
+    options: { focusMessageId?: string | null; limit?: number; focusKind?: MessageFocusKind } = {},
   ): void {
     const isLoadingMore = Boolean(before);
     const listElement = this.messageListRef?.nativeElement;
@@ -6660,6 +6831,7 @@ export class AppComponent {
       this.messagesCursor.set(null);
       this.messageError.set(null);
       this.openedUnreadAnchorMessageId.set(options.focusMessageId ?? null);
+      this.openedMessageFocusKind.set(options.focusKind ?? null);
     }
 
     this.workspaceApi
@@ -6684,6 +6856,11 @@ export class AppComponent {
           this.messagesLoading.set(false);
           this.messagesLoadingMore.set(false);
 
+          const pendingNavigation = this.pendingMessageNavigation();
+          if (pendingNavigation && pendingNavigation.channelId === channelId) {
+            this.pendingMessageNavigation.set(null);
+          }
+
           if (isLoadingMore) {
             this.restoreMessageScrollPosition(previousScrollHeight, previousScrollTop);
           } else {
@@ -6701,6 +6878,10 @@ export class AppComponent {
           this.messagesLoading.set(false);
           this.messagesLoadingMore.set(false);
           this.messageError.set(this.extractErrorMessage(error, 'Не удалось загрузить сообщения'));
+          const pendingNavigation = this.pendingMessageNavigation();
+          if (pendingNavigation && pendingNavigation.channelId === channelId) {
+            this.pendingMessageNavigation.set(null);
+          }
         }
       });
   }
@@ -6944,6 +7125,7 @@ export class AppComponent {
       this.lastMarkedReadMessageIdByChannel.delete(selectedChannelId);
     }
     this.openedUnreadAnchorMessageId.set(null);
+    this.openedMessageFocusKind.set(null);
     this.messages.set([]);
     this.clearAttachmentPreviews();
     this.openedMessageReactionPickerId.set(null);
@@ -7207,6 +7389,7 @@ export class AppComponent {
       this.setChannelUnreadCount(channelId, 0);
       this.setChannelMentionUnreadCount(channelId, 0);
       this.setChannelFirstUnreadMessageId(channelId, null);
+      this.setChannelFirstMentionUnreadMessageId(channelId, null);
       if (channelUnreadCount > 0) {
         this.bumpServerUnreadCount(activeServer.id, -channelUnreadCount);
       }
@@ -7215,6 +7398,9 @@ export class AppComponent {
       }
     } else {
       this.setConversationUnreadCountByChannelId(channelId, 0);
+      this.setConversationMentionUnreadCountByChannelId(channelId, 0);
+      this.setConversationFirstUnreadMessageIdByChannelId(channelId, null);
+      this.setConversationFirstMentionUnreadMessageIdByChannelId(channelId, null);
     }
     this.markChannelReadTrigger$.next({ token, channelId, lastMessageId });
   }
@@ -7699,7 +7885,7 @@ export class AppComponent {
       member_role: conversation.member_role,
       kind: conversation.kind,
       unread_count: conversation.unread_count,
-      mention_unread_count: 0,
+      mention_unread_count: conversation.mention_unread_count,
     }));
   }
 
@@ -7921,6 +8107,15 @@ export class AppComponent {
     return unreadCount > 99 ? '99+' : String(unreadCount);
   }
 
+  conversationMentionUnreadCount(conversation: ConversationSummary): number {
+    return Math.max(0, conversation.mention_unread_count ?? 0);
+  }
+
+  conversationMentionUnreadBadgeLabel(conversation: ConversationSummary): string {
+    const mentionUnreadCount = this.conversationMentionUnreadCount(conversation);
+    return mentionUnreadCount > 99 ? '99+' : String(mentionUnreadCount);
+  }
+
   platformUnreadCount(server: WorkspaceServer): number {
     return Math.max(0, server.unread_count ?? 0);
   }
@@ -7966,8 +8161,100 @@ export class AppComponent {
     return message.mentioned_user_ids.includes(currentUserId);
   }
 
+  messageContentSegments(message: WorkspaceMessage): MessageContentSegment[] {
+    const content = message.content ?? '';
+    if (!content || !message.mentioned_user_ids.length) {
+      return [{ text: content, mentionUserId: null }];
+    }
+
+    const mentionCandidates = this.messageMentionCandidatesByUserId(message);
+    if (!mentionCandidates.size) {
+      return [{ text: content, mentionUserId: null }];
+    }
+
+    const orderedCandidates = [...mentionCandidates.entries()]
+      .flatMap(([userId, tokens]) => [...tokens].map((token) => ({ userId, token })))
+      .sort((left, right) => right.token.length - left.token.length);
+
+    const normalizedContent = content;
+    const contentFolded = normalizedContent.toLocaleLowerCase('ru-RU');
+    const segments: MessageContentSegment[] = [];
+
+    let segmentStart = 0;
+    let searchFrom = 0;
+    while (searchFrom < normalizedContent.length) {
+      const mentionStart = contentFolded.indexOf('@', searchFrom);
+      if (mentionStart < 0) {
+        break;
+      }
+
+      if (!this.hasMentionBoundaryAt(normalizedContent, mentionStart)) {
+        searchFrom = mentionStart + 1;
+        continue;
+      }
+
+      const matchedCandidate = orderedCandidates.find((candidate) => {
+        const mentionEnd = mentionStart + candidate.token.length;
+        return (
+          contentFolded.startsWith(candidate.token, mentionStart)
+          && this.hasMentionBoundaryAfter(normalizedContent, mentionEnd)
+        );
+      });
+
+      if (!matchedCandidate) {
+        searchFrom = mentionStart + 1;
+        continue;
+      }
+
+      if (mentionStart > segmentStart) {
+        segments.push({
+          text: normalizedContent.slice(segmentStart, mentionStart),
+          mentionUserId: null,
+        });
+      }
+
+      const mentionEnd = mentionStart + matchedCandidate.token.length;
+      segments.push({
+        text: normalizedContent.slice(mentionStart, mentionEnd),
+        mentionUserId: matchedCandidate.userId,
+      });
+      segmentStart = mentionEnd;
+      searchFrom = mentionEnd;
+    }
+
+    if (segmentStart < normalizedContent.length) {
+      segments.push({
+        text: normalizedContent.slice(segmentStart),
+        mentionUserId: null,
+      });
+    }
+
+    return segments.length ? segments : [{ text: normalizedContent, mentionUserId: null }];
+  }
+
+  isMentionSegmentCurrentUser(segment: MessageContentSegment): boolean {
+    return !!segment.mentionUserId && segment.mentionUserId === this.currentUser()?.id;
+  }
+
+  openMentionSegmentUser(segment: MessageContentSegment): void {
+    if (!segment.mentionUserId) {
+      return;
+    }
+
+    const member = this.groupMembers().find((entry) => entry.userId === segment.mentionUserId) ?? null;
+    if (!member) {
+      return;
+    }
+
+    this.openMemberCall(member);
+  }
+
   shouldShowUnreadDivider(message: WorkspaceMessage): boolean {
     return this.openedUnreadAnchorMessageId() === message.id;
+  }
+
+  unreadDividerLabel(): string {
+    return this.openedMessageFocusKind() === 'mention' ? 'Упоминания' : 'Непрочитанные';
   }
 
   activeConversationPushIcon(): string {
@@ -8060,6 +8347,60 @@ export class AppComponent {
     return message.mentioned_user_ids.includes(userId);
   }
 
+  private messageMentionCandidatesByUserId(message: WorkspaceMessage): Map<string, Set<string>> {
+    const candidatesByUserId = new Map<string, Set<string>>();
+    const activeConversationMembers = (this.activeConversation()?.members ?? []).map((member) => ({
+      userId: member.user_id,
+      publicId: member.public_id,
+      nick: member.nick,
+    }));
+    const serverMembers = this.members().map((member) => ({
+      userId: member.user_id,
+      publicId: member.public_id,
+      nick: member.nick,
+    }));
+    const users = [
+      ...activeConversationMembers,
+      ...serverMembers,
+    ];
+
+    for (const user of users) {
+      if (!message.mentioned_user_ids.includes(user.userId) || candidatesByUserId.has(user.userId)) {
+        continue;
+      }
+
+      const tokens = new Set<string>();
+      const normalizedNick = this.displayNick(user.nick).trim();
+      if (normalizedNick) {
+        tokens.add(`@${normalizedNick.toLocaleLowerCase('ru-RU')}`);
+      }
+      tokens.add(`@${this.formatPublicUserId(user.publicId)}`);
+      candidatesByUserId.set(user.userId, tokens);
+    }
+
+    return candidatesByUserId;
+  }
+
+  private hasMentionBoundaryAt(content: string, index: number): boolean {
+    if (index <= 0) {
+      return true;
+    }
+
+    return this.isMentionBoundaryChar(content[index - 1] ?? '');
+  }
+
+  private hasMentionBoundaryAfter(content: string, index: number): boolean {
+    if (index >= content.length) {
+      return true;
+    }
+
+    return this.isMentionBoundaryChar(content[index] ?? '');
+  }
+
+  private isMentionBoundaryChar(character: string): boolean {
+    return !/[\p{L}\p{N}_]/u.test(character);
+  }
+
   directConversationById(conversationId: string): ConversationSummary | null {
     return this.directConversations().find((conversation) => conversation.id === conversationId) ?? null;
   }
@@ -8130,6 +8471,72 @@ export class AppComponent {
           ? {
               ...conversation,
               unread_count: normalizedUnreadCount,
+            }
+          : conversation
+      )
+    );
+  }
+
+  private setConversationMentionUnreadCount(serverId: string, mentionUnreadCount: number): void {
+    const normalizedMentionUnreadCount = Math.max(0, mentionUnreadCount);
+    this.conversations.update((conversations) =>
+      conversations.map((conversation) =>
+        conversation.id === serverId
+          ? {
+              ...conversation,
+              mention_unread_count: normalizedMentionUnreadCount,
+            }
+          : conversation
+      )
+    );
+  }
+
+  private setConversationFirstUnreadMessageId(serverId: string, messageId: string | null): void {
+    this.conversations.update((conversations) =>
+      conversations.map((conversation) =>
+        conversation.id === serverId
+          ? {
+              ...conversation,
+              first_unread_message_id: messageId,
+            }
+          : conversation
+      )
+    );
+  }
+
+  private setConversationFirstMentionUnreadMessageId(serverId: string, messageId: string | null): void {
+    this.conversations.update((conversations) =>
+      conversations.map((conversation) =>
+        conversation.id === serverId
+          ? {
+              ...conversation,
+              first_mention_unread_message_id: messageId,
+            }
+          : conversation
+      )
+    );
+  }
+
+  private setConversationFirstUnreadMessageIdIfMissing(serverId: string, messageId: string): void {
+    this.conversations.update((conversations) =>
+      conversations.map((conversation) =>
+        conversation.id === serverId && !conversation.first_unread_message_id
+          ? {
+              ...conversation,
+              first_unread_message_id: messageId,
+            }
+          : conversation
+      )
+    );
+  }
+
+  private setConversationFirstMentionUnreadMessageIdIfMissing(serverId: string, messageId: string): void {
+    this.conversations.update((conversations) =>
+      conversations.map((conversation) =>
+        conversation.id === serverId && !conversation.first_mention_unread_message_id
+          ? {
+              ...conversation,
+              first_mention_unread_message_id: messageId,
             }
           : conversation
       )
@@ -8218,6 +8625,19 @@ export class AppComponent {
     );
   }
 
+  private setChannelFirstMentionUnreadMessageId(channelId: string, messageId: string | null): void {
+    this.channels.update((channels) =>
+      channels.map((channel) =>
+        channel.id === channelId
+          ? {
+              ...channel,
+              first_mention_unread_message_id: messageId,
+            }
+          : channel
+      )
+    );
+  }
+
   private setChannelFirstUnreadMessageIdIfMissing(channelId: string, messageId: string): void {
     this.channels.update((channels) =>
       channels.map((channel) =>
@@ -8225,6 +8645,19 @@ export class AppComponent {
           ? {
               ...channel,
               first_unread_message_id: messageId,
+            }
+          : channel
+      )
+    );
+  }
+
+  private setChannelFirstMentionUnreadMessageIdIfMissing(channelId: string, messageId: string): void {
+    this.channels.update((channels) =>
+      channels.map((channel) =>
+        channel.id === channelId && !channel.first_mention_unread_message_id
+          ? {
+              ...channel,
+              first_mention_unread_message_id: messageId,
             }
           : channel
       )
@@ -8313,6 +8746,46 @@ export class AppComponent {
     );
   }
 
+  private setConversationMentionUnreadCountByChannelId(channelId: string, mentionUnreadCount: number): void {
+    const normalizedMentionUnreadCount = Math.max(0, mentionUnreadCount);
+    this.conversations.update((conversations) =>
+      conversations.map((conversation) =>
+        conversation.primary_channel_id === channelId
+          ? {
+              ...conversation,
+              mention_unread_count: normalizedMentionUnreadCount,
+            }
+          : conversation
+      )
+    );
+  }
+
+  private setConversationFirstUnreadMessageIdByChannelId(channelId: string, messageId: string | null): void {
+    this.conversations.update((conversations) =>
+      conversations.map((conversation) =>
+        conversation.primary_channel_id === channelId
+          ? {
+              ...conversation,
+              first_unread_message_id: messageId,
+            }
+          : conversation
+      )
+    );
+  }
+
+  private setConversationFirstMentionUnreadMessageIdByChannelId(channelId: string, messageId: string | null): void {
+    this.conversations.update((conversations) =>
+      conversations.map((conversation) =>
+        conversation.primary_channel_id === channelId
+          ? {
+              ...conversation,
+              first_mention_unread_message_id: messageId,
+            }
+          : conversation
+      )
+    );
+  }
+
   private bumpConversationUnreadCount(serverId: string, delta = 1): void {
     if (!delta) {
       return;
@@ -8324,6 +8797,23 @@ export class AppComponent {
           ? {
               ...conversation,
               unread_count: Math.max(0, (conversation.unread_count ?? 0) + delta),
+            }
+          : conversation
+      )
+    );
+  }
+
+  private bumpConversationMentionUnreadCount(serverId: string, delta = 1): void {
+    if (!delta) {
+      return;
+    }
+
+    this.conversations.update((conversations) =>
+      conversations.map((conversation) =>
+        conversation.id === serverId
+          ? {
+              ...conversation,
+              mention_unread_count: Math.max(0, (conversation.mention_unread_count ?? 0) + delta),
             }
           : conversation
       )

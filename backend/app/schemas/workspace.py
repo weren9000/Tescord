@@ -63,6 +63,7 @@ class ChannelSummary(BaseModel):
     unread_count: int = 0
     mention_unread_count: int = 0
     first_unread_message_id: UUID | None = None
+    first_mention_unread_message_id: UUID | None = None
 
 
 class ServerMemberSummary(BaseModel):

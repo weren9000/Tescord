@@ -8,7 +8,6 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.api.dependencies.auth import get_current_user
 from app.db.models import (
-    ChannelReadState,
     ConversationPushSetting,
     FriendRequest,
     FriendRequestStatus,
@@ -32,6 +31,7 @@ from app.services.direct_conversations import conversation_slug, ensure_direct_c
 from app.services.group_chat_defaults import ensure_group_chat_defaults
 from app.services.server_icons import normalize_server_icon_asset
 from app.services.site_presence import site_presence_manager
+from app.services.workspace_events import ChannelUnreadState, load_unread_states_by_channel_id
 
 router = APIRouter(prefix="/conversations", tags=["conversations"])
 
@@ -125,52 +125,6 @@ def _load_last_messages_by_channel_id(db: Session, channel_ids: list[UUID]) -> d
     return last_messages
 
 
-def _load_unread_counts_by_channel_id(
-    db: Session,
-    channel_ids: list[UUID],
-    current_user_id: UUID,
-) -> dict[UUID, int]:
-    if not channel_ids:
-        return {}
-
-    last_read_state_subquery = (
-        select(
-            ChannelReadState.channel_id.label("channel_id"),
-            Message.created_at.label("last_read_created_at"),
-            Message.id.label("last_read_message_id"),
-        )
-        .select_from(ChannelReadState)
-        .outerjoin(Message, Message.id == ChannelReadState.last_read_message_id)
-        .where(
-            ChannelReadState.user_id == current_user_id,
-            ChannelReadState.channel_id.in_(channel_ids),
-        )
-        .subquery()
-    )
-
-    unread_rows = db.execute(
-        select(Message.channel_id, func.count(Message.id))
-        .select_from(Message)
-        .outerjoin(last_read_state_subquery, last_read_state_subquery.c.channel_id == Message.channel_id)
-        .where(
-            Message.channel_id.in_(channel_ids),
-            Message.author_id != current_user_id,
-            or_(
-                last_read_state_subquery.c.last_read_created_at.is_(None),
-                Message.created_at > last_read_state_subquery.c.last_read_created_at,
-                and_(
-                    Message.created_at == last_read_state_subquery.c.last_read_created_at,
-                    Message.id > last_read_state_subquery.c.last_read_message_id,
-                ),
-            ),
-        )
-        .group_by(Message.channel_id)
-    ).all()
-
-    unread_counts = {channel_id: count for channel_id, count in unread_rows}
-    return {channel_id: unread_counts.get(channel_id, 0) for channel_id in channel_ids}
-
-
 def _load_push_enabled_by_server_id(
     db: Session,
     server_ids: list[UUID],
@@ -195,13 +149,13 @@ def _build_conversation_summary(
     current_user_id: UUID,
     online_user_ids: set[UUID],
     last_messages_by_channel_id: dict[UUID, Message] | None = None,
-    unread_counts_by_channel_id: dict[UUID, int] | None = None,
+    unread_states_by_channel_id: dict[UUID, ChannelUnreadState] | None = None,
     push_enabled_by_server_id: dict[UUID, bool] | None = None,
 ) -> ConversationSummary:
     title, _ = _conversation_title(server, current_user_id)
     primary_channel = _first_text_channel(server)
     subtitle = _build_message_preview((last_messages_by_channel_id or {}).get(primary_channel.id))
-    unread_count = (unread_counts_by_channel_id or {}).get(primary_channel.id, 0)
+    unread_state = (unread_states_by_channel_id or {}).get(primary_channel.id)
     members = sorted(server.members, key=lambda member: ((member.user_id != current_user_id), member.user.username.casefold()))
     return ConversationSummary(
         id=server.id,
@@ -212,7 +166,10 @@ def _build_conversation_summary(
         icon_updated_at=server.icon_updated_at,
         member_role=membership.role.value,
         primary_channel_id=primary_channel.id,
-        unread_count=unread_count,
+        unread_count=getattr(unread_state, "unread_count", 0),
+        mention_unread_count=getattr(unread_state, "mention_unread_count", 0),
+        first_unread_message_id=getattr(unread_state, "first_unread_message_id", None),
+        first_mention_unread_message_id=getattr(unread_state, "first_mention_unread_message_id", None),
         push_enabled=(push_enabled_by_server_id or {}).get(server.id, False),
         members=[_member_preview(member, online_user_ids) for member in members],
     )
@@ -298,7 +255,7 @@ def list_conversations(
     primary_channel_ids = [_first_text_channel(membership.server).id for membership in memberships]
     server_ids = [membership.server.id for membership in memberships]
     last_messages_by_channel_id = _load_last_messages_by_channel_id(db, primary_channel_ids)
-    unread_counts_by_channel_id = _load_unread_counts_by_channel_id(db, primary_channel_ids, current_user.id)
+    unread_states_by_channel_id = load_unread_states_by_channel_id(db, primary_channel_ids, current_user.id)
     push_enabled_by_server_id = _load_push_enabled_by_server_id(db, server_ids, current_user.id)
     summaries = [
         _build_conversation_summary(
@@ -307,7 +264,7 @@ def list_conversations(
             current_user.id,
             online_user_ids,
             last_messages_by_channel_id,
-            unread_counts_by_channel_id,
+            unread_states_by_channel_id,
             push_enabled_by_server_id,
         )
         for membership in memberships
@@ -367,14 +324,14 @@ def open_direct_conversation(
         membership = next(member for member in existing_server.members if member.user_id == current_user.id)
         online_user_ids = site_presence_manager.online_user_ids([member.user_id for member in existing_server.members])
         primary_channel_id = _first_text_channel(existing_server).id
-        unread_counts_by_channel_id = _load_unread_counts_by_channel_id(db, [primary_channel_id], current_user.id)
+        unread_states_by_channel_id = load_unread_states_by_channel_id(db, [primary_channel_id], current_user.id)
         push_enabled_by_server_id = _load_push_enabled_by_server_id(db, [existing_server.id], current_user.id)
         return _build_conversation_summary(
             existing_server,
             membership,
             current_user.id,
             online_user_ids,
-            unread_counts_by_channel_id=unread_counts_by_channel_id,
+            unread_states_by_channel_id=unread_states_by_channel_id,
             push_enabled_by_server_id=push_enabled_by_server_id,
         )
 
@@ -393,14 +350,14 @@ def open_direct_conversation(
     membership = next(member for member in created_server.members if member.user_id == current_user.id)
     online_user_ids = site_presence_manager.online_user_ids([member.user_id for member in created_server.members])
     primary_channel_id = _first_text_channel(created_server).id
-    unread_counts_by_channel_id = _load_unread_counts_by_channel_id(db, [primary_channel_id], current_user.id)
+    unread_states_by_channel_id = load_unread_states_by_channel_id(db, [primary_channel_id], current_user.id)
     push_enabled_by_server_id = _load_push_enabled_by_server_id(db, [created_server.id], current_user.id)
     return _build_conversation_summary(
         created_server,
         membership,
         current_user.id,
         online_user_ids,
-        unread_counts_by_channel_id=unread_counts_by_channel_id,
+        unread_states_by_channel_id=unread_states_by_channel_id,
         push_enabled_by_server_id=push_enabled_by_server_id,
     )
 
@@ -471,13 +428,13 @@ def create_group_conversation(
     membership = next(member for member in created_server.members if member.user_id == current_user.id)
     online_user_ids = site_presence_manager.online_user_ids([member.user_id for member in created_server.members])
     primary_channel_id = _first_text_channel(created_server).id
-    unread_counts_by_channel_id = _load_unread_counts_by_channel_id(db, [primary_channel_id], current_user.id)
+    unread_states_by_channel_id = load_unread_states_by_channel_id(db, [primary_channel_id], current_user.id)
     push_enabled_by_server_id = _load_push_enabled_by_server_id(db, [created_server.id], current_user.id)
     return _build_conversation_summary(
         created_server,
         membership,
         current_user.id,
         online_user_ids,
-        unread_counts_by_channel_id=unread_counts_by_channel_id,
+        unread_states_by_channel_id=unread_states_by_channel_id,
         push_enabled_by_server_id=push_enabled_by_server_id,
     )

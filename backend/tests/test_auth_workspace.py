@@ -1024,6 +1024,7 @@ def test_workspace_unread_summary_tracks_mentions_and_first_unread_anchor() -> N
     assert listed_channel["unread_count"] == 2
     assert listed_channel["mention_unread_count"] == 1
     assert listed_channel["first_unread_message_id"] == first_message["id"]
+    assert listed_channel["first_mention_unread_message_id"] == mention_message["id"]
 
     assert anchored_messages_response.status_code == 200
     anchored_page = anchored_messages_response.json()
@@ -1039,6 +1040,51 @@ def test_workspace_unread_summary_tracks_mentions_and_first_unread_anchor() -> N
     assert refreshed_channel["unread_count"] == 0
     assert refreshed_channel["mention_unread_count"] == 0
     assert refreshed_channel["first_unread_message_id"] is None
+    assert refreshed_channel["first_mention_unread_message_id"] is None
+
+
+def test_attention_inbox_lists_workspace_mentions() -> None:
+    suffix = uuid4().hex[:6]
+
+    with TestClient(app) as client:
+        admin_token = login_admin_user(client)
+        regular_token, payload = register_regular_user(client)
+        regular_profile = get_current_user_profile(client, regular_token)
+        group, channel = create_temp_text_channel(client, admin_token, suffix)
+
+        try:
+            add_member_response = client.post(
+                f"/api/servers/{group['id']}/members",
+                headers={"Authorization": f"Bearer {admin_token}"},
+                json={"user_public_id": regular_profile["public_id"]},
+            )
+            assert add_member_response.status_code == 200
+
+            create_message_response = client.post(
+                f"/api/channels/{channel['id']}/messages",
+                headers={"Authorization": f"Bearer {admin_token}"},
+                data={"content": f"Attention @{regular_profile['public_id']}"},
+            )
+            assert create_message_response.status_code == 201
+            mention_message = create_message_response.json()
+
+            attention_response = client.get(
+                "/api/attention/inbox",
+                headers={"Authorization": f"Bearer {regular_token}"},
+            )
+        finally:
+            delete_server(group["id"])
+            delete_user(payload["email"])
+
+    assert attention_response.status_code == 200
+    mentions = attention_response.json()["mentions"]
+    assert len(mentions) == 1
+    item = mentions[0]
+    assert item["kind"] == "channel_mention"
+    assert item["server_id"] == group["id"]
+    assert item["channel_id"] == channel["id"]
+    assert item["mention_unread_count"] == 1
+    assert item["focus_message_id"] == mention_message["id"]
 
 
 def test_can_send_message_with_attachment_and_download_it() -> None:

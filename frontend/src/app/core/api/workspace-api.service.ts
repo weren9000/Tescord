@@ -4,6 +4,9 @@ import { Observable, filter, map } from 'rxjs';
 
 import { API_BASE_URL } from './api-base';
 import {
+  AttentionInbox,
+} from '../models/attention.models';
+import {
   ConversationDirectoryUser,
   ConversationSummary,
   CreateDirectConversationRequest,
@@ -84,6 +87,12 @@ export class WorkspaceApiService {
 
   getConversations(token: string): Observable<ConversationSummary[]> {
     return this.http.get<ConversationSummary[]>(`${API_BASE_URL}/api/conversations`, {
+      headers: this.buildAuthHeaders(token)
+    });
+  }
+
+  getAttentionInbox(token: string): Observable<AttentionInbox> {
+    return this.http.get<AttentionInbox>(`${API_BASE_URL}/api/attention/inbox`, {
       headers: this.buildAuthHeaders(token)
     });
   }

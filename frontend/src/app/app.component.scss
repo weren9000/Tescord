@@ -2089,6 +2089,30 @@ select {
   word-break: break-word;
 }
 
+.message-card__mention {
+  display: inline;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #a9ffe0;
+  font: inherit;
+  line-height: inherit;
+  white-space: inherit;
+  word-break: inherit;
+  cursor: pointer;
+}
+
+.message-card__mention--current {
+  color: #ffd8e6;
+  font-weight: 700;
+}
+
+.message-card__mention:hover {
+  text-decoration: underline;
+  text-decoration-color: rgba(169, 255, 224, 0.52);
+  text-underline-offset: 2px;
+}
+
 .message-card__reply-preview {
   display: flex;
   flex-direction: column;
@@ -4741,6 +4765,11 @@ select {
   line-height: 1;
 }
 
+.sidebar-entry__unread-badge--mention {
+  background: rgba(255, 114, 149, 0.16);
+  color: #ffd8e6;
+}
+
 .sidebar-empty {
   padding: 18px 14px;
   color: rgba(222, 236, 245, 0.56);
@@ -5208,6 +5237,23 @@ select {
   max-width: 720px;
 }
 
+.notification-sections {
+  display: grid;
+  gap: 16px;
+}
+
+.notification-section {
+  display: grid;
+  gap: 10px;
+}
+
+.notification-section__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
 .friend-request-list {
   display: grid;
   gap: 10px;
@@ -5225,6 +5271,19 @@ select {
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.026);
   border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.friend-request-row--notification {
+  width: 100%;
+  border: 1px solid rgba(255, 114, 149, 0.08);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.friend-request-row--notification:hover {
+  border-color: rgba(255, 114, 149, 0.18);
+  background: rgba(255, 114, 149, 0.06);
 }
 
 .friend-request-row__avatar {

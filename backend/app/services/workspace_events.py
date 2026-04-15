@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
 
 from app.db.models import Channel, ChannelReadState, ChannelType, Message, MessageMention, ServerMember, User
@@ -25,6 +25,7 @@ def _build_channel_summary(
     unread_count: int = 0,
     mention_unread_count: int = 0,
     first_unread_message_id: UUID | None = None,
+    first_mention_unread_message_id: UUID | None = None,
 ) -> ChannelSummary:
     return ChannelSummary(
         id=channel.id,
@@ -37,6 +38,7 @@ def _build_channel_summary(
         unread_count=max(0, unread_count),
         mention_unread_count=max(0, mention_unread_count),
         first_unread_message_id=first_unread_message_id,
+        first_mention_unread_message_id=first_mention_unread_message_id,
     )
 
 
@@ -88,6 +90,7 @@ class ChannelUnreadState:
     unread_count: int = 0
     mention_unread_count: int = 0
     first_unread_message_id: UUID | None = None
+    first_mention_unread_message_id: UUID | None = None
 
 
 def _build_last_read_state_subquery(channel_ids: list[UUID], current_user_id: UUID):
@@ -155,7 +158,7 @@ def load_unread_states_by_channel_id(
             first_unread_message_id_by_channel_id[channel_id] = message_id
 
     mention_rows = db.execute(
-        select(Message.channel_id, func.count(MessageMention.id))
+        select(Message.channel_id, Message.id)
         .select_from(MessageMention)
         .join(Message, Message.id == MessageMention.message_id)
         .outerjoin(last_read_state_subquery, last_read_state_subquery.c.channel_id == Message.channel_id)
@@ -165,18 +168,24 @@ def load_unread_states_by_channel_id(
             Message.author_id != current_user_id,
             unread_condition,
         )
-        .group_by(Message.channel_id)
+        .order_by(Message.channel_id, Message.created_at, Message.id)
     ).all()
-    mention_counts_by_channel_id = {
-        channel_id: count
-        for channel_id, count in mention_rows
+    mention_counts_by_channel_id = {channel_id: 0 for channel_id in channel_ids}
+    first_mention_unread_message_id_by_channel_id: dict[UUID, UUID | None] = {
+        channel_id: None
+        for channel_id in channel_ids
     }
+    for channel_id, message_id in mention_rows:
+        mention_counts_by_channel_id[channel_id] = mention_counts_by_channel_id.get(channel_id, 0) + 1
+        if first_mention_unread_message_id_by_channel_id[channel_id] is None:
+            first_mention_unread_message_id_by_channel_id[channel_id] = message_id
 
     for channel_id in channel_ids:
         unread_state_by_channel_id[channel_id] = ChannelUnreadState(
             unread_count=unread_counts_by_channel_id.get(channel_id, 0),
             mention_unread_count=mention_counts_by_channel_id.get(channel_id, 0),
             first_unread_message_id=first_unread_message_id_by_channel_id.get(channel_id),
+            first_mention_unread_message_id=first_mention_unread_message_id_by_channel_id.get(channel_id),
         )
 
     return unread_state_by_channel_id
@@ -210,6 +219,7 @@ def list_server_channels_for_user(
                     unread_count=unread_states_by_channel_id.get(channel.id, ChannelUnreadState()).unread_count,
                     mention_unread_count=unread_states_by_channel_id.get(channel.id, ChannelUnreadState()).mention_unread_count,
                     first_unread_message_id=unread_states_by_channel_id.get(channel.id, ChannelUnreadState()).first_unread_message_id,
+                    first_mention_unread_message_id=unread_states_by_channel_id.get(channel.id, ChannelUnreadState()).first_mention_unread_message_id,
                 )
             )
             continue
@@ -224,6 +234,7 @@ def list_server_channels_for_user(
                     unread_states_by_channel_id.get(channel.id, ChannelUnreadState()).unread_count,
                     unread_states_by_channel_id.get(channel.id, ChannelUnreadState()).mention_unread_count,
                     unread_states_by_channel_id.get(channel.id, ChannelUnreadState()).first_unread_message_id,
+                    unread_states_by_channel_id.get(channel.id, ChannelUnreadState()).first_mention_unread_message_id,
                 )
             )
 

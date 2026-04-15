@@ -32,6 +32,7 @@ export interface WorkspaceChannel {
   unread_count: number;
   mention_unread_count: number;
   first_unread_message_id: string | null;
+  first_mention_unread_message_id: string | null;
 }
 
 export interface WorkspaceMember {

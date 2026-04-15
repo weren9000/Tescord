@@ -131,8 +131,8 @@
         <button
           class="secondary-button conversation-head__action conversation-head__action--icon app-header__notifications"
           type="button"
-          aria-label="Запросы в друзья"
-          title="Запросы в друзья"
+          aria-label="Уведомления"
+          title="Уведомления"
           (click)="openFriendRequestsModal()"
         >
           <img
@@ -288,6 +288,9 @@
                     <div class="sidebar-entry__copy">
                       <div class="sidebar-entry__headline">
                         <strong>{{ conversation.title }}</strong>
+                        @if (conversationMentionUnreadCount(conversation) > 0) {
+                          <span class="sidebar-entry__unread-badge sidebar-entry__unread-badge--mention">&#64;{{ conversationMentionUnreadBadgeLabel(conversation) }}</span>
+                        }
                         @if (conversationUnreadCount(conversation) > 0) {
                           <span class="sidebar-entry__unread-badge">{{ conversationUnreadBadgeLabel(conversation) }}</span>
                         }
@@ -320,6 +323,9 @@
                     <div class="sidebar-entry__copy">
                       <div class="sidebar-entry__headline">
                         <strong>{{ conversation.title }}</strong>
+                        @if (conversationMentionUnreadCount(conversation) > 0) {
+                          <span class="sidebar-entry__unread-badge sidebar-entry__unread-badge--mention">&#64;{{ conversationMentionUnreadBadgeLabel(conversation) }}</span>
+                        }
                         @if (conversationUnreadCount(conversation) > 0) {
                           <span class="sidebar-entry__unread-badge">{{ conversationUnreadBadgeLabel(conversation) }}</span>
                         }
@@ -782,7 +788,7 @@
                       @if (shouldShowUnreadDivider(message)) {
                         <div style="display:flex;align-items:center;gap:10px;margin:4px 0;">
                           <span style="flex:1 1 auto;height:1px;background:rgba(255,114,149,0.18);"></span>
-                          <span style="color:rgba(255,214,225,0.88);font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">Непрочитанные</span>
+                          <span style="color:rgba(255,214,225,0.88);font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">{{ unreadDividerLabel() }}</span>
                           <span style="flex:1 1 auto;height:1px;background:rgba(255,114,149,0.18);"></span>
                         </div>
                       }
@@ -822,7 +828,22 @@
                             </button>
                           }
                           @if (message.content) {
-                            <p class="message-card__text">{{ message.content }}</p>
+                            <p class="message-card__text">
+                              @for (segment of messageContentSegments(message); track $index) {
+                                @if (segment.mentionUserId) {
+                                  <button
+                                    class="message-card__mention"
+                                    type="button"
+                                    [class.message-card__mention--current]="isMentionSegmentCurrentUser(segment)"
+                                    (click)="openMentionSegmentUser(segment)"
+                                  >
+                                    {{ segment.text }}
+                                  </button>
+                                } @else {
+                                  <span>{{ segment.text }}</span>
+                                }
+                              }
+                            </p>
                           }
                           @if (message.attachments.length) {
                             <div class="message-attachments">
@@ -1434,7 +1455,7 @@
       <div class="modal__header">
         <div>
           <p class="eyebrow">Уведомления</p>
-          <h3>Запросы в друзья</h3>
+          <h3>Центр внимания</h3>
         </div>
         <button class="icon-button" type="button" (click)="closeFriendRequestsModal()">×</button>
       </div>
@@ -1443,56 +1464,138 @@
         @if (friendRequestsError()) {
           <p class="modal-note modal-note--error">{{ friendRequestsError() }}</p>
         }
+        @if (attentionInboxError()) {
+          <p class="modal-note modal-note--error">{{ attentionInboxError() }}</p>
+        }
 
-        @if (friendRequestsLoading()) {
-          <p class="modal-note">Загружаем запросы...</p>
-        } @else if (incomingFriendRequests().length) {
-          <div class="friend-request-list">
-            @for (request of incomingFriendRequests(); track request.id) {
-              <div class="friend-request-row">
-                <div class="friend-request-row__avatar">
-                  @if (userAvatarUrl(request.user.user_id, request.user.avatar_updated_at); as avatarUrl) {
-                    <img [src]="avatarUrl" [alt]="displayNick(request.user.nick)" loading="lazy" />
-                  } @else {
-                    <span>{{ displayNickInitials(request.user.nick) }}</span>
-                  }
-                </div>
-                <div class="friend-request-row__copy">
-                  <strong>{{ displayNick(request.user.nick) }}</strong>
-                  <small>ID: {{ formatPublicUserId(request.user.public_id) }}</small>
-                  <small>{{ request.user.is_online ? 'онлайн' : 'офлайн' }} · {{ formatMessageTime(request.created_at) }}</small>
-                </div>
-                <div class="friend-request-row__actions">
-                  <button
-                    class="secondary-button"
-                    type="button"
-                    [disabled]="isFriendRequestActionPending(request.id)"
-                    (click)="respondToFriendRequest(request.id, 'reject')"
-                  >
-                    Отклонить
-                  </button>
-                  <button
-                    class="secondary-button"
-                    type="button"
-                    [disabled]="isFriendRequestActionPending(request.id)"
-                    (click)="respondToFriendRequest(request.id, 'block')"
-                  >
-                    Заблокировать
-                  </button>
-                  <button
-                    class="primary-button"
-                    type="button"
-                    [disabled]="isFriendRequestActionPending(request.id)"
-                    (click)="respondToFriendRequest(request.id, 'accept')"
-                  >
-                    {{ isFriendRequestActionPending(request.id) ? 'Обрабатываем...' : 'Принять' }}
-                  </button>
-                </div>
-              </div>
-            }
-          </div>
+        @if (friendRequestsLoading() || attentionInboxLoading()) {
+          <p class="modal-note">Загружаем уведомления...</p>
         } @else {
-          <p class="modal-note">Новых запросов в друзья пока нет.</p>
+          @if (attentionMentions().length || ownerVoiceRequests().length || incomingFriendRequests().length) {
+            <div class="notification-sections">
+              @if (attentionMentions().length) {
+                <section class="notification-section">
+                  <div class="notification-section__head">
+                    <strong>Упоминания</strong>
+                    <span class="platform-settings-row__badge">{{ attentionMentions().length }}</span>
+                  </div>
+                  <div class="friend-request-list">
+                    @for (item of attentionMentions(); track item.server_id + '-' + item.channel_id) {
+                      <button class="friend-request-row friend-request-row--notification" type="button" (click)="openAttentionMention(item)">
+                        <div class="friend-request-row__avatar friend-request-row__avatar--group">
+                          @if (resolveSpaceIconUrl(item.server_id, item.icon_asset, item.icon_updated_at); as iconUrl) {
+                            <img [src]="iconUrl" [alt]="item.server_name" loading="lazy" />
+                          } @else {
+                            <span>{{ displayNickInitials(item.server_name) }}</span>
+                          }
+                        </div>
+                        <div class="friend-request-row__copy">
+                          <strong>{{ attentionMentionLocationLabel(item) }}</strong>
+                          @if (item.preview) {
+                            <small>{{ item.preview }}</small>
+                          }
+                          <small>&#64;{{ item.mention_unread_count }} · {{ item.unread_count }} новых</small>
+                        </div>
+                      </button>
+                    }
+                  </div>
+                </section>
+              }
+
+              @if (ownerVoiceRequests().length) {
+                <section class="notification-section">
+                  <div class="notification-section__head">
+                    <strong>Голос</strong>
+                    <span class="platform-settings-row__badge">{{ ownerVoiceRequests().length }}</span>
+                  </div>
+                  <div class="friend-request-list">
+                    @for (request of ownerVoiceRequests(); track request.id) {
+                      <div class="friend-request-row">
+                        <div class="friend-request-row__avatar">
+                          @if (userAvatarUrl(request.requester_user_id, request.requester_avatar_updated_at); as avatarUrl) {
+                            <img [src]="avatarUrl" [alt]="displayNick(request.requester_nick)" loading="lazy" />
+                          } @else {
+                            <span>{{ displayNickInitials(request.requester_nick) }}</span>
+                          }
+                        </div>
+                        <div class="friend-request-row__copy">
+                          <strong>{{ displayNick(request.requester_nick) }}</strong>
+                          <small>{{ request.server_name }} · {{ request.channel_name }}</small>
+                          <small>{{ formatMessageTime(request.created_at) }}</small>
+                        </div>
+                        <div class="friend-request-row__actions">
+                          <button class="secondary-button" type="button" [disabled]="voiceOwnerActionLoading()" (click)="resolveVoiceRequest(request, 'allow')">
+                            Впустить
+                          </button>
+                          <button class="secondary-button" type="button" [disabled]="voiceOwnerActionLoading()" (click)="resolveVoiceRequest(request, 'resident')">
+                            Житель
+                          </button>
+                          <button class="primary-button" type="button" [disabled]="voiceOwnerActionLoading()" (click)="resolveVoiceRequest(request, 'reject')">
+                            Не пускать
+                          </button>
+                        </div>
+                      </div>
+                    }
+                  </div>
+                </section>
+              }
+
+              @if (incomingFriendRequests().length) {
+                <section class="notification-section">
+                  <div class="notification-section__head">
+                    <strong>Друзья</strong>
+                    <span class="platform-settings-row__badge">{{ incomingFriendRequests().length }}</span>
+                  </div>
+                  <div class="friend-request-list">
+                    @for (request of incomingFriendRequests(); track request.id) {
+                      <div class="friend-request-row">
+                        <div class="friend-request-row__avatar">
+                          @if (userAvatarUrl(request.user.user_id, request.user.avatar_updated_at); as avatarUrl) {
+                            <img [src]="avatarUrl" [alt]="displayNick(request.user.nick)" loading="lazy" />
+                          } @else {
+                            <span>{{ displayNickInitials(request.user.nick) }}</span>
+                          }
+                        </div>
+                        <div class="friend-request-row__copy">
+                          <strong>{{ displayNick(request.user.nick) }}</strong>
+                          <small>ID: {{ formatPublicUserId(request.user.public_id) }}</small>
+                          <small>{{ request.user.is_online ? 'онлайн' : 'офлайн' }} · {{ formatMessageTime(request.created_at) }}</small>
+                        </div>
+                        <div class="friend-request-row__actions">
+                          <button
+                            class="secondary-button"
+                            type="button"
+                            [disabled]="isFriendRequestActionPending(request.id)"
+                            (click)="respondToFriendRequest(request.id, 'reject')"
+                          >
+                            Отклонить
+                          </button>
+                          <button
+                            class="secondary-button"
+                            type="button"
+                            [disabled]="isFriendRequestActionPending(request.id)"
+                            (click)="respondToFriendRequest(request.id, 'block')"
+                          >
+                            Блок
+                          </button>
+                          <button
+                            class="primary-button"
+                            type="button"
+                            [disabled]="isFriendRequestActionPending(request.id)"
+                            (click)="respondToFriendRequest(request.id, 'accept')"
+                          >
+                            {{ isFriendRequestActionPending(request.id) ? 'Обрабатываем...' : 'Принять' }}
+                          </button>
+                        </div>
+                      </div>
+                    }
+                  </div>
+                </section>
+              }
+            </div>
+          } @else {
+            <p class="modal-note">Сейчас ничего не требует внимания.</p>
+          }
         }
       </div>
 
