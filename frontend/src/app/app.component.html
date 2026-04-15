@@ -1083,11 +1083,51 @@
                       [ngModel]="messageDraft()"
                       (ngModelChange)="onMessageDraftChange($event)"
                       (keydown)="onMessageComposerKeydown($event)"
+                      (click)="onMessageComposerSelectionChange()"
+                      (keyup)="onMessageComposerSelectionChange()"
+                      (select)="onMessageComposerSelectionChange()"
+                      (blur)="onMessageComposerBlur()"
                       (paste)="onMessageComposerPaste($event)"
                       [disabled]="messageSubmitting()"
                       placeholder="Введите сообщение"
                       rows="1"
                     ></textarea>
+
+                    @if (composerMentionMenuOpen()) {
+                      <div
+                        style="position:absolute;left:-6px;right:-6px;bottom:calc(100% + 10px);display:grid;gap:4px;padding:8px;border-radius:16px;border:1px solid rgba(120,255,208,0.08);background:rgba(6,13,14,0.98);box-shadow:0 14px 32px rgba(0,0,0,0.32);backdrop-filter:blur(14px);z-index:4;"
+                      >
+                        @for (candidate of composerMentionCandidates(); track candidate.userId) {
+                          <button
+                            type="button"
+                            style="display:grid;grid-template-columns:30px minmax(0, 1fr) 8px;align-items:center;gap:8px;padding:7px 8px;border:0;border-radius:12px;color:var(--text);text-align:left;box-shadow:none;"
+                            [style.background]="activeComposerMentionCandidate()?.userId === candidate.userId ? 'rgba(81,240,168,0.1)' : 'transparent'"
+                            (mousedown)="$event.preventDefault()"
+                            (mouseenter)="highlightComposerMentionCandidate($index)"
+                            (click)="selectComposerMentionCandidate(candidate)"
+                          >
+                            <div
+                              style="width:30px;height:30px;display:grid;place-items:center;overflow:hidden;border-radius:50%;background:rgba(255,255,255,0.06);color:#f2faf7;font-size:0.62rem;font-weight:700;"
+                            >
+                              @if (userAvatarUrl(candidate.userId, candidate.avatarUpdatedAt); as avatarUrl) {
+                                <img [src]="avatarUrl" [alt]="composerMentionLabel(candidate)" loading="lazy" style="width:100%;height:100%;display:block;object-fit:cover;" />
+                              } @else {
+                                <span>{{ displayNickInitials(candidate.nick) }}</span>
+                              }
+                            </div>
+                            <div style="min-width:0;display:grid;gap:2px;">
+                              <strong style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:0.76rem;">{{ composerMentionLabel(candidate) }}</strong>
+                              <small style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-size:0.64rem;">&#64;{{ formatPublicUserId(candidate.publicId) }}</small>
+                            </div>
+                            <span
+                              style="width:8px;height:8px;border-radius:50%;"
+                              [style.background]="candidate.isOnline ? 'rgba(81,240,168,0.9)' : 'rgba(255,255,255,0.12)'"
+                              [style.box-shadow]="candidate.isOnline ? '0 0 0 3px rgba(81,240,168,0.12)' : 'none'"
+                            ></span>
+                          </button>
+                        }
+                      </div>
+                    }
                   </label>
 
                   <button

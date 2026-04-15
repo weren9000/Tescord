@@ -131,6 +131,20 @@ interface GroupMemberItem {
   voiceParticipant: VoiceParticipant | null;
 }
 
+interface ComposerMentionCandidate {
+  userId: string;
+  publicId: number;
+  nick: string;
+  avatarUpdatedAt: string | null;
+  isOnline: boolean;
+}
+
+interface ComposerMentionQueryState {
+  start: number;
+  end: number;
+  query: string;
+}
+
 interface ProfileUpdateTrigger {
   token: string;
   avatarFile: File | null;
@@ -618,6 +632,8 @@ export class AppComponent {
   readonly messagesLoadingMore = signal(false);
   readonly messageSubmitting = signal(false);
   readonly messageUploadProgress = signal<MessageUploadProgressState | null>(null);
+  readonly composerMentionQueryState = signal<ComposerMentionQueryState | null>(null);
+  readonly composerMentionActiveIndex = signal(0);
   readonly downloadingAttachmentIds = signal<string[]>([]);
   readonly chatFilesModalOpen = signal(false);
   readonly chatFilesLoading = signal(false);
@@ -955,6 +971,14 @@ export class AppComponent {
 
     return this.messageDraft().trim().length > 0 || this.pendingFiles().length > 0;
   });
+  readonly canUseComposerMentions = computed(() => {
+    const activeServer = this.activeServer();
+    if (!activeServer || !this.canUseActiveChannelChat()) {
+      return false;
+    }
+
+    return activeServer.kind === 'workspace' || activeServer.kind === 'group_chat';
+  });
 
   readonly canManageActiveGroup = computed(() => {
     const activeServer = this.activeServer();
@@ -1027,6 +1051,52 @@ export class AppComponent {
     return this.voiceParticipantsForChannel(voiceChannel.id);
   });
   readonly activeGroupMemberCount = computed(() => this.members().length);
+  readonly composerMentionCandidates = computed<ComposerMentionCandidate[]>(() => {
+    if (!this.canUseComposerMentions()) {
+      return [];
+    }
+
+    const queryState = this.composerMentionQueryState();
+    if (!queryState) {
+      return [];
+    }
+
+    const normalizedQuery = queryState.query.trim().toLowerCase();
+    return this.groupMembers()
+      .filter((member) => !member.isSelf)
+      .filter((member) => {
+        if (!normalizedQuery) {
+          return true;
+        }
+
+        return (
+          this.displayNick(member.nick).toLowerCase().includes(normalizedQuery)
+          || this.formatPublicUserId(member.publicId).includes(normalizedQuery)
+        );
+      })
+      .slice(0, 7)
+      .map((member) => ({
+        userId: member.userId,
+        publicId: member.publicId,
+        nick: member.nick,
+        avatarUpdatedAt: member.avatarUpdatedAt,
+        isOnline: member.isOnline,
+      }));
+  });
+  readonly composerMentionMenuOpen = computed(() =>
+    !this.messageSubmitting()
+    && this.composerMentionQueryState() !== null
+    && this.composerMentionCandidates().length > 0
+  );
+  readonly activeComposerMentionCandidate = computed(() => {
+    const candidates = this.composerMentionCandidates();
+    if (!candidates.length) {
+      return null;
+    }
+
+    const nextIndex = Math.min(Math.max(this.composerMentionActiveIndex(), 0), candidates.length - 1);
+    return candidates[nextIndex] ?? null;
+  });
   readonly platformManageableVoiceChannels = computed(() =>
     this.voiceChannels().filter((channel) => this.canManagePlatformVoiceChannel(channel))
   );
@@ -1672,6 +1742,20 @@ export class AppComponent {
       }
       queueMicrotask(() => this.syncDirectCallScreenVideos());
     });
+    effect(() => {
+      const candidates = this.composerMentionCandidates();
+      const activeIndex = this.composerMentionActiveIndex();
+      if (!candidates.length) {
+        if (activeIndex !== 0) {
+          queueMicrotask(() => this.composerMentionActiveIndex.set(0));
+        }
+        return;
+      }
+
+      if (activeIndex > candidates.length - 1) {
+        queueMicrotask(() => this.composerMentionActiveIndex.set(0));
+      }
+    });
     this.bindActionPipelines();
     this.browserPush.navigationRequests$
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -2214,6 +2298,7 @@ export class AppComponent {
               this.messageDraft.set('');
               this.pendingFiles.set([]);
               this.selectedReplyMessage.set(null);
+              this.clearComposerMentionState();
               this.scheduleMessageTextareaResize();
 
               if (this.selectedChannelId() !== channelId) {
@@ -4166,14 +4251,59 @@ export class AppComponent {
   onMessageDraftChange(value: string): void {
     this.messageDraft.set(value);
     this.scheduleMessageTextareaResize();
+    this.scheduleComposerMentionSync();
     this.schedulePresenceHeartbeat();
   }
 
   onMessageComposerKeydown(event: KeyboardEvent): void {
+    if (this.composerMentionMenuOpen()) {
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        this.moveComposerMentionSelection(1);
+        return;
+      }
+
+      if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        this.moveComposerMentionSelection(-1);
+        return;
+      }
+
+      if (event.key === 'Enter' || event.key === 'Tab') {
+        event.preventDefault();
+        this.selectActiveComposerMention();
+        return;
+      }
+
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        this.clearComposerMentionState();
+        return;
+      }
+    }
+
     if (event.key === 'Enter' && !event.ctrlKey && !event.metaKey && !event.shiftKey && this.canSendMessage()) {
       event.preventDefault();
       this.submitMessage();
+      return;
     }
+
+    this.scheduleComposerMentionSync();
+  }
+
+  onMessageComposerSelectionChange(): void {
+    this.scheduleComposerMentionSync();
+  }
+
+  onMessageComposerBlur(): void {
+    requestAnimationFrame(() => {
+      const textarea = this.messageTextareaRef?.nativeElement;
+      if (textarea && document.activeElement === textarea) {
+        return;
+      }
+
+      this.clearComposerMentionState();
+    });
   }
 
   openAttachmentPicker(): void {
@@ -4278,6 +4408,37 @@ export class AppComponent {
     this.messageError.set(null);
     this.schedulePresenceHeartbeat(true);
     this.sendMessageTrigger$.next({ token, channelId, payload });
+  }
+
+  selectComposerMentionCandidate(candidate: ComposerMentionCandidate): void {
+    const mentionState = this.composerMentionQueryState();
+    const textarea = this.messageTextareaRef?.nativeElement;
+    if (!mentionState || !textarea) {
+      return;
+    }
+
+    const draft = this.messageDraft();
+    const mentionText = `@${this.composerMentionLabel(candidate)}`;
+    const before = draft.slice(0, mentionState.start);
+    const after = draft.slice(mentionState.end);
+    const shouldAppendSpace = !after || !/^[\s.,!?;:)\]}]/.test(after);
+    const nextDraft = `${before}${mentionText}${shouldAppendSpace ? ' ' : ''}${after}`;
+    const nextCaretPosition = before.length + mentionText.length + (shouldAppendSpace ? 1 : 0);
+
+    this.messageDraft.set(nextDraft);
+    this.clearComposerMentionState();
+    this.scheduleMessageTextareaResize();
+
+    requestAnimationFrame(() => {
+      textarea.focus();
+      textarea.selectionStart = nextCaretPosition;
+      textarea.selectionEnd = nextCaretPosition;
+      this.syncComposerMentionState();
+    });
+  }
+
+  highlightComposerMentionCandidate(index: number): void {
+    this.composerMentionActiveIndex.set(index);
   }
 
   cancelMessageUpload(): void {
@@ -6793,6 +6954,7 @@ export class AppComponent {
     this.messagesLoadingMore.set(false);
     this.messageSubmitting.set(false);
     this.messageDraft.set('');
+    this.clearComposerMentionState();
     this.pendingFiles.set([]);
     this.messageError.set(null);
     this.chatFilesModalOpen.set(false);
@@ -6871,6 +7033,99 @@ export class AppComponent {
       textarea.style.height = `${nextHeight}px`;
       textarea.style.overflowY = textarea.scrollHeight > maxHeight ? 'auto' : 'hidden';
     });
+  }
+
+  private scheduleComposerMentionSync(): void {
+    requestAnimationFrame(() => this.syncComposerMentionState());
+  }
+
+  private syncComposerMentionState(): void {
+    const textarea = this.messageTextareaRef?.nativeElement;
+    if (!textarea || !this.canUseComposerMentions() || this.messageSubmitting()) {
+      this.clearComposerMentionState();
+      return;
+    }
+
+    const selectionStart = textarea.selectionStart ?? 0;
+    const selectionEnd = textarea.selectionEnd ?? selectionStart;
+    if (selectionStart !== selectionEnd) {
+      this.clearComposerMentionState();
+      return;
+    }
+
+    const nextState = this.findComposerMentionQueryState(this.messageDraft(), selectionStart);
+    if (!nextState) {
+      this.clearComposerMentionState();
+      return;
+    }
+
+    const previousState = this.composerMentionQueryState();
+    if (
+      !previousState
+      || previousState.start !== nextState.start
+      || previousState.end !== nextState.end
+      || previousState.query !== nextState.query
+    ) {
+      this.composerMentionActiveIndex.set(0);
+    }
+
+    this.composerMentionQueryState.set(nextState);
+  }
+
+  private clearComposerMentionState(): void {
+    this.composerMentionQueryState.set(null);
+    this.composerMentionActiveIndex.set(0);
+  }
+
+  private findComposerMentionQueryState(value: string, caretIndex: number): ComposerMentionQueryState | null {
+    if (caretIndex < 0 || caretIndex > value.length) {
+      return null;
+    }
+
+    const beforeCaret = value.slice(0, caretIndex);
+    const mentionStart = beforeCaret.lastIndexOf('@');
+    if (mentionStart < 0) {
+      return null;
+    }
+
+    const previousChar = mentionStart > 0 ? value[mentionStart - 1] : '';
+    if (previousChar && /[\p{L}\p{N}_]/u.test(previousChar)) {
+      return null;
+    }
+
+    const query = beforeCaret.slice(mentionStart + 1);
+    if (/[\s\r\n@]/.test(query)) {
+      return null;
+    }
+
+    const afterCaret = value.slice(caretIndex);
+    const tokenEndOffset = afterCaret.search(/[\s\r\n.,!?;:)\]}@]/);
+    const tokenEnd = tokenEndOffset === -1 ? value.length : caretIndex + tokenEndOffset;
+
+    return {
+      start: mentionStart,
+      end: tokenEnd,
+      query,
+    };
+  }
+
+  private moveComposerMentionSelection(direction: 1 | -1): void {
+    const candidates = this.composerMentionCandidates();
+    if (!candidates.length) {
+      return;
+    }
+
+    const nextIndex = (this.composerMentionActiveIndex() + direction + candidates.length) % candidates.length;
+    this.composerMentionActiveIndex.set(nextIndex);
+  }
+
+  private selectActiveComposerMention(): void {
+    const candidate = this.activeComposerMentionCandidate();
+    if (!candidate) {
+      return;
+    }
+
+    this.selectComposerMentionCandidate(candidate);
   }
 
   private scrollMessagesToBottom(): void {
@@ -7605,6 +7860,11 @@ export class AppComponent {
     }
 
     return Math.trunc(publicId).toString().padStart(5, '0');
+  }
+
+  composerMentionLabel(candidate: ComposerMentionCandidate): string {
+    const nick = this.displayNick(candidate.nick);
+    return nick || this.formatPublicUserId(candidate.publicId);
   }
 
   userAvatarUrl(userId: string | null | undefined, avatarUpdatedAt: string | null | undefined): string | null {

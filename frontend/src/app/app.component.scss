@@ -29,8 +29,6 @@
   font-family: var(--font-ui);
 }
 
-/* KVA Chat local redesign */
-
 :host {
   --canvas: #061010;
   --canvas-glow: rgba(81, 240, 168, 0.16);
@@ -2636,12 +2634,11 @@ select {
 
 .composer__field {
   min-width: 0;
+  position: relative;
   display: flex;
   align-items: center;
   min-height: 42px;
   padding: 0;
-  border-radius: 0;
-  background: transparent;
 }
 
 .composer textarea {
