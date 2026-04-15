@@ -9,7 +9,7 @@ export interface DirectCallPeer {
 }
 
 type DirectCallState = 'idle' | 'outgoing' | 'incoming' | 'connecting' | 'connected';
-type DirectCallSignalType = 'offer' | 'answer' | 'ice_candidate' | 'screen_share_state';
+type DirectCallSignalType = 'offer' | 'answer' | 'ice_candidate' | 'screen_share_state' | 'camera_state';
 
 interface DirectCallReadyMessage {
   type: 'ready';
@@ -51,7 +51,7 @@ interface DirectCallRelayedSignalMessage {
   type: DirectCallSignalType;
   call_id: string;
   from_user_id: string;
-  payload: RTCSessionDescriptionInit | RTCIceCandidateInit | { sharing: boolean };
+  payload: RTCSessionDescriptionInit | RTCIceCandidateInit | { sharing?: boolean; enabled?: boolean };
 }
 
 interface DirectCallErrorMessage {
@@ -88,9 +88,13 @@ export class DirectCallService {
 
   private peerConnection: RTCPeerConnection | null = null;
   private localStream: MediaStream | null = null;
+  private cameraStream: MediaStream | null = null;
+  private cameraTrack: MediaStreamTrack | null = null;
   private screenShareStream: MediaStream | null = null;
   private screenShareTrack: MediaStreamTrack | null = null;
-  private screenShareSender: RTCRtpSender | null = null;
+  private cameraTransceiver: RTCRtpTransceiver | null = null;
+  private screenTransceiver: RTCRtpTransceiver | null = null;
+  private remoteCameraTrack: MediaStreamTrack | null = null;
   private remoteScreenTrack: MediaStreamTrack | null = null;
   private remoteAudioElement: HTMLAudioElement | null = null;
   private activeCallId: string | null = null;
@@ -102,12 +106,17 @@ export class DirectCallService {
   readonly error = signal<string | null>(null);
   readonly notice = signal<string | null>(null);
   readonly peer = signal<DirectCallPeer | null>(null);
+  readonly localCameraStream = signal<MediaStream | null>(null);
+  readonly remoteCameraStream = signal<MediaStream | null>(null);
   readonly localScreenStream = signal<MediaStream | null>(null);
   readonly remoteScreenStream = signal<MediaStream | null>(null);
   readonly canCall = computed(() => this.connected() && this.state() === 'idle');
+  readonly cameraSupported = computed(() => typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia);
   readonly screenShareSupported = computed(
     () => typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getDisplayMedia
   );
+  readonly isCameraEnabled = computed(() => this.localCameraStream() !== null);
+  readonly hasRemoteCamera = computed(() => this.remoteCameraStream() !== null);
   readonly isScreenSharing = computed(() => this.localScreenStream() !== null);
   readonly hasRemoteScreenShare = computed(() => this.remoteScreenStream() !== null);
   readonly hasActiveCall = computed(() => {
@@ -225,6 +234,83 @@ export class DirectCallService {
     this.notice.set(null);
   }
 
+  async startCamera(): Promise<void> {
+    if (!this.cameraSupported()) {
+      this.error.set('Браузер не поддерживает доступ к камере');
+      return;
+    }
+
+    if (typeof window !== 'undefined' && !window.isSecureContext) {
+      this.error.set('Камера работает только через HTTPS или localhost');
+      return;
+    }
+
+    if (this.state() !== 'connected' || !this.peerConnection || !this.peer() || !this.activeCallId) {
+      this.error.set('Сначала установите личный звонок');
+      return;
+    }
+
+    if (this.cameraTrack) {
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: 1280, max: 1920 },
+          height: { ideal: 720, max: 1080 },
+          frameRate: { ideal: 24, max: 30 },
+          facingMode: 'user'
+        },
+        audio: false
+      });
+      const [track] = stream.getVideoTracks();
+      if (!track) {
+        throw new Error('Не удалось получить видеодорожку камеры');
+      }
+
+      track.onended = () => {
+        if (this.cameraTrack?.id === track.id) {
+          void this.stopCamera();
+        }
+      };
+
+      this.cameraStream = stream;
+      this.cameraTrack = track;
+      this.localCameraStream.set(stream);
+
+      if (!this.cameraTransceiver) {
+        throw new Error('Канал камеры еще не готов');
+      }
+
+      await this.cameraTransceiver.sender.replaceTrack(track);
+      this.cameraTransceiver.direction = 'sendrecv';
+      this.sendCameraState(true);
+      this.error.set(null);
+      this.notice.set('Вы включили камеру');
+      await this.renegotiate();
+    } catch (error) {
+      this.clearLocalCamera();
+      this.error.set(error instanceof Error ? error.message : 'Не удалось включить камеру');
+    }
+  }
+
+  async stopCamera(): Promise<void> {
+    const hadCamera = !!this.cameraTrack || !!this.localCameraStream();
+    await this.detachCameraFromConnection();
+    this.clearLocalCamera();
+
+    if (!hadCamera || !this.peerConnection || !this.peer() || !this.activeCallId) {
+      return;
+    }
+
+    if (this.state() === 'connected') {
+      this.sendCameraState(false);
+      this.notice.set('Камера выключена');
+      await this.renegotiate();
+    }
+  }
+
   async startScreenShare(): Promise<void> {
     if (!this.screenShareSupported()) {
       this.error.set('Браузер не поддерживает показ экрана');
@@ -265,12 +351,12 @@ export class DirectCallService {
       this.screenShareTrack = track;
       this.localScreenStream.set(stream);
 
-      if (this.screenShareSender) {
-        await this.screenShareSender.replaceTrack(track);
-      } else {
-        this.screenShareSender = this.peerConnection.addTrack(track, stream);
+      if (!this.screenTransceiver) {
+        throw new Error('Канал показа экрана еще не готов');
       }
 
+      await this.screenTransceiver.sender.replaceTrack(track);
+      this.screenTransceiver.direction = 'sendrecv';
       this.sendScreenShareState(true);
       this.error.set(null);
       this.notice.set('Вы показываете экран');
@@ -283,7 +369,7 @@ export class DirectCallService {
 
   async stopScreenShare(): Promise<void> {
     const hadScreenShare = !!this.screenShareTrack || !!this.localScreenStream();
-    this.detachScreenShareFromConnection();
+    await this.detachScreenShareFromConnection();
     this.clearLocalScreenShare();
 
     if (!hadScreenShare || !this.peerConnection || !this.peer() || !this.activeCallId) {
@@ -428,6 +514,13 @@ export class DirectCallService {
     if (message.type === 'offer') {
       try {
         const connection = await this.ensurePeerConnection(message.from_user_id);
+        if (connection.signalingState !== 'stable') {
+          try {
+            await connection.setLocalDescription({ type: 'rollback' });
+          } catch {
+            // Ignore rollback failures and continue with the remote offer.
+          }
+        }
         await connection.setRemoteDescription(new RTCSessionDescription(message.payload as RTCSessionDescriptionInit));
         const answer = await connection.createAnswer();
         await connection.setLocalDescription(answer);
@@ -464,6 +557,21 @@ export class DirectCallService {
         await this.peerConnection.addIceCandidate(new RTCIceCandidate(message.payload as RTCIceCandidateInit));
       } catch {
         // Ignore malformed ICE candidates instead of breaking the call.
+      }
+      return;
+    }
+
+    if (message.type === 'camera_state') {
+      const payload = message.payload as { enabled?: unknown } | null;
+      const enabled = Boolean(payload?.enabled);
+
+      if (!enabled) {
+        this.clearRemoteCamera();
+        if (this.state() === 'connected') {
+          this.notice.set('Камера собеседника выключена');
+        }
+      } else if (this.state() === 'connected') {
+        this.notice.set('Собеседник включил камеру');
       }
       return;
     }
@@ -517,8 +625,19 @@ export class DirectCallService {
       }
     }
 
-    if (this.screenShareTrack && this.screenShareStream) {
-      this.screenShareSender = connection.addTrack(this.screenShareTrack, this.screenShareStream);
+    this.cameraTransceiver = connection.addTransceiver('video', {
+      direction: this.cameraTrack ? 'sendrecv' : 'recvonly'
+    });
+    this.screenTransceiver = connection.addTransceiver('video', {
+      direction: this.screenShareTrack ? 'sendrecv' : 'recvonly'
+    });
+
+    if (this.cameraTrack) {
+      await this.cameraTransceiver.sender.replaceTrack(this.cameraTrack);
+    }
+
+    if (this.screenShareTrack) {
+      await this.screenTransceiver.sender.replaceTrack(this.screenShareTrack);
     }
 
     connection.addEventListener('icecandidate', (event) => {
@@ -536,7 +655,11 @@ export class DirectCallService {
 
     connection.addEventListener('track', (event) => {
       if (event.track.kind === 'video') {
-        this.attachRemoteScreenTrack(event.track);
+        if (event.transceiver === this.screenTransceiver || event.transceiver.mid === this.screenTransceiver?.mid) {
+          this.attachRemoteScreenTrack(event.track);
+        } else {
+          this.attachRemoteCameraTrack(event.track);
+        }
         return;
       }
 
@@ -583,6 +706,17 @@ export class DirectCallService {
     void this.remoteAudioElement.play().catch(() => undefined);
   }
 
+  private attachRemoteCameraTrack(track: MediaStreamTrack): void {
+    const stream = new MediaStream([track]);
+    this.remoteCameraTrack = track;
+    this.remoteCameraStream.set(stream);
+    track.onended = () => {
+      if (this.remoteCameraTrack?.id === track.id) {
+        this.clearRemoteCamera();
+      }
+    };
+  }
+
   private attachRemoteScreenTrack(track: MediaStreamTrack): void {
     const stream = new MediaStream([track]);
     this.remoteScreenTrack = track;
@@ -590,8 +724,7 @@ export class DirectCallService {
     this.notice.set('Собеседник показывает экран');
     track.onended = () => {
       if (this.remoteScreenTrack?.id === track.id) {
-        this.remoteScreenTrack = null;
-        this.remoteScreenStream.set(null);
+        this.clearRemoteScreenShare();
         if (this.state() === 'connected' && this.notice() === 'Собеседник показывает экран') {
           this.notice.set('Показ экрана собеседника остановлен');
         }
@@ -600,7 +733,10 @@ export class DirectCallService {
   }
 
   private resetCallState(): void {
-    this.detachScreenShareFromConnection();
+    void this.detachCameraFromConnection();
+    void this.detachScreenShareFromConnection();
+    this.clearLocalCamera();
+    this.clearRemoteCamera();
     this.clearLocalScreenShare();
     this.clearRemoteScreenShare();
     this.stopLocalStream();
@@ -632,7 +768,8 @@ export class DirectCallService {
     this.peerConnection.onconnectionstatechange = null;
     this.peerConnection.close();
     this.peerConnection = null;
-    this.screenShareSender = null;
+    this.cameraTransceiver = null;
+    this.screenTransceiver = null;
     this.negotiationInFlight = false;
     this.negotiationQueued = false;
   }
@@ -748,16 +885,57 @@ export class DirectCallService {
     }
   }
 
-  private detachScreenShareFromConnection(): void {
-    if (this.peerConnection && this.screenShareSender) {
-      try {
-        this.peerConnection.removeTrack(this.screenShareSender);
-      } catch {
-        // Ignore sender removal errors when connection is already closed.
-      }
+  private async detachCameraFromConnection(): Promise<void> {
+    if (!this.cameraTransceiver) {
+      return;
     }
 
-    this.screenShareSender = null;
+    try {
+      await this.cameraTransceiver.sender.replaceTrack(null);
+    } catch {
+      // Ignore sender replacement failures when connection is already closed.
+    }
+
+    this.cameraTransceiver.direction = 'recvonly';
+  }
+
+  private async detachScreenShareFromConnection(): Promise<void> {
+    if (!this.screenTransceiver) {
+      return;
+    }
+
+    try {
+      await this.screenTransceiver.sender.replaceTrack(null);
+    } catch {
+      // Ignore sender replacement failures when connection is already closed.
+    }
+
+    this.screenTransceiver.direction = 'recvonly';
+  }
+
+  private clearLocalCamera(): void {
+    if (this.cameraTrack) {
+      this.cameraTrack.onended = null;
+      this.cameraTrack = null;
+    }
+
+    if (this.cameraStream) {
+      for (const track of this.cameraStream.getTracks()) {
+        track.stop();
+      }
+      this.cameraStream = null;
+    }
+
+    this.localCameraStream.set(null);
+  }
+
+  private clearRemoteCamera(): void {
+    if (this.remoteCameraTrack) {
+      this.remoteCameraTrack.onended = null;
+      this.remoteCameraTrack = null;
+    }
+
+    this.remoteCameraStream.set(null);
   }
 
   private clearLocalScreenShare(): void {
@@ -797,6 +975,22 @@ export class DirectCallService {
       target_user_id: peer.user_id,
       payload: {
         sharing
+      }
+    });
+  }
+
+  private sendCameraState(enabled: boolean): void {
+    const peer = this.peer();
+    if (!peer || !this.activeCallId) {
+      return;
+    }
+
+    this.send({
+      type: 'camera_state',
+      call_id: this.activeCallId,
+      target_user_id: peer.user_id,
+      payload: {
+        enabled
       }
     });
   }

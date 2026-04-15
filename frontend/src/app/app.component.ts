@@ -80,6 +80,7 @@ import { AppEventsService } from './core/services/app-events.service';
 import { BrowserPushService } from './core/services/browser-push.service';
 import { DirectCallPeer, DirectCallService } from './core/services/direct-call.service';
 import { VoiceParticipant, VoiceRoomService } from './core/services/voice-room.service';
+import { MediaStreamSrcDirective } from './shared/media-stream-src.directive';
 
 type AuthMode = 'login' | 'register';
 type ChannelKind = 'text' | 'voice';
@@ -150,6 +151,18 @@ interface GroupMemberItem {
   presenceLabel: string;
   isOnline: boolean;
   voiceParticipant: VoiceParticipant | null;
+}
+
+interface VoiceVideoTile {
+  id: string;
+  userId: string;
+  nick: string;
+  avatarUpdatedAt: string | null;
+  stream: MediaStream;
+  isSelf: boolean;
+  speaking: boolean;
+  muted: boolean;
+  ownerMuted: boolean;
 }
 
 interface ComposerMentionCandidate {
@@ -543,7 +556,7 @@ const DEFAULT_SERVER_ICON_ASSET_BY_NAME: Record<string, string> = {
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, MediaStreamSrcDirective],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'
 })
@@ -877,6 +890,9 @@ export class AppComponent {
   readonly devicesLoading = this.voiceRoom.devicesLoading;
   readonly inputDevices = this.voiceRoom.inputDevices;
   readonly outputDevices = this.voiceRoom.outputDevices;
+  readonly voiceCameraSupported = this.voiceRoom.cameraSupported;
+  readonly voiceCameraEnabled = this.voiceRoom.cameraEnabled;
+  readonly voiceLocalVideoStream = this.voiceRoom.localVideoStream;
   readonly outputDeviceSupported = this.voiceRoom.outputDeviceSupported;
   readonly directCallState = this.directCall.state;
   readonly directCallError = this.directCall.error;
@@ -884,6 +900,11 @@ export class AppComponent {
   readonly directCallPeer = this.directCall.peer;
   readonly directCallCanCall = this.directCall.canCall;
   readonly hasDirectCall = this.directCall.hasActiveCall;
+  readonly directCallCameraSupported = this.directCall.cameraSupported;
+  readonly directCallCameraEnabled = this.directCall.isCameraEnabled;
+  readonly directCallLocalCameraStream = this.directCall.localCameraStream;
+  readonly directCallRemoteCameraStream = this.directCall.remoteCameraStream;
+  readonly directCallHasRemoteCamera = this.directCall.hasRemoteCamera;
   readonly directCallScreenSupported = this.directCall.screenShareSupported;
   readonly directCallScreenSharing = this.directCall.isScreenSharing;
   readonly directCallLocalScreenStream = this.directCall.localScreenStream;
@@ -891,6 +912,9 @@ export class AppComponent {
   readonly directCallHasRemoteScreen = this.directCall.hasRemoteScreenShare;
   readonly hasAnyDirectCallScreen = computed(
     () => this.directCallHasRemoteScreen() || this.directCallScreenSharing()
+  );
+  readonly hasAnyDirectCallVideo = computed(
+    () => this.hasAnyDirectCallScreen() || this.directCallCameraEnabled() || this.directCallHasRemoteCamera()
   );
   readonly isChatsMode = computed(() => this.workspaceMode() === 'chats');
   readonly isGroupsMode = computed(() => this.workspaceMode() === 'groups');
@@ -4202,6 +4226,18 @@ export class AppComponent {
     await this.handleVoiceChannelSelection(voiceChannel);
   }
 
+  toggleGroupVoiceCamera(): void {
+    if (!this.canToggleGroupVoiceCamera()) {
+      return;
+    }
+
+    this.voiceRoom.toggleCamera();
+  }
+
+  canToggleGroupVoiceCamera(): boolean {
+    return this.voiceCameraSupported() && this.connectedVoiceChannelId() === this.activeGroupVoiceChannel()?.id;
+  }
+
   async togglePlatformVoiceChannel(channel: WorkspaceChannel, event?: Event): Promise<void> {
     event?.stopPropagation();
     if (channel.type !== 'voice') {
@@ -4219,12 +4255,66 @@ export class AppComponent {
     await this.handleVoiceChannelSelection(channel);
   }
 
+  togglePlatformVoiceCamera(channel: WorkspaceChannel, event?: Event): void {
+    event?.stopPropagation();
+    if (!this.canTogglePlatformVoiceCamera(channel.id)) {
+      return;
+    }
+
+    this.voiceRoom.toggleCamera();
+  }
+
+  canTogglePlatformVoiceCamera(channelId: string): boolean {
+    return this.voiceCameraSupported() && this.connectedVoiceChannelId() === channelId;
+  }
+
   platformVoiceParticipantCount(channelId: string): number {
     return this.voiceParticipantsForChannel(channelId).length;
   }
 
   platformVoiceParticipants(channelId: string): VoiceParticipant[] {
     return this.voiceParticipantsForChannel(channelId);
+  }
+
+  voiceVideoTilesForChannel(channelId: string): VoiceVideoTile[] {
+    if (this.connectedVoiceChannelId() !== channelId) {
+      return [];
+    }
+
+    const tiles = this.voiceParticipantsForChannel(channelId)
+      .map((participant) => {
+        const stream = participant.is_self
+          ? this.voiceLocalVideoStream()
+          : this.voiceRoom.remoteVideoStreamForParticipant(participant.id);
+        if (!stream) {
+          return null;
+        }
+
+        return {
+          id: participant.id,
+          userId: participant.user_id,
+          nick: participant.nick,
+          avatarUpdatedAt: participant.avatar_updated_at,
+          stream,
+          isSelf: participant.is_self,
+          speaking: participant.speaking,
+          muted: participant.muted,
+          ownerMuted: participant.owner_muted
+        } satisfies VoiceVideoTile;
+      })
+      .filter((tile): tile is VoiceVideoTile => tile !== null);
+
+    return tiles.sort((left, right) => {
+      if (left.isSelf !== right.isSelf) {
+        return left.isSelf ? 1 : -1;
+      }
+
+      if (left.speaking !== right.speaking) {
+        return left.speaking ? -1 : 1;
+      }
+
+      return this.displayNick(left.nick).localeCompare(this.displayNick(right.nick), 'ru');
+    });
   }
 
   platformVoiceParticipantVolume(participant: VoiceParticipant): number {
@@ -4359,6 +4449,19 @@ export class AppComponent {
     void this.directCall.stopScreenShare();
   }
 
+  toggleDirectCallCamera(): void {
+    if (!this.canToggleDirectCallCamera()) {
+      return;
+    }
+
+    if (this.directCallCameraEnabled()) {
+      void this.directCall.stopCamera();
+      return;
+    }
+
+    void this.directCall.startCamera();
+  }
+
   expandDirectCallScreen(): void {
     if (!this.hasAnyDirectCallScreen()) {
       return;
@@ -4381,6 +4484,10 @@ export class AppComponent {
     }
 
     return this.directCallState() === 'connected';
+  }
+
+  canToggleDirectCallCamera(): boolean {
+    return this.directCallCameraSupported() && this.directCallState() === 'connected';
   }
 
   canStartDirectCallToSelectedMember(): boolean {

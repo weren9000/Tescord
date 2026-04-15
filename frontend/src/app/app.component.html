@@ -795,18 +795,49 @@
                               <small>{{ platformChannelMetaLabel(channel) }}</small>
                             </div>
                           </button>
-                          <button
-                            class="secondary-button platform-channel-entry__voice-action"
-                            type="button"
-                            [attr.aria-label]="connectedVoiceChannelId() === channel.id ? 'Покинуть голосовой канал' : 'Подключиться к голосовому каналу'"
-                            [attr.title]="connectedVoiceChannelId() === channel.id ? 'Покинуть голосовой канал' : 'Подключиться к голосовому каналу'"
-                            (click)="togglePlatformVoiceChannel(channel, $event)"
-                          >
-                            <img [src]="connectedVoiceChannelId() === channel.id ? '/assets/Phone outgoing.svg' : '/assets/Phone_connect.svg'" alt="" />
-                          </button>
+                          <div class="platform-channel-entry__actions">
+                            <button
+                              class="secondary-button platform-channel-entry__voice-action"
+                              [class.platform-channel-entry__voice-action--active]="connectedVoiceChannelId() === channel.id && voiceCameraEnabled()"
+                              type="button"
+                              aria-label="Камера"
+                              title="Камера"
+                              [disabled]="!canTogglePlatformVoiceCamera(channel.id)"
+                              (click)="togglePlatformVoiceCamera(channel, $event)"
+                            >
+                              <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <rect x="3" y="7" width="11" height="10" rx="2"></rect>
+                                <path d="M14 10.5l5-3v9l-5-3"></path>
+                              </svg>
+                            </button>
+                            <button
+                              class="secondary-button platform-channel-entry__voice-action"
+                              type="button"
+                              [attr.aria-label]="connectedVoiceChannelId() === channel.id ? 'Покинуть голосовой канал' : 'Подключиться к голосовому каналу'"
+                              [attr.title]="connectedVoiceChannelId() === channel.id ? 'Покинуть голосовой канал' : 'Подключиться к голосовому каналу'"
+                              (click)="togglePlatformVoiceChannel(channel, $event)"
+                            >
+                              <img [src]="connectedVoiceChannelId() === channel.id ? '/assets/Phone outgoing.svg' : '/assets/Phone_connect.svg'" alt="" />
+                            </button>
+                          </div>
                         </div>
                         @if (isPlatformVoiceChannelExpanded(channel.id)) {
                           <div class="platform-channel-entry__roster">
+                            @if (connectedVoiceChannelId() === channel.id && voiceVideoTilesForChannel(channel.id).length) {
+                              <div class="group-voice-video-grid group-voice-video-grid--compact">
+                                @for (tile of voiceVideoTilesForChannel(channel.id); track tile.id) {
+                                  <div class="group-voice-video-tile" [class.group-voice-video-tile--speaking]="tile.speaking">
+                                    <div class="group-voice-video-tile__media">
+                                      <video class="group-voice-video-tile__video" autoplay playsinline [appMediaStreamSrc]="tile.stream" [appMediaStreamMuted]="tile.isSelf"></video>
+                                    </div>
+                                    <div class="group-voice-video-tile__meta">
+                                      <strong>{{ displayNick(tile.nick) }}</strong>
+                                      <small>{{ tile.isSelf ? 'Вы' : (tile.ownerMuted || tile.muted ? 'Микрофон выключен' : (tile.speaking ? 'Говорит' : 'В эфире')) }}</small>
+                                    </div>
+                                  </div>
+                                }
+                              </div>
+                            }
                             <div class="group-voice-roster" style="gap:3px;padding:5px 7px;">
                               @if (platformVoiceParticipants(channel.id).length) {
                                 @for (participant of platformVoiceParticipants(channel.id); track participant.id) {
@@ -891,18 +922,49 @@
                         [attr.aria-expanded]="groupVoiceParticipantsExpanded()"
                         [attr.aria-label]="groupVoiceParticipantsExpanded() ? 'Скрыть активных участников голосового чата' : 'Показать активных участников голосового чата'"
                         (click)="toggleGroupVoiceParticipantsExpanded()"
-                      >
-                        <div class="group-voice-card__copy">
-                          <strong>{{ groupVoiceChannel.name }}</strong>
-                          <small>Участников: {{ activeGroupVoiceParticipants().length }}</small>
-                        </div>
+                        >
+                          <div class="group-voice-card__copy">
+                            <strong>{{ groupVoiceChannel.name }}</strong>
+                            <small>Участников: {{ activeGroupVoiceParticipants().length }}</small>
+                          </div>
                       </button>
-                      <button class="secondary-button group-voice-card__action" type="button" (click)="toggleActiveGroupVoice()">
-                        <img [src]="connectedVoiceChannelId() === groupVoiceChannel.id ? '/assets/Phone outgoing.svg' : '/assets/Phone_connect.svg'" alt="" />
-                      </button>
+                      <div class="group-voice-card__actions">
+                        <button
+                          class="secondary-button group-voice-card__action"
+                          [class.group-voice-card__action--active]="connectedVoiceChannelId() === groupVoiceChannel.id && voiceCameraEnabled()"
+                          type="button"
+                          aria-label="Камера"
+                          title="Камера"
+                          [disabled]="!canToggleGroupVoiceCamera()"
+                          (click)="toggleGroupVoiceCamera()"
+                        >
+                          <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <rect x="3" y="7" width="11" height="10" rx="2"></rect>
+                            <path d="M14 10.5l5-3v9l-5-3"></path>
+                          </svg>
+                        </button>
+                        <button class="secondary-button group-voice-card__action" type="button" (click)="toggleActiveGroupVoice()">
+                          <img [src]="connectedVoiceChannelId() === groupVoiceChannel.id ? '/assets/Phone outgoing.svg' : '/assets/Phone_connect.svg'" alt="" />
+                        </button>
+                      </div>
                     </div>
                     @if (groupVoiceParticipantsExpanded()) {
                       <div class="group-voice-roster">
+                        @if (connectedVoiceChannelId() === groupVoiceChannel.id && voiceVideoTilesForChannel(groupVoiceChannel.id).length) {
+                          <div class="group-voice-video-grid">
+                            @for (tile of voiceVideoTilesForChannel(groupVoiceChannel.id); track tile.id) {
+                              <div class="group-voice-video-tile" [class.group-voice-video-tile--speaking]="tile.speaking">
+                                <div class="group-voice-video-tile__media">
+                                  <video class="group-voice-video-tile__video" autoplay playsinline [appMediaStreamSrc]="tile.stream" [appMediaStreamMuted]="tile.isSelf"></video>
+                                </div>
+                                <div class="group-voice-video-tile__meta">
+                                  <strong>{{ displayNick(tile.nick) }}</strong>
+                                  <small>{{ tile.isSelf ? 'Вы' : (tile.ownerMuted || tile.muted ? 'Микрофон выключен' : (tile.speaking ? 'Говорит' : 'В эфире')) }}</small>
+                                </div>
+                              </div>
+                            }
+                          </div>
+                        }
                         @if (activeGroupVoiceParticipants().length) {
                           @for (participant of activeGroupVoiceParticipants(); track participant.id) {
                             <div class="group-voice-roster__member">
@@ -1555,7 +1617,7 @@
 
 @if (shouldShowStandaloneDirectCallModal() && directCallPeer(); as standaloneCallPeer) {
   <div class="modal-backdrop">
-    <section class="modal modal--compact modal--direct-call" [class.modal--wide]="hasAnyDirectCallScreen()" (click)="$event.stopPropagation()">
+    <section class="modal modal--compact modal--direct-call" [class.modal--wide]="hasAnyDirectCallVideo()" (click)="$event.stopPropagation()">
       <div class="modal__header">
         <div>
           <p class="eyebrow">Личный звонок</p>
@@ -1602,6 +1664,23 @@
             <button class="direct-call-icon-button direct-call-icon-button--danger" type="button" title="Положить трубку" aria-label="Положить трубку" (click)="hangupDirectCall()">
               <img src="/assets/Phone outgoing.svg" alt="" />
             </button>
+
+            @if (directCallState() === 'connected' && directCallCameraSupported()) {
+              <button
+                class="direct-call-icon-button"
+                [class.direct-call-icon-button--active]="directCallCameraEnabled()"
+                type="button"
+                title="Камера"
+                aria-label="Камера"
+                [disabled]="!canToggleDirectCallCamera()"
+                (click)="toggleDirectCallCamera()"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <rect x="3" y="7" width="11" height="10" rx="2"></rect>
+                  <path d="M14 10.5l5-3v9l-5-3"></path>
+                </svg>
+              </button>
+            }
 
             @if (directCallState() === 'connected' && directCallScreenSupported()) {
               @if (directCallScreenSharing()) {
@@ -1657,8 +1736,39 @@
               </div>
             }
           </div>
-        } @else if (directCallState() === 'connected' && directCallScreenSupported()) {
-          <p class="modal-note">Во время звонка можно показать один экран собеседнику.</p>
+          @if (directCallRemoteCameraStream() || directCallLocalCameraStream()) {
+            <div class="direct-call-camera-strip">
+              @if (directCallRemoteCameraStream()) {
+                <div class="direct-call-video-stage direct-call-video-stage--tile">
+                  <span class="direct-call-screen__caption">Собеседник</span>
+                  <video class="direct-call-video-stage__video" autoplay playsinline [appMediaStreamSrc]="directCallRemoteCameraStream()"></video>
+                </div>
+              }
+              @if (directCallLocalCameraStream()) {
+                <div class="direct-call-video-stage direct-call-video-stage--tile">
+                  <span class="direct-call-screen__caption">Вы</span>
+                  <video class="direct-call-video-stage__video" autoplay playsinline [appMediaStreamSrc]="directCallLocalCameraStream()" [appMediaStreamMuted]="true"></video>
+                </div>
+              }
+            </div>
+          }
+        } @else if (directCallRemoteCameraStream() || directCallLocalCameraStream()) {
+          <div class="direct-call-video-stage" [class.direct-call-video-stage--overlay]="directCallRemoteCameraStream() && directCallLocalCameraStream()">
+            @if (directCallRemoteCameraStream()) {
+              <div class="direct-call-video-stage__pane direct-call-video-stage__pane--primary">
+                <span class="direct-call-screen__caption">Собеседник</span>
+                <video class="direct-call-video-stage__video" autoplay playsinline [appMediaStreamSrc]="directCallRemoteCameraStream()"></video>
+              </div>
+            }
+            @if (directCallLocalCameraStream()) {
+              <div class="direct-call-video-stage__pane" [class.direct-call-video-stage__pane--local]="directCallRemoteCameraStream()">
+                <span class="direct-call-screen__caption">Вы</span>
+                <video class="direct-call-video-stage__video" autoplay playsinline [appMediaStreamSrc]="directCallLocalCameraStream()" [appMediaStreamMuted]="true"></video>
+              </div>
+            }
+          </div>
+        } @else if (directCallState() === 'connected' && (directCallScreenSupported() || directCallCameraSupported())) {
+          <p class="modal-note">Во время звонка можно включить камеру или показать экран.</p>
         }
 
         @if (directCallError()) {
@@ -3434,7 +3544,7 @@
 
 @if (selectedMember(); as member) {
   <div class="modal-backdrop" (click)="closeMemberVolume()">
-    <section class="modal modal--compact" [class.modal--wide]="!selectedVoiceMemberChannelId() && hasAnyDirectCallScreen()" [class.modal--direct-call]="!selectedVoiceMemberChannelId() && selectedMemberDirectCallActive()" (click)="$event.stopPropagation()">
+    <section class="modal modal--compact" [class.modal--wide]="!selectedVoiceMemberChannelId() && hasAnyDirectCallVideo()" [class.modal--direct-call]="!selectedVoiceMemberChannelId() && selectedMemberDirectCallActive()" (click)="$event.stopPropagation()">
       <div class="modal__header">
         <div>
           <p class="eyebrow">Участник</p>
@@ -3541,6 +3651,23 @@
                   <img src="/assets/Phone outgoing.svg" alt="" />
                 </button>
 
+                @if (directCallState() === 'connected' && directCallCameraSupported()) {
+                  <button
+                    class="direct-call-icon-button"
+                    [class.direct-call-icon-button--active]="directCallCameraEnabled()"
+                    type="button"
+                    title="Камера"
+                    aria-label="Камера"
+                    [disabled]="!canToggleDirectCallCamera()"
+                    (click)="toggleDirectCallCamera()"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <rect x="3" y="7" width="11" height="10" rx="2"></rect>
+                      <path d="M14 10.5l5-3v9l-5-3"></path>
+                    </svg>
+                  </button>
+                }
+
                 @if (directCallState() === 'connected' && directCallScreenSupported()) {
                   @if (directCallScreenSharing()) {
                     <button class="direct-call-icon-button direct-call-icon-button--active" type="button" title="Остановить показ экрана" aria-label="Остановить показ экрана" (click)="stopDirectCallScreenShare()">
@@ -3595,8 +3722,39 @@
                   </div>
                 }
               </div>
-            } @else if (directCallState() === 'connected' && directCallScreenSupported()) {
-              <p class="modal-note">Во время звонка можно показать один экран собеседнику.</p>
+              @if (directCallRemoteCameraStream() || directCallLocalCameraStream()) {
+                <div class="direct-call-camera-strip">
+                  @if (directCallRemoteCameraStream()) {
+                    <div class="direct-call-video-stage direct-call-video-stage--tile">
+                      <span class="direct-call-screen__caption">Собеседник</span>
+                      <video class="direct-call-video-stage__video" autoplay playsinline [appMediaStreamSrc]="directCallRemoteCameraStream()"></video>
+                    </div>
+                  }
+                  @if (directCallLocalCameraStream()) {
+                    <div class="direct-call-video-stage direct-call-video-stage--tile">
+                      <span class="direct-call-screen__caption">Вы</span>
+                      <video class="direct-call-video-stage__video" autoplay playsinline [appMediaStreamSrc]="directCallLocalCameraStream()" [appMediaStreamMuted]="true"></video>
+                    </div>
+                  }
+                </div>
+              }
+            } @else if (directCallRemoteCameraStream() || directCallLocalCameraStream()) {
+              <div class="direct-call-video-stage" [class.direct-call-video-stage--overlay]="directCallRemoteCameraStream() && directCallLocalCameraStream()">
+                @if (directCallRemoteCameraStream()) {
+                  <div class="direct-call-video-stage__pane direct-call-video-stage__pane--primary">
+                    <span class="direct-call-screen__caption">Собеседник</span>
+                    <video class="direct-call-video-stage__video" autoplay playsinline [appMediaStreamSrc]="directCallRemoteCameraStream()"></video>
+                  </div>
+                }
+                @if (directCallLocalCameraStream()) {
+                  <div class="direct-call-video-stage__pane" [class.direct-call-video-stage__pane--local]="directCallRemoteCameraStream()">
+                    <span class="direct-call-screen__caption">Вы</span>
+                    <video class="direct-call-video-stage__video" autoplay playsinline [appMediaStreamSrc]="directCallLocalCameraStream()" [appMediaStreamMuted]="true"></video>
+                  </div>
+                }
+              </div>
+            } @else if (directCallState() === 'connected' && (directCallScreenSupported() || directCallCameraSupported())) {
+              <p class="modal-note">Во время звонка можно включить камеру или показать экран.</p>
             }
           } @else {
             <div class="modal-toolbar">

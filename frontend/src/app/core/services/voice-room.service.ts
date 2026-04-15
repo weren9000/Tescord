@@ -108,6 +108,11 @@ interface VoiceJoinContext {
   currentUser: CurrentUserResponse;
 }
 
+interface PeerNegotiationState {
+  inFlight: boolean;
+  queued: boolean;
+}
+
 type IncomingVoiceMessage =
   | RoomStateMessage
   | PeerJoinedMessage
@@ -192,16 +197,21 @@ export class VoiceRoomService {
   private socketPingIntervalId: number | null = null;
   private rawLocalStream: MediaStream | null = null;
   private localStream: MediaStream | null = null;
+  private localVideoStreamInternal: MediaStream | null = null;
+  private localVideoTrack: MediaStreamTrack | null = null;
   private localAudioPipeline: LocalAudioPipeline | null = null;
   private selfId: string | null = null;
   private lastJoinContext: VoiceJoinContext | null = null;
   private pendingPlaybackUnlock = new Set<string>();
   private userGestureUnlockHandler: (() => void) | null = null;
   private readonly peerConnections = new Map<string, RTCPeerConnection>();
+  private readonly videoTransceivers = new Map<string, RTCRtpTransceiver>();
+  private readonly peerNegotiationStates = new Map<string, PeerNegotiationState>();
   private readonly pendingIceCandidates = new Map<string, RTCIceCandidateInit[]>();
   private readonly remoteMonitors = new Map<string, VoiceActivityMonitor>();
   private readonly remoteAudioOutputs = new Map<string, RemoteAudioOutput>();
   private readonly participantUserIds = new Map<string, string>();
+  private readonly remoteVideoTracks = new Map<string, MediaStreamTrack>();
 
   readonly state = signal<VoiceConnectionState>('idle');
   readonly error = signal<string | null>(null);
@@ -209,12 +219,16 @@ export class VoiceRoomService {
   readonly activeChannelId = signal<string | null>(null);
   readonly participants = signal<VoiceParticipant[]>([]);
   readonly localMuted = signal(false);
+  readonly localVideoStream = signal<MediaStream | null>(null);
+  readonly remoteVideoStreams = signal<Record<string, MediaStream | null>>({});
   readonly ownerMuted = computed(() => this.getParticipant(this.selfId ?? 'local')?.owner_muted === true);
   readonly settings = signal<VoiceSettings>(loadVoiceSettings());
   readonly devicesLoading = signal(false);
   readonly inputDevices = signal<VoiceDeviceOption[]>([]);
   readonly outputDevices = signal<VoiceDeviceOption[]>([]);
   readonly isConnected = computed(() => this.state() === 'connected');
+  readonly cameraSupported = computed(() => typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia);
+  readonly cameraEnabled = computed(() => this.localVideoStream() !== null);
   readonly outputDeviceSupported = computed(() => {
     if (typeof HTMLMediaElement === 'undefined') {
       return false;
@@ -274,7 +288,11 @@ export class VoiceRoomService {
     this.stopLocalStream();
     this.clearAudioElements();
     this.pendingIceCandidates.clear();
+    this.videoTransceivers.clear();
+    this.peerNegotiationStates.clear();
     this.participantUserIds.clear();
+    this.remoteVideoTracks.clear();
+    this.remoteVideoStreams.set({});
     this.pendingPlaybackUnlock.clear();
     this.detachUserGestureUnlock();
     this.selfId = null;
@@ -354,6 +372,95 @@ export class VoiceRoomService {
       type: 'mute_state',
       muted: nextMuted
     });
+  }
+
+  async startCamera(): Promise<void> {
+    if (!this.cameraSupported()) {
+      this.settingsNotice.set('Браузер не поддерживает доступ к камере');
+      return;
+    }
+
+    if (typeof window !== 'undefined' && !window.isSecureContext) {
+      this.settingsNotice.set('Камера работает только через HTTPS или localhost');
+      return;
+    }
+
+    if (!this.isConnected() || !this.activeChannelId()) {
+      this.settingsNotice.set('Сначала подключитесь к голосовому каналу');
+      return;
+    }
+
+    if (this.localVideoTrack) {
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: 960, max: 1280 },
+          height: { ideal: 540, max: 720 },
+          frameRate: { ideal: 20, max: 24 },
+          facingMode: 'user'
+        },
+        audio: false
+      });
+      const [track] = stream.getVideoTracks();
+      if (!track) {
+        throw new Error('Не удалось получить видеодорожку камеры');
+      }
+
+      track.onended = () => {
+        if (this.localVideoTrack?.id === track.id) {
+          void this.stopCamera();
+        }
+      };
+
+      this.localVideoStreamInternal = stream;
+      this.localVideoTrack = track;
+      this.localVideoStream.set(stream);
+
+      const renegotiationTasks: Promise<void>[] = [];
+      for (const [participantId, connection] of this.peerConnections.entries()) {
+        const transceiver = this.ensureVideoTransceiver(connection, participantId);
+        await transceiver.sender.replaceTrack(track);
+        transceiver.direction = 'sendrecv';
+        renegotiationTasks.push(this.renegotiateParticipant(participantId));
+      }
+
+      await Promise.allSettled(renegotiationTasks);
+      this.settingsNotice.set(null);
+    } catch (error) {
+      this.clearLocalCamera();
+      this.settingsNotice.set(error instanceof Error ? error.message : 'Не удалось включить камеру');
+    }
+  }
+
+  async stopCamera(): Promise<void> {
+    const hadCamera = !!this.localVideoTrack || !!this.localVideoStream();
+    await this.detachCameraFromPeers();
+    this.clearLocalCamera();
+
+    if (!hadCamera) {
+      return;
+    }
+
+    const renegotiationTasks = Array.from(this.peerConnections.keys()).map((participantId) =>
+      this.renegotiateParticipant(participantId)
+    );
+    await Promise.allSettled(renegotiationTasks);
+  }
+
+  toggleCamera(): void {
+    if (this.cameraEnabled()) {
+      void this.stopCamera();
+      return;
+    }
+
+    void this.startCamera();
+  }
+
+  remoteVideoStreamForParticipant(participantId: string): MediaStream | null {
+    return this.remoteVideoStreams()[participantId] ?? null;
   }
 
   async refreshDevices(): Promise<void> {
@@ -720,8 +827,14 @@ export class VoiceRoomService {
     }
 
     const connection = this.ensurePeerConnection(participantId);
+    const videoTransceiver = this.videoTransceivers.get(participantId);
+    if (this.localVideoTrack && videoTransceiver) {
+      await videoTransceiver.sender.replaceTrack(this.localVideoTrack);
+      videoTransceiver.direction = 'sendrecv';
+    }
     const offer = await connection.createOffer({
-      offerToReceiveAudio: true
+      offerToReceiveAudio: true,
+      offerToReceiveVideo: true
     });
     await connection.setLocalDescription(offer);
 
@@ -734,6 +847,18 @@ export class VoiceRoomService {
 
   private async handleIncomingOffer(participantId: string, offer: RTCSessionDescriptionInit): Promise<void> {
     const connection = this.ensurePeerConnection(participantId);
+    const videoTransceiver = this.videoTransceivers.get(participantId);
+    if (this.localVideoTrack && videoTransceiver) {
+      await videoTransceiver.sender.replaceTrack(this.localVideoTrack);
+      videoTransceiver.direction = 'sendrecv';
+    }
+    if (connection.signalingState !== 'stable') {
+      try {
+        await connection.setLocalDescription({ type: 'rollback' });
+      } catch {
+        // Ignore rollback failures and continue with the remote offer.
+      }
+    }
     await connection.setRemoteDescription(new RTCSessionDescription(offer));
     await this.flushPendingIceCandidates(participantId);
 
@@ -796,6 +921,12 @@ export class VoiceRoomService {
       }
     }
 
+    const videoTransceiver = this.ensureVideoTransceiver(connection, participantId);
+    if (this.localVideoTrack) {
+      void videoTransceiver.sender.replaceTrack(this.localVideoTrack);
+      videoTransceiver.direction = 'sendrecv';
+    }
+
     connection.onicecandidate = (event) => {
       if (!event.candidate) {
         return;
@@ -809,17 +940,167 @@ export class VoiceRoomService {
     };
 
     connection.ontrack = (event) => {
+      if (event.track.kind === 'video') {
+        this.attachRemoteVideo(participantId, event.track);
+        return;
+      }
+
       const [stream] = event.streams;
       if (!stream) {
         return;
       }
-
       void this.attachRemoteAudio(participantId, stream);
       void this.startRemoteVoiceActivityMonitor(participantId, stream).catch(() => undefined);
     };
 
+    connection.onsignalingstatechange = () => {
+      if (connection.signalingState !== 'stable') {
+        return;
+      }
+
+      const state = this.peerNegotiationStates.get(participantId);
+      if (state?.queued) {
+        state.queued = false;
+        void this.renegotiateParticipant(participantId);
+      }
+    };
+
     this.peerConnections.set(participantId, connection);
     return connection;
+  }
+
+  private ensureVideoTransceiver(connection: RTCPeerConnection, participantId: string): RTCRtpTransceiver {
+    const existingTransceiver = this.videoTransceivers.get(participantId);
+    if (existingTransceiver) {
+      return existingTransceiver;
+    }
+
+    const transceiver = connection.addTransceiver('video', {
+      direction: this.localVideoTrack ? 'sendrecv' : 'recvonly'
+    });
+    this.videoTransceivers.set(participantId, transceiver);
+    return transceiver;
+  }
+
+  private attachRemoteVideo(participantId: string, track: MediaStreamTrack): void {
+    const stream = new MediaStream([track]);
+    this.remoteVideoTracks.set(participantId, track);
+    this.showRemoteVideo(participantId, stream);
+
+    track.onended = () => {
+      if (this.remoteVideoTracks.get(participantId)?.id === track.id) {
+        this.clearRemoteVideo(participantId);
+      }
+    };
+
+    track.onmute = () => {
+      if (this.remoteVideoTracks.get(participantId)?.id === track.id) {
+        this.hideRemoteVideo(participantId);
+      }
+    };
+
+    track.onunmute = () => {
+      if (this.remoteVideoTracks.get(participantId)?.id === track.id && track.readyState === 'live') {
+        this.showRemoteVideo(participantId, new MediaStream([track]));
+      }
+    };
+  }
+
+  private showRemoteVideo(participantId: string, stream: MediaStream): void {
+    this.remoteVideoStreams.update((streams) => ({
+      ...streams,
+      [participantId]: stream
+    }));
+  }
+
+  private hideRemoteVideo(participantId: string): void {
+    this.remoteVideoStreams.update((streams) => {
+      if (!(participantId in streams)) {
+        return streams;
+      }
+
+      const nextStreams = { ...streams };
+      delete nextStreams[participantId];
+      return nextStreams;
+    });
+  }
+
+  private clearRemoteVideo(participantId: string): void {
+    const track = this.remoteVideoTracks.get(participantId);
+    if (track) {
+      track.onended = null;
+      track.onmute = null;
+      track.onunmute = null;
+      this.remoteVideoTracks.delete(participantId);
+    }
+
+    this.hideRemoteVideo(participantId);
+  }
+
+  private async detachCameraFromPeers(): Promise<void> {
+    const detachTasks: Promise<void>[] = [];
+    for (const transceiver of this.videoTransceivers.values()) {
+      detachTasks.push(
+        transceiver.sender.replaceTrack(null).catch(() => undefined).then(() => {
+          transceiver.direction = 'recvonly';
+        })
+      );
+    }
+
+    await Promise.allSettled(detachTasks);
+  }
+
+  private clearLocalCamera(): void {
+    if (this.localVideoTrack) {
+      this.localVideoTrack.onended = null;
+      this.localVideoTrack = null;
+    }
+
+    if (this.localVideoStreamInternal) {
+      for (const track of this.localVideoStreamInternal.getTracks()) {
+        track.stop();
+      }
+      this.localVideoStreamInternal = null;
+    }
+
+    this.localVideoStream.set(null);
+  }
+
+  private async renegotiateParticipant(participantId: string): Promise<void> {
+    const connection = this.peerConnections.get(participantId);
+    if (!connection || connection.connectionState === 'closed') {
+      return;
+    }
+
+    let state = this.peerNegotiationStates.get(participantId);
+    if (!state) {
+      state = {
+        inFlight: false,
+        queued: false
+      };
+      this.peerNegotiationStates.set(participantId, state);
+    }
+
+    if (state.inFlight || connection.signalingState !== 'stable') {
+      state.queued = true;
+      return;
+    }
+
+    state.inFlight = true;
+    try {
+      const offer = await connection.createOffer({
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: true
+      });
+      await connection.setLocalDescription(offer);
+      this.sendSignal({
+        type: 'offer',
+        target_id: participantId,
+        payload: connection.localDescription
+      });
+    } finally {
+      state.inFlight = false;
+    }
   }
 
   private sendSignal(payload: Record<string, unknown>): void {
@@ -1096,12 +1377,16 @@ export class VoiceRoomService {
 
   private destroyPeer(participantId: string): void {
     this.stopRemoteVoiceActivityMonitor(participantId);
+    this.clearRemoteVideo(participantId);
 
     const connection = this.peerConnections.get(participantId);
     if (connection) {
       connection.close();
       this.peerConnections.delete(participantId);
     }
+
+    this.videoTransceivers.delete(participantId);
+    this.peerNegotiationStates.delete(participantId);
 
     const remoteAudioOutput = this.remoteAudioOutputs.get(participantId);
     if (remoteAudioOutput) {
@@ -1141,6 +1426,7 @@ export class VoiceRoomService {
   }
 
   private stopLocalStream(): void {
+    this.clearLocalCamera();
     for (const track of this.rawLocalStream?.getTracks() ?? []) {
       track.stop();
     }
@@ -1181,7 +1467,11 @@ export class VoiceRoomService {
     this.stopLocalStream();
     this.clearAudioElements();
     this.pendingIceCandidates.clear();
+    this.videoTransceivers.clear();
+    this.peerNegotiationStates.clear();
     this.participantUserIds.clear();
+    this.remoteVideoTracks.clear();
+    this.remoteVideoStreams.set({});
     this.pendingPlaybackUnlock.clear();
     this.detachUserGestureUnlock();
     this.selfId = null;

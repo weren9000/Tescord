@@ -108,7 +108,7 @@ async def connect_to_direct_calls(websocket: WebSocket) -> None:
                     await websocket.send_json({"type": "error", "detail": "Запрос на звонок уже неактуален"})
                 continue
 
-            if message_type in {"offer", "answer", "ice_candidate", "screen_share_state"}:
+            if message_type in {"offer", "answer", "ice_candidate", "screen_share_state", "camera_state"}:
                 call_id = message.get("call_id")
                 target_user_id = message.get("target_user_id")
                 if not isinstance(call_id, str) or not call_id:
