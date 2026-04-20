@@ -2940,7 +2940,7 @@ select {
 .composer__attach,
 .composer__submit {
   position: absolute;
-  bottom: 4px;
+  top: 50%;
   width: 32px;
   height: 32px;
   min-height: 32px;
@@ -2951,6 +2951,7 @@ select {
   border: 0;
   border-radius: 2px;
   box-shadow: none;
+  transform: translateY(-50%);
   transition: background 160ms ease, color 160ms ease, border-color 160ms ease;
   z-index: 2;
 }
@@ -3002,17 +3003,18 @@ select {
 }
 
 .composer__attach-icon {
-  display: block;
+  display: inline-grid;
+  place-items: center;
   line-height: 1;
   font-size: 1.18rem;
   font-weight: 400;
-  transform: translateY(-1px);
 }
 
 .composer__submit img {
   width: 16px;
   height: 16px;
   display: block;
+  margin: 0 auto;
   object-fit: contain;
   pointer-events: none;
   filter: brightness(0) saturate(100%) invert(92%) sepia(10%) saturate(637%) hue-rotate(329deg) brightness(102%)
@@ -5028,7 +5030,6 @@ select {
     height: 36px;
     min-height: 36px;
     width: 30px;
-    bottom: 3px;
   }
 
   .composer__field {
@@ -5542,7 +5543,7 @@ select {
 
 .workspace-content--platform {
   display: grid;
-  grid-template-columns: 248px minmax(0, 1fr);
+  grid-template-columns: fit-content(272px) minmax(0, 1fr);
   gap: 0;
 }
 
@@ -5557,6 +5558,9 @@ select {
 .platform-channel-rail {
   min-width: 0;
   min-height: 0;
+  height: fit-content;
+  max-height: 100%;
+  align-self: start;
   padding: 12px 10px 12px 12px;
   border-right: 1px solid rgba(255, 255, 255, 0.06);
   overflow: auto;
@@ -5570,6 +5574,10 @@ select {
   gap: 8px;
 }
 
+.platform-channel-section--collapsed {
+  gap: 0;
+}
+
 .platform-channel-section__head {
   display: flex;
   align-items: center;
@@ -5577,12 +5585,45 @@ select {
   gap: 8px;
 }
 
+.platform-channel-section__toggle {
+  min-width: 0;
+  flex: 1 1 auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.platform-channel-section__caret {
+  flex: 0 0 auto;
+  width: 10px;
+  color: rgba(222, 236, 245, 0.48);
+  font-size: 10px;
+  line-height: 1;
+}
+
 .platform-channel-section__head strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 11px;
   font-weight: 700;
   color: rgba(231, 240, 246, 0.76);
   letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+
+.platform-channel-section__toggle small {
+  flex: 0 0 auto;
+  color: rgba(222, 236, 245, 0.42);
+  font-size: 10px;
+  line-height: 1;
 }
 
 .platform-channel-section__add {

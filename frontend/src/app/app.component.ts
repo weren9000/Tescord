@@ -771,6 +771,8 @@ export class AppComponent {
   readonly groupMembersModalOpen = signal(false);
   readonly groupVoiceParticipantsExpanded = signal(false);
   readonly platformExpandedVoiceChannelId = signal<string | null>(null);
+  readonly platformTextChannelsCollapsed = signal(false);
+  readonly platformVoiceChannelsCollapsed = signal(false);
   readonly sideMenuOpen = signal(false);
   readonly quickCreateMenuOpen = signal(false);
   readonly conversationActionMenuOpen = signal(false);
@@ -4189,11 +4191,29 @@ export class AppComponent {
     return this.platformExpandedVoiceChannelId() === channelId;
   }
 
+  isPlatformChannelSectionCollapsed(section: 'text' | 'voice'): boolean {
+    return section === 'text' ? this.platformTextChannelsCollapsed() : this.platformVoiceChannelsCollapsed();
+  }
+
+  togglePlatformChannelSection(section: 'text' | 'voice'): void {
+    if (section === 'text') {
+      this.platformTextChannelsCollapsed.update((collapsed) => !collapsed);
+      return;
+    }
+
+    const nextCollapsed = !this.platformVoiceChannelsCollapsed();
+    this.platformVoiceChannelsCollapsed.set(nextCollapsed);
+    if (nextCollapsed) {
+      this.platformExpandedVoiceChannelId.set(null);
+    }
+  }
+
   togglePlatformVoiceChannelExpanded(channel: WorkspaceChannel): void {
     if (channel.type !== 'voice') {
       return;
     }
 
+    this.platformVoiceChannelsCollapsed.set(false);
     this.platformExpandedVoiceChannelId.update((expandedChannelId) =>
       expandedChannelId === channel.id ? null : channel.id
     );
@@ -5586,6 +5606,15 @@ export class AppComponent {
     this.selectedChannelId.set(channel.id);
     this.workspaceError.set(null);
     this.messageError.set(null);
+
+    if (this.isPlatformsMode()) {
+      if (channel.type === 'text') {
+        this.platformTextChannelsCollapsed.set(false);
+      }
+      if (channel.type === 'voice') {
+        this.platformVoiceChannelsCollapsed.set(false);
+      }
+    }
 
     if (channel.type === 'voice') {
       this.voiceWorkspaceTab.set(this.defaultVoiceWorkspaceTab());
@@ -7367,6 +7396,8 @@ export class AppComponent {
     this.appEvents.setActiveServer(serverId);
     this.selectedChannelId.set(null);
     this.platformExpandedVoiceChannelId.set(null);
+    this.platformTextChannelsCollapsed.set(false);
+    this.platformVoiceChannelsCollapsed.set(false);
     this.closeConversationActionMenu();
     this.closeGroupOwnershipModal();
     this.closePlatformSettingsModal();

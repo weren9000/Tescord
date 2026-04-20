@@ -754,16 +754,27 @@
           <div class="workspace-content" [class.workspace-content--platform]="isPlatformsMode()">
             @if (isPlatformsMode()) {
               <aside class="platform-channel-rail">
-                <div class="platform-channel-section">
+                <div class="platform-channel-section" [class.platform-channel-section--collapsed]="isPlatformChannelSectionCollapsed('text')">
                   <div class="platform-channel-section__head">
-                    <strong>Текстовые каналы</strong>
+                    <button
+                      class="platform-channel-section__toggle"
+                      type="button"
+                      [attr.aria-expanded]="!isPlatformChannelSectionCollapsed('text')"
+                      aria-label="Переключить текстовые каналы"
+                      (click)="togglePlatformChannelSection('text')"
+                    >
+                      <span class="platform-channel-section__caret" aria-hidden="true">{{ isPlatformChannelSectionCollapsed('text') ? '▸' : '▾' }}</span>
+                      <strong>Текстовые каналы</strong>
+                      <small>{{ textChannels().length }}</small>
+                    </button>
                     @if (canManageActiveGroup()) {
                       <button class="secondary-button platform-channel-section__add" type="button" (click)="openCreateChannelModal('text')">
                         + Текстовый
                       </button>
                     }
                   </div>
-                  <div class="platform-channel-list">
+                  @if (!isPlatformChannelSectionCollapsed('text')) {
+                    <div class="platform-channel-list">
                     @for (channel of textChannels(); track channel.id) {
                       <div
                         class="platform-channel-entry platform-channel-entry--managed"
@@ -791,19 +802,31 @@
                     } @empty {
                       <div class="rail-empty">Текстовых каналов пока нет</div>
                     }
-                  </div>
+                    </div>
+                  }
                 </div>
 
-                <div class="platform-channel-section">
+                <div class="platform-channel-section" [class.platform-channel-section--collapsed]="isPlatformChannelSectionCollapsed('voice')">
                   <div class="platform-channel-section__head">
-                    <strong>Голосовые каналы</strong>
+                    <button
+                      class="platform-channel-section__toggle"
+                      type="button"
+                      [attr.aria-expanded]="!isPlatformChannelSectionCollapsed('voice')"
+                      aria-label="Переключить голосовые каналы"
+                      (click)="togglePlatformChannelSection('voice')"
+                    >
+                      <span class="platform-channel-section__caret" aria-hidden="true">{{ isPlatformChannelSectionCollapsed('voice') ? '▸' : '▾' }}</span>
+                      <strong>Голосовые каналы</strong>
+                      <small>{{ voiceChannels().length }}</small>
+                    </button>
                     @if (canManageActiveGroup()) {
                       <button class="secondary-button platform-channel-section__add" type="button" (click)="openCreateChannelModal('voice')">
                         + Голосовой
                       </button>
                     }
                   </div>
-                  <div class="platform-channel-list">
+                  @if (!isPlatformChannelSectionCollapsed('voice')) {
+                    <div class="platform-channel-list">
                     @for (channel of voiceChannels(); track channel.id) {
                       <div
                         class="platform-channel-entry platform-channel-entry--voice platform-channel-entry--managed"
@@ -943,7 +966,8 @@
                     } @empty {
                       <div class="rail-empty">Голосовых каналов пока нет</div>
                     }
-                  </div>
+                    </div>
+                  }
                 </div>
               </aside>
             }
