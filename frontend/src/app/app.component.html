@@ -120,29 +120,6 @@
       (change)="onProfileAvatarSelection($event)"
     />
 
-    <header class="app-header">
-      <div class="app-header__start">
-        <button class="icon-button app-header__menu" type="button" aria-label="Открыть меню" title="Открыть меню" (click)="toggleSideMenu()">
-          <img class="app-header__menu-art" src="/assets/burger_menu.png" alt="" />
-        </button>
-      </div>
-
-      <div class="app-header__actions">
-        <button
-          class="secondary-button conversation-head__action conversation-head__action--icon app-header__notifications"
-          type="button"
-          aria-label="Уведомления"
-          title="Уведомления"
-          (click)="openFriendRequestsModal()"
-        >
-          <img
-            [src]="friendRequestBadgeVisible() ? '/assets/Bell_pin_fill.svg' : '/assets/Bell_fill.svg'"
-            alt=""
-          />
-        </button>
-      </div>
-    </header>
-
     @if (sideMenuOpen()) {
       <button class="drawer-backdrop" type="button" aria-label="Закрыть меню" (click)="closeSideMenu()"></button>
       <aside class="side-drawer">
@@ -224,46 +201,73 @@
     <div class="messenger-layout">
       <aside class="conversation-sidebar" [class.conversation-sidebar--mobile-open]="mobilePanel() === 'servers'">
         <div class="conversation-sidebar__tabs">
-          <button class="secondary-button conversation-sidebar__quick-add" type="button" aria-label="Создать или добавить" title="Создать или добавить" (click)="toggleQuickCreateMenu()">
-            +
-          </button>
-          @if (quickCreateMenuOpen()) {
-            <button class="floating-menu-backdrop" type="button" aria-label="Закрыть меню создания" (click)="closeQuickCreateMenu()"></button>
-            <div class="quick-create-menu">
-              <button class="quick-create-menu__item" type="button" (click)="openAddUserShortcut()">
-                Добавить друга по ID
-              </button>
-              <button class="quick-create-menu__item" type="button" (click)="openCreateGroupShortcut()">
-                Создать группу
-              </button>
-              <button class="quick-create-menu__item" type="button" (click)="openCreatePlatformShortcut()">
-                Создать площадку
-              </button>
-            </div>
-          }
+          <div class="conversation-sidebar__tabs-actions">
+            <button
+              class="icon-button conversation-sidebar__menu"
+              type="button"
+              aria-label="Открыть меню"
+              title="Открыть меню"
+              (click)="toggleSideMenu()"
+            >
+              <img class="conversation-sidebar__menu-art" src="/assets/burger_menu.png" alt="" />
+            </button>
+            <button class="secondary-button conversation-sidebar__quick-add" type="button" aria-label="Создать или добавить" title="Создать или добавить" (click)="toggleQuickCreateMenu()">
+              +
+            </button>
+            @if (quickCreateMenuOpen()) {
+              <button class="floating-menu-backdrop" type="button" aria-label="Закрыть меню создания" (click)="closeQuickCreateMenu()"></button>
+              <div class="quick-create-menu">
+                <button class="quick-create-menu__item" type="button" (click)="openAddUserShortcut()">
+                  Добавить друга по ID
+                </button>
+                <button class="quick-create-menu__item" type="button" (click)="openCreateGroupShortcut()">
+                  Создать группу
+                </button>
+                <button class="quick-create-menu__item" type="button" (click)="openCreatePlatformShortcut()">
+                  Создать площадку
+                </button>
+              </div>
+            }
+          </div>
+
+          <div class="conversation-sidebar__mode-tabs">
+            <button
+              class="conversation-sidebar__tab"
+              [class.conversation-sidebar__tab--active]="isChatsMode()"
+              type="button"
+              (click)="selectWorkspaceMode('chats')"
+            >
+              Друзья
+            </button>
+            <button
+              class="conversation-sidebar__tab"
+              [class.conversation-sidebar__tab--active]="isGroupsMode()"
+              type="button"
+              (click)="selectWorkspaceMode('groups')"
+            >
+              Группы
+            </button>
+            <button
+              class="conversation-sidebar__tab"
+              [class.conversation-sidebar__tab--active]="isPlatformsMode()"
+              type="button"
+              (click)="selectWorkspaceMode('platforms')"
+            >
+              Площадка
+            </button>
+          </div>
+
           <button
-            class="conversation-sidebar__tab"
-            [class.conversation-sidebar__tab--active]="isChatsMode()"
+            class="secondary-button conversation-sidebar__icon-button conversation-sidebar__notifications"
             type="button"
-            (click)="selectWorkspaceMode('chats')"
+            aria-label="Уведомления"
+            title="Уведомления"
+            (click)="openFriendRequestsModal()"
           >
-            Друзья
-          </button>
-          <button
-            class="conversation-sidebar__tab"
-            [class.conversation-sidebar__tab--active]="isGroupsMode()"
-            type="button"
-            (click)="selectWorkspaceMode('groups')"
-          >
-            Группы
-          </button>
-          <button
-            class="conversation-sidebar__tab"
-            [class.conversation-sidebar__tab--active]="isPlatformsMode()"
-            type="button"
-            (click)="selectWorkspaceMode('platforms')"
-          >
-            Площадка
+            <img
+              [src]="friendRequestBadgeVisible() ? '/assets/Bell_pin_fill.svg' : '/assets/Bell_fill.svg'"
+              alt=""
+            />
           </button>
         </div>
 

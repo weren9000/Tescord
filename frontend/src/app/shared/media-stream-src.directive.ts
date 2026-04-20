@@ -1,5 +1,7 @@
 import { Directive, ElementRef, Input, OnChanges, OnDestroy, inject } from '@angular/core';
 
+import { prepareInlineMediaElement } from './media-device.utils';
+
 @Directive({
   selector: 'video[appMediaStreamSrc], audio[appMediaStreamSrc]',
   standalone: true,
@@ -12,6 +14,7 @@ export class MediaStreamSrcDirective implements OnChanges, OnDestroy {
 
   ngOnChanges(): void {
     const element = this.elementRef.nativeElement;
+    prepareInlineMediaElement(element);
     if (element.srcObject !== this.stream) {
       element.srcObject = this.stream;
     }

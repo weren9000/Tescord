@@ -1,6 +1,7 @@
 import { Injectable, computed, signal } from '@angular/core';
 
 import { VOICE_ICE_SERVERS, WS_BASE_URL } from '../api/api-base';
+import { isIphoneLikeBrowser, prepareInlineMediaElement, requestCameraStream } from '../../shared/media-device.utils';
 
 export interface DirectCallPeer {
   user_id: string;
@@ -73,6 +74,8 @@ type IncomingDirectCallMessage =
 const DIRECT_CALL_PING_INTERVAL_MS = 25000;
 const DIRECT_CALL_RECONNECT_BASE_MS = 1000;
 const DIRECT_CALL_RECONNECT_MAX_MS = 10000;
+const DIRECT_CALL_AUDIO_UNLOCK_NOTICE =
+  'На телефоне коснитесь экрана еще раз, если браузер не включил звук звонка автоматически.';
 
 @Injectable({
   providedIn: 'root'
@@ -100,6 +103,10 @@ export class DirectCallService {
   private activeCallId: string | null = null;
   private negotiationInFlight = false;
   private negotiationQueued = false;
+  private pendingRemoteAudioPlayback = false;
+  private userGestureUnlockHandler: (() => void) | null = null;
+  private remoteCameraExpected = false;
+  private remoteScreenExpected = false;
 
   readonly connected = signal(false);
   readonly state = signal<DirectCallState>('idle');
@@ -113,7 +120,7 @@ export class DirectCallService {
   readonly canCall = computed(() => this.connected() && this.state() === 'idle');
   readonly cameraSupported = computed(() => typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia);
   readonly screenShareSupported = computed(
-    () => typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getDisplayMedia
+    () => typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getDisplayMedia && !isIphoneLikeBrowser()
   );
   readonly isCameraEnabled = computed(() => this.localCameraStream() !== null);
   readonly hasRemoteCamera = computed(() => this.remoteCameraStream() !== null);
@@ -255,14 +262,11 @@ export class DirectCallService {
     }
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          width: { ideal: 1280, max: 1920 },
-          height: { ideal: 720, max: 1080 },
-          frameRate: { ideal: 24, max: 30 },
-          facingMode: 'user'
-        },
-        audio: false
+      const stream = await requestCameraStream({
+        width: { ideal: 1280, max: 1920 },
+        height: { ideal: 720, max: 1080 },
+        frameRate: { ideal: 24, max: 30 },
+        facingMode: 'user'
       });
       const [track] = stream.getVideoTracks();
       if (!track) {
@@ -279,12 +283,9 @@ export class DirectCallService {
       this.cameraTrack = track;
       this.localCameraStream.set(stream);
 
-      if (!this.cameraTransceiver) {
-        throw new Error('Канал камеры еще не готов');
-      }
-
-      await this.cameraTransceiver.sender.replaceTrack(track);
-      this.cameraTransceiver.direction = 'sendrecv';
+      const cameraTransceiver = this.ensureCameraTransceiver();
+      await cameraTransceiver.sender.replaceTrack(track);
+      cameraTransceiver.direction = 'sendrecv';
       this.sendCameraState(true);
       this.error.set(null);
       this.notice.set('Вы включили камеру');
@@ -327,6 +328,10 @@ export class DirectCallService {
     }
 
     try {
+      if (isIphoneLikeBrowser()) {
+        throw new Error('На iPhone браузер не дает полноценно запустить показ экрана из звонка.');
+      }
+
       const stream = await navigator.mediaDevices.getDisplayMedia({
         video: {
           frameRate: {
@@ -351,12 +356,9 @@ export class DirectCallService {
       this.screenShareTrack = track;
       this.localScreenStream.set(stream);
 
-      if (!this.screenTransceiver) {
-        throw new Error('Канал показа экрана еще не готов');
-      }
-
-      await this.screenTransceiver.sender.replaceTrack(track);
-      this.screenTransceiver.direction = 'sendrecv';
+      const screenTransceiver = this.ensureScreenTransceiver();
+      await screenTransceiver.sender.replaceTrack(track);
+      screenTransceiver.direction = 'sendrecv';
       this.sendScreenShareState(true);
       this.error.set(null);
       this.notice.set('Вы показываете экран');
@@ -477,13 +479,12 @@ export class DirectCallService {
       this.notice.set('Соединяем личный звонок');
 
       try {
+        this.remoteCameraExpected = false;
+        this.remoteScreenExpected = false;
         await this.ensureLocalStream();
         const connection = await this.ensurePeerConnection(message.peer.user_id);
         if (message.should_create_offer) {
-          const offer = await connection.createOffer({
-            offerToReceiveAudio: true,
-            offerToReceiveVideo: true
-          });
+          const offer = await connection.createOffer();
           await connection.setLocalDescription(offer);
           this.send({
             type: 'offer',
@@ -564,6 +565,7 @@ export class DirectCallService {
     if (message.type === 'camera_state') {
       const payload = message.payload as { enabled?: unknown } | null;
       const enabled = Boolean(payload?.enabled);
+      this.remoteCameraExpected = enabled;
 
       if (!enabled) {
         this.clearRemoteCamera();
@@ -579,6 +581,7 @@ export class DirectCallService {
     if (message.type === 'screen_share_state') {
       const payload = message.payload as { sharing?: unknown } | null;
       const sharing = Boolean(payload?.sharing);
+      this.remoteScreenExpected = sharing;
 
       if (!sharing) {
         this.clearRemoteScreenShare();
@@ -625,19 +628,16 @@ export class DirectCallService {
       }
     }
 
-    this.cameraTransceiver = connection.addTransceiver('video', {
-      direction: this.cameraTrack ? 'sendrecv' : 'recvonly'
-    });
-    this.screenTransceiver = connection.addTransceiver('video', {
-      direction: this.screenShareTrack ? 'sendrecv' : 'recvonly'
-    });
-
     if (this.cameraTrack) {
-      await this.cameraTransceiver.sender.replaceTrack(this.cameraTrack);
+      const cameraTransceiver = this.ensureCameraTransceiver();
+      await cameraTransceiver.sender.replaceTrack(this.cameraTrack);
+      cameraTransceiver.direction = 'sendrecv';
     }
 
     if (this.screenShareTrack) {
-      await this.screenTransceiver.sender.replaceTrack(this.screenShareTrack);
+      const screenTransceiver = this.ensureScreenTransceiver();
+      await screenTransceiver.sender.replaceTrack(this.screenShareTrack);
+      screenTransceiver.direction = 'sendrecv';
     }
 
     connection.addEventListener('icecandidate', (event) => {
@@ -655,18 +655,12 @@ export class DirectCallService {
 
     connection.addEventListener('track', (event) => {
       if (event.track.kind === 'video') {
-        if (event.transceiver === this.screenTransceiver || event.transceiver.mid === this.screenTransceiver?.mid) {
-          this.attachRemoteScreenTrack(event.track);
-        } else {
-          this.attachRemoteCameraTrack(event.track);
-        }
+        this.routeIncomingVideoTrack(event.track, event.transceiver);
         return;
       }
 
-      const [stream] = event.streams;
-      if (stream) {
-        this.attachRemoteStream(stream);
-      }
+      const stream = event.streams[0] ?? new MediaStream([event.track]);
+      this.attachRemoteStream(stream);
     });
 
     connection.addEventListener('connectionstatechange', () => {
@@ -677,9 +671,16 @@ export class DirectCallService {
         return;
       }
 
-      if (state === 'failed' || state === 'disconnected' || state === 'closed') {
+      if (state === 'disconnected') {
         if (this.hasActiveCall()) {
-          this.notice.set('Соединение личного звонка прервано');
+          this.notice.set('���������� �������, �������� ������������ ������');
+        }
+        return;
+      }
+
+      if (state === 'failed' || state === 'closed') {
+        if (this.hasActiveCall()) {
+          this.notice.set('���������� ������� ������ ��������');
           void this.hangUp();
         }
       }
@@ -695,15 +696,75 @@ export class DirectCallService {
     return connection;
   }
 
+  private ensureCameraTransceiver(): RTCRtpTransceiver {
+    if (this.cameraTransceiver) {
+      return this.cameraTransceiver;
+    }
+
+    if (!this.peerConnection) {
+      throw new Error('Соединение звонка еще не готово');
+    }
+
+    this.cameraTransceiver = this.peerConnection.addTransceiver('video', {
+      direction: this.cameraTrack ? 'sendrecv' : 'recvonly'
+    });
+    return this.cameraTransceiver;
+  }
+
+  private ensureScreenTransceiver(): RTCRtpTransceiver {
+    if (this.screenTransceiver) {
+      return this.screenTransceiver;
+    }
+
+    if (!this.peerConnection) {
+      throw new Error('Соединение звонка еще не готово');
+    }
+
+    this.screenTransceiver = this.peerConnection.addTransceiver('video', {
+      direction: this.screenShareTrack ? 'sendrecv' : 'recvonly'
+    });
+    return this.screenTransceiver;
+  }
+
+  private routeIncomingVideoTrack(track: MediaStreamTrack, transceiver: RTCRtpTransceiver): void {
+    if (transceiver === this.screenTransceiver || transceiver.mid === this.screenTransceiver?.mid) {
+      this.attachRemoteScreenTrack(track);
+      return;
+    }
+
+    if (transceiver === this.cameraTransceiver || transceiver.mid === this.cameraTransceiver?.mid) {
+      this.attachRemoteCameraTrack(track);
+      return;
+    }
+
+    if (this.remoteScreenExpected && !this.remoteScreenTrack) {
+      this.attachRemoteScreenTrack(track);
+      return;
+    }
+
+    if (this.remoteCameraExpected && !this.remoteCameraTrack) {
+      this.attachRemoteCameraTrack(track);
+      return;
+    }
+
+    if (this.remoteScreenTrack && !this.remoteCameraTrack) {
+      this.attachRemoteCameraTrack(track);
+      return;
+    }
+
+    this.attachRemoteCameraTrack(track);
+  }
+
   private attachRemoteStream(stream: MediaStream): void {
     if (this.remoteAudioElement === null) {
       this.remoteAudioElement = document.createElement('audio');
-      this.remoteAudioElement.autoplay = true;
-      this.remoteAudioElement.setAttribute('playsinline', 'true');
+      prepareInlineMediaElement(this.remoteAudioElement);
+      this.remoteAudioElement.style.display = 'none';
+      document.body.appendChild(this.remoteAudioElement);
     }
 
     this.remoteAudioElement.srcObject = stream;
-    void this.remoteAudioElement.play().catch(() => undefined);
+    void this.playRemoteAudio();
   }
 
   private attachRemoteCameraTrack(track: MediaStreamTrack): void {
@@ -739,6 +800,8 @@ export class DirectCallService {
     this.clearRemoteCamera();
     this.clearLocalScreenShare();
     this.clearRemoteScreenShare();
+    this.remoteCameraExpected = false;
+    this.remoteScreenExpected = false;
     this.stopLocalStream();
     this.teardownPeerConnection();
     this.teardownRemoteAudio();
@@ -776,12 +839,17 @@ export class DirectCallService {
 
   private teardownRemoteAudio(): void {
     if (!this.remoteAudioElement) {
+      this.pendingRemoteAudioPlayback = false;
+      this.detachUserGestureUnlock();
       return;
     }
 
     this.remoteAudioElement.pause();
     this.remoteAudioElement.srcObject = null;
+    this.remoteAudioElement.remove();
     this.remoteAudioElement = null;
+    this.pendingRemoteAudioPlayback = false;
+    this.detachUserGestureUnlock();
   }
 
   private send(payload: object): void {
@@ -863,10 +931,7 @@ export class DirectCallService {
     this.negotiationInFlight = true;
 
     try {
-      const offer = await this.peerConnection.createOffer({
-        offerToReceiveAudio: true,
-        offerToReceiveVideo: true
-      });
+      const offer = await this.peerConnection.createOffer();
       await this.peerConnection.setLocalDescription(offer);
       if (!this.peerConnection.localDescription) {
         return;
@@ -963,6 +1028,70 @@ export class DirectCallService {
     this.remoteScreenStream.set(null);
   }
 
+  private async playRemoteAudio(): Promise<void> {
+    if (!this.remoteAudioElement) {
+      return;
+    }
+
+    try {
+      await this.remoteAudioElement.play();
+      this.pendingRemoteAudioPlayback = false;
+      if (this.notice() === DIRECT_CALL_AUDIO_UNLOCK_NOTICE) {
+        this.notice.set(null);
+      }
+      this.detachUserGestureUnlock();
+    } catch {
+      this.pendingRemoteAudioPlayback = true;
+      this.attachUserGestureUnlock();
+      if (this.state() === 'connected') {
+        this.notice.set(DIRECT_CALL_AUDIO_UNLOCK_NOTICE);
+      }
+    }
+  }
+
+  private attachUserGestureUnlock(): void {
+    if (typeof window === 'undefined' || this.userGestureUnlockHandler) {
+      return;
+    }
+
+    this.userGestureUnlockHandler = () => {
+      void this.retryPendingRemoteAudioPlayback();
+    };
+
+    window.addEventListener('touchstart', this.userGestureUnlockHandler, { passive: true });
+    window.addEventListener('pointerdown', this.userGestureUnlockHandler, { passive: true });
+    window.addEventListener('click', this.userGestureUnlockHandler);
+  }
+
+  private detachUserGestureUnlock(): void {
+    if (typeof window === 'undefined' || !this.userGestureUnlockHandler) {
+      return;
+    }
+
+    window.removeEventListener('touchstart', this.userGestureUnlockHandler);
+    window.removeEventListener('pointerdown', this.userGestureUnlockHandler);
+    window.removeEventListener('click', this.userGestureUnlockHandler);
+    this.userGestureUnlockHandler = null;
+  }
+
+  private async retryPendingRemoteAudioPlayback(): Promise<void> {
+    if (!this.pendingRemoteAudioPlayback || !this.remoteAudioElement) {
+      this.detachUserGestureUnlock();
+      return;
+    }
+
+    try {
+      await this.remoteAudioElement.play();
+      this.pendingRemoteAudioPlayback = false;
+      if (this.notice() === DIRECT_CALL_AUDIO_UNLOCK_NOTICE) {
+        this.notice.set(null);
+      }
+      this.detachUserGestureUnlock();
+    } catch {
+      // Wait for the next explicit gesture if playback is still blocked.
+    }
+  }
+
   private sendScreenShareState(sharing: boolean): void {
     const peer = this.peer();
     if (!peer || !this.activeCallId) {
@@ -995,3 +1124,6 @@ export class DirectCallService {
     });
   }
 }
+
+
+

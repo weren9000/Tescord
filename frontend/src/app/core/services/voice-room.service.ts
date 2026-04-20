@@ -2,6 +2,7 @@ import { Injectable, computed, signal } from '@angular/core';
 
 import { VOICE_ICE_SERVERS, WS_BASE_URL } from '../api/api-base';
 import { CurrentUserResponse } from '../models/workspace.models';
+import { prepareInlineMediaElement, requestCameraStream } from '../../shared/media-device.utils';
 
 export interface VoiceParticipant {
   id: string;
@@ -270,6 +271,7 @@ export class VoiceRoomService {
     ]);
 
     try {
+      void this.ensureAudioContext().catch(() => null);
       this.rawLocalStream = await this.openLocalStream();
       this.localStream = await this.createProcessedLocalStream(this.rawLocalStream);
       this.localMuted.set(false);
@@ -395,14 +397,11 @@ export class VoiceRoomService {
     }
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          width: { ideal: 960, max: 1280 },
-          height: { ideal: 540, max: 720 },
-          frameRate: { ideal: 20, max: 24 },
-          facingMode: 'user'
-        },
-        audio: false
+      const stream = await requestCameraStream({
+        width: { ideal: 960, max: 1280 },
+        height: { ideal: 540, max: 720 },
+        frameRate: { ideal: 20, max: 24 },
+        facingMode: 'user'
       });
       const [track] = stream.getVideoTracks();
       if (!track) {
@@ -945,10 +944,7 @@ export class VoiceRoomService {
         return;
       }
 
-      const [stream] = event.streams;
-      if (!stream) {
-        return;
-      }
+      const stream = event.streams[0] ?? new MediaStream([event.track]);
       void this.attachRemoteAudio(participantId, stream);
       void this.startRemoteVoiceActivityMonitor(participantId, stream).catch(() => undefined);
     };
@@ -1241,8 +1237,7 @@ export class VoiceRoomService {
     let remoteAudioOutput = this.remoteAudioOutputs.get(participantId);
     if (!remoteAudioOutput) {
       const audioElement = document.createElement('audio');
-      audioElement.autoplay = true;
-      audioElement.setAttribute('playsinline', 'true');
+      prepareInlineMediaElement(audioElement);
       audioElement.style.display = 'none';
       document.body.appendChild(audioElement);
 
@@ -1631,6 +1626,7 @@ export class VoiceRoomService {
     };
 
     window.addEventListener('touchstart', this.userGestureUnlockHandler, { passive: true });
+    window.addEventListener('pointerdown', this.userGestureUnlockHandler, { passive: true });
     window.addEventListener('click', this.userGestureUnlockHandler);
   }
 
@@ -1640,6 +1636,7 @@ export class VoiceRoomService {
     }
 
     window.removeEventListener('touchstart', this.userGestureUnlockHandler);
+    window.removeEventListener('pointerdown', this.userGestureUnlockHandler);
     window.removeEventListener('click', this.userGestureUnlockHandler);
     this.userGestureUnlockHandler = null;
   }
