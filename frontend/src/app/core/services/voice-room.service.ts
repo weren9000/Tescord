@@ -112,6 +112,7 @@ interface VoiceJoinContext {
 interface PeerNegotiationState {
   inFlight: boolean;
   queued: boolean;
+  restartIceQueued: boolean;
 }
 
 type IncomingVoiceMessage =
@@ -128,6 +129,9 @@ const SETTINGS_STORAGE_KEY = 'tescord.voice.settings';
 const VOICE_ACTIVITY_INTERVAL_MS = 120;
 const VOICE_ACTIVITY_HOLD_MS = 320;
 const VOICE_SOCKET_PING_INTERVAL_MS = 20000;
+const VOICE_RECONNECT_BASE_MS = 1000;
+const VOICE_RECONNECT_MAX_MS = 10000;
+const VOICE_PEER_ICE_RESTART_DELAY_MS = 2500;
 const OWNER_MUTED_NOTICE = 'Микрофон заблокирован владельцем канала';
 const MAX_AUDIO_GAIN_PERCENT = 200;
 const DEFAULT_VOICE_SETTINGS: VoiceSettings = {
@@ -196,6 +200,8 @@ export class VoiceRoomService {
   private localMonitor: VoiceActivityMonitor | null = null;
   private socket: WebSocket | null = null;
   private socketPingIntervalId: number | null = null;
+  private reconnectTimerId: number | null = null;
+  private reconnectAttempt = 0;
   private rawLocalStream: MediaStream | null = null;
   private localStream: MediaStream | null = null;
   private localVideoStreamInternal: MediaStream | null = null;
@@ -208,6 +214,7 @@ export class VoiceRoomService {
   private readonly peerConnections = new Map<string, RTCPeerConnection>();
   private readonly videoTransceivers = new Map<string, RTCRtpTransceiver>();
   private readonly peerNegotiationStates = new Map<string, PeerNegotiationState>();
+  private readonly peerIceRestartTimerIds = new Map<string, number>();
   private readonly pendingIceCandidates = new Map<string, RTCIceCandidateInit[]>();
   private readonly remoteMonitors = new Map<string, VoiceActivityMonitor>();
   private readonly remoteAudioOutputs = new Map<string, RemoteAudioOutput>();
@@ -247,13 +254,15 @@ export class VoiceRoomService {
       return;
     }
 
+    const previousMuted = force && this.activeChannelId() === channelId ? this.localMuted() : false;
+    this.leave();
     this.lastJoinContext = {
       channelId,
       token,
       currentUser
     };
-
-    this.leave();
+    this.clearReconnectTimer();
+    this.reconnectAttempt = 0;
     this.state.set('connecting');
     this.error.set(null);
     this.activeChannelId.set(channelId);
@@ -263,7 +272,7 @@ export class VoiceRoomService {
         user_id: currentUser.id,
         nick: currentUser.nick,
         avatar_updated_at: currentUser.avatar_updated_at,
-        muted: false,
+        muted: previousMuted,
         owner_muted: false,
         speaking: false,
         is_self: true
@@ -274,7 +283,7 @@ export class VoiceRoomService {
       void this.ensureAudioContext().catch(() => null);
       this.rawLocalStream = await this.openLocalStream();
       this.localStream = await this.createProcessedLocalStream(this.rawLocalStream);
-      this.localMuted.set(false);
+      this.localMuted.set(previousMuted);
       this.applyLocalTrackState();
       await this.refreshDevices();
       await this.openSocket(channelId, token);
@@ -284,6 +293,8 @@ export class VoiceRoomService {
   }
 
   leave(): void {
+    this.clearReconnectTimer();
+    this.reconnectAttempt = 0;
     this.stopVoiceActivityMonitoring();
     this.teardownSocket();
     this.teardownPeerConnections();
@@ -563,7 +574,7 @@ export class VoiceRoomService {
   }
 
   private async reconnectIfNeeded(): Promise<void> {
-    if (!this.lastJoinContext || !this.activeChannelId()) {
+    if (!this.lastJoinContext) {
       return;
     }
 
@@ -703,6 +714,7 @@ export class VoiceRoomService {
 
       socket.onopen = () => {
         opened = true;
+        this.reconnectAttempt = 0;
         this.startSocketKeepAlive();
         resolve();
       };
@@ -713,21 +725,58 @@ export class VoiceRoomService {
         }
 
         this.stopSocketKeepAlive();
+        this.socket = null;
         if (!opened) {
-          reject(new Error('Не удалось установить signaling-соединение для голосового канала'));
+          reject(new Error(this.getSocketFailureMessage(event.code)));
           return;
         }
 
-        const failureMessage =
-          event.code === 4003
-            ? 'Владелец закрыл вам доступ к голосовому каналу'
-            : 'Соединение голосового канала прервано';
-        this.handleFailure(failureMessage);
+        this.handleSocketClosed(event);
       };
       socket.onmessage = (event) => {
         this.handleSocketMessage(event.data);
       };
     });
+  }
+
+  private handleSocketClosed(event: CloseEvent): void {
+    if (this.isFatalSocketCloseCode(event.code)) {
+      this.handleFailure(this.getSocketFailureMessage(event.code));
+      return;
+    }
+
+    if (!this.lastJoinContext) {
+      this.handleFailure('Соединение голосового канала прервано');
+      return;
+    }
+
+    this.prepareForSocketReconnect();
+    this.settingsNotice.set('Связь с голосовой комнатой просела, переподключаемся');
+    this.scheduleReconnect();
+  }
+
+  private isFatalSocketCloseCode(code: number): boolean {
+    return code === 4003 || code === 4401 || code === 4403 || code === 4404;
+  }
+
+  private getSocketFailureMessage(code: number): string {
+    if (code === 4003) {
+      return 'Владелец закрыл вам доступ к голосовому каналу';
+    }
+
+    if (code === 4401) {
+      return 'Сессия голосового канала истекла, подключитесь заново';
+    }
+
+    if (code === 4403) {
+      return 'У вас больше нет доступа к голосовому каналу';
+    }
+
+    if (code === 4404) {
+      return 'Голосовой канал больше недоступен';
+    }
+
+    return 'Не удалось установить signaling-соединение для голосового канала';
   }
 
   private handleSocketMessage(rawMessage: string): void {
@@ -807,6 +856,13 @@ export class VoiceRoomService {
 
     this.state.set('connected');
     await this.startLocalVoiceActivityMonitor().catch(() => undefined);
+    this.error.set(null);
+    if (
+      this.settingsNotice() === 'Связь с голосовой комнатой просела, переподключаемся'
+      || this.settingsNotice() === 'Не удалось переподключить голосовую комнату, пробуем еще раз'
+    ) {
+      this.settingsNotice.set(null);
+    }
 
     for (const participant of message.participants) {
       try {
@@ -956,8 +1012,29 @@ export class VoiceRoomService {
 
       const state = this.peerNegotiationStates.get(participantId);
       if (state?.queued) {
+        const shouldRestartIce = state.restartIceQueued;
         state.queued = false;
-        void this.renegotiateParticipant(participantId);
+        state.restartIceQueued = false;
+        void this.renegotiateParticipant(participantId, { iceRestart: shouldRestartIce });
+      }
+    };
+
+    connection.oniceconnectionstatechange = () => {
+      const iceState = connection.iceConnectionState;
+      if (iceState === 'connected' || iceState === 'completed') {
+        this.clearPeerIceRestartTimer(participantId);
+        return;
+      }
+
+      if (iceState === 'disconnected' || iceState === 'failed') {
+        this.settingsNotice.set('Связь с участником просела, пытаемся восстановить аудио');
+        this.schedulePeerIceRestart(participantId);
+      }
+    };
+
+    connection.onconnectionstatechange = () => {
+      if (connection.connectionState === 'closed') {
+        this.clearPeerIceRestartTimer(participantId);
       }
     };
 
@@ -1062,7 +1139,7 @@ export class VoiceRoomService {
     this.localVideoStream.set(null);
   }
 
-  private async renegotiateParticipant(participantId: string): Promise<void> {
+  private async renegotiateParticipant(participantId: string, options: { iceRestart?: boolean } = {}): Promise<void> {
     const connection = this.peerConnections.get(participantId);
     if (!connection || connection.connectionState === 'closed') {
       return;
@@ -1072,21 +1149,26 @@ export class VoiceRoomService {
     if (!state) {
       state = {
         inFlight: false,
-        queued: false
+        queued: false,
+        restartIceQueued: false
       };
       this.peerNegotiationStates.set(participantId, state);
     }
 
     if (state.inFlight || connection.signalingState !== 'stable') {
       state.queued = true;
+      state.restartIceQueued = state.restartIceQueued || options.iceRestart === true;
       return;
     }
 
     state.inFlight = true;
     try {
+      const shouldRestartIce = state.restartIceQueued || options.iceRestart === true;
+      state.restartIceQueued = false;
       const offer = await connection.createOffer({
         offerToReceiveAudio: true,
-        offerToReceiveVideo: true
+        offerToReceiveVideo: true,
+        iceRestart: shouldRestartIce
       });
       await connection.setLocalDescription(offer);
       this.sendSignal({
@@ -1373,6 +1455,7 @@ export class VoiceRoomService {
   private destroyPeer(participantId: string): void {
     this.stopRemoteVoiceActivityMonitor(participantId);
     this.clearRemoteVideo(participantId);
+    this.clearPeerIceRestartTimer(participantId);
 
     const connection = this.peerConnections.get(participantId);
     if (connection) {
@@ -1401,6 +1484,7 @@ export class VoiceRoomService {
   }
 
   private teardownPeerConnections(): void {
+    this.clearAllPeerIceRestartTimers();
     for (const participantId of this.peerConnections.keys()) {
       this.destroyPeer(participantId);
     }
@@ -1455,7 +1539,45 @@ export class VoiceRoomService {
     }
   }
 
+  private prepareForSocketReconnect(): void {
+    const joinContext = this.lastJoinContext;
+    if (!joinContext) {
+      return;
+    }
+    const currentUser = joinContext.currentUser;
+
+    this.stopLocalVoiceActivityMonitor();
+    this.teardownPeerConnections();
+    this.clearAudioElements();
+    this.pendingIceCandidates.clear();
+    this.videoTransceivers.clear();
+    this.peerNegotiationStates.clear();
+    this.participantUserIds.clear();
+    this.remoteVideoTracks.clear();
+    this.remoteVideoStreams.set({});
+    this.pendingPlaybackUnlock.clear();
+    this.detachUserGestureUnlock();
+    this.selfId = null;
+    this.state.set('connecting');
+    this.error.set(null);
+    this.activeChannelId.set(joinContext.channelId);
+    this.participants.set([
+      {
+        id: 'local',
+        user_id: currentUser.id,
+        nick: currentUser.nick,
+        avatar_updated_at: currentUser.avatar_updated_at,
+        muted: this.localMuted(),
+        owner_muted: false,
+        speaking: false,
+        is_self: true
+      }
+    ]);
+  }
+
   private handleFailure(message: string): void {
+    this.clearReconnectTimer();
+    this.reconnectAttempt = 0;
     this.stopVoiceActivityMonitoring();
     this.teardownSocket();
     this.teardownPeerConnections();
@@ -1607,6 +1729,98 @@ export class VoiceRoomService {
 
     window.clearInterval(this.socketPingIntervalId);
     this.socketPingIntervalId = null;
+  }
+
+  private scheduleReconnect(): void {
+    if (typeof window === 'undefined' || this.reconnectTimerId !== null || !this.lastJoinContext) {
+      return;
+    }
+
+    const delay = Math.min(
+      VOICE_RECONNECT_BASE_MS * 2 ** this.reconnectAttempt,
+      VOICE_RECONNECT_MAX_MS
+    );
+    this.reconnectAttempt += 1;
+
+    this.reconnectTimerId = window.setTimeout(() => {
+      this.reconnectTimerId = null;
+      void this.reconnectToVoiceRoom();
+    }, delay);
+  }
+
+  private clearReconnectTimer(): void {
+    if (this.reconnectTimerId === null) {
+      return;
+    }
+
+    window.clearTimeout(this.reconnectTimerId);
+    this.reconnectTimerId = null;
+  }
+
+  private async reconnectToVoiceRoom(): Promise<void> {
+    const joinContext = this.lastJoinContext;
+    if (!joinContext) {
+      return;
+    }
+
+    try {
+      await this.openSocket(joinContext.channelId, joinContext.token);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Соединение голосового канала прервано';
+      if (
+        message === 'Владелец закрыл вам доступ к голосовому каналу'
+        || message === 'Сессия голосового канала истекла, подключитесь заново'
+        || message === 'У вас больше нет доступа к голосовому каналу'
+        || message === 'Голосовой канал больше недоступен'
+      ) {
+        this.handleFailure(message);
+        return;
+      }
+
+      this.settingsNotice.set('Не удалось переподключить голосовую комнату, пробуем еще раз');
+      if (!this.lastJoinContext) {
+        this.handleFailure(message);
+        return;
+      }
+
+      this.scheduleReconnect();
+    }
+  }
+
+  private schedulePeerIceRestart(participantId: string): void {
+    if (typeof window === 'undefined' || this.peerIceRestartTimerIds.has(participantId)) {
+      return;
+    }
+
+    const timerId = window.setTimeout(() => {
+      this.peerIceRestartTimerIds.delete(participantId);
+      void this.renegotiateParticipant(participantId, { iceRestart: true }).catch((error) => {
+        this.handlePeerConnectionFailure(
+          participantId,
+          error instanceof Error ? error.message : 'Не удалось восстановить связь с участником'
+        );
+      });
+    }, VOICE_PEER_ICE_RESTART_DELAY_MS);
+
+    this.peerIceRestartTimerIds.set(participantId, timerId);
+  }
+
+  private clearPeerIceRestartTimer(participantId: string): void {
+    const timerId = this.peerIceRestartTimerIds.get(participantId);
+    if (timerId === undefined) {
+      return;
+    }
+
+    window.clearTimeout(timerId);
+    this.peerIceRestartTimerIds.delete(participantId);
+  }
+
+  private clearAllPeerIceRestartTimers(): void {
+    for (const timerId of this.peerIceRestartTimerIds.values()) {
+      window.clearTimeout(timerId);
+    }
+
+    this.peerIceRestartTimerIds.clear();
   }
 
   private createAudioContext(): AudioContext | null {
