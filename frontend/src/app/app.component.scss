@@ -198,7 +198,7 @@
   min-height: 52px;
   padding: 0 16px;
   border: 1px solid rgba(120, 255, 208, 0.12);
-  border-radius: 18px;
+  border-radius: 2px;
   background: rgba(255, 255, 255, 0.03);
   color: var(--text);
 }
@@ -224,7 +224,7 @@
 .member-row,
 .modal,
 .channel-action {
-  border-radius: 20px;
+  border-radius: 2px;
 }
 
 .server-rail {
@@ -254,7 +254,7 @@
   width: 46px;
   height: 46px;
   flex-basis: 46px;
-  border-radius: 16px;
+  border-radius: 2px;
   border-color: rgba(120, 255, 208, 0.12);
   background: linear-gradient(180deg, rgba(81, 240, 168, 0.16), rgba(103, 215, 255, 0.1));
 }
@@ -328,7 +328,7 @@
 .voice-dock__top {
   padding: 12px 14px;
   border: 1px solid rgba(120, 255, 208, 0.1);
-  border-radius: 24px;
+  border-radius: 2px;
   background: rgba(255, 255, 255, 0.025);
 }
 
@@ -340,14 +340,14 @@
 
 .message-list__empty,
 .message-list__status {
-  border-radius: 18px;
+  border-radius: 2px;
 }
 
 .message-card {
   gap: 12px;
   padding: 10px 12px;
   border: 0;
-  border-radius: 24px;
+  border-radius: 2px;
   background: rgba(255, 255, 255, 0.02);
 }
 
@@ -396,7 +396,7 @@
 .composer__submit {
   height: 48px;
   min-height: 48px;
-  border-radius: 18px;
+  border-radius: 2px;
 }
 
 .composer textarea {
@@ -406,7 +406,7 @@
 
 .profile-card,
 .panel-card--members {
-  border-radius: 24px;
+  border-radius: 2px;
 }
 
 .profile-toolbar {
@@ -433,11 +433,11 @@
 .direct-call-peer-card,
 .direct-call-screen,
 .direct-call-screen-overlay__preview {
-  border-radius: 24px;
+  border-radius: 2px;
 }
 
 .direct-call-icon-button {
-  border-radius: 18px;
+  border-radius: 2px;
 }
 
 .direct-call-screen-overlay {
@@ -468,7 +468,7 @@
 
   .mobile-toolbar {
     padding: 12px;
-    border-radius: 24px;
+    border-radius: 2px;
   }
 
   .mobile-toolbar__actions {
@@ -490,22 +490,22 @@
   .channel-rail,
   .member-rail,
   .server-rail {
-    border-radius: 24px;
+    border-radius: 2px;
   }
 
   .message-card {
     padding: 10px;
-    border-radius: 20px;
+    border-radius: 2px;
   }
 
   .composer__surface {
-    border-radius: 22px;
+    border-radius: 2px;
   }
 
   .server-token,
   .channel-link,
   .member-row {
-    border-radius: 18px;
+    border-radius: 2px;
   }
 }
 
@@ -1983,7 +1983,7 @@ select {
 
 .message-list__status {
   padding: 9px 11px;
-  border-radius: 12px;
+  border-radius: 2px;
   background: rgba(255, 255, 255, 0.032);
   color: var(--muted);
   font-size: 0.74rem;
@@ -1992,7 +1992,7 @@ select {
 .message-list__empty {
   margin: 6px 0 0;
   padding: 12px;
-  border-radius: 12px;
+  border-radius: 2px;
   background: rgba(255, 255, 255, 0.025);
   color: var(--muted);
   text-align: center;
@@ -2010,7 +2010,7 @@ select {
   gap: 8px;
   margin-bottom: 10px;
   padding: 10px;
-  border-radius: 14px;
+  border-radius: 2px;
   background: rgba(255, 255, 255, 0.032);
 }
 
@@ -2026,7 +2026,7 @@ select {
   height: 38px;
   padding: 0 14px;
   border: 0;
-  border-radius: 11px;
+  border-radius: 2px;
   background: rgba(17, 23, 29, 0.88);
   color: var(--text);
   font-size: 0.82rem;
@@ -2048,7 +2048,7 @@ select {
   justify-content: center;
   height: 38px;
   border: 0;
-  border-radius: 11px;
+  border-radius: 2px;
   background: rgba(255, 255, 255, 0.05);
   color: var(--text);
   cursor: pointer;
@@ -2081,7 +2081,7 @@ select {
   width: 100%;
   padding: 9px 10px;
   border: 0;
-  border-radius: 12px;
+  border-radius: 2px;
   background: rgba(255, 255, 255, 0.04);
   color: var(--text);
   text-align: left;
@@ -2121,7 +2121,7 @@ select {
 
 .message-search__state {
   padding: 8px 10px;
-  border-radius: 11px;
+  border-radius: 2px;
   background: rgba(255, 255, 255, 0.028);
   color: var(--muted);
   font-size: 0.74rem;
@@ -2138,7 +2138,7 @@ select {
   gap: 8px;
   margin-left: 0;
   padding: 8px 10px;
-  border-radius: 12px;
+  border-radius: 2px;
   background: rgba(255, 255, 255, 0.028);
 }
 
@@ -2262,7 +2262,7 @@ select {
   gap: 2px;
   margin: 0;
   padding: 6px 8px;
-  border-radius: 10px;
+  border-radius: 2px;
   border-left: 2px solid rgba(111, 255, 191, 0.5);
   background: rgba(255, 255, 255, 0.038);
   color: var(--text);
@@ -2301,7 +2301,7 @@ select {
   min-width: 0;
   width: min(240px, 100%);
   padding: 8px;
-  border-radius: 14px;
+  border-radius: 2px;
   border: 1px solid rgba(255, 255, 255, 0.06);
   background: rgba(255, 255, 255, 0.04);
 }
@@ -2347,7 +2347,7 @@ select {
   min-height: 132px;
   padding: 0;
   border: 0;
-  border-radius: 10px;
+  border-radius: 2px;
   overflow: hidden;
   background: rgba(255, 255, 255, 0.03);
   cursor: pointer;
@@ -2445,7 +2445,7 @@ select {
   min-height: 34px;
   padding: 0 12px;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
+  border-radius: 2px;
   background: rgba(255, 255, 255, 0.03);
   color: rgba(240, 247, 246, 0.86);
   cursor: pointer;
@@ -2463,7 +2463,7 @@ select {
   gap: 8px;
   min-width: 0;
   padding: 7px 8px;
-  border-radius: 10px;
+  border-radius: 2px;
   border: 0;
   background: rgba(255, 255, 255, 0.045);
   color: var(--text);
@@ -2521,7 +2521,7 @@ select {
   gap: 5px;
   width: min(180px, 100%);
   padding: 5px;
-  border-radius: 12px;
+  border-radius: 2px;
   border: 0;
   background: rgba(255, 255, 255, 0.045);
   color: var(--text);
@@ -2568,7 +2568,7 @@ select {
   gap: 6px;
   width: min(240px, 100%);
   padding: 7px 8px;
-  border-radius: 12px;
+  border-radius: 2px;
   border: 0;
   background: rgba(255, 255, 255, 0.045);
 }
@@ -2917,7 +2917,7 @@ select {
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
-  border-radius: 18px;
+  border-radius: 2px;
   border: 1px solid rgba(120, 255, 208, 0.06);
   background: rgba(7, 15, 16, 0.94);
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.16);
@@ -2942,7 +2942,7 @@ select {
   padding: 0;
   font-size: 0.92rem;
   border: 0;
-  border-radius: 14px;
+  border-radius: 2px;
   box-shadow: none;
   transition: background 160ms ease, color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
 }
@@ -3796,7 +3796,7 @@ select {
   justify-content: center;
   padding: 0;
   border: 0;
-  border-radius: 10px;
+  border-radius: 2px;
   background: transparent;
   color: rgba(255, 216, 220, 0.82);
   font-size: 18px;
@@ -4315,7 +4315,7 @@ select {
   justify-content: space-between;
   gap: 12px;
   padding: 10px 12px;
-  border-radius: 14px;
+  border-radius: 2px;
   background: rgba(7, 14, 20, 0.92);
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
@@ -4861,7 +4861,7 @@ select {
     grid-template-columns: 38px minmax(0, 1fr) 38px;
     gap: 6px;
     padding: 7px 8px;
-    border-radius: 16px;
+    border-radius: 2px;
   }
 
   .composer__attach,
@@ -4946,7 +4946,7 @@ select {
 .messenger-workspace {
   min-height: 0;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 24px;
+  border-radius: 2px;
   background:
     linear-gradient(180deg, rgba(13, 22, 32, 0.98), rgba(14, 24, 35, 0.94)),
     radial-gradient(circle at top right, rgba(61, 214, 198, 0.12), transparent 36%);
@@ -4990,7 +4990,7 @@ select {
   justify-content: center;
   padding: 5px 7px;
   border: 0;
-  border-radius: 12px;
+  border-radius: 2px;
   background: transparent;
   box-shadow: none;
 }
@@ -5013,7 +5013,7 @@ select {
   width: 38px;
   min-height: 38px;
   padding: 0;
-  border-radius: 12px;
+  border-radius: 2px;
 }
 
 .conversation-sidebar__icon-button img {
@@ -5037,7 +5037,7 @@ select {
   min-height: 38px;
   padding: 0 8px 0 10px;
   border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 12px;
+  border-radius: 2px;
   background: rgba(255, 255, 255, 0.025);
 }
 
@@ -5100,7 +5100,7 @@ select {
   align-items: center;
   justify-content: center;
   border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 11px;
+  border-radius: 2px;
   background: rgba(255, 255, 255, 0.03);
   min-height: 34px;
   padding: 6px;
@@ -5184,7 +5184,7 @@ select {
   align-items: center;
   padding: 7px 8px;
   border: 0;
-  border-radius: 10px;
+  border-radius: 2px;
   background: rgba(255, 255, 255, 0.012);
   color: inherit;
   text-align: left;
@@ -5375,7 +5375,7 @@ select {
 .platform-channel-section__add {
   min-height: 28px;
   padding: 0 9px;
-  border-radius: 10px;
+  border-radius: 2px;
   font-size: 10px;
 }
 
@@ -5389,7 +5389,7 @@ select {
   min-height: 42px;
   padding: 8px 10px;
   border: 0;
-  border-radius: 12px;
+  border-radius: 2px;
   background: rgba(255, 255, 255, 0.02);
   color: inherit;
   text-align: left;
@@ -5433,7 +5433,7 @@ select {
   min-height: 42px;
   padding: 8px 10px;
   border: 0;
-  border-radius: 12px;
+  border-radius: 2px;
   background: transparent;
   color: inherit;
   text-align: left;
@@ -5484,7 +5484,7 @@ select {
   min-width: 30px;
   min-height: 30px;
   padding: 0;
-  border-radius: 10px;
+  border-radius: 2px;
   justify-content: center;
 }
 
@@ -5518,7 +5518,7 @@ select {
 }
 
 .platform-channel-entry--connected .platform-channel-entry__row {
-  border-radius: 12px;
+  border-radius: 2px;
   background: rgba(61, 214, 198, 0.05);
 }
 
@@ -5570,7 +5570,7 @@ select {
   height: 42px;
   appearance: none;
   padding: 0;
-  border-radius: 14px;
+  border-radius: 2px;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: linear-gradient(135deg, rgba(61, 214, 198, 0.18), rgba(157, 253, 56, 0.12));
@@ -5584,13 +5584,13 @@ select {
 }
 
 .conversation-head__avatar--group {
-  border-radius: 14px;
+  border-radius: 2px;
 }
 
 .conversation-head--managed .conversation-head__avatar {
   width: 34px;
   height: 34px;
-  border-radius: 12px;
+  border-radius: 2px;
   font-size: 13px;
 }
 
@@ -5706,7 +5706,7 @@ select {
   min-height: 34px;
   padding: 0;
   justify-content: center;
-  border-radius: 12px;
+  border-radius: 2px;
   position: relative;
 }
 
@@ -5748,22 +5748,41 @@ select {
   margin-left: auto;
 }
 
-.conversation-head__feedback {
-  margin: -2px 0 0;
-  font-size: 11px;
-  line-height: 1.4;
+.app-toast-layer {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 160;
+  display: grid;
+  gap: 8px;
+  pointer-events: none;
 }
 
-.conversation-head__feedback--success {
-  color: rgba(157, 253, 56, 0.84);
+.app-toast {
+  max-width: min(320px, calc(100vw - 24px));
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+  background: rgba(10, 18, 28, 0.96);
+  color: rgba(242, 250, 247, 0.94);
+  font-size: 12px;
+  line-height: 1.35;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.32);
 }
 
-.conversation-head__feedback--warning {
-  color: rgba(255, 214, 122, 0.9);
+.app-toast--success {
+  border-color: rgba(157, 253, 56, 0.28);
+  color: rgba(223, 255, 187, 0.96);
 }
 
-.conversation-head__feedback--error {
-  color: rgba(255, 146, 146, 0.92);
+.app-toast--warning {
+  border-color: rgba(255, 214, 122, 0.28);
+  color: rgba(255, 234, 172, 0.96);
+}
+
+.app-toast--error {
+  border-color: rgba(255, 146, 146, 0.3);
+  color: rgba(255, 211, 211, 0.96);
 }
 
 .floating-menu-backdrop {
@@ -5783,7 +5802,7 @@ select {
   padding: 8px;
   display: grid;
   gap: 4px;
-  border-radius: 16px;
+  border-radius: 2px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(10, 18, 28, 0.98);
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.36);
@@ -5801,7 +5820,7 @@ select {
   gap: 8px;
   padding: 0 8px;
   border: 0;
-  border-radius: 10px;
+  border-radius: 2px;
   background: transparent;
   color: rgba(242, 250, 247, 0.9);
   text-align: left;
@@ -5913,7 +5932,7 @@ select {
   gap: 12px;
   align-items: center;
   padding: 10px 12px;
-  border-radius: 14px;
+  border-radius: 2px;
   background: rgba(255, 255, 255, 0.026);
   border: 1px solid rgba(255, 255, 255, 0.05);
 }
@@ -5952,7 +5971,7 @@ select {
 }
 
 .friend-request-row__avatar--group {
-  border-radius: 14px;
+  border-radius: 2px;
 }
 
 .friend-request-row__copy {
@@ -6053,7 +6072,7 @@ select {
   display: grid;
   gap: 8px;
   padding: 8px;
-  border-radius: 16px;
+  border-radius: 2px;
   border: 1px solid rgba(255, 255, 255, 0.06);
   background: rgba(255, 255, 255, 0.03);
 }
@@ -6068,7 +6087,7 @@ select {
   height: 188px;
   padding: 0;
   border: 0;
-  border-radius: 12px;
+  border-radius: 2px;
   overflow: hidden;
   background: rgba(255, 255, 255, 0.03);
   cursor: pointer;
@@ -6119,7 +6138,7 @@ select {
   gap: 10px;
   padding: 10px 12px;
   border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 14px;
+  border-radius: 2px;
   background: rgba(255, 255, 255, 0.025);
 }
 
@@ -6203,7 +6222,7 @@ select {
   gap: 8px;
   padding: 8px 10px;
   border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 12px;
+  border-radius: 2px;
   background: rgba(255, 255, 255, 0.025);
 }
 
@@ -6252,7 +6271,7 @@ select {
   justify-content: center;
   padding: 0;
   border: 0;
-  border-radius: 10px;
+  border-radius: 2px;
   cursor: pointer;
   transition: background 160ms ease, transform 160ms ease, opacity 160ms ease;
 }
@@ -6312,7 +6331,7 @@ select {
   gap: 10px;
   align-items: center;
   padding: 8px 10px;
-  border-radius: 12px;
+  border-radius: 2px;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.05);
 }
@@ -6320,7 +6339,7 @@ select {
 .platform-voice-access-row__select {
   min-width: 128px;
   padding: 7px 10px;
-  border-radius: 10px;
+  border-radius: 2px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(6, 13, 16, 0.88);
   color: rgba(240, 247, 246, 0.92);
@@ -6340,7 +6359,7 @@ select {
   justify-content: center;
   padding: 0;
   border: 1px solid rgba(255, 111, 124, 0.18);
-  border-radius: 12px;
+  border-radius: 2px;
   background: rgba(255, 111, 124, 0.08);
   color: #ffd8dc;
   font-size: 18px;
@@ -6376,7 +6395,7 @@ select {
   align-items: center;
   gap: 10px;
   padding: 8px 12px 8px 8px;
-  border-radius: 16px;
+  border-radius: 2px;
   border: 1px solid rgba(255, 255, 255, 0.07);
   background: rgba(255, 255, 255, 0.03);
   color: inherit;
@@ -6414,7 +6433,7 @@ select {
   justify-content: space-between;
   gap: 10px;
   padding: 12px 14px;
-  border-radius: 16px;
+  border-radius: 2px;
   border: 1px solid rgba(61, 214, 198, 0.16);
   background: linear-gradient(135deg, rgba(7, 27, 35, 0.92), rgba(11, 24, 36, 0.94));
 }
@@ -6492,7 +6511,7 @@ select {
   display: grid;
   gap: 8px;
   padding: 10px 12px;
-  border-radius: 14px;
+  border-radius: 2px;
   border: 1px solid rgba(61, 214, 198, 0.1);
   background: rgba(7, 17, 25, 0.56);
 }
@@ -6504,7 +6523,7 @@ select {
   gap: 10px;
   min-width: 0;
   padding: 8px 10px;
-  border-radius: 12px;
+  border-radius: 2px;
   background: rgba(255, 255, 255, 0.025);
 }
 
@@ -6622,7 +6641,7 @@ select {
   display: grid;
   gap: 8px;
   padding: 8px;
-  border-radius: 12px;
+  border-radius: 2px;
   border: 1px solid rgba(61, 214, 198, 0.12);
   background: rgba(8, 18, 28, 0.62);
 }
@@ -6634,7 +6653,7 @@ select {
 
 .group-voice-video-tile__media {
   overflow: hidden;
-  border-radius: 10px;
+  border-radius: 2px;
   background: #05080e;
 }
 
@@ -6715,7 +6734,7 @@ select {
   flex-direction: column;
   gap: 18px;
   padding: 18px;
-  border-radius: 24px;
+  border-radius: 2px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background:
     linear-gradient(180deg, rgba(11, 20, 30, 0.98), rgba(10, 18, 28, 0.94)),
@@ -6771,7 +6790,7 @@ select {
   width: 100%;
   min-height: 48px;
   padding: 0 14px;
-  border-radius: 16px;
+  border-radius: 2px;
   border: 1px solid rgba(255, 255, 255, 0.07);
   background: rgba(255, 255, 255, 0.03);
   color: inherit;
@@ -6798,7 +6817,7 @@ select {
   align-items: center;
   justify-content: center;
   border: 0;
-  border-radius: 12px;
+  border-radius: 2px;
   background: transparent;
   font-size: 20px;
   line-height: 1;
@@ -6888,7 +6907,7 @@ select {
     min-width: 32px;
     width: 32px;
     min-height: 32px;
-    border-radius: 10px;
+    border-radius: 2px;
   }
 
   .conversation-head__action--call {
@@ -6922,7 +6941,7 @@ select {
     gap: 8px;
     padding: 8px;
     border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 18px;
+    border-radius: 2px;
     background: rgba(9, 17, 27, 0.96);
     box-shadow: 0 18px 40px rgba(0, 0, 0, 0.34);
     backdrop-filter: blur(14px);
@@ -6961,7 +6980,7 @@ select {
     width: 38px;
     min-height: 38px;
     padding: 0;
-    border-radius: 12px;
+    border-radius: 2px;
   }
 
   .mobile-mode-footer__action--active {

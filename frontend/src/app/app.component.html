@@ -120,6 +120,19 @@
       (change)="onProfileAvatarSelection($event)"
     />
 
+    @if (pushFeedback(); as pushFeedback) {
+      <div class="app-toast-layer" aria-live="polite" aria-atomic="true">
+        <div
+          class="app-toast"
+          [class.app-toast--success]="pushFeedback.tone === 'success'"
+          [class.app-toast--warning]="pushFeedback.tone === 'warning'"
+          [class.app-toast--error]="pushFeedback.tone === 'error'"
+        >
+          {{ pushFeedback.message }}
+        </div>
+      </div>
+    }
+
     @if (sideMenuOpen()) {
       <button class="drawer-backdrop" type="button" aria-label="Закрыть меню" (click)="closeSideMenu()"></button>
       <aside class="side-drawer">
@@ -572,8 +585,8 @@
               (click)="closeConversationActionMenu()"
             ></button>
           }
-          <section class="conversation-head" [class.conversation-head--managed]="!isChatsMode()">
-            <div class="conversation-head__identity" [class.conversation-head__identity--managed]="!isChatsMode()">
+          <section class="conversation-head conversation-head--managed">
+            <div class="conversation-head__identity conversation-head__identity--managed">
               <button
                 class="conversation-head__avatar"
                 [class.conversation-head__avatar--group]="!isChatsMode()"
@@ -591,142 +604,75 @@
                 }
               </button>
 
-              @if (isChatsMode()) {
-                <div class="conversation-head__copy">
-                  <p class="eyebrow">{{ activeSpaceKindLabel() }}</p>
-                  <strong>{{ activeServer()?.name }}</strong>
-                  <small>{{ activeSpaceMetaLabel() }}</small>
-                </div>
-              } @else {
-                <div class="conversation-head__summary">
-                  <span class="conversation-head__kind">{{ activeSpaceKindLabel() }}</span>
-                  <strong>{{ activeServer()?.name }}</strong>
-                </div>
+              <div class="conversation-head__summary">
+                <span class="conversation-head__kind">{{ activeSpaceKindLabel() }}</span>
+                <strong>{{ activeServer()?.name }}</strong>
+              </div>
 
-                <div class="conversation-head__menu">
-                  <button
-                    class="secondary-button conversation-head__action conversation-head__action--icon conversation-head__settings-toggle"
-                    [class.conversation-head__settings-toggle--active]="conversationActionMenuOpen()"
-                    type="button"
-                    [attr.aria-label]="'Действия ' + activeManagedSpaceLabel()"
-                    [attr.title]="'Действия ' + activeManagedSpaceLabel()"
-                    (click)="toggleConversationActionMenu()"
-                  >
-                    <span class="conversation-head__action-symbol" aria-hidden="true">⚙</span>
-                    @if (isPlatformsMode() && activePlatformVoiceRequestCount() > 0) {
-                      <span class="conversation-head__action-badge">{{ activePlatformVoiceRequestCount() > 99 ? '99+' : activePlatformVoiceRequestCount() }}</span>
+              <div class="conversation-head__menu">
+                <button
+                  class="secondary-button conversation-head__action conversation-head__action--icon conversation-head__settings-toggle"
+                  [class.conversation-head__settings-toggle--active]="conversationActionMenuOpen()"
+                  type="button"
+                  [attr.aria-label]="'Действия ' + (isChatsMode() ? 'друга' : activeManagedSpaceLabel())"
+                  [attr.title]="'Действия ' + (isChatsMode() ? 'друга' : activeManagedSpaceLabel())"
+                  (click)="toggleConversationActionMenu()"
+                >
+                  <span class="conversation-head__action-symbol" aria-hidden="true">⚙</span>
+                  @if (isPlatformsMode() && activePlatformVoiceRequestCount() > 0) {
+                    <span class="conversation-head__action-badge">{{ activePlatformVoiceRequestCount() > 99 ? '99+' : activePlatformVoiceRequestCount() }}</span>
+                  }
+                </button>
+
+                @if (conversationActionMenuOpen()) {
+                  <div class="conversation-action-menu conversation-action-menu--managed">
+                    @if (isChatsMode() && activeDirectPeer()) {
+                      <button class="conversation-action-menu__item" type="button" (click)="closeConversationActionMenu(); openActiveDirectPeerCall()">
+                        <img class="conversation-action-menu__item-icon" src="/assets/Phone_connect.svg" alt="" />
+                        Позвонить
+                      </button>
                     }
-                  </button>
-
-                  @if (conversationActionMenuOpen()) {
-                    <div class="conversation-action-menu conversation-action-menu--managed">
-                      @if (activeConversation()) {
-                        <button
-                          class="conversation-action-menu__item"
-                          type="button"
-                          [disabled]="isActiveConversationPushPending()"
-                          (click)="closeConversationActionMenu(); toggleActiveConversationPush()"
-                        >
-                          <img class="conversation-action-menu__item-icon" [src]="activeConversationPushIcon()" alt="" />
-                          {{ activeConversationPushActionLabel() }}
-                        </button>
-                      }
-                      @if (canUseActiveChannelChat()) {
-                        <button class="conversation-action-menu__item" type="button" (click)="closeConversationActionMenu(); toggleMessageSearchPanel()">
-                          <span class="conversation-action-menu__item-icon conversation-action-menu__item-icon--symbol" aria-hidden="true">⌕</span>
-                          Поиск по сообщениям
-                        </button>
-                      }
-                      @if (canUseActiveChannelChat()) {
-                        <button class="conversation-action-menu__item" type="button" (click)="closeConversationActionMenu(); openChatFilesModal()">
-                          <img class="conversation-action-menu__item-icon" src="/assets/Uploaded_sheet_files.svg" alt="" />
-                          Медиа чата
-                        </button>
-                      }
+                    @if (activeConversation()) {
+                      <button
+                        class="conversation-action-menu__item"
+                        type="button"
+                        [disabled]="isActiveConversationPushPending()"
+                        (click)="closeConversationActionMenu(); toggleActiveConversationPush()"
+                      >
+                        <img class="conversation-action-menu__item-icon" [src]="activeConversationPushIcon()" alt="" />
+                        {{ activeConversationPushActionLabel() }}
+                      </button>
+                    }
+                    @if (canUseActiveChannelChat()) {
+                      <button class="conversation-action-menu__item" type="button" (click)="closeConversationActionMenu(); toggleMessageSearchPanel()">
+                        <span class="conversation-action-menu__item-icon conversation-action-menu__item-icon--symbol" aria-hidden="true">⌕</span>
+                        Поиск по сообщениям
+                      </button>
+                    }
+                    @if (canUseActiveChannelChat()) {
+                      <button class="conversation-action-menu__item" type="button" (click)="closeConversationActionMenu(); openChatFilesModal()">
+                        <img class="conversation-action-menu__item-icon" src="/assets/Uploaded_sheet_files.svg" alt="" />
+                        Медиа чата
+                      </button>
+                    }
+                    @if (!isChatsMode()) {
                       <button class="conversation-action-menu__item" type="button" (click)="closeConversationActionMenu(); openGroupMembersPanel()">
                         <img class="conversation-action-menu__item-icon" src="/assets/Group_fill.svg" alt="" />
                         Пользователи
                       </button>
-                      @if (canManageActiveGroup()) {
-                        <button class="conversation-action-menu__item" type="button" (click)="closeConversationActionMenu(); openAddGroupMemberModal()">
-                          <img class="conversation-action-menu__item-icon" src="/assets/User_fill_add.svg" alt="" />
-                          Добавить участника
-                        </button>
-                      }
-                      @if (isPlatformsMode() && canOpenPlatformSettings()) {
-                        <button class="conversation-action-menu__item" type="button" (click)="openPlatformSettingsModal()">
-                          <span class="conversation-action-menu__item-icon conversation-action-menu__item-icon--symbol" aria-hidden="true">⚙</span>
-                          Настройки площадки
-                        </button>
-                      }
-                      @if (isGroupsMode() && activeGroupConversation(); as groupConversation) {
-                        <button class="conversation-action-menu__item" type="button" [disabled]="isServerMembershipActionPending(groupConversation.id)" (click)="leaveActiveGroup()">
-                          <img class="conversation-action-menu__item-icon" src="/assets/Log out.svg" alt="" />
-                          Выйти из группы
-                        </button>
-                        <button class="conversation-action-menu__item conversation-action-menu__item--danger" type="button" [disabled]="isServerMembershipActionPending(groupConversation.id)" (click)="blockActiveGroup()">
-                          <span class="conversation-action-menu__item-icon conversation-action-menu__item-icon--symbol" aria-hidden="true">⛔</span>
-                          Заблокировать группу
-                        </button>
-                      }
-                      @if (isPlatformsMode() && activeServer(); as platform) {
-                        <button class="conversation-action-menu__item" type="button" [disabled]="isServerMembershipActionPending(platform.id)" (click)="leaveActivePlatform()">
-                          <img class="conversation-action-menu__item-icon" src="/assets/Log out.svg" alt="" />
-                          Выйти с площадки
-                        </button>
-                        <button class="conversation-action-menu__item conversation-action-menu__item--danger" type="button" [disabled]="isServerMembershipActionPending(platform.id)" (click)="blockActivePlatform()">
-                          <span class="conversation-action-menu__item-icon conversation-action-menu__item-icon--symbol" aria-hidden="true">⛔</span>
-                          Заблокировать площадку
-                        </button>
-                      }
-                    </div>
-                  }
-                </div>
-              }
-            </div>
-
-            @if (isChatsMode()) {
-              <div class="conversation-head__actions">
-                @if (activeConversation()) {
-                  <button
-                    class="secondary-button conversation-head__action conversation-head__action--icon"
-                    type="button"
-                    [disabled]="isActiveConversationPushPending()"
-                    [attr.aria-label]="activeConversationPushActionLabel()"
-                    [attr.title]="activeConversationPushActionLabel()"
-                    (click)="toggleActiveConversationPush()"
-                  >
-                    <img [src]="activeConversationPushIcon()" alt="" />
-                  </button>
-                }
-                @if (canUseActiveChannelChat()) {
-                  <button
-                    class="secondary-button conversation-head__action conversation-head__action--icon"
-                    type="button"
-                    aria-label="Поиск по сообщениям"
-                    title="Поиск по сообщениям"
-                    (click)="toggleMessageSearchPanel()"
-                  >
-                    <span class="conversation-head__action-symbol" aria-hidden="true">⌕</span>
-                  </button>
-                }
-                @if (canUseActiveChannelChat()) {
-                  <button class="secondary-button conversation-head__action conversation-head__action--icon" type="button" aria-label="Медиа чата" title="Медиа чата" (click)="openChatFilesModal()">
-                    <img src="/assets/Uploaded_sheet_files.svg" alt="" />
-                  </button>
-                }
-                @if (activeDirectPeer() || activeGroupConversation()) {
-                  <button class="secondary-button conversation-head__action conversation-head__action--icon" type="button" aria-label="Управление" title="Управление" (click)="toggleConversationActionMenu()">
-                    <img src="/assets/Trash.svg" alt="" />
-                  </button>
-                }
-                @if (isChatsMode() && activeDirectPeer()) {
-                  <button class="secondary-button conversation-head__action conversation-head__action--icon conversation-head__action--call conversation-head__action--push-right" type="button" aria-label="Позвонить" title="Позвонить" (click)="openActiveDirectPeerCall()">
-                    <img src="/assets/Phone_connect.svg" alt="" />
-                  </button>
-                }
-                @if (conversationActionMenuOpen()) {
-                  <div class="conversation-action-menu">
+                    }
+                    @if (!isChatsMode() && canManageActiveGroup()) {
+                      <button class="conversation-action-menu__item" type="button" (click)="closeConversationActionMenu(); openAddGroupMemberModal()">
+                        <img class="conversation-action-menu__item-icon" src="/assets/User_fill_add.svg" alt="" />
+                        Добавить участника
+                      </button>
+                    }
+                    @if (isPlatformsMode() && canOpenPlatformSettings()) {
+                      <button class="conversation-action-menu__item" type="button" (click)="openPlatformSettingsModal()">
+                        <span class="conversation-action-menu__item-icon conversation-action-menu__item-icon--symbol" aria-hidden="true">⚙</span>
+                        Настройки площадки
+                      </button>
+                    }
                     @if (isChatsMode() && activeDirectPeer(); as directPeer) {
                       <button class="conversation-action-menu__item conversation-action-menu__item--danger" type="button" [disabled]="isFriendManagementPending(directPeer.user_id)" (click)="removeActiveFriend()">
                         <img class="conversation-action-menu__item-icon" src="/assets/Trash.svg" alt="" />
@@ -737,25 +683,30 @@
                         Заблокировать
                       </button>
                     }
-                    <button class="conversation-action-menu__item" type="button" (click)="closeConversationActionMenu()">
-                      <span class="conversation-action-menu__item-icon conversation-action-menu__item-icon--symbol" aria-hidden="true">×</span>
-                      Отмена
-                    </button>
+                    @if (isGroupsMode() && activeGroupConversation(); as groupConversation) {
+                      <button class="conversation-action-menu__item" type="button" [disabled]="isServerMembershipActionPending(groupConversation.id)" (click)="leaveActiveGroup()">
+                        <img class="conversation-action-menu__item-icon" src="/assets/Log out.svg" alt="" />
+                        Выйти из группы
+                      </button>
+                      <button class="conversation-action-menu__item conversation-action-menu__item--danger" type="button" [disabled]="isServerMembershipActionPending(groupConversation.id)" (click)="blockActiveGroup()">
+                        <span class="conversation-action-menu__item-icon conversation-action-menu__item-icon--symbol" aria-hidden="true">⛔</span>
+                        Заблокировать группу
+                      </button>
+                    }
+                    @if (isPlatformsMode() && activeServer(); as platform) {
+                      <button class="conversation-action-menu__item" type="button" [disabled]="isServerMembershipActionPending(platform.id)" (click)="leaveActivePlatform()">
+                        <img class="conversation-action-menu__item-icon" src="/assets/Log out.svg" alt="" />
+                        Выйти с площадки
+                      </button>
+                      <button class="conversation-action-menu__item conversation-action-menu__item--danger" type="button" [disabled]="isServerMembershipActionPending(platform.id)" (click)="blockActivePlatform()">
+                        <span class="conversation-action-menu__item-icon conversation-action-menu__item-icon--symbol" aria-hidden="true">⛔</span>
+                        Заблокировать площадку
+                      </button>
+                    }
                   </div>
                 }
               </div>
-            }
-
-            @if (pushFeedback(); as pushFeedback) {
-              <p
-                class="conversation-head__feedback"
-                [class.conversation-head__feedback--success]="pushFeedback.tone === 'success'"
-                [class.conversation-head__feedback--warning]="pushFeedback.tone === 'warning'"
-                [class.conversation-head__feedback--error]="pushFeedback.tone === 'error'"
-              >
-                {{ pushFeedback.message }}
-              </p>
-            }
+            </div>
 
             <input
               #serverIconInput
@@ -1560,12 +1511,12 @@
 
                     @if (composerMentionMenuOpen()) {
                       <div
-                        style="position:absolute;left:-6px;right:-6px;bottom:calc(100% + 10px);display:grid;gap:4px;padding:8px;border-radius:16px;border:1px solid rgba(120,255,208,0.08);background:rgba(6,13,14,0.98);box-shadow:0 14px 32px rgba(0,0,0,0.32);backdrop-filter:blur(14px);z-index:4;"
+                        style="position:absolute;left:-6px;right:-6px;bottom:calc(100% + 10px);display:grid;gap:4px;padding:8px;border-radius:2px;border:1px solid rgba(120,255,208,0.08);background:rgba(6,13,14,0.98);box-shadow:0 14px 32px rgba(0,0,0,0.32);backdrop-filter:blur(14px);z-index:4;"
                       >
                         @for (candidate of composerMentionCandidates(); track candidate.userId) {
                           <button
                             type="button"
-                            style="display:grid;grid-template-columns:30px minmax(0, 1fr) 8px;align-items:center;gap:8px;padding:7px 8px;border:0;border-radius:12px;color:var(--text);text-align:left;box-shadow:none;"
+                            style="display:grid;grid-template-columns:30px minmax(0, 1fr) 8px;align-items:center;gap:8px;padding:7px 8px;border:0;border-radius:2px;color:var(--text);text-align:left;box-shadow:none;"
                             [style.background]="activeComposerMentionCandidate()?.userId === candidate.userId ? 'rgba(81,240,168,0.1)' : 'transparent'"
                             (mousedown)="$event.preventDefault()"
                             (mouseenter)="highlightComposerMentionCandidate($index)"
@@ -3470,7 +3421,7 @@
                 @if (platformVoiceSettingsPendingRequests().length) {
                   <div class="platform-voice-request-list">
                     @for (request of platformVoiceSettingsPendingRequests(); track request.id) {
-                      <div class="platform-voice-request-row" style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;border-radius:12px;background:rgba(255,255,255,0.035);border:1px solid rgba(255,255,255,0.05);">
+                      <div class="platform-voice-request-row" style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;border-radius:2px;background:rgba(255,255,255,0.035);border:1px solid rgba(255,255,255,0.05);">
                         <div class="platform-voice-request-row__identity" style="min-width:0;display:flex;align-items:center;gap:8px;flex:1 1 220px;">
                           <span class="platform-voice-request-row__avatar" style="width:28px;height:28px;flex:0 0 28px;border-radius:50%;overflow:hidden;display:inline-flex;align-items:center;justify-content:center;background:rgba(61,214,198,0.12);color:rgba(240,247,246,0.92);font-size:10px;font-weight:700;">
                             @if (userAvatarUrl(request.requester_user_id, request.requester_avatar_updated_at); as avatarUrl) {

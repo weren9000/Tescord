@@ -638,6 +638,7 @@ export class AppComponent {
   private readonly openedMessageFocusKind = signal<MessageFocusKind | null>(null);
   private readonly pendingMessageNavigation = signal<PendingMessageNavigationState | null>(null);
   private readonly pendingSearchNavigation = signal<PendingSearchNavigationState | null>(null);
+  private pushFeedbackTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
   @ViewChild('messageList')
   private messageListRef?: ElementRef<HTMLElement>;
@@ -1900,6 +1901,7 @@ export class AppComponent {
       this.stopVoiceJoinInboxPolling();
       this.stopPresenceKeepalive();
       this.teardownPresenceActivityTracking();
+      this.clearPushFeedbackTimer();
       this.clearAttachmentPreviews();
       this.revokeProfileAvatarPreviewObjectUrl();
     });
@@ -1937,6 +1939,28 @@ export class AppComponent {
     this.loadHealth();
     this.restoreSession();
     void this.syncWakeLock();
+  }
+
+  private clearPushFeedbackTimer(): void {
+    if (this.pushFeedbackTimeoutId === null) {
+      return;
+    }
+
+    clearTimeout(this.pushFeedbackTimeoutId);
+    this.pushFeedbackTimeoutId = null;
+  }
+
+  private setPushFeedback(feedback: { tone: PushFeedbackTone; message: string } | null): void {
+    this.clearPushFeedbackTimer();
+    this.pushFeedback.set(feedback);
+    if (!feedback) {
+      return;
+    }
+
+    this.pushFeedbackTimeoutId = setTimeout(() => {
+      this.pushFeedback.set(null);
+      this.pushFeedbackTimeoutId = null;
+    }, 2000);
   }
 
   private bindActionPipelines(): void {
@@ -5389,7 +5413,7 @@ export class AppComponent {
     this.pendingPushConversationId = null;
     this.pendingMessageNavigation.set(null);
     this.pendingSearchNavigation.set(null);
-    this.pushFeedback.set(null);
+    this.setPushFeedback(null);
     this.clearGlobalSearch();
     this.channels.set([]);
     this.members.set([]);
@@ -7310,7 +7334,7 @@ export class AppComponent {
     this.workspaceError.set(null);
     this.managementError.set(null);
     this.managementSuccess.set(null);
-    this.pushFeedback.set(null);
+    this.setPushFeedback(null);
     this.selectedServerId.set(serverId);
     this.appEvents.setActiveServer(serverId);
     this.selectedChannelId.set(null);
@@ -9374,26 +9398,26 @@ export class AppComponent {
 
     const nextEnabled = !conversation.push_enabled;
     this.conversationPushPendingId.set(conversation.id);
-    this.pushFeedback.set(null);
+    this.setPushFeedback(null);
 
     try {
       if (nextEnabled) {
         const result = await this.browserPush.enableConversationPush(token, conversation.id);
         this.setConversationPushEnabled(conversation.id, true);
-        this.pushFeedback.set({
+        this.setPushFeedback({
           tone: result.warning ? 'warning' : 'success',
           message: result.warning ?? 'Push-уведомления включены для этого чата'
         });
       } else {
         await this.browserPush.disableConversationPush(token, conversation.id);
         this.setConversationPushEnabled(conversation.id, false);
-        this.pushFeedback.set({
+        this.setPushFeedback({
           tone: 'success',
           message: 'Push-уведомления выключены для этого чата'
         });
       }
     } catch (error) {
-      this.pushFeedback.set({
+      this.setPushFeedback({
         tone: 'error',
         message: this.extractErrorMessage(
           error,
