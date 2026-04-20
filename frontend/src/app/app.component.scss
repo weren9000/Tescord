@@ -2912,15 +2912,14 @@ select {
 }
 
 .composer__surface {
-  display: grid;
-  grid-template-columns: 40px minmax(0, 1fr) 40px;
-  align-items: stretch;
-  gap: 6px;
-  padding: 6px;
+  position: relative;
+  display: block;
+  padding: 4px;
   border-radius: 2px;
   border: 1px solid rgba(255, 255, 255, 0.06);
   background: rgba(7, 15, 16, 0.9);
   box-shadow: none;
+  overflow: visible;
 }
 
 .composer__surface--busy {
@@ -2940,10 +2939,11 @@ select {
 
 .composer__attach,
 .composer__submit {
-  width: 100%;
-  height: 40px;
-  min-height: 40px;
-  align-self: stretch;
+  position: absolute;
+  bottom: 4px;
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
   display: inline-grid;
   place-items: center;
   padding: 0;
@@ -2952,6 +2952,7 @@ select {
   border-radius: 2px;
   box-shadow: none;
   transition: background 160ms ease, color 160ms ease, border-color 160ms ease;
+  z-index: 2;
 }
 
 .composer__submit {
@@ -2971,8 +2972,13 @@ select {
 }
 
 .composer__attach {
+  left: 4px;
   background: rgba(255, 255, 255, 0.04);
   color: rgba(238, 245, 248, 0.92);
+}
+
+.composer__submit {
+  right: 4px;
 }
 
 .composer__attach:hover:not(:disabled) {
@@ -3019,15 +3025,14 @@ select {
   display: flex;
   align-items: stretch;
   min-height: 40px;
-  padding: 0 10px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 0 40px 0 36px;
+  border: 0;
   border-radius: 2px;
   background: rgba(255, 255, 255, 0.02);
 }
 
 .composer__field:focus-within,
 .composer__field--mentioning {
-  border-color: rgba(61, 214, 198, 0.14);
   background: rgba(255, 255, 255, 0.03);
 }
 
@@ -5014,8 +5019,6 @@ select {
   }
 
   .composer__surface {
-    grid-template-columns: 36px minmax(0, 1fr) 36px;
-    gap: 5px;
     padding: 5px;
     border-radius: 2px;
   }
@@ -5024,11 +5027,13 @@ select {
   .composer__submit {
     height: 36px;
     min-height: 36px;
+    width: 30px;
+    bottom: 3px;
   }
 
   .composer__field {
     min-height: 36px;
-    padding: 0 8px;
+    padding: 0 34px 0 32px;
   }
 
   .composer textarea {
@@ -5170,6 +5175,7 @@ select {
   width: 38px;
   min-height: 38px;
   padding: 0;
+  border: 0;
   border-radius: 2px;
 }
 
@@ -5913,6 +5919,7 @@ select {
   min-height: 34px;
   padding: 0;
   justify-content: center;
+  border: 0;
   border-radius: 2px;
   position: relative;
 }
