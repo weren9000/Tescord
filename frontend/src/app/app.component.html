@@ -309,6 +309,8 @@
                 @for (conversation of globalSearchDirectResults(); track conversation.id) {
                   <button
                     class="sidebar-entry sidebar-entry--search"
+                    [class.sidebar-entry--unread]="conversationUnreadCount(conversation) > 0 || conversationMentionUnreadCount(conversation) > 0"
+                    [class.sidebar-entry--mention]="conversationMentionUnreadCount(conversation) > 0"
                     type="button"
                     (click)="openGlobalSearchConversation('chats', conversation.id)"
                   >
@@ -322,13 +324,15 @@
                     <div class="sidebar-entry__copy">
                       <div class="sidebar-entry__headline">
                         <strong>{{ conversation.title }}</strong>
-                        <span class="sidebar-entry__tag">Друг</span>
-                        @if (conversationMentionUnreadCount(conversation) > 0) {
-                          <span class="sidebar-entry__unread-badge sidebar-entry__unread-badge--mention">&#64;{{ conversationMentionUnreadBadgeLabel(conversation) }}</span>
-                        }
-                        @if (conversationUnreadCount(conversation) > 0) {
-                          <span class="sidebar-entry__unread-badge">{{ conversationUnreadBadgeLabel(conversation) }}</span>
-                        }
+                        <div class="sidebar-entry__meta">
+                          <span class="sidebar-entry__tag">Друг</span>
+                          @if (conversationMentionUnreadCount(conversation) > 0) {
+                            <span class="sidebar-entry__unread-badge sidebar-entry__unread-badge--mention">&#64;{{ conversationMentionUnreadBadgeLabel(conversation) }}</span>
+                          }
+                          @if (conversationUnreadCount(conversation) > 0) {
+                            <span class="sidebar-entry__unread-badge">{{ conversationUnreadBadgeLabel(conversation) }}</span>
+                          }
+                        </div>
                       </div>
                       <small>{{ conversationMetaLabel(conversation) }}</small>
                     </div>
@@ -346,6 +350,8 @@
                 @for (conversation of globalSearchGroupResults(); track conversation.id) {
                   <button
                     class="sidebar-entry sidebar-entry--search"
+                    [class.sidebar-entry--unread]="conversationUnreadCount(conversation) > 0 || conversationMentionUnreadCount(conversation) > 0"
+                    [class.sidebar-entry--mention]="conversationMentionUnreadCount(conversation) > 0"
                     type="button"
                     (click)="openGlobalSearchConversation('groups', conversation.id)"
                   >
@@ -359,13 +365,15 @@
                     <div class="sidebar-entry__copy">
                       <div class="sidebar-entry__headline">
                         <strong>{{ conversation.title }}</strong>
-                        <span class="sidebar-entry__tag">Группа</span>
-                        @if (conversationMentionUnreadCount(conversation) > 0) {
-                          <span class="sidebar-entry__unread-badge sidebar-entry__unread-badge--mention">&#64;{{ conversationMentionUnreadBadgeLabel(conversation) }}</span>
-                        }
-                        @if (conversationUnreadCount(conversation) > 0) {
-                          <span class="sidebar-entry__unread-badge">{{ conversationUnreadBadgeLabel(conversation) }}</span>
-                        }
+                        <div class="sidebar-entry__meta">
+                          <span class="sidebar-entry__tag">Группа</span>
+                          @if (conversationMentionUnreadCount(conversation) > 0) {
+                            <span class="sidebar-entry__unread-badge sidebar-entry__unread-badge--mention">&#64;{{ conversationMentionUnreadBadgeLabel(conversation) }}</span>
+                          }
+                          @if (conversationUnreadCount(conversation) > 0) {
+                            <span class="sidebar-entry__unread-badge">{{ conversationUnreadBadgeLabel(conversation) }}</span>
+                          }
+                        </div>
                       </div>
                       <small>{{ conversationMetaLabel(conversation) }}</small>
                     </div>
@@ -383,6 +391,8 @@
                 @for (space of globalSearchPlatformResults(); track space.id) {
                   <button
                     class="sidebar-entry sidebar-entry--search"
+                    [class.sidebar-entry--unread]="platformUnreadCount(space) > 0 || platformMentionUnreadCount(space) > 0"
+                    [class.sidebar-entry--mention]="platformMentionUnreadCount(space) > 0"
                     type="button"
                     (click)="openGlobalSearchConversation('platforms', space.id)"
                   >
@@ -396,13 +406,15 @@
                     <div class="sidebar-entry__copy">
                       <div class="sidebar-entry__headline">
                         <strong>{{ space.name }}</strong>
-                        <span class="sidebar-entry__tag">Площадка</span>
-                        @if (platformMentionUnreadCount(space) > 0) {
-                          <span class="sidebar-entry__unread-badge sidebar-entry__unread-badge--mention">&#64;{{ platformMentionUnreadBadgeLabel(space) }}</span>
-                        }
-                        @if (platformUnreadCount(space) > 0) {
-                          <span class="sidebar-entry__unread-badge">{{ platformUnreadBadgeLabel(space) }}</span>
-                        }
+                        <div class="sidebar-entry__meta">
+                          <span class="sidebar-entry__tag">Площадка</span>
+                          @if (platformMentionUnreadCount(space) > 0) {
+                            <span class="sidebar-entry__unread-badge sidebar-entry__unread-badge--mention">&#64;{{ platformMentionUnreadBadgeLabel(space) }}</span>
+                          }
+                          @if (platformUnreadCount(space) > 0) {
+                            <span class="sidebar-entry__unread-badge">{{ platformUnreadBadgeLabel(space) }}</span>
+                          }
+                        </div>
                       </div>
                       <small>{{ platformMetaLabel(space) }}</small>
                     </div>
@@ -420,6 +432,8 @@
                 @for (channel of globalSearchChannelResults(); track channel.channel_id) {
                   <button
                     class="sidebar-entry sidebar-entry--search"
+                    [class.sidebar-entry--unread]="channel.unread_count > 0 || channel.mention_unread_count > 0"
+                    [class.sidebar-entry--mention]="channel.mention_unread_count > 0"
                     type="button"
                     (click)="openGlobalSearchChannel(channel)"
                   >
@@ -433,15 +447,17 @@
                     <div class="sidebar-entry__copy">
                       <div class="sidebar-entry__headline">
                         <strong>{{ globalSearchChannelLabel(channel) }}</strong>
-                        <span class="sidebar-entry__tag" [class.sidebar-entry__tag--voice]="channel.type === 'voice'">
-                          {{ globalSearchChannelTypeLabel(channel) }}
-                        </span>
-                        @if (channel.mention_unread_count > 0) {
-                          <span class="sidebar-entry__unread-badge sidebar-entry__unread-badge--mention">&#64;{{ searchBadgeLabel(channel.mention_unread_count) }}</span>
-                        }
-                        @if (channel.unread_count > 0) {
-                          <span class="sidebar-entry__unread-badge">{{ searchBadgeLabel(channel.unread_count) }}</span>
-                        }
+                        <div class="sidebar-entry__meta">
+                          <span class="sidebar-entry__tag" [class.sidebar-entry__tag--voice]="channel.type === 'voice'">
+                            {{ globalSearchChannelTypeLabel(channel) }}
+                          </span>
+                          @if (channel.mention_unread_count > 0) {
+                            <span class="sidebar-entry__unread-badge sidebar-entry__unread-badge--mention">&#64;{{ searchBadgeLabel(channel.mention_unread_count) }}</span>
+                          }
+                          @if (channel.unread_count > 0) {
+                            <span class="sidebar-entry__unread-badge">{{ searchBadgeLabel(channel.unread_count) }}</span>
+                          }
+                        </div>
                       </div>
                       <small>{{ globalSearchChannelMetaLabel(channel) }}</small>
                     </div>
@@ -468,6 +484,8 @@
                   <button
                     class="sidebar-entry"
                     [class.sidebar-entry--active]="space.id === selectedServerId()"
+                    [class.sidebar-entry--unread]="conversationUnreadCount(conversation) > 0 || conversationMentionUnreadCount(conversation) > 0"
+                    [class.sidebar-entry--mention]="conversationMentionUnreadCount(conversation) > 0"
                     type="button"
                     (click)="selectServer(space.id)"
                   >
@@ -481,11 +499,15 @@
                     <div class="sidebar-entry__copy">
                       <div class="sidebar-entry__headline">
                         <strong>{{ conversation.title }}</strong>
-                        @if (conversationMentionUnreadCount(conversation) > 0) {
-                          <span class="sidebar-entry__unread-badge sidebar-entry__unread-badge--mention">&#64;{{ conversationMentionUnreadBadgeLabel(conversation) }}</span>
-                        }
-                        @if (conversationUnreadCount(conversation) > 0) {
-                          <span class="sidebar-entry__unread-badge">{{ conversationUnreadBadgeLabel(conversation) }}</span>
+                        @if (conversationMentionUnreadCount(conversation) > 0 || conversationUnreadCount(conversation) > 0) {
+                          <div class="sidebar-entry__meta">
+                            @if (conversationMentionUnreadCount(conversation) > 0) {
+                              <span class="sidebar-entry__unread-badge sidebar-entry__unread-badge--mention">&#64;{{ conversationMentionUnreadBadgeLabel(conversation) }}</span>
+                            }
+                            @if (conversationUnreadCount(conversation) > 0) {
+                              <span class="sidebar-entry__unread-badge">{{ conversationUnreadBadgeLabel(conversation) }}</span>
+                            }
+                          </div>
                         }
                       </div>
                       <small>{{ conversationMetaLabel(conversation) }}</small>
@@ -503,6 +525,8 @@
                   <button
                     class="sidebar-entry"
                     [class.sidebar-entry--active]="space.id === selectedServerId()"
+                    [class.sidebar-entry--unread]="conversationUnreadCount(conversation) > 0 || conversationMentionUnreadCount(conversation) > 0"
+                    [class.sidebar-entry--mention]="conversationMentionUnreadCount(conversation) > 0"
                     type="button"
                     (click)="selectServer(space.id)"
                   >
@@ -516,11 +540,15 @@
                     <div class="sidebar-entry__copy">
                       <div class="sidebar-entry__headline">
                         <strong>{{ conversation.title }}</strong>
-                        @if (conversationMentionUnreadCount(conversation) > 0) {
-                          <span class="sidebar-entry__unread-badge sidebar-entry__unread-badge--mention">&#64;{{ conversationMentionUnreadBadgeLabel(conversation) }}</span>
-                        }
-                        @if (conversationUnreadCount(conversation) > 0) {
-                          <span class="sidebar-entry__unread-badge">{{ conversationUnreadBadgeLabel(conversation) }}</span>
+                        @if (conversationMentionUnreadCount(conversation) > 0 || conversationUnreadCount(conversation) > 0) {
+                          <div class="sidebar-entry__meta">
+                            @if (conversationMentionUnreadCount(conversation) > 0) {
+                              <span class="sidebar-entry__unread-badge sidebar-entry__unread-badge--mention">&#64;{{ conversationMentionUnreadBadgeLabel(conversation) }}</span>
+                            }
+                            @if (conversationUnreadCount(conversation) > 0) {
+                              <span class="sidebar-entry__unread-badge">{{ conversationUnreadBadgeLabel(conversation) }}</span>
+                            }
+                          </div>
                         }
                       </div>
                       <small>{{ conversationMetaLabel(conversation) }}</small>
@@ -537,6 +565,8 @@
                 <button
                   class="sidebar-entry"
                   [class.sidebar-entry--active]="space.id === selectedServerId()"
+                  [class.sidebar-entry--unread]="platformUnreadCount(space) > 0 || platformMentionUnreadCount(space) > 0"
+                  [class.sidebar-entry--mention]="platformMentionUnreadCount(space) > 0"
                   type="button"
                   (click)="selectServer(space.id)"
                 >
@@ -550,11 +580,15 @@
                   <div class="sidebar-entry__copy">
                     <div class="sidebar-entry__headline">
                       <strong>{{ space.name }}</strong>
-                      @if (platformMentionUnreadCount(space) > 0) {
-                        <span class="sidebar-entry__unread-badge" style="background:rgba(255,114,149,0.16);color:#ffd8e6;">&#64;{{ platformMentionUnreadBadgeLabel(space) }}</span>
-                      }
-                      @if (platformUnreadCount(space) > 0) {
-                        <span class="sidebar-entry__unread-badge">{{ platformUnreadBadgeLabel(space) }}</span>
+                      @if (platformMentionUnreadCount(space) > 0 || platformUnreadCount(space) > 0) {
+                        <div class="sidebar-entry__meta">
+                          @if (platformMentionUnreadCount(space) > 0) {
+                            <span class="sidebar-entry__unread-badge sidebar-entry__unread-badge--mention">&#64;{{ platformMentionUnreadBadgeLabel(space) }}</span>
+                          }
+                          @if (platformUnreadCount(space) > 0) {
+                            <span class="sidebar-entry__unread-badge">{{ platformUnreadBadgeLabel(space) }}</span>
+                          }
+                        </div>
                       }
                     </div>
                     <small>{{ platformMetaLabel(space) }}</small>
@@ -1434,7 +1468,15 @@
                       </span>
                       <strong>{{ replyPreviewText(replyMessage) }}</strong>
                     </div>
-                    <button class="composer__reply-close" type="button" (click)="clearReplyTarget()">✕</button>
+                    <button
+                      class="composer__reply-close"
+                      type="button"
+                      aria-label="Отменить ответ"
+                      title="Отменить ответ"
+                      (click)="clearReplyTarget()"
+                    >
+                      ✕
+                    </button>
                   </div>
                 }
 
@@ -1481,7 +1523,11 @@
                   </div>
                 }
 
-                <div class="composer__surface" [class.composer__surface--busy]="messageSubmitting()">
+                <div
+                  class="composer__surface"
+                  [class.composer__surface--busy]="messageSubmitting()"
+                  [class.composer__surface--mentioning]="composerMentionMenuOpen()"
+                >
                   <button
                     class="secondary-button composer__attach"
                     type="button"
@@ -1493,7 +1539,7 @@
                     <span class="composer__attach-icon">+</span>
                   </button>
 
-                  <label class="composer__field">
+                  <label class="composer__field" [class.composer__field--mentioning]="composerMentionMenuOpen()">
                     <textarea
                       #messageTextarea
                       [ngModel]="messageDraft()"
@@ -1510,36 +1556,30 @@
                     ></textarea>
 
                     @if (composerMentionMenuOpen()) {
-                      <div
-                        style="position:absolute;left:-6px;right:-6px;bottom:calc(100% + 10px);display:grid;gap:4px;padding:8px;border-radius:2px;border:1px solid rgba(120,255,208,0.08);background:rgba(6,13,14,0.98);backdrop-filter:blur(14px);z-index:4;"
-                      >
+                      <div class="composer__mention-menu">
                         @for (candidate of composerMentionCandidates(); track candidate.userId) {
                           <button
                             type="button"
-                            style="display:grid;grid-template-columns:30px minmax(0, 1fr) 8px;align-items:center;gap:8px;padding:7px 8px;border:0;border-radius:2px;color:var(--text);text-align:left;box-shadow:none;"
-                            [style.background]="activeComposerMentionCandidate()?.userId === candidate.userId ? 'rgba(81,240,168,0.1)' : 'transparent'"
+                            class="composer__mention-option"
+                            [class.composer__mention-option--active]="activeComposerMentionCandidate()?.userId === candidate.userId"
                             (mousedown)="$event.preventDefault()"
                             (mouseenter)="highlightComposerMentionCandidate($index)"
                             (click)="selectComposerMentionCandidate(candidate)"
                           >
-                            <div
-                              style="width:30px;height:30px;display:grid;place-items:center;overflow:hidden;border-radius:50%;background:rgba(255,255,255,0.06);color:#f2faf7;font-size:0.62rem;font-weight:700;"
-                            >
+                            <div class="composer__mention-avatar">
                               @if (userAvatarUrl(candidate.userId, candidate.avatarUpdatedAt); as avatarUrl) {
-                                <img [src]="avatarUrl" [alt]="composerMentionLabel(candidate)" loading="lazy" style="width:100%;height:100%;display:block;object-fit:cover;" />
+                                <img class="composer__mention-avatar-image" [src]="avatarUrl" [alt]="composerMentionLabel(candidate)" loading="lazy" />
                               } @else {
                                 <span>{{ displayNickInitials(candidate.nick) }}</span>
                               }
                             </div>
-                            <div style="min-width:0;display:grid;gap:2px;">
-                              <strong style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:0.76rem;">{{ composerMentionLabel(candidate) }}</strong>
-                              <small style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-size:0.64rem;">&#64;{{ formatPublicUserId(candidate.publicId) }}</small>
+                            <div class="composer__mention-copy">
+                              <strong>{{ composerMentionLabel(candidate) }}</strong>
+                              <small>&#64;{{ formatPublicUserId(candidate.publicId) }}</small>
                             </div>
                             <span
-                              style="width:8px;height:8px;border-radius:50%;"
-                              [style.background]="candidate.isOnline ? 'rgba(81,240,168,0.9)' : 'rgba(255,255,255,0.12)'"
-                              [style.outline]="candidate.isOnline ? '2px solid rgba(81,240,168,0.16)' : 'none'"
-                              [style.outline-offset]="candidate.isOnline ? '1px' : '0'"
+                              class="composer__mention-status"
+                              [class.composer__mention-status--online]="candidate.isOnline"
                             ></span>
                           </button>
                         }
@@ -3192,12 +3232,12 @@
         }
 
         @if (activeServer(); as platform) {
-          <section class="platform-settings-section" style="margin-bottom:12px;">
-            <div class="platform-settings-section__head" style="align-items:flex-start;">
-              <div style="min-width:0;display:grid;gap:3px;">
-                <strong style="font-size:14px;">{{ platform.name }}</strong>
+          <section class="platform-settings-section platform-settings-section--overview">
+            <div class="platform-settings-section__head platform-settings-section__head--overview">
+              <div class="platform-settings-overview">
+                <strong class="platform-settings-overview__name">{{ platform.name }}</strong>
                 @if (platform.description) {
-                  <small style="color:rgba(222,236,245,0.6);font-size:11px;">{{ platform.description }}</small>
+                  <small class="platform-settings-overview__description">{{ platform.description }}</small>
                 }
               </div>
               @if (platformUnreadCount(platform) > 0) {
@@ -3205,12 +3245,12 @@
               }
             </div>
 
-            <div class="voice-admin__chips" style="gap:6px;flex-wrap:wrap;">
-              <span class="voice-admin__chip" style="min-height:22px;padding:0 8px;font-size:10px;border-radius:999px;">{{ activeGroupMemberCount() }} участников</span>
-              <span class="voice-admin__chip" style="min-height:22px;padding:0 8px;font-size:10px;border-radius:999px;">{{ textChannels().length }} текстовых</span>
-              <span class="voice-admin__chip" style="min-height:22px;padding:0 8px;font-size:10px;border-radius:999px;">{{ voiceChannels().length }} голосовых</span>
+            <div class="voice-admin__chips platform-settings-overview__chips">
+              <span class="voice-admin__chip platform-settings-overview__chip">{{ activeGroupMemberCount() }} участников</span>
+              <span class="voice-admin__chip platform-settings-overview__chip">{{ textChannels().length }} текстовых</span>
+              <span class="voice-admin__chip platform-settings-overview__chip">{{ voiceChannels().length }} голосовых</span>
               @if (activePlatformVoiceRequestCount() > 0) {
-                <span class="voice-admin__chip voice-admin__chip--warning" style="min-height:22px;padding:0 8px;font-size:10px;border-radius:999px;">{{ activePlatformVoiceRequestCount() }} заявок</span>
+                <span class="voice-admin__chip voice-admin__chip--warning platform-settings-overview__chip">{{ activePlatformVoiceRequestCount() }} заявок</span>
               }
             </div>
           </section>
@@ -3221,31 +3261,29 @@
                 <strong>Управление</strong>
               </div>
 
-              <div style="display:flex;flex-wrap:wrap;gap:8px;">
+              <div class="platform-settings-actions">
                 @if (canManageActiveGroup()) {
-                  <button class="secondary-button" type="button" style="min-height:32px;padding:0 12px;font-size:11px;" (click)="openPlatformSettingsAddMember()">
+                  <button class="secondary-button platform-settings-action-button" type="button" (click)="openPlatformSettingsAddMember()">
                     Участник
                   </button>
-                  <button class="secondary-button" type="button" style="min-height:32px;padding:0 12px;font-size:11px;" (click)="openCreateChannelModal('text')">
+                  <button class="secondary-button platform-settings-action-button" type="button" (click)="openCreateChannelModal('text')">
                     Текст
                   </button>
-                  <button class="secondary-button" type="button" style="min-height:32px;padding:0 12px;font-size:11px;" (click)="openCreateChannelModal('voice')">
+                  <button class="secondary-button platform-settings-action-button" type="button" (click)="openCreateChannelModal('voice')">
                     Голос
                   </button>
                 }
                 <button
-                  class="secondary-button"
+                  class="secondary-button platform-settings-action-button"
                   type="button"
-                  style="min-height:32px;padding:0 12px;font-size:11px;"
                   [disabled]="isServerMembershipActionPending(platform.id)"
                   (click)="startPlatformSettingsMembershipAction('leave')"
                 >
                   {{ isActiveGroupOwner() ? 'Передать / выйти' : 'Выйти' }}
                 </button>
                 <button
-                  class="secondary-button secondary-button--danger"
+                  class="secondary-button secondary-button--danger platform-settings-action-button"
                   type="button"
-                  style="min-height:32px;padding:0 12px;font-size:11px;"
                   [disabled]="isServerMembershipActionPending(platform.id)"
                   (click)="startPlatformSettingsMembershipAction('block')"
                 >
@@ -3258,31 +3296,31 @@
               <div class="platform-settings-section__head">
                 <strong>Участники</strong>
                 @if (canManageActiveGroup()) {
-                  <button class="secondary-button" type="button" style="min-height:30px;padding:0 10px;font-size:11px;" (click)="openPlatformSettingsAddMember()">
+                  <button class="secondary-button platform-settings-section__action" type="button" (click)="openPlatformSettingsAddMember()">
                     + Участник
                   </button>
                 }
               </div>
 
-              <div class="platform-settings-list" style="max-height:min(260px,32vh);">
+              <div class="platform-settings-list platform-settings-list--members">
                 @for (member of groupMembers(); track member.userId) {
                   <div class="platform-settings-row">
                     <button
                       type="button"
+                      class="platform-settings-row__main"
                       (click)="openPlatformSettingsMember(member)"
-                      style="min-width:0;display:grid;grid-template-columns:34px minmax(0,1fr);align-items:center;gap:8px;padding:0;border:0;background:transparent;color:inherit;text-align:left;cursor:pointer;"
                     >
-                      <span class="conversation-picker-row__avatar" style="margin:0;">
+                      <span class="conversation-picker-row__avatar platform-settings-row__avatar">
                         @if (userAvatarUrl(member.userId, member.avatarUpdatedAt); as avatarUrl) {
                           <img [src]="avatarUrl" [alt]="displayNick(member.nick)" loading="lazy" />
                         } @else {
                           <span>{{ displayNickInitials(member.nick) }}</span>
                         }
                       </span>
-                      <span style="min-width:0;display:grid;gap:2px;">
-                        <strong style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;">{{ displayNick(member.nick) }}</strong>
-                        <small style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:rgba(222,236,245,0.62);font-size:10px;">{{ platformMemberIdentityLabel(member) }}</small>
-                        <small style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:rgba(222,236,245,0.54);font-size:10px;">{{ platformMemberPresenceLabel(member) }}</small>
+                      <span class="platform-settings-row__meta">
+                        <strong>{{ displayNick(member.nick) }}</strong>
+                        <small>{{ platformMemberIdentityLabel(member) }}</small>
+                        <small class="platform-settings-row__subtle">{{ platformMemberPresenceLabel(member) }}</small>
                       </span>
                     </button>
 
@@ -3314,7 +3352,7 @@
               <div class="platform-settings-section__head">
                 <strong>Текстовые каналы</strong>
                 @if (canManageActiveGroup()) {
-                  <button class="secondary-button" type="button" style="min-height:30px;padding:0 10px;font-size:11px;" (click)="openCreateChannelModal('text')">
+                  <button class="secondary-button platform-settings-section__action" type="button" (click)="openCreateChannelModal('text')">
                     + Текст
                   </button>
                 }
@@ -3323,9 +3361,9 @@
               <div class="platform-settings-list">
                 @for (channel of textChannels(); track channel.id) {
                   <div class="platform-settings-row" [class.platform-settings-row--active]="selectedChannelId() === channel.id">
-                    <div class="platform-settings-row__copy" style="display:grid;gap:2px;">
+                    <div class="platform-settings-row__copy">
                       <strong># {{ channel.name }}</strong>
-                      <small style="color:rgba(222,236,245,0.58);font-size:10px;">{{ platformChannelMetaLabel(channel) }}</small>
+                      <small>{{ platformChannelMetaLabel(channel) }}</small>
                     </div>
                     <div class="platform-settings-row__actions">
                       @if (channelUnreadCount(channel) > 0) {
@@ -3357,7 +3395,7 @@
               <div class="platform-settings-section__head">
                 <strong>Голосовые каналы</strong>
                 @if (canManageActiveGroup()) {
-                  <button class="secondary-button" type="button" style="min-height:30px;padding:0 10px;font-size:11px;" (click)="openCreateChannelModal('voice')">
+                  <button class="secondary-button platform-settings-section__action" type="button" (click)="openCreateChannelModal('voice')">
                     + Голос
                   </button>
                 }
@@ -3366,9 +3404,9 @@
               <div class="platform-settings-list">
                 @for (channel of voiceChannels(); track channel.id) {
                   <div class="platform-settings-row" [class.platform-settings-row--active]="isPlatformVoiceSettingsSelected(channel.id)">
-                    <div class="platform-settings-row__copy" style="display:grid;gap:2px;">
+                    <div class="platform-settings-row__copy">
                       <strong>{{ channel.name }}</strong>
-                      <small style="color:rgba(222,236,245,0.58);font-size:10px;">{{ platformChannelMetaLabel(channel) }}</small>
+                      <small>{{ platformChannelMetaLabel(channel) }}</small>
                     </div>
                     <div class="platform-settings-row__actions">
                       @if (channelUnreadCount(channel) > 0) {
@@ -3422,24 +3460,24 @@
                 @if (platformVoiceSettingsPendingRequests().length) {
                   <div class="platform-voice-request-list">
                     @for (request of platformVoiceSettingsPendingRequests(); track request.id) {
-                      <div class="platform-voice-request-row" style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;border-radius:2px;background:rgba(255,255,255,0.035);border:1px solid rgba(255,255,255,0.05);">
-                        <div class="platform-voice-request-row__identity" style="min-width:0;display:flex;align-items:center;gap:8px;flex:1 1 220px;">
-                          <span class="platform-voice-request-row__avatar" style="width:28px;height:28px;flex:0 0 28px;border-radius:50%;overflow:hidden;display:inline-flex;align-items:center;justify-content:center;background:rgba(61,214,198,0.12);color:rgba(240,247,246,0.92);font-size:10px;font-weight:700;">
+                      <div class="platform-voice-request-row">
+                        <div class="platform-voice-request-row__identity">
+                          <span class="platform-voice-request-row__avatar">
                             @if (userAvatarUrl(request.requester_user_id, request.requester_avatar_updated_at); as avatarUrl) {
-                              <img [src]="avatarUrl" [alt]="displayNick(request.requester_nick)" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" />
+                              <img class="platform-voice-request-row__image" [src]="avatarUrl" [alt]="displayNick(request.requester_nick)" loading="lazy" />
                             } @else {
                               <span>{{ displayNickInitials(request.requester_nick) }}</span>
                             }
                           </span>
-                          <div class="platform-voice-request-row__copy" style="min-width:0;display:grid;gap:2px;">
+                          <div class="platform-voice-request-row__copy">
                             <strong>{{ displayNick(request.requester_nick) }}</strong>
-                            <small style="color:rgba(222,236,245,0.58);font-size:10px;">{{ request.server_name }} · {{ formatMessageTime(request.created_at) }}</small>
+                            <small class="platform-voice-request-row__meta">{{ request.server_name }} · {{ formatMessageTime(request.created_at) }}</small>
                           </div>
                         </div>
-                        <div class="platform-voice-request-row__actions" style="display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
-                          <button class="secondary-button" type="button" style="min-height:30px;padding:0 10px;font-size:11px;" [disabled]="voiceOwnerActionLoading()" (click)="resolveVoiceRequest(request, 'allow')">Впустить</button>
-                          <button class="secondary-button" type="button" style="min-height:30px;padding:0 10px;font-size:11px;" [disabled]="voiceOwnerActionLoading()" (click)="resolveVoiceRequest(request, 'resident')">Житель</button>
-                          <button class="primary-button" type="button" style="min-height:30px;padding:0 10px;font-size:11px;" [disabled]="voiceOwnerActionLoading()" (click)="resolveVoiceRequest(request, 'reject')">Блок</button>
+                        <div class="platform-voice-request-row__actions">
+                          <button class="secondary-button platform-settings-section__action" type="button" [disabled]="voiceOwnerActionLoading()" (click)="resolveVoiceRequest(request, 'allow')">Впустить</button>
+                          <button class="secondary-button platform-settings-section__action" type="button" [disabled]="voiceOwnerActionLoading()" (click)="resolveVoiceRequest(request, 'resident')">Житель</button>
+                          <button class="primary-button platform-settings-section__action" type="button" [disabled]="voiceOwnerActionLoading()" (click)="resolveVoiceRequest(request, 'reject')">Блок</button>
                         </div>
                       </div>
                     }
@@ -3452,23 +3490,22 @@
                   } @else {
                     @for (view of platformVoiceSettingsAccessView(); track view.entry.user_id) {
                       <div class="platform-voice-access-row">
-                        <div class="platform-voice-access-row__copy" style="min-width:0;display:grid;gap:5px;">
-                          <strong style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;">{{ displayNick(view.entry.nick) }}</strong>
-                          <div class="voice-admin__chips" style="gap:4px;">
+                        <div class="platform-voice-access-row__copy">
+                          <strong>{{ displayNick(view.entry.nick) }}</strong>
+                          <div class="voice-admin__chips platform-voice-access-row__chips">
                             @for (chip of view.statusChips; track chip.label) {
                               <span
-                                class="voice-admin__chip"
+                                class="voice-admin__chip platform-voice-access-row__chip"
                                 [class.voice-admin__chip--online]="chip.tone === 'online'"
                                 [class.voice-admin__chip--active]="chip.tone === 'active'"
                                 [class.voice-admin__chip--warning]="chip.tone === 'warning'"
                                 [class.voice-admin__chip--danger]="chip.tone === 'danger'"
-                                style="min-height:20px;padding:0 7px;font-size:10px;border-radius:999px;"
                               >
                                 {{ chip.label }}
                               </span>
                             }
                             @if (isPlatformMemberManager(view.entry.user_id)) {
-                              <span class="voice-admin__chip" style="min-height:20px;padding:0 7px;font-size:10px;border-radius:999px;">Упр. площадкой</span>
+                              <span class="voice-admin__chip platform-voice-access-row__chip">Упр. площадкой</span>
                             }
                           </div>
                         </div>
