@@ -1133,9 +1133,12 @@
                       </div>
                     </div>
                     @if (groupVoiceParticipantsExpanded()) {
-                      <div class="group-voice-roster">
+                      <div
+                        class="group-voice-roster group-voice-roster--conference"
+                        [class.group-voice-roster--with-video]="connectedVoiceChannelId() === groupVoiceChannel.id && !!voiceVideoSceneForChannel(groupVoiceChannel.id)"
+                      >
                         @if (connectedVoiceChannelId() === groupVoiceChannel.id && voiceVideoSceneForChannel(groupVoiceChannel.id); as scene) {
-                          <div class="group-voice-video-layout" [class.group-voice-video-layout--presentation]="scene.mode === 'presentation'">
+                          <div class="group-voice-video-layout group-voice-video-layout--conference" [class.group-voice-video-layout--presentation]="scene.mode === 'presentation'">
                             @if (scene.stageTile; as stageTile) {
                               <div class="group-voice-video-stage">
                                 <div class="group-voice-video-stage__media">
@@ -1206,64 +1209,66 @@
                             }
                           </div>
                         }
-                        @if (activeGroupVoiceParticipants().length) {
-                          @for (participant of activeGroupVoiceParticipants(); track participant.id) {
-                            <div class="group-voice-roster__member">
-                              <div class="group-voice-roster__avatar">
-                                @if (userAvatarUrl(participant.user_id, participant.avatar_updated_at); as avatarUrl) {
-                                  <img [src]="avatarUrl" [alt]="displayNick(participant.nick)" loading="lazy" />
-                                } @else {
-                                  <span>{{ displayNickInitials(participant.nick) }}</span>
-                                }
-                              </div>
-                              <div class="group-voice-roster__copy">
-                                <strong>{{ displayNick(participant.nick) }}</strong>
+                        <div class="group-voice-roster__participants">
+                          @if (activeGroupVoiceParticipants().length) {
+                            @for (participant of activeGroupVoiceParticipants(); track participant.id) {
+                              <div class="group-voice-roster__member">
+                                <div class="group-voice-roster__avatar">
+                                  @if (userAvatarUrl(participant.user_id, participant.avatar_updated_at); as avatarUrl) {
+                                    <img [src]="avatarUrl" [alt]="displayNick(participant.nick)" loading="lazy" />
+                                  } @else {
+                                    <span>{{ displayNickInitials(participant.nick) }}</span>
+                                  }
+                                </div>
+                                <div class="group-voice-roster__copy">
+                                  <strong>{{ displayNick(participant.nick) }}</strong>
+                                  @if (participant.is_self) {
+                                    <small>{{ groupVoiceSelfStatusLabel(participant) }}</small>
+                                  } @else {
+                                    <div class="group-voice-roster__controls">
+                                      <input
+                                        class="group-voice-roster__volume"
+                                        type="range"
+                                        min="0"
+                                        max="200"
+                                        step="1"
+                                        [value]="groupVoiceParticipantVolume(participant)"
+                                        [attr.aria-label]="'Громкость ' + displayNick(participant.nick)"
+                                        (input)="setGroupVoiceParticipantVolume(participant, $any($event.target).value)"
+                                      />
+                                      <small>{{ groupVoiceParticipantVolume(participant) }}%</small>
+                                    </div>
+                                  }
+                                </div>
                                 @if (participant.is_self) {
-                                  <small>{{ groupVoiceSelfStatusLabel(participant) }}</small>
-                                } @else {
-                                  <div class="group-voice-roster__controls">
-                                    <input
-                                      class="group-voice-roster__volume"
-                                      type="range"
-                                      min="0"
-                                      max="200"
-                                      step="1"
-                                      [value]="groupVoiceParticipantVolume(participant)"
-                                      [attr.aria-label]="'Громкость ' + displayNick(participant.nick)"
-                                      (input)="setGroupVoiceParticipantVolume(participant, $any($event.target).value)"
+                                  <button
+                                    class="group-voice-roster__state-button"
+                                    type="button"
+                                    [attr.title]="groupVoiceStateActionLabel(participant)"
+                                    [attr.aria-label]="groupVoiceStateActionLabel(participant)"
+                                    (click)="toggleGroupVoiceParticipantMute(participant)"
+                                  >
+                                    <img
+                                      class="group-voice-roster__state"
+                                      [src]="groupVoiceStateIconPath(participant)"
+                                      [alt]="groupVoiceStateIconAlt(participant)"
                                     />
-                                    <small>{{ groupVoiceParticipantVolume(participant) }}%</small>
-                                  </div>
+                                  </button>
+                                } @else {
+                                  <span class="group-voice-roster__state-shell" [attr.title]="groupVoiceStateIconAlt(participant)">
+                                    <img
+                                      class="group-voice-roster__state"
+                                      [src]="groupVoiceStateIconPath(participant)"
+                                      [alt]="groupVoiceStateIconAlt(participant)"
+                                    />
+                                  </span>
                                 }
                               </div>
-                              @if (participant.is_self) {
-                                <button
-                                  class="group-voice-roster__state-button"
-                                  type="button"
-                                  [attr.title]="groupVoiceStateActionLabel(participant)"
-                                  [attr.aria-label]="groupVoiceStateActionLabel(participant)"
-                                  (click)="toggleGroupVoiceParticipantMute(participant)"
-                                >
-                                  <img
-                                    class="group-voice-roster__state"
-                                    [src]="groupVoiceStateIconPath(participant)"
-                                    [alt]="groupVoiceStateIconAlt(participant)"
-                                  />
-                                </button>
-                              } @else {
-                                <span class="group-voice-roster__state-shell" [attr.title]="groupVoiceStateIconAlt(participant)">
-                                  <img
-                                    class="group-voice-roster__state"
-                                    [src]="groupVoiceStateIconPath(participant)"
-                                    [alt]="groupVoiceStateIconAlt(participant)"
-                                  />
-                                </span>
-                              }
-                            </div>
+                            }
+                          } @else {
+                            <div class="group-voice-roster__empty">В голосовом чате пока никого нет</div>
                           }
-                        } @else {
-                          <div class="group-voice-roster__empty">В голосовом чате пока никого нет</div>
-                        }
+                        </div>
                       </div>
                     }
                   }
