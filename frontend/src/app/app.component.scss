@@ -7725,6 +7725,54 @@ select {
     padding-inline: 12px;
   }
 
+  .group-overview--conference {
+    max-height: calc(100dvh - 196px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  }
+
+  .group-voice-roster--conference.group-voice-roster--with-video {
+    min-height: 0;
+    overflow: auto;
+  }
+
+  .group-voice-roster--conference.group-voice-roster--with-video .group-voice-roster__participants {
+    max-height: none;
+    overflow: visible;
+    padding-right: 0;
+  }
+
+  .group-overview--conference .group-voice-video-layout--conference {
+    min-height: 0;
+  }
+
+  .group-overview--conference .group-voice-video-grid--grid-2,
+  .group-overview--conference .group-voice-video-grid--grid-4,
+  .group-overview--conference .group-voice-video-grid--grid-6,
+  .group-overview--conference .group-voice-video-grid--grid-9 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .group-overview--conference .group-voice-video-stage__video {
+    max-height: min(32dvh, 240px);
+  }
+
+  .group-overview--conference .group-voice-video-tile__media,
+  .group-overview--conference .group-voice-video-tile--placeholder::before {
+    aspect-ratio: 4 / 3;
+  }
+
+  .group-overview--conference .group-voice-video-layout--conference.group-voice-video-layout--presentation .group-voice-video-grid--preview {
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(116px, 42vw);
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 4px;
+  }
+
+  .group-overview--conference .group-voice-video-layout--conference.group-voice-video-layout--presentation .group-voice-video-grid--preview .group-voice-video-tile__media {
+    aspect-ratio: 16 / 9;
+  }
+
   .workspace-content--platform {
     grid-template-columns: 1fr;
   }
