@@ -870,6 +870,39 @@
                                 <path d="M14 10.5l5-3v9l-5-3"></path>
                               </svg>
                             </button>
+                            @if (connectedVoiceChannelId() === channel.id && voiceScreenSharing()) {
+                              <button
+                                class="secondary-button platform-channel-entry__voice-action platform-channel-entry__voice-action--active"
+                                type="button"
+                                aria-label="Остановить показ экрана"
+                                title="Остановить показ экрана"
+                                [disabled]="!canTogglePlatformVoiceScreenShare(channel.id)"
+                                (click)="togglePlatformVoiceScreenShare(channel, $event)"
+                              >
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                  <rect x="3" y="5" width="18" height="12" rx="2"></rect>
+                                  <path d="M9 19h6"></path>
+                                  <path d="M8 8l8 6"></path>
+                                  <path d="M16 8l-8 6"></path>
+                                </svg>
+                              </button>
+                            } @else {
+                              <button
+                                class="secondary-button platform-channel-entry__voice-action"
+                                type="button"
+                                aria-label="Показать экран"
+                                title="Показать экран"
+                                [disabled]="!canTogglePlatformVoiceScreenShare(channel.id)"
+                                (click)="togglePlatformVoiceScreenShare(channel, $event)"
+                              >
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                  <rect x="3" y="5" width="18" height="12" rx="2"></rect>
+                                  <path d="M9 19h6"></path>
+                                  <path d="M12 9v6"></path>
+                                  <path d="M9 12h6"></path>
+                                </svg>
+                              </button>
+                            }
                             <button
                               class="secondary-button platform-channel-entry__voice-action"
                               type="button"
@@ -883,17 +916,74 @@
                         </div>
                         @if (isPlatformVoiceChannelExpanded(channel.id)) {
                           <div class="platform-channel-entry__roster">
-                            @if (connectedVoiceChannelId() === channel.id && voiceVideoTilesForChannel(channel.id).length) {
-                              <div class="group-voice-video-grid group-voice-video-grid--compact">
-                                @for (tile of voiceVideoTilesForChannel(channel.id); track tile.id) {
-                                  <div class="group-voice-video-tile" [class.group-voice-video-tile--speaking]="tile.speaking">
-                                    <div class="group-voice-video-tile__media">
-                                      <video class="group-voice-video-tile__video" autoplay playsinline [appMediaStreamSrc]="tile.stream" [appMediaStreamMuted]="tile.isSelf"></video>
+                            @if (connectedVoiceChannelId() === channel.id && voiceVideoSceneForChannel(channel.id); as scene) {
+                              <div class="group-voice-video-layout group-voice-video-layout--compact" [class.group-voice-video-layout--presentation]="scene.mode === 'presentation'">
+                                @if (scene.stageTile; as stageTile) {
+                                  <div class="group-voice-video-stage">
+                                    <div class="group-voice-video-stage__media">
+                                      <video
+                                        class="group-voice-video-stage__video"
+                                        [class.group-voice-video-stage__video--screen]="stageTile.source === 'screen-share'"
+                                        autoplay
+                                        playsinline
+                                        [appMediaStreamSrc]="stageTile.stream"
+                                        [appMediaStreamMuted]="stageTile.isSelf"
+                                      ></video>
+                                      <span class="group-voice-video-tile__badge">{{ voiceVideoTileSourceLabel(stageTile) }}</span>
                                     </div>
-                                    <div class="group-voice-video-tile__meta">
-                                      <strong>{{ displayNick(tile.nick) }}</strong>
-                                      <small>{{ tile.isSelf ? 'Вы' : (tile.ownerMuted || tile.muted ? 'Микрофон выключен' : (tile.speaking ? 'Говорит' : 'В эфире')) }}</small>
+                                    <div class="group-voice-video-stage__meta">
+                                      <strong>{{ displayNick(stageTile.nick) }}</strong>
+                                      <small>{{ voiceVideoTileStatusLabel(stageTile) }}</small>
                                     </div>
+                                  </div>
+                                }
+                                @if (scene.gridTiles.length) {
+                                  <div [ngClass]="['group-voice-video-grid', 'group-voice-video-grid--compact', scene.gridClass]">
+                                    @for (tile of scene.gridTiles; track tile.id) {
+                                      <div class="group-voice-video-tile" [class.group-voice-video-tile--speaking]="tile.speaking">
+                                        <div class="group-voice-video-tile__media">
+                                          <video
+                                            class="group-voice-video-tile__video"
+                                            [class.group-voice-video-tile__video--screen]="tile.source === 'screen-share'"
+                                            autoplay
+                                            playsinline
+                                            [appMediaStreamSrc]="tile.stream"
+                                            [appMediaStreamMuted]="tile.isSelf"
+                                          ></video>
+                                          <span class="group-voice-video-tile__badge">{{ voiceVideoTileSourceLabel(tile) }}</span>
+                                        </div>
+                                        <div class="group-voice-video-tile__meta">
+                                          <strong>{{ displayNick(tile.nick) }}</strong>
+                                          <small>{{ voiceVideoTileStatusLabel(tile) }}</small>
+                                        </div>
+                                      </div>
+                                    }
+                                    @for (placeholderId of scene.placeholderIds; track placeholderId) {
+                                      <div class="group-voice-video-tile group-voice-video-tile--placeholder" aria-hidden="true"></div>
+                                    }
+                                  </div>
+                                }
+                                @if (scene.secondaryTiles.length) {
+                                  <div class="group-voice-video-grid group-voice-video-grid--compact group-voice-video-grid--preview">
+                                    @for (tile of scene.secondaryTiles; track tile.id) {
+                                      <div class="group-voice-video-tile" [class.group-voice-video-tile--speaking]="tile.speaking">
+                                        <div class="group-voice-video-tile__media">
+                                          <video
+                                            class="group-voice-video-tile__video"
+                                            [class.group-voice-video-tile__video--screen]="tile.source === 'screen-share'"
+                                            autoplay
+                                            playsinline
+                                            [appMediaStreamSrc]="tile.stream"
+                                            [appMediaStreamMuted]="tile.isSelf"
+                                          ></video>
+                                          <span class="group-voice-video-tile__badge">{{ voiceVideoTileSourceLabel(tile) }}</span>
+                                        </div>
+                                        <div class="group-voice-video-tile__meta">
+                                          <strong>{{ displayNick(tile.nick) }}</strong>
+                                          <small>{{ voiceVideoTileStatusLabel(tile) }}</small>
+                                        </div>
+                                      </div>
+                                    }
                                   </div>
                                 }
                               </div>
@@ -1004,6 +1094,39 @@
                             <path d="M14 10.5l5-3v9l-5-3"></path>
                           </svg>
                         </button>
+                        @if (connectedVoiceChannelId() === groupVoiceChannel.id && voiceScreenSharing()) {
+                          <button
+                            class="secondary-button group-voice-card__action group-voice-card__action--active"
+                            type="button"
+                            aria-label="Остановить показ экрана"
+                            title="Остановить показ экрана"
+                            [disabled]="!canToggleGroupVoiceScreenShare()"
+                            (click)="toggleGroupVoiceScreenShare()"
+                          >
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                              <rect x="3" y="5" width="18" height="12" rx="2"></rect>
+                              <path d="M9 19h6"></path>
+                              <path d="M8 8l8 6"></path>
+                              <path d="M16 8l-8 6"></path>
+                            </svg>
+                          </button>
+                        } @else {
+                          <button
+                            class="secondary-button group-voice-card__action"
+                            type="button"
+                            aria-label="Показать экран"
+                            title="Показать экран"
+                            [disabled]="!canToggleGroupVoiceScreenShare()"
+                            (click)="toggleGroupVoiceScreenShare()"
+                          >
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                              <rect x="3" y="5" width="18" height="12" rx="2"></rect>
+                              <path d="M9 19h6"></path>
+                              <path d="M12 9v6"></path>
+                              <path d="M9 12h6"></path>
+                            </svg>
+                          </button>
+                        }
                         <button class="secondary-button group-voice-card__action" type="button" (click)="toggleActiveGroupVoice()">
                           <img [src]="connectedVoiceChannelId() === groupVoiceChannel.id ? '/assets/Phone outgoing.svg' : '/assets/Phone_connect.svg'" alt="" />
                         </button>
@@ -1011,17 +1134,74 @@
                     </div>
                     @if (groupVoiceParticipantsExpanded()) {
                       <div class="group-voice-roster">
-                        @if (connectedVoiceChannelId() === groupVoiceChannel.id && voiceVideoTilesForChannel(groupVoiceChannel.id).length) {
-                          <div class="group-voice-video-grid">
-                            @for (tile of voiceVideoTilesForChannel(groupVoiceChannel.id); track tile.id) {
-                              <div class="group-voice-video-tile" [class.group-voice-video-tile--speaking]="tile.speaking">
-                                <div class="group-voice-video-tile__media">
-                                  <video class="group-voice-video-tile__video" autoplay playsinline [appMediaStreamSrc]="tile.stream" [appMediaStreamMuted]="tile.isSelf"></video>
+                        @if (connectedVoiceChannelId() === groupVoiceChannel.id && voiceVideoSceneForChannel(groupVoiceChannel.id); as scene) {
+                          <div class="group-voice-video-layout" [class.group-voice-video-layout--presentation]="scene.mode === 'presentation'">
+                            @if (scene.stageTile; as stageTile) {
+                              <div class="group-voice-video-stage">
+                                <div class="group-voice-video-stage__media">
+                                  <video
+                                    class="group-voice-video-stage__video"
+                                    [class.group-voice-video-stage__video--screen]="stageTile.source === 'screen-share'"
+                                    autoplay
+                                    playsinline
+                                    [appMediaStreamSrc]="stageTile.stream"
+                                    [appMediaStreamMuted]="stageTile.isSelf"
+                                  ></video>
+                                  <span class="group-voice-video-tile__badge">{{ voiceVideoTileSourceLabel(stageTile) }}</span>
                                 </div>
-                                <div class="group-voice-video-tile__meta">
-                                  <strong>{{ displayNick(tile.nick) }}</strong>
-                                  <small>{{ tile.isSelf ? 'Вы' : (tile.ownerMuted || tile.muted ? 'Микрофон выключен' : (tile.speaking ? 'Говорит' : 'В эфире')) }}</small>
+                                <div class="group-voice-video-stage__meta">
+                                  <strong>{{ displayNick(stageTile.nick) }}</strong>
+                                  <small>{{ voiceVideoTileStatusLabel(stageTile) }}</small>
                                 </div>
+                              </div>
+                            }
+                            @if (scene.gridTiles.length) {
+                              <div [ngClass]="['group-voice-video-grid', scene.gridClass]">
+                                @for (tile of scene.gridTiles; track tile.id) {
+                                  <div class="group-voice-video-tile" [class.group-voice-video-tile--speaking]="tile.speaking">
+                                    <div class="group-voice-video-tile__media">
+                                      <video
+                                        class="group-voice-video-tile__video"
+                                        [class.group-voice-video-tile__video--screen]="tile.source === 'screen-share'"
+                                        autoplay
+                                        playsinline
+                                        [appMediaStreamSrc]="tile.stream"
+                                        [appMediaStreamMuted]="tile.isSelf"
+                                      ></video>
+                                      <span class="group-voice-video-tile__badge">{{ voiceVideoTileSourceLabel(tile) }}</span>
+                                    </div>
+                                    <div class="group-voice-video-tile__meta">
+                                      <strong>{{ displayNick(tile.nick) }}</strong>
+                                      <small>{{ voiceVideoTileStatusLabel(tile) }}</small>
+                                    </div>
+                                  </div>
+                                }
+                                @for (placeholderId of scene.placeholderIds; track placeholderId) {
+                                  <div class="group-voice-video-tile group-voice-video-tile--placeholder" aria-hidden="true"></div>
+                                }
+                              </div>
+                            }
+                            @if (scene.secondaryTiles.length) {
+                              <div class="group-voice-video-grid group-voice-video-grid--preview">
+                                @for (tile of scene.secondaryTiles; track tile.id) {
+                                  <div class="group-voice-video-tile" [class.group-voice-video-tile--speaking]="tile.speaking">
+                                    <div class="group-voice-video-tile__media">
+                                      <video
+                                        class="group-voice-video-tile__video"
+                                        [class.group-voice-video-tile__video--screen]="tile.source === 'screen-share'"
+                                        autoplay
+                                        playsinline
+                                        [appMediaStreamSrc]="tile.stream"
+                                        [appMediaStreamMuted]="tile.isSelf"
+                                      ></video>
+                                      <span class="group-voice-video-tile__badge">{{ voiceVideoTileSourceLabel(tile) }}</span>
+                                    </div>
+                                    <div class="group-voice-video-tile__meta">
+                                      <strong>{{ displayNick(tile.nick) }}</strong>
+                                      <small>{{ voiceVideoTileStatusLabel(tile) }}</small>
+                                    </div>
+                                  </div>
+                                }
                               </div>
                             }
                           </div>

@@ -96,6 +96,8 @@ type MessageFocusKind = 'unread' | 'mention' | 'search';
 type ChatMediaTab = 'gallery' | 'files';
 type AttachmentActionSurface = 'message' | 'chat';
 type MessageUploadOutcome = 'idle' | 'uploading' | 'cancelled' | 'failed';
+type VoiceVideoSource = 'camera' | 'screen-share';
+type VoiceVideoLayoutMode = 'grid-1' | 'grid-2' | 'grid-4' | 'grid-6' | 'grid-9' | 'presentation';
 
 interface LoginFormModel {
   email: string;
@@ -155,6 +157,7 @@ interface GroupMemberItem {
 
 interface VoiceVideoTile {
   id: string;
+  participantId: string;
   userId: string;
   nick: string;
   avatarUpdatedAt: string | null;
@@ -163,6 +166,16 @@ interface VoiceVideoTile {
   speaking: boolean;
   muted: boolean;
   ownerMuted: boolean;
+  source: VoiceVideoSource;
+}
+
+interface VoiceVideoScene {
+  mode: VoiceVideoLayoutMode;
+  stageTile: VoiceVideoTile | null;
+  gridTiles: VoiceVideoTile[];
+  secondaryTiles: VoiceVideoTile[];
+  placeholderIds: string[];
+  gridClass: string;
 }
 
 interface ComposerMentionCandidate {
@@ -896,6 +909,9 @@ export class AppComponent {
   readonly voiceCameraSupported = this.voiceRoom.cameraSupported;
   readonly voiceCameraEnabled = this.voiceRoom.cameraEnabled;
   readonly voiceLocalVideoStream = this.voiceRoom.localVideoStream;
+  readonly voiceScreenShareSupported = this.voiceRoom.screenShareSupported;
+  readonly voiceScreenSharing = this.voiceRoom.screenShareEnabled;
+  readonly voiceLocalScreenStream = this.voiceRoom.localScreenShareStream;
   readonly outputDeviceSupported = this.voiceRoom.outputDeviceSupported;
   readonly directCallState = this.directCall.state;
   readonly directCallError = this.directCall.error;
@@ -4358,6 +4374,18 @@ export class AppComponent {
     return this.voiceCameraSupported() && this.connectedVoiceChannelId() === this.activeGroupVoiceChannel()?.id;
   }
 
+  toggleGroupVoiceScreenShare(): void {
+    if (!this.canToggleGroupVoiceScreenShare()) {
+      return;
+    }
+
+    this.voiceRoom.toggleScreenShare();
+  }
+
+  canToggleGroupVoiceScreenShare(): boolean {
+    return this.voiceScreenShareSupported() && this.connectedVoiceChannelId() === this.activeGroupVoiceChannel()?.id;
+  }
+
   async togglePlatformVoiceChannel(channel: WorkspaceChannel, event?: Event): Promise<void> {
     event?.stopPropagation();
     if (channel.type !== 'voice') {
@@ -4388,6 +4416,19 @@ export class AppComponent {
     return this.voiceCameraSupported() && this.connectedVoiceChannelId() === channelId;
   }
 
+  togglePlatformVoiceScreenShare(channel: WorkspaceChannel, event?: Event): void {
+    event?.stopPropagation();
+    if (!this.canTogglePlatformVoiceScreenShare(channel.id)) {
+      return;
+    }
+
+    this.voiceRoom.toggleScreenShare();
+  }
+
+  canTogglePlatformVoiceScreenShare(channelId: string): boolean {
+    return this.voiceScreenShareSupported() && this.connectedVoiceChannelId() === channelId;
+  }
+
   platformVoiceParticipantCount(channelId: string): number {
     return this.voiceParticipantsForChannel(channelId).length;
   }
@@ -4396,22 +4437,81 @@ export class AppComponent {
     return this.voiceParticipantsForChannel(channelId);
   }
 
-  voiceVideoTilesForChannel(channelId: string): VoiceVideoTile[] {
+  voiceVideoSceneForChannel(channelId: string): VoiceVideoScene | null {
     if (this.connectedVoiceChannelId() !== channelId) {
-      return [];
+      return null;
     }
 
-    const tiles = this.voiceParticipantsForChannel(channelId)
+    const participants = this.voiceParticipantsForChannel(channelId);
+    const screenShareTiles = this.buildVoiceVideoTiles(participants, 'screen-share');
+    const cameraTiles = this.buildVoiceVideoTiles(participants, 'camera');
+
+    if (!screenShareTiles.length && !cameraTiles.length) {
+      return null;
+    }
+
+    if (screenShareTiles.length) {
+      const [stageTile, ...otherScreenShareTiles] = screenShareTiles;
+      return {
+        mode: 'presentation',
+        stageTile,
+        gridTiles: [],
+        secondaryTiles: [...otherScreenShareTiles, ...cameraTiles],
+        placeholderIds: [],
+        gridClass: 'group-voice-video-grid--preview',
+      };
+    }
+
+    const layout = this.voiceVideoLayoutForCount(cameraTiles.length);
+    return {
+      mode: layout,
+      stageTile: null,
+      gridTiles: cameraTiles,
+      secondaryTiles: [],
+      placeholderIds: this.voiceVideoPlaceholderIds(channelId, layout, cameraTiles.length),
+      gridClass: `group-voice-video-grid--${layout}`,
+    };
+  }
+
+  voiceVideoTileSourceLabel(tile: VoiceVideoTile): string {
+    return tile.source === 'screen-share' ? 'Экран' : 'Камера';
+  }
+
+  voiceVideoTileStatusLabel(tile: VoiceVideoTile): string {
+    if (tile.source === 'screen-share') {
+      return tile.isSelf ? 'Вы показываете экран' : 'Показывает экран';
+    }
+
+    if (tile.isSelf) {
+      return 'Вы';
+    }
+
+    if (tile.ownerMuted || tile.muted) {
+      return 'Микрофон выключен';
+    }
+
+    return tile.speaking ? 'Говорит' : 'В эфире';
+  }
+
+  platformVoiceParticipantVolume(participant: VoiceParticipant): number {
+    return this.groupVoiceParticipantVolume(participant);
+  }
+
+  setPlatformVoiceParticipantVolume(participant: VoiceParticipant, value: number | string): void {
+    this.setGroupVoiceParticipantVolume(participant, value);
+  }
+
+  private buildVoiceVideoTiles(participants: VoiceParticipant[], source: VoiceVideoSource): VoiceVideoTile[] {
+    const tiles = participants
       .map((participant) => {
-        const stream = participant.is_self
-          ? this.voiceLocalVideoStream()
-          : this.voiceRoom.remoteVideoStreamForParticipant(participant.id);
+        const stream = this.voiceVideoStreamForParticipant(participant, source);
         if (!stream) {
           return null;
         }
 
         return {
-          id: participant.id,
+          id: `${participant.id}:${source}`,
+          participantId: participant.id,
           userId: participant.user_id,
           nick: participant.nick,
           avatarUpdatedAt: participant.avatar_updated_at,
@@ -4419,7 +4519,8 @@ export class AppComponent {
           isSelf: participant.is_self,
           speaking: participant.speaking,
           muted: participant.muted,
-          ownerMuted: participant.owner_muted
+          ownerMuted: participant.owner_muted,
+          source,
         } satisfies VoiceVideoTile;
       })
       .filter((tile): tile is VoiceVideoTile => tile !== null);
@@ -4427,6 +4528,10 @@ export class AppComponent {
     return tiles.sort((left, right) => {
       if (left.isSelf !== right.isSelf) {
         return left.isSelf ? 1 : -1;
+      }
+
+      if (left.source !== right.source) {
+        return left.source === 'screen-share' ? -1 : 1;
       }
 
       if (left.speaking !== right.speaking) {
@@ -4437,12 +4542,58 @@ export class AppComponent {
     });
   }
 
-  platformVoiceParticipantVolume(participant: VoiceParticipant): number {
-    return this.groupVoiceParticipantVolume(participant);
+  private voiceVideoStreamForParticipant(participant: VoiceParticipant, source: VoiceVideoSource): MediaStream | null {
+    if (participant.is_self) {
+      return source === 'screen-share' ? this.voiceLocalScreenStream() : this.voiceLocalVideoStream();
+    }
+
+    return source === 'screen-share'
+      ? this.voiceRoom.remoteScreenShareStreamForParticipant(participant.id)
+      : this.voiceRoom.remoteVideoStreamForParticipant(participant.id);
   }
 
-  setPlatformVoiceParticipantVolume(participant: VoiceParticipant, value: number | string): void {
-    this.setGroupVoiceParticipantVolume(participant, value);
+  private voiceVideoLayoutForCount(count: number): Exclude<VoiceVideoLayoutMode, 'presentation'> {
+    if (count <= 1) {
+      return 'grid-1';
+    }
+
+    if (count === 2) {
+      return 'grid-2';
+    }
+
+    if (count <= 4) {
+      return 'grid-4';
+    }
+
+    if (count <= 6) {
+      return 'grid-6';
+    }
+
+    return 'grid-9';
+  }
+
+  private voiceVideoLayoutSlotCount(layout: Exclude<VoiceVideoLayoutMode, 'presentation'>): number {
+    switch (layout) {
+      case 'grid-1':
+        return 1;
+      case 'grid-2':
+        return 2;
+      case 'grid-4':
+        return 4;
+      case 'grid-6':
+        return 6;
+      case 'grid-9':
+        return 9;
+    }
+  }
+
+  private voiceVideoPlaceholderIds(
+    channelId: string,
+    layout: Exclude<VoiceVideoLayoutMode, 'presentation'>,
+    tileCount: number,
+  ): string[] {
+    const placeholderCount = Math.max(0, this.voiceVideoLayoutSlotCount(layout) - tileCount);
+    return Array.from({ length: placeholderCount }, (_, index) => `${channelId}:${layout}:placeholder:${index}`);
   }
 
   canTogglePlatformVoiceParticipantMute(participant: VoiceParticipant, channelId: string): boolean {

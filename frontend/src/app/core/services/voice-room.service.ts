@@ -18,7 +18,7 @@ import { firstValueFrom } from 'rxjs';
 import { SFU_BASE_URL, VOICE_ICE_SERVERS, WS_BASE_URL } from '../api/api-base';
 import { WorkspaceApiService } from '../api/workspace-api.service';
 import { CurrentUserResponse, VoiceSfuTokenResponse } from '../models/workspace.models';
-import { prepareInlineMediaElement, requestCameraStream } from '../../shared/media-device.utils';
+import { isIphoneLikeBrowser, prepareInlineMediaElement, requestCameraStream } from '../../shared/media-device.utils';
 
 export interface VoiceParticipant {
   id: string;
@@ -47,6 +47,7 @@ export interface VoiceSettings {
 
 type VoiceConnectionState = 'idle' | 'connecting' | 'connected' | 'error';
 type ReconnectMode = 'socket' | 'full';
+type VoiceVideoSource = 'camera' | 'screen-share';
 
 interface RoomStateMessage {
   type: 'room_state';
@@ -218,6 +219,9 @@ export class VoiceRoomService {
   private localVideoStreamInternal: MediaStream | null = null;
   private localVideoTrackMedia: MediaStreamTrack | null = null;
   private localVideoTrack: LocalVideoTrack | null = null;
+  private localScreenShareStreamInternal: MediaStream | null = null;
+  private localScreenShareTrackMedia: MediaStreamTrack | null = null;
+  private localScreenShareTrack: LocalVideoTrack | null = null;
   private selfId: string | null = null;
   private lastJoinContext: VoiceJoinContext | null = null;
   private pendingPlaybackUnlock = new Set<string>();
@@ -227,6 +231,8 @@ export class VoiceRoomService {
   private readonly remoteAudioOutputs = new Map<string, RemoteAudioOutput>();
   private readonly remoteVideoTracks = new Map<string, RemoteVideoTrack>();
   private readonly remoteVideoStreamsByUserId = new Map<string, MediaStream>();
+  private readonly remoteScreenShareTracks = new Map<string, RemoteVideoTrack>();
+  private readonly remoteScreenShareStreamsByUserId = new Map<string, MediaStream>();
 
   readonly state = signal<VoiceConnectionState>('idle');
   readonly error = signal<string | null>(null);
@@ -235,7 +241,9 @@ export class VoiceRoomService {
   readonly participants = signal<VoiceParticipant[]>([]);
   readonly localMuted = signal(false);
   readonly localVideoStream = signal<MediaStream | null>(null);
+  readonly localScreenShareStream = signal<MediaStream | null>(null);
   readonly remoteVideoStreams = signal<Record<string, MediaStream | null>>({});
+  readonly remoteScreenShareStreams = signal<Record<string, MediaStream | null>>({});
   readonly ownerMuted = computed(() => this.getParticipant(this.selfId ?? 'local')?.owner_muted === true);
   readonly settings = signal<VoiceSettings>(loadVoiceSettings());
   readonly devicesLoading = signal(false);
@@ -244,6 +252,10 @@ export class VoiceRoomService {
   readonly isConnected = computed(() => this.state() === 'connected');
   readonly cameraSupported = computed(() => typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia);
   readonly cameraEnabled = computed(() => this.localVideoStream() !== null);
+  readonly screenShareSupported = computed(
+    () => typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getDisplayMedia && !isIphoneLikeBrowser()
+  );
+  readonly screenShareEnabled = computed(() => this.localScreenShareStream() !== null);
   readonly outputDeviceSupported = computed(() => {
     if (typeof HTMLMediaElement === 'undefined') {
       return false;
@@ -464,6 +476,88 @@ export class VoiceRoomService {
     return this.remoteVideoStreams()[participantId] ?? null;
   }
 
+  remoteScreenShareStreamForParticipant(participantId: string): MediaStream | null {
+    return this.remoteScreenShareStreams()[participantId] ?? null;
+  }
+
+  async startScreenShare(): Promise<void> {
+    if (!this.screenShareSupported()) {
+      this.settingsNotice.set('Браузер не поддерживает показ экрана');
+      return;
+    }
+
+    if (typeof window !== 'undefined' && !window.isSecureContext) {
+      this.settingsNotice.set('Показ экрана работает только через HTTPS или localhost');
+      return;
+    }
+
+    if (!this.room || this.room.state !== LiveKitConnectionState.Connected || !this.activeChannelId()) {
+      this.settingsNotice.set('Сначала подключитесь к голосовому каналу');
+      return;
+    }
+
+    if (this.localScreenShareTrack) {
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: {
+          frameRate: {
+            ideal: 15,
+            max: 30,
+          },
+        },
+        audio: false,
+      });
+      const [track] = stream.getVideoTracks();
+      if (!track) {
+        throw new Error('Не удалось получить видеодорожку экрана');
+      }
+
+      const localScreenShareTrack = new LocalVideoTrack(track, undefined, true);
+      await this.room.localParticipant.publishTrack(localScreenShareTrack, {
+        source: Track.Source.ScreenShare,
+      });
+
+      track.onended = () => {
+        if (this.localScreenShareTrackMedia?.id === track.id) {
+          void this.stopScreenShare();
+        }
+      };
+
+      this.localScreenShareTrackMedia = track;
+      this.localScreenShareTrack = localScreenShareTrack;
+      this.localScreenShareStreamInternal = stream;
+      this.localScreenShareStream.set(stream);
+      this.settingsNotice.set(null);
+    } catch (error) {
+      this.clearLocalScreenShare();
+      this.settingsNotice.set(this.describeError(error, 'Не удалось начать показ экрана'));
+    }
+  }
+
+  async stopScreenShare(): Promise<void> {
+    const room = this.room;
+    const localScreenShareTrack = this.localScreenShareTrack;
+    this.clearLocalScreenShare();
+
+    if (!room || !localScreenShareTrack) {
+      return;
+    }
+
+    await room.localParticipant.unpublishTrack(localScreenShareTrack, false).catch(() => undefined);
+  }
+
+  toggleScreenShare(): void {
+    if (this.screenShareEnabled()) {
+      void this.stopScreenShare();
+      return;
+    }
+
+    void this.startScreenShare();
+  }
+
   async refreshDevices(): Promise<void> {
     if (!navigator.mediaDevices?.enumerateDevices) {
       return;
@@ -665,11 +759,11 @@ export class VoiceRoomService {
     this.attachRoomEvent(room, 'mediaDevicesChanged', () => {
       void this.refreshDevices();
     });
-    this.attachRoomEvent(room, 'trackSubscribed', (track, _publication, participant) => {
-      void this.handleTrackSubscribed(track, participant.identity);
+    this.attachRoomEvent(room, 'trackSubscribed', (track, publication, participant) => {
+      void this.handleTrackSubscribed(track, publication.source, participant.identity);
     });
-    this.attachRoomEvent(room, 'trackUnsubscribed', (track, _publication, participant) => {
-      this.handleTrackUnsubscribed(track, participant.identity);
+    this.attachRoomEvent(room, 'trackUnsubscribed', (track, publication, participant) => {
+      this.handleTrackUnsubscribed(track, publication.source, participant.identity);
     });
     this.attachRoomEvent(room, 'participantDisconnected', (participant) => {
       this.clearRemoteMediaForUser(participant.identity);
@@ -721,24 +815,34 @@ export class VoiceRoomService {
     this.scheduleReconnect('full');
   }
 
-  private async handleTrackSubscribed(track: RemoteTrack, userId: string): Promise<void> {
+  private async handleTrackSubscribed(track: RemoteTrack, source: Track.Source | undefined, userId: string): Promise<void> {
     if (track.kind === Track.Kind.Audio) {
       await this.attachRemoteAudio(userId, track as RemoteAudioTrack);
       return;
     }
 
     if (track.kind === Track.Kind.Video) {
+      if (source === Track.Source.ScreenShare) {
+        this.attachRemoteScreenShare(userId, track as RemoteVideoTrack);
+        return;
+      }
+
       this.attachRemoteVideo(userId, track as RemoteVideoTrack);
     }
   }
 
-  private handleTrackUnsubscribed(track: RemoteTrack, userId: string): void {
+  private handleTrackUnsubscribed(track: RemoteTrack, source: Track.Source | undefined, userId: string): void {
     if (track.kind === Track.Kind.Audio) {
       this.clearRemoteAudioForUser(userId);
       return;
     }
 
     if (track.kind === Track.Kind.Video) {
+      if (source === Track.Source.ScreenShare) {
+        this.clearRemoteScreenShareForUser(userId);
+        return;
+      }
+
       this.clearRemoteVideoForUser(userId);
     }
   }
@@ -864,6 +968,7 @@ export class VoiceRoomService {
     );
 
     this.syncRemoteVideoParticipantMappings();
+    this.syncRemoteScreenShareParticipantMappings();
     this.applyAllRemoteVolumes();
     if (this.localMuted()) {
       this.sendControlMessage({
@@ -915,6 +1020,7 @@ export class VoiceRoomService {
     });
 
     this.syncRemoteVideoParticipantMappings();
+    this.syncRemoteScreenShareParticipantMappings();
     this.applyVolumesForUser(participant.user_id);
   }
 
@@ -928,6 +1034,7 @@ export class VoiceRoomService {
     this.participants.update((participants) => participants.filter((participant) => participant.id !== participantId));
     this.participantUserIds.delete(participantId);
     this.syncRemoteVideoParticipantMappings();
+    this.syncRemoteScreenShareParticipantMappings();
   }
 
   private syncSpeakingParticipants(): void {
@@ -1165,40 +1272,65 @@ export class VoiceRoomService {
   }
 
   private attachRemoteVideo(userId: string, track: RemoteVideoTrack): void {
-    this.clearRemoteVideoForUser(userId);
-    this.remoteVideoTracks.set(userId, track);
-    this.remoteVideoStreamsByUserId.set(userId, new MediaStream([track.mediaStreamTrack]));
-    this.syncRemoteVideoParticipantMappings();
+    this.attachRemoteVisualTrack(userId, track, 'camera');
+  }
+
+  private attachRemoteScreenShare(userId: string, track: RemoteVideoTrack): void {
+    this.attachRemoteVisualTrack(userId, track, 'screen-share');
+  }
+
+  private attachRemoteVisualTrack(userId: string, track: RemoteVideoTrack, source: VoiceVideoSource): void {
+    this.clearRemoteVisualForUser(userId, source);
+    const trackMap = source === 'screen-share' ? this.remoteScreenShareTracks : this.remoteVideoTracks;
+    const streamMap = source === 'screen-share' ? this.remoteScreenShareStreamsByUserId : this.remoteVideoStreamsByUserId;
+
+    trackMap.set(userId, track);
+    streamMap.set(userId, new MediaStream([track.mediaStreamTrack]));
+    this.syncRemoteVisualParticipantMappings(source);
 
     track.mediaStreamTrack.onended = () => {
-      if (this.remoteVideoTracks.get(userId)?.sid === track.sid) {
-        this.clearRemoteVideoForUser(userId);
+      if (trackMap.get(userId)?.sid === track.sid) {
+        this.clearRemoteVisualForUser(userId, source);
       }
     };
 
     track.mediaStreamTrack.onmute = () => {
-      if (this.remoteVideoTracks.get(userId)?.sid === track.sid) {
-        this.remoteVideoStreamsByUserId.delete(userId);
-        this.syncRemoteVideoParticipantMappings();
+      if (trackMap.get(userId)?.sid === track.sid) {
+        streamMap.delete(userId);
+        this.syncRemoteVisualParticipantMappings(source);
       }
     };
 
     track.mediaStreamTrack.onunmute = () => {
-      if (this.remoteVideoTracks.get(userId)?.sid === track.sid && track.mediaStreamTrack.readyState === 'live') {
-        this.remoteVideoStreamsByUserId.set(userId, new MediaStream([track.mediaStreamTrack]));
-        this.syncRemoteVideoParticipantMappings();
+      if (trackMap.get(userId)?.sid === track.sid && track.mediaStreamTrack.readyState === 'live') {
+        streamMap.set(userId, new MediaStream([track.mediaStreamTrack]));
+        this.syncRemoteVisualParticipantMappings(source);
       }
     };
   }
 
   private syncRemoteVideoParticipantMappings(): void {
+    this.syncRemoteVisualParticipantMappings('camera');
+  }
+
+  private syncRemoteScreenShareParticipantMappings(): void {
+    this.syncRemoteVisualParticipantMappings('screen-share');
+  }
+
+  private syncRemoteVisualParticipantMappings(source: VoiceVideoSource): void {
     const nextStreams: Record<string, MediaStream | null> = {};
+    const streamMap = source === 'screen-share' ? this.remoteScreenShareStreamsByUserId : this.remoteVideoStreamsByUserId;
 
     for (const [participantId, userId] of this.participantUserIds.entries()) {
-      const stream = this.remoteVideoStreamsByUserId.get(userId);
+      const stream = streamMap.get(userId);
       if (stream) {
         nextStreams[participantId] = stream;
       }
+    }
+
+    if (source === 'screen-share') {
+      this.remoteScreenShareStreams.set(nextStreams);
+      return;
     }
 
     this.remoteVideoStreams.set(nextStreams);
@@ -1207,6 +1339,7 @@ export class VoiceRoomService {
   private clearRemoteMediaForUser(userId: string): void {
     this.clearRemoteAudioForUser(userId);
     this.clearRemoteVideoForUser(userId);
+    this.clearRemoteScreenShareForUser(userId);
   }
 
   private clearRemoteAudioForUser(userId: string): void {
@@ -1226,16 +1359,26 @@ export class VoiceRoomService {
   }
 
   private clearRemoteVideoForUser(userId: string): void {
-    const track = this.remoteVideoTracks.get(userId);
+    this.clearRemoteVisualForUser(userId, 'camera');
+  }
+
+  private clearRemoteScreenShareForUser(userId: string): void {
+    this.clearRemoteVisualForUser(userId, 'screen-share');
+  }
+
+  private clearRemoteVisualForUser(userId: string, source: VoiceVideoSource): void {
+    const trackMap = source === 'screen-share' ? this.remoteScreenShareTracks : this.remoteVideoTracks;
+    const streamMap = source === 'screen-share' ? this.remoteScreenShareStreamsByUserId : this.remoteVideoStreamsByUserId;
+    const track = trackMap.get(userId);
     if (track) {
       track.mediaStreamTrack.onended = null;
       track.mediaStreamTrack.onmute = null;
       track.mediaStreamTrack.onunmute = null;
-      this.remoteVideoTracks.delete(userId);
+      trackMap.delete(userId);
     }
 
-    this.remoteVideoStreamsByUserId.delete(userId);
-    this.syncRemoteVideoParticipantMappings();
+    streamMap.delete(userId);
+    this.syncRemoteVisualParticipantMappings(source);
   }
 
   private async createProcessedLocalStream(rawLocalStream: MediaStream): Promise<MediaStream> {
@@ -1349,6 +1492,7 @@ export class VoiceRoomService {
     this.pendingPlaybackUnlock.clear();
     this.detachUserGestureUnlock();
     this.remoteVideoStreams.set({});
+    this.remoteScreenShareStreams.set({});
 
     if (clearJoinContext) {
       this.lastJoinContext = null;
@@ -1362,6 +1506,10 @@ export class VoiceRoomService {
 
     for (const userId of [...this.remoteVideoTracks.keys()]) {
       this.clearRemoteVideoForUser(userId);
+    }
+
+    for (const userId of [...this.remoteScreenShareTracks.keys()]) {
+      this.clearRemoteScreenShareForUser(userId);
     }
   }
 
@@ -1390,6 +1538,7 @@ export class VoiceRoomService {
 
   private stopLocalStream(): void {
     this.clearLocalCamera();
+    this.clearLocalScreenShare();
     for (const track of this.rawLocalStream?.getTracks() ?? []) {
       track.stop();
     }
@@ -1428,6 +1577,24 @@ export class VoiceRoomService {
     this.localVideoStream.set(null);
   }
 
+  private clearLocalScreenShare(): void {
+    if (this.localScreenShareTrackMedia) {
+      this.localScreenShareTrackMedia.onended = null;
+      this.localScreenShareTrackMedia.stop();
+      this.localScreenShareTrackMedia = null;
+    }
+
+    if (this.localScreenShareStreamInternal) {
+      for (const track of this.localScreenShareStreamInternal.getTracks()) {
+        track.stop();
+      }
+      this.localScreenShareStreamInternal = null;
+    }
+
+    this.localScreenShareTrack = null;
+    this.localScreenShareStream.set(null);
+  }
+
   private disposeLocalAudioPipeline(): void {
     if (!this.localAudioPipeline) {
       return;
@@ -1456,6 +1623,7 @@ export class VoiceRoomService {
     this.participants.set([]);
     this.localMuted.set(false);
     this.remoteVideoStreams.set({});
+    this.remoteScreenShareStreams.set({});
     this.clearTransientNotice();
   }
 

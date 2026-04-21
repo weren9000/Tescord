@@ -7095,9 +7095,76 @@ select {
   object-fit: contain;
 }
 
+.group-voice-video-layout {
+  display: grid;
+  gap: 10px;
+}
+
+.group-voice-video-layout--compact {
+  margin-bottom: 8px;
+}
+
+.group-voice-video-layout--presentation {
+  gap: 12px;
+}
+
+.group-voice-video-stage {
+  display: grid;
+  gap: 8px;
+}
+
+.group-voice-video-stage__media {
+  position: relative;
+  overflow: hidden;
+  border-radius: 2px;
+  border: 1px solid rgba(61, 214, 198, 0.18);
+  background: #05080e;
+}
+
+.group-voice-video-stage__video {
+  width: 100%;
+  display: block;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  background: #05080e;
+}
+
+.group-voice-video-stage__video--screen {
+  object-fit: contain;
+  background: #03060b;
+}
+
+.group-voice-video-stage__meta,
+.group-voice-video-tile__meta {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.group-voice-video-stage__meta strong,
+.group-voice-video-stage__meta small,
+.group-voice-video-tile__meta strong,
+.group-voice-video-tile__meta small {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.group-voice-video-stage__meta strong,
+.group-voice-video-tile__meta strong {
+  font-size: 12px;
+}
+
+.group-voice-video-stage__meta small,
+.group-voice-video-tile__meta small {
+  color: rgba(222, 236, 245, 0.58);
+  font-size: 10px;
+}
+
 .group-voice-video-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 10px;
 }
 
@@ -7105,9 +7172,34 @@ select {
   margin-bottom: 8px;
 }
 
+.group-voice-video-grid--grid-1 {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.group-voice-video-grid--grid-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.group-voice-video-grid--grid-4 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.group-voice-video-grid--grid-6 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.group-voice-video-grid--grid-9 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.group-voice-video-grid--preview {
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+
 .group-voice-video-tile {
   display: grid;
   gap: 8px;
+  min-width: 0;
   padding: 8px;
   border-radius: 2px;
   border: 1px solid rgba(61, 214, 198, 0.12);
@@ -7119,41 +7211,67 @@ select {
   box-shadow: none;
 }
 
+.group-voice-video-tile--placeholder {
+  border-style: dashed;
+  border-color: rgba(222, 236, 245, 0.12);
+  background: rgba(8, 18, 28, 0.28);
+}
+
+.group-voice-video-tile--placeholder::before {
+  content: '';
+  display: block;
+  border-radius: 2px;
+  aspect-ratio: 1 / 1;
+  background:
+    linear-gradient(135deg, rgba(61, 214, 198, 0.08), rgba(61, 214, 198, 0.01)),
+    repeating-linear-gradient(
+      -45deg,
+      rgba(222, 236, 245, 0.04) 0,
+      rgba(222, 236, 245, 0.04) 8px,
+      transparent 8px,
+      transparent 16px
+    );
+}
+
 .group-voice-video-tile__media {
+  position: relative;
   overflow: hidden;
   border-radius: 2px;
   background: #05080e;
+  aspect-ratio: 1 / 1;
 }
 
 .group-voice-video-tile__video {
   width: 100%;
+  height: 100%;
   display: block;
-  aspect-ratio: 16 / 10;
   object-fit: cover;
 }
 
-.group-voice-video-tile__meta {
-  min-width: 0;
-  display: grid;
-  gap: 2px;
+.group-voice-video-tile__video--screen {
+  object-fit: contain;
+  background: #03060b;
 }
 
-.group-voice-video-tile__meta strong,
-.group-voice-video-tile__meta small {
-  display: block;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.group-voice-video-tile__meta strong {
-  font-size: 12px;
-}
-
-.group-voice-video-tile__meta small {
-  color: rgba(222, 236, 245, 0.58);
+.group-voice-video-tile__badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 6px;
+  border-radius: 999px;
+  background: rgba(4, 8, 14, 0.72);
+  color: rgba(232, 244, 250, 0.92);
   font-size: 10px;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.group-voice-video-layout--compact .group-voice-video-grid--preview {
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
 }
 
 .conversation-stream {
