@@ -249,14 +249,14 @@ def stream_command(client: paramiko.SSHClient, command: str, label: str) -> None
         if channel.recv_ready():
             data = channel.recv(4096)
             if data:
-                sys.stdout.write(data.decode("utf-8", "replace"))
-                sys.stdout.flush()
+                sys.stdout.buffer.write(data)
+                sys.stdout.buffer.flush()
 
         if channel.recv_stderr_ready():
             data = channel.recv_stderr(4096)
             if data:
-                sys.stderr.write(data.decode("utf-8", "replace"))
-                sys.stderr.flush()
+                sys.stderr.buffer.write(data)
+                sys.stderr.buffer.flush()
 
         if channel.exit_status_ready():
             break
@@ -266,14 +266,14 @@ def stream_command(client: paramiko.SSHClient, command: str, label: str) -> None
     while channel.recv_ready():
         data = channel.recv(4096)
         if data:
-            sys.stdout.write(data.decode("utf-8", "replace"))
-            sys.stdout.flush()
+            sys.stdout.buffer.write(data)
+            sys.stdout.buffer.flush()
 
     while channel.recv_stderr_ready():
         data = channel.recv_stderr(4096)
         if data:
-            sys.stderr.write(data.decode("utf-8", "replace"))
-            sys.stderr.flush()
+            sys.stderr.buffer.write(data)
+            sys.stderr.buffer.flush()
 
     exit_code = channel.recv_exit_status()
     if exit_code != 0:
