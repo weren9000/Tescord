@@ -40,9 +40,14 @@ function buildDefaultWsBaseUrl(apiBaseUrl: string): string {
   return `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`;
 }
 
+function buildDefaultSfuUrl(wsBaseUrl: string): string {
+  return `${wsBaseUrl}/livekit`;
+}
+
 const runtimeConfig = getRuntimeConfig();
 export const API_BASE_URL = normalizeBaseUrl(runtimeConfig.apiBaseUrl) ?? buildDefaultApiBaseUrl();
 export const WS_BASE_URL = normalizeBaseUrl(runtimeConfig.wsBaseUrl) ?? buildDefaultWsBaseUrl(API_BASE_URL);
+export const SFU_BASE_URL = normalizeBaseUrl(runtimeConfig.sfuUrl) ?? buildDefaultSfuUrl(WS_BASE_URL);
 export const VOICE_ICE_SERVERS: RTCIceServer[] = runtimeConfig.iceServers?.length
   ? runtimeConfig.iceServers
   : [

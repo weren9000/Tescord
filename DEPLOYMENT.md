@@ -126,6 +126,7 @@ npm run build
 window.__TESCORD_RUNTIME_CONFIG__ = {
   apiBaseUrl: 'https://tescord.ru',
   wsBaseUrl: 'wss://tescord.ru',
+  sfuUrl: 'wss://tescord.ru/livekit',
   iceServers: [
     {
       urls: 'stun:stun.l.google.com:19302'
@@ -293,9 +294,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\deploy-ubuntu24.ps
 - упаковывает текущий `HEAD`
 - загружает архив на сервер
 - устанавливает нужные пакеты на `Ubuntu 24`
-- поднимает PostgreSQL, backend, nginx, coturn
+- поднимает PostgreSQL, Redis, backend, nginx, coturn и LiveKit SFU
 - создает production `.env`
 - пишет `runtime-config.js`
+- публикует SFU на `wss://домен/livekit`
 - пробует выпустить `Let's Encrypt`, если указан домен
 - сам делает health-check с повторами, если backend поднимается не мгновенно
 

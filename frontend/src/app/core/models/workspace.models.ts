@@ -272,3 +272,10 @@ export interface VoiceJoinRequestCreateResponse {
   blocked_until: string | null;
   retry_after_seconds: number | null;
 }
+
+export interface VoiceSfuTokenResponse {
+  url: string;
+  token: string;
+  room_name: string;
+  identity: string;
+}

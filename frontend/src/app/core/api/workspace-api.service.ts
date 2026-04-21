@@ -30,6 +30,7 @@ import {
   VoiceChannelAccessEntry,
   VoiceJoinRequestCreateResponse,
   VoiceJoinRequestSummary,
+  VoiceSfuTokenResponse,
   WorkspaceChannel,
   WorkspaceChannelSearchResult,
   WorkspaceAttachmentDownloadLink,
@@ -362,6 +363,12 @@ export class WorkspaceApiService {
         headers: this.buildAuthHeaders(token)
       }
     );
+  }
+
+  createVoiceSfuToken(token: string, channelId: string): Observable<VoiceSfuTokenResponse> {
+    return this.http.post<VoiceSfuTokenResponse>(`${API_BASE_URL}/api/voice/channels/${channelId}/sfu-token`, null, {
+      headers: this.buildAuthHeaders(token)
+    });
   }
 
   sendPresenceHeartbeat(token: string): Observable<void> {

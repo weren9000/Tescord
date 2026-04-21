@@ -188,12 +188,13 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\deploy-ubuntu24.ps
 - собирает frontend локально
 - упаковывает текущий закоммиченный `HEAD`
 - загружает архив на сервер
-- устанавливает `nginx`, `postgresql`, `coturn`, `python3`, `venv`, `certbot`
+- устанавливает `nginx`, `postgresql`, `redis`, `coturn`, `livekit-server`, `python3`, `venv`, `certbot`
 - создает backend `.env`
 - прогоняет миграции
 - настраивает `systemd`
 - разворачивает frontend
 - записывает production `runtime-config.js`
+- поднимает SFU для голоса по `wss://домен/livekit`
 - выпускает `Let's Encrypt`, если указан домен
 - иначе поднимает self-signed `HTTPS` на IP
 

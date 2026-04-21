@@ -47,6 +47,13 @@ class VoiceOwnerMuteUpdateRequest(BaseModel):
     owner_muted: bool
 
 
+class VoiceSfuTokenResponse(BaseModel):
+    url: str
+    token: str
+    room_name: str
+    identity: str
+
+
 class VoiceJoinRequestSummary(BaseModel):
     id: UUID
     server_id: UUID

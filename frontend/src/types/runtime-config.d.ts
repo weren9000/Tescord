@@ -1,6 +1,7 @@
 interface AltgrammRuntimeConfig {
   apiBaseUrl?: string;
   wsBaseUrl?: string;
+  sfuUrl?: string;
   iceServers?: RTCIceServer[];
 }
 

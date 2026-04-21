@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     push_vapid_public_key: str | None = None
     push_vapid_private_key_path: str | None = None
     push_vapid_subject: str | None = None
+    livekit_url: str | None = None
+    livekit_api_key: str | None = None
+    livekit_api_secret: str | None = None
 
     @property
     def push_notifications_enabled(self) -> bool:
@@ -33,6 +36,14 @@ class Settings(BaseSettings):
             self.push_vapid_public_key
             and self.push_vapid_private_key_path
             and self.push_vapid_subject
+        )
+
+    @property
+    def livekit_enabled(self) -> bool:
+        return bool(
+            self.livekit_url
+            and self.livekit_api_key
+            and self.livekit_api_secret
         )
 
     model_config = SettingsConfigDict(

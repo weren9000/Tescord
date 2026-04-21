@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import timedelta
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, status
@@ -8,6 +9,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.dependencies.auth import get_current_user, resolve_user_from_token
+from app.core.config import get_settings
 from app.db.models import (
     Channel,
     ChannelType,
@@ -30,6 +32,7 @@ from app.schemas.voice import (
     VoiceJoinRequestCreateResponse,
     VoiceJoinRequestSummary,
     VoiceOwnerMuteUpdateRequest,
+    VoiceSfuTokenResponse,
 )
 from app.services.app_events import (
     publish_channels_updated,
@@ -59,7 +62,13 @@ from app.services.voice_access import (
 )
 from app.services.voice_signaling import voice_signaling_manager
 
+try:
+    from livekit import api as livekit_api
+except ImportError:  # pragma: no cover - dependency availability is environment-specific
+    livekit_api = None
+
 router = APIRouter(prefix="/voice", tags=["voice"])
+settings = get_settings()
 
 
 def _seconds_until(value, *, now=None) -> int:
@@ -92,6 +101,74 @@ def _get_voice_channel_or_404(db: Session, channel_id: UUID) -> Channel:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Голосовой канал не найден")
 
     return channel
+
+
+def _build_livekit_room_name(channel_id: UUID) -> str:
+    return str(channel_id)
+
+
+def _require_voice_join_access(
+    db: Session,
+    channel: Channel,
+    current_user: User,
+) -> tuple[ServerMember, VoiceChannelAccess | None, bool]:
+    membership, membership_created = _ensure_server_membership(db, channel, current_user)
+
+    access = get_voice_channel_access(db, channel.id, current_user.id)
+    if access is None and is_default_tavern_channel(channel):
+        access = VoiceChannelAccess(
+            channel_id=channel.id,
+            user_id=current_user.id,
+            role=VoiceAccessRole.RESIDENT,
+        )
+        db.add(access)
+        db.commit()
+        db.refresh(access)
+
+    if not can_view_voice_channel(access, membership.role):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Нет доступа к голосовому каналу")
+
+    if not can_join_voice_channel_directly(access, member_role=membership.role):
+        if is_voice_access_blocked(access):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=_build_blocked_voice_detail(blocked_until=access.blocked_until),
+            )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Ожидайте ответа владельца канала")
+
+    return membership, access, membership_created
+
+
+def _build_voice_sfu_token(channel: Channel, current_user: User) -> VoiceSfuTokenResponse:
+    if not settings.livekit_enabled or livekit_api is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Голосовой SFU еще не настроен на сервере",
+        )
+
+    room_name = _build_livekit_room_name(channel.id)
+    token = (
+        livekit_api.AccessToken(settings.livekit_api_key, settings.livekit_api_secret)
+        .with_identity(str(current_user.id))
+        .with_name(current_user.username)
+        .with_ttl(timedelta(minutes=30))
+        .with_grants(
+            livekit_api.VideoGrants(
+                room_join=True,
+                room=room_name,
+                can_publish=True,
+                can_subscribe=True,
+            )
+        )
+        .to_jwt()
+    )
+
+    return VoiceSfuTokenResponse(
+        url=settings.livekit_url,
+        token=token,
+        room_name=room_name,
+        identity=str(current_user.id),
+    )
 
 
 def _ensure_server_membership(db: Session, channel: Channel, user: User) -> tuple[ServerMember, bool]:
@@ -745,6 +822,20 @@ async def update_voice_participant_owner_mute(
     return await _load_channel_access_entries(db, channel.id)
 
 
+@router.post("/channels/{channel_id}/sfu-token", response_model=VoiceSfuTokenResponse)
+async def create_voice_sfu_token(
+    channel_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> VoiceSfuTokenResponse:
+    channel = _get_voice_channel_or_404(db, channel_id)
+    _, _, membership_created = _require_voice_join_access(db, channel, current_user)
+    if membership_created:
+        await publish_members_updated(channel.server_id, reason="member_joined")
+
+    return _build_voice_sfu_token(channel, current_user)
+
+
 @router.websocket("/channels/{channel_id}/ws")
 async def connect_to_voice_channel(websocket: WebSocket, channel_id: UUID) -> None:
     token = websocket.query_params.get("token")
@@ -765,11 +856,17 @@ async def connect_to_voice_channel(websocket: WebSocket, channel_id: UUID) -> No
             await websocket.close(code=4404, reason="Voice channel not found")
             return
 
-        membership, membership_created = _ensure_server_membership(db, channel, current_user)
+        try:
+            membership, access, membership_created = _require_voice_join_access(db, channel, current_user)
+        except HTTPException as error:
+            detail = error.detail
+            reason = detail.get("message") if isinstance(detail, dict) else detail
+            await websocket.close(code=4403, reason=str(reason))
+            return
         if membership_created:
             await publish_members_updated(channel.server_id, reason="member_joined")
 
-        access = get_voice_channel_access(db, channel.id, current_user.id)
+        access = access or get_voice_channel_access(db, channel.id, current_user.id)
         if access is None and is_default_tavern_channel(channel):
             access = VoiceChannelAccess(
                 channel_id=channel.id,

@@ -12,12 +12,16 @@ set -euo pipefail
 : "${APP_SECRET:?APP_SECRET is required}"
 : "${DEMO_PASSWORD:?DEMO_PASSWORD is required}"
 : "${TURN_PASSWORD:?TURN_PASSWORD is required}"
+: "${LIVEKIT_API_KEY:?LIVEKIT_API_KEY is required}"
+: "${LIVEKIT_API_SECRET:?LIVEKIT_API_SECRET is required}"
 
 APP_DIR="/srv/tescord/app"
 FRONTEND_DIR="/srv/tescord/frontend/browser"
 ARCHIVE_PATH="/root/tescord-app.tar"
 TEMP_EXTRACT_DIR="/tmp/tescord-release"
 BACKEND_ENV_PATH="${APP_DIR}/backend/.env"
+LIVEKIT_CONFIG_DIR="/etc/livekit"
+LIVEKIT_CONFIG_PATH="${LIVEKIT_CONFIG_DIR}/livekit.yaml"
 SELF_SIGNED_CERT="/etc/ssl/certs/tescord-selfsigned.crt"
 SELF_SIGNED_KEY="/etc/ssl/private/tescord-selfsigned.key"
 CUSTOM_SSL_DIR="/etc/nginx/ssl/${APP_DOMAIN}"
@@ -54,13 +58,15 @@ apt-get install -y \
   nginx \
   postgresql \
   postgresql-contrib \
+  redis-server \
   python3 \
   python3-venv \
   python3-pip \
   certbot \
   python3-certbot-nginx \
   coturn \
-  openssl
+  openssl \
+  curl
 
 if ! id -u tescord >/dev/null 2>&1; then
   useradd --system --create-home --shell /bin/bash tescord
@@ -129,6 +135,9 @@ TESCORD_DEMO_CHARACTER_NAME=Архимаг Кельн
 TESCORD_DEMO_PASSWORD=${DEMO_PASSWORD}
 TESCORD_DEMO_IS_ADMIN=true
 TESCORD_DEMO_SERVER_NAME=Altgramm
+TESCORD_LIVEKIT_URL=wss://${APP_DOMAIN}/livekit
+TESCORD_LIVEKIT_API_KEY=${LIVEKIT_API_KEY}
+TESCORD_LIVEKIT_API_SECRET=${LIVEKIT_API_SECRET}
 EOF
 
 chown tescord:tescord "${BACKEND_ENV_PATH}"
@@ -136,11 +145,47 @@ chmod 600 "${BACKEND_ENV_PATH}"
 
 su -s /bin/bash -c "cd '${APP_DIR}/backend' && ./.venv/bin/python -m alembic upgrade head" tescord
 
+if ! command -v livekit-server >/dev/null 2>&1; then
+  curl -sSL https://get.livekit.io | bash
+fi
+
+mkdir -p "${LIVEKIT_CONFIG_DIR}"
+cat > "${LIVEKIT_CONFIG_PATH}" <<EOF
+port: 7880
+redis:
+  address: 127.0.0.1:6379
+rtc:
+  port_range_start: 50000
+  port_range_end: 60000
+  tcp_port: 7881
+  use_external_ip: true
+keys:
+  ${LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET}
+EOF
+
+cat > /etc/systemd/system/tescord-livekit.service <<EOF
+[Unit]
+Description=LiveKit SFU server
+After=network.target redis-server.service
+Wants=redis-server.service
+
+[Service]
+User=tescord
+Group=tescord
+ExecStart=/usr/local/bin/livekit-server --config ${LIVEKIT_CONFIG_PATH}
+Restart=always
+RestartSec=5
+LimitNOFILE=500000
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
 cat > /etc/systemd/system/tescord-backend.service <<EOF
 [Unit]
 Description=Altgramm FastAPI backend
-After=network.target postgresql.service
-Wants=postgresql.service
+After=network.target postgresql.service redis-server.service tescord-livekit.service
+Wants=postgresql.service redis-server.service tescord-livekit.service
 
 [Service]
 User=tescord
@@ -221,6 +266,24 @@ server {
         try_files \$uri =404;
     }
 
+    location = /livekit {
+        return 301 /livekit/;
+    }
+
+    location /livekit/ {
+        proxy_pass http://127.0.0.1:7880/;
+        proxy_http_version 1.1;
+        proxy_buffering off;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+    }
+
     location /api/ {
         proxy_pass http://127.0.0.1:8000/api/;
         proxy_http_version 1.1;
@@ -268,8 +331,10 @@ if [ -f /etc/default/coturn ]; then
 fi
 
 systemctl daemon-reload
-systemctl enable postgresql nginx coturn tescord-backend
+systemctl enable postgresql redis-server nginx coturn tescord-livekit tescord-backend
 systemctl restart postgresql
+systemctl restart redis-server
+systemctl restart tescord-livekit
 systemctl restart coturn
 nginx -t
 systemctl restart nginx

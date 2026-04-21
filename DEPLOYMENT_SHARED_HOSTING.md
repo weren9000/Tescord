@@ -58,6 +58,7 @@
 window.__TESCORD_RUNTIME_CONFIG__ = {
   apiBaseUrl: 'https://api.tes-cord.ru',
   wsBaseUrl: 'wss://api.tes-cord.ru',
+  sfuUrl: 'wss://api.tes-cord.ru/livekit',
   iceServers: [
     {
       urls: 'stun:stun.l.google.com:19302'

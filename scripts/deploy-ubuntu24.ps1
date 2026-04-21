@@ -174,6 +174,7 @@ function Write-RuntimeConfig {
         [string]$Path,
         [string]$AppBaseUrl,
         [string]$WebSocketBaseUrl,
+        [string]$SfuBaseUrl,
         [string]$TurnHost,
         [string]$TurnPassword
     )
@@ -182,6 +183,7 @@ function Write-RuntimeConfig {
 window.__TESCORD_RUNTIME_CONFIG__ = {
   apiBaseUrl: '$AppBaseUrl',
   wsBaseUrl: '$WebSocketBaseUrl',
+  sfuUrl: '$SfuBaseUrl',
   iceServers: [
     {
       urls: 'stun:stun.l.google.com:19302'
@@ -327,6 +329,8 @@ def main() -> None:
             "APP_SECRET": payload["app_secret"],
             "DEMO_PASSWORD": payload["demo_password"],
             "TURN_PASSWORD": payload["turn_password"],
+            "LIVEKIT_API_KEY": payload["livekit_api_key"],
+            "LIVEKIT_API_SECRET": payload["livekit_api_secret"],
             "CUSTOM_SSL_CERT_PATH": payload["remote_custom_certificate_path"],
             "CUSTOM_SSL_KEY_PATH": payload["remote_custom_certificate_key_path"],
             "CUSTOM_SSL_CA_PATH": payload["remote_custom_certificate_chain_path"],
@@ -413,6 +417,8 @@ $plainPassword = Get-PlainTextPassword -SecurePassword $ServerPassword
 $dbPassword = New-RandomHex -Bytes 18
 $appSecret = New-RandomHex -Bytes 32
 $turnPassword = New-RandomHex -Bytes 18
+$livekitApiSecret = New-RandomHex -Bytes 24
+$livekitApiKey = 'tescord-livekit'
 $demoPassword = 'Vfrfhjys9000'
 
 if (-not $SkipGitStatusCheck) {
@@ -446,7 +452,8 @@ try {
 
     $appBaseUrl = "https://$appDomain"
     $webSocketBaseUrl = "wss://$appDomain"
-    Write-RuntimeConfig -Path $runtimeConfigPath -AppBaseUrl $appBaseUrl -WebSocketBaseUrl $webSocketBaseUrl -TurnHost $appDomain -TurnPassword $turnPassword
+    $sfuBaseUrl = "$webSocketBaseUrl/livekit"
+    Write-RuntimeConfig -Path $runtimeConfigPath -AppBaseUrl $appBaseUrl -WebSocketBaseUrl $webSocketBaseUrl -SfuBaseUrl $sfuBaseUrl -TurnHost $appDomain -TurnPassword $turnPassword
     Write-RemoteDeployScript -Path $remoteDeployScriptPath
 
     $deployPayload = [ordered]@{
@@ -464,6 +471,8 @@ try {
         app_secret = $appSecret
         demo_password = $demoPassword
         turn_password = $turnPassword
+        livekit_api_key = $livekitApiKey
+        livekit_api_secret = $livekitApiSecret
         custom_certificate_path = if ($normalizedCustomCertificatePath) { $normalizedCustomCertificatePath } else { '' }
         custom_certificate_key_path = if ($normalizedCustomCertificateKeyPath) { $normalizedCustomCertificateKeyPath } else { '' }
         custom_certificate_chain_path = if ($normalizedCustomCertificateChainPath) { $normalizedCustomCertificateChainPath } else { '' }
@@ -479,6 +488,7 @@ try {
     Write-Host ''
     Write-Host 'Деплой завершен.' -ForegroundColor Green
     Write-Host "Сайт: https://$appDomain"
+    Write-Host "SFU: wss://$appDomain/livekit"
     Write-Host "TURN пользователь: tescordturn"
     Write-Host "TURN пароль: $turnPassword"
     if ($useCustomCertificate) {
