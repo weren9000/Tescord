@@ -6847,9 +6847,18 @@ select {
 }
 
 .group-overview {
+  flex: 0 0 auto;
+  min-height: 0;
   padding: 8px 12px 0;
   display: grid;
   gap: 8px;
+}
+
+.group-overview--conference {
+  max-height: calc(100vh - 208px);
+  overflow: hidden;
+  grid-template-rows: auto minmax(0, 1fr);
+  padding-bottom: 8px;
 }
 
 .group-overview__members {
@@ -6978,6 +6987,7 @@ select {
 .group-voice-roster {
   display: grid;
   gap: 8px;
+  min-height: 0;
   padding: 10px 12px;
   border-radius: 2px;
   border: 1px solid rgba(61, 214, 198, 0.1);
@@ -7286,15 +7296,20 @@ select {
     align-items: start;
     gap: 14px;
     padding: 14px;
+    height: 100%;
+    overflow: hidden;
   }
 
   .group-voice-video-layout--conference {
     gap: 14px;
+    min-height: 0;
   }
 
   .group-voice-roster--conference.group-voice-roster--with-video .group-voice-roster__participants {
     align-content: start;
-    max-height: 72vh;
+    height: 100%;
+    max-height: none;
+    min-height: 0;
     overflow: auto;
     padding-right: 4px;
   }
@@ -7314,15 +7329,42 @@ select {
   }
 
   .group-voice-video-layout--conference .group-voice-video-stage__video {
-    max-height: min(70vh, 760px);
+    max-height: min(48vh, calc(100vh - 430px));
   }
 
   .group-voice-video-layout--conference .group-voice-video-tile__media,
   .group-voice-video-layout--conference .group-voice-video-tile--placeholder::before {
     aspect-ratio: 16 / 11;
   }
+
+  .group-overview--conference .group-voice-video-layout--conference.group-voice-video-layout--presentation {
+    grid-template-rows: minmax(0, 1fr) auto;
+    min-height: 0;
+    max-height: calc(100vh - 360px);
+    overflow: hidden;
+  }
+
+  .group-overview--conference .group-voice-video-layout--conference.group-voice-video-layout--presentation .group-voice-video-stage {
+    min-height: 0;
+  }
+
+  .group-overview--conference .group-voice-video-layout--conference.group-voice-video-layout--presentation .group-voice-video-stage__media {
+    min-height: 0;
+    height: 100%;
+  }
+
   .group-voice-video-layout--conference.group-voice-video-layout--presentation .group-voice-video-grid--preview {
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(140px, 200px);
+    overflow-x: auto;
+    overflow-y: hidden;
+    align-items: start;
+    padding-bottom: 4px;
+  }
+
+  .group-overview--conference .group-voice-video-layout--conference.group-voice-video-layout--presentation .group-voice-video-grid--preview .group-voice-video-tile__media {
+    aspect-ratio: 16 / 9;
   }
 }
 

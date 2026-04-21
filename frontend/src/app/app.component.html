@@ -1064,7 +1064,10 @@
 
             <div class="workspace-main-pane">
               @if (isGroupsMode()) {
-                <section class="group-overview">
+                <section
+                  class="group-overview"
+                  [class.group-overview--conference]="groupVoiceParticipantsExpanded() && connectedVoiceChannelId() === activeGroupVoiceChannel()?.id && !!voiceVideoSceneForChannel(activeGroupVoiceChannel()?.id ?? '')"
+                >
                   @if (activeGroupVoiceChannel(); as groupVoiceChannel) {
                     <div class="group-voice-card" [class.group-voice-card--active]="connectedVoiceChannelId() === groupVoiceChannel.id">
                       <button
