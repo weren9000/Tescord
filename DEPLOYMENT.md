@@ -246,15 +246,44 @@ curl -fsS https://tescord.ru/api/health
 - [scripts/deploy-ubuntu24.ps1](./scripts/deploy-ubuntu24.ps1) - локальный запуск с Windows
 - [scripts/bootstrap-ubuntu24.sh](./scripts/bootstrap-ubuntu24.sh) - удаленная настройка сервера
 
+Если нужен самый короткий путь, читай этот раздел и запускай одну из готовых команд ниже.
+
 ### Что нужно локально
 
 На машине, с которой запускается деплой:
 - `git`
 - `Node.js` и `npm`
-- `plink.exe`
-- `pscp.exe`
+- `Python 3`
 
-`plink.exe` и `pscp.exe` обычно ставятся вместе с PuTTY.
+Модуль `paramiko` скрипт установит сам, если его еще нет. Отдельно ставить `PuTTY`, `plink.exe` и `pscp.exe` не нужно.
+
+### Быстрый старт
+
+Запускать из корня проекта.
+
+Самый простой сценарий по IP:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\deploy-ubuntu24.ps1 155.212.247.117 root ВАШ_ПАРОЛЬ
+```
+
+Сразу на домен с `Let's Encrypt`:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\deploy-ubuntu24.ps1 155.212.247.117 root ВАШ_ПАРОЛЬ -Domain tescord.ru -LetsEncryptEmail admin@tescord.ru
+```
+
+На домен со своим сертификатом:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\deploy-ubuntu24.ps1 155.212.247.117 root ВАШ_ПАРОЛЬ -Domain kvachat.ru -CustomCertificatePath .\сертификаты\certificate.crt -CustomCertificateKeyPath .\сертификаты\certificate.key -CustomCertificateChainPath .\сертификаты\certificate_ca.crt
+```
+
+Если удобнее вводить параметры по шагам, можно запустить просто:
+
+```powershell
+.\scripts\deploy-ubuntu24.ps1
+```
 
 ### Как работает скрипт
 
@@ -268,6 +297,7 @@ curl -fsS https://tescord.ru/api/health
 - создает production `.env`
 - пишет `runtime-config.js`
 - пробует выпустить `Let's Encrypt`, если указан домен
+- сам делает health-check с повторами, если backend поднимается не мгновенно
 
 ### Запуск
 
@@ -280,13 +310,19 @@ curl -fsS https://tescord.ru/api/health
 Короткий запуск без лишних вопросов:
 
 ```powershell
-.\scripts\deploy-ubuntu24.ps1 95.182.97.217 root ВАШ_ПАРОЛЬ
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\deploy-ubuntu24.ps1 95.182.97.217 root ВАШ_ПАРОЛЬ
 ```
 
 Запуск сразу на домен:
 
 ```powershell
-.\scripts\deploy-ubuntu24.ps1 95.182.97.217 root ВАШ_ПАРОЛЬ -Domain tescord.ru -LetsEncryptEmail admin@tescord.ru
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\deploy-ubuntu24.ps1 95.182.97.217 root ВАШ_ПАРОЛЬ -Domain tescord.ru -LetsEncryptEmail admin@tescord.ru
+```
+
+Запуск сразу на домен со своим сертификатом:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\deploy-ubuntu24.ps1 95.182.97.217 root ВАШ_ПАРОЛЬ -Domain kvachat.ru -CustomCertificatePath .\сертификаты\certificate.crt -CustomCertificateKeyPath .\сертификаты\certificate.key -CustomCertificateChainPath .\сертификаты\certificate_ca.crt
 ```
 
 Скрипт спросит:
@@ -305,6 +341,10 @@ curl -fsS https://tescord.ru/api/health
 - production `runtime-config.js` генерируется автоматически
 - пароль `TURN` тоже генерируется автоматически и выводится в конце
 - в минимальном сценарии достаточно передать `IP`, `логин` и `пароль`
+- если PowerShell ругается на policy, используй вариант с `-ExecutionPolicy Bypass`
+- флаг `-SkipGitStatusCheck` оставлен только для технических прогонов; в обычном деплое лучше его не использовать
+- кастомный SSL можно передать через `-CustomCertificatePath`, `-CustomCertificateKeyPath` и опциональный `-CustomCertificateChainPath`
+- если кастомный сертификат уже лежит на сервере, новые деплои сохраняют его автоматически
 
 ### Пример сценария
 
@@ -313,7 +353,7 @@ curl -fsS https://tescord.ru/api/health
 3. Запустить:
 
 ```powershell
-.\scripts\deploy-ubuntu24.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\deploy-ubuntu24.ps1
 ```
 
 4. Ввести:

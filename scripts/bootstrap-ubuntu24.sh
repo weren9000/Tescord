@@ -5,6 +5,9 @@ set -euo pipefail
 : "${APP_DOMAIN:?APP_DOMAIN is required}"
 : "${ENABLE_LETSENCRYPT:?ENABLE_LETSENCRYPT is required}"
 : "${LETSENCRYPT_EMAIL:=}"
+: "${CUSTOM_SSL_CERT_PATH:=}"
+: "${CUSTOM_SSL_KEY_PATH:=}"
+: "${CUSTOM_SSL_CA_PATH:=}"
 : "${DB_PASSWORD:?DB_PASSWORD is required}"
 : "${APP_SECRET:?APP_SECRET is required}"
 : "${DEMO_PASSWORD:?DEMO_PASSWORD is required}"
@@ -17,6 +20,30 @@ TEMP_EXTRACT_DIR="/tmp/tescord-release"
 BACKEND_ENV_PATH="${APP_DIR}/backend/.env"
 SELF_SIGNED_CERT="/etc/ssl/certs/tescord-selfsigned.crt"
 SELF_SIGNED_KEY="/etc/ssl/private/tescord-selfsigned.key"
+CUSTOM_SSL_DIR="/etc/nginx/ssl/${APP_DOMAIN}"
+CUSTOM_SSL_CERT="${CUSTOM_SSL_DIR}/certificate.crt"
+CUSTOM_SSL_CA="${CUSTOM_SSL_DIR}/certificate_ca.crt"
+CUSTOM_SSL_FULLCHAIN="${CUSTOM_SSL_DIR}/fullchain.pem"
+CUSTOM_SSL_KEY="${CUSTOM_SSL_DIR}/privkey.pem"
+
+install_custom_ssl() {
+  local source_cert="$1"
+  local source_key="$2"
+  local source_ca="${3:-}"
+
+  mkdir -p "${CUSTOM_SSL_DIR}"
+  install -m 644 "${source_cert}" "${CUSTOM_SSL_CERT}"
+  install -m 600 "${source_key}" "${CUSTOM_SSL_KEY}"
+
+  if [ -n "${source_ca}" ] && [ -f "${source_ca}" ]; then
+    install -m 644 "${source_ca}" "${CUSTOM_SSL_CA}"
+    cat "${CUSTOM_SSL_CERT}" "${CUSTOM_SSL_CA}" > "${CUSTOM_SSL_FULLCHAIN}"
+  else
+    cp "${CUSTOM_SSL_CERT}" "${CUSTOM_SSL_FULLCHAIN}"
+  fi
+
+  chmod 644 "${CUSTOM_SSL_FULLCHAIN}"
+}
 
 export DEBIAN_FRONTEND=noninteractive
 
@@ -128,13 +155,43 @@ RestartSec=5
 WantedBy=multi-user.target
 EOF
 
-mkdir -p /etc/ssl/private /etc/ssl/certs
+mkdir -p /etc/ssl/private /etc/ssl/certs /etc/nginx/ssl
 if [ ! -f "${SELF_SIGNED_CERT}" ] || [ ! -f "${SELF_SIGNED_KEY}" ]; then
   openssl req -x509 -nodes -newkey rsa:2048 \
     -keyout "${SELF_SIGNED_KEY}" \
     -out "${SELF_SIGNED_CERT}" \
     -days 365 \
     -subj "/CN=${APP_DOMAIN}"
+fi
+
+SSL_CERT_PATH="${SELF_SIGNED_CERT}"
+SSL_KEY_PATH="${SELF_SIGNED_KEY}"
+ACTIVE_SSL_MODE="self-signed"
+
+if [ -n "${CUSTOM_SSL_CERT_PATH}" ] || [ -n "${CUSTOM_SSL_KEY_PATH}" ] || [ -n "${CUSTOM_SSL_CA_PATH}" ]; then
+  if [ -z "${CUSTOM_SSL_CERT_PATH}" ] || [ -z "${CUSTOM_SSL_KEY_PATH}" ]; then
+    echo "CUSTOM_SSL_CERT_PATH and CUSTOM_SSL_KEY_PATH must be provided together." >&2
+    exit 1
+  fi
+
+  if [ ! -f "${CUSTOM_SSL_CERT_PATH}" ] || [ ! -f "${CUSTOM_SSL_KEY_PATH}" ]; then
+    echo "Custom SSL certificate or key file not found." >&2
+    exit 1
+  fi
+
+  install_custom_ssl "${CUSTOM_SSL_CERT_PATH}" "${CUSTOM_SSL_KEY_PATH}" "${CUSTOM_SSL_CA_PATH}"
+  rm -f "${CUSTOM_SSL_CERT_PATH}" "${CUSTOM_SSL_KEY_PATH}"
+  if [ -n "${CUSTOM_SSL_CA_PATH}" ]; then
+    rm -f "${CUSTOM_SSL_CA_PATH}"
+  fi
+
+  SSL_CERT_PATH="${CUSTOM_SSL_FULLCHAIN}"
+  SSL_KEY_PATH="${CUSTOM_SSL_KEY}"
+  ACTIVE_SSL_MODE="custom"
+elif [ -f "${CUSTOM_SSL_FULLCHAIN}" ] && [ -f "${CUSTOM_SSL_KEY}" ]; then
+  SSL_CERT_PATH="${CUSTOM_SSL_FULLCHAIN}"
+  SSL_KEY_PATH="${CUSTOM_SSL_KEY}"
+  ACTIVE_SSL_MODE="custom"
 fi
 
 cat > /etc/nginx/sites-available/tescord <<EOF
@@ -149,8 +206,8 @@ server {
     server_name ${APP_DOMAIN};
     client_max_body_size 500m;
 
-    ssl_certificate ${SELF_SIGNED_CERT};
-    ssl_certificate_key ${SELF_SIGNED_KEY};
+    ssl_certificate ${SSL_CERT_PATH};
+    ssl_certificate_key ${SSL_KEY_PATH};
 
     root ${FRONTEND_DIR};
     index index.html;
@@ -218,10 +275,11 @@ nginx -t
 systemctl restart nginx
 systemctl restart tescord-backend
 
-if [ "${ENABLE_LETSENCRYPT}" = "true" ] && [ -n "${LETSENCRYPT_EMAIL}" ]; then
+if [ "${ACTIVE_SSL_MODE}" != "custom" ] && [ "${ENABLE_LETSENCRYPT}" = "true" ] && [ -n "${LETSENCRYPT_EMAIL}" ]; then
   certbot --nginx --non-interactive --agree-tos -m "${LETSENCRYPT_EMAIL}" -d "${APP_DOMAIN}" --redirect || true
   nginx -t
   systemctl reload nginx
 fi
 
 echo "Deployment complete."
+echo "SSL mode: ${ACTIVE_SSL_MODE}"

@@ -172,6 +172,18 @@ npm run build
 
 - [scripts/deploy-ubuntu24.ps1](./scripts/deploy-ubuntu24.ps1)
 
+Подробная инструкция лежит в [DEPLOYMENT.md](./DEPLOYMENT.md), а быстрый старт такой:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\deploy-ubuntu24.ps1 155.212.247.117 root ВАШ_ПАРОЛЬ
+```
+
+Если нужен сразу домен и доверенный `Let's Encrypt`:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\deploy-ubuntu24.ps1 155.212.247.117 root ВАШ_ПАРОЛЬ -Domain tescord.ru -LetsEncryptEmail admin@tescord.ru
+```
+
 Он:
 - собирает frontend локально
 - упаковывает текущий закоммиченный `HEAD`
@@ -185,22 +197,36 @@ npm run build
 - выпускает `Let's Encrypt`, если указан домен
 - иначе поднимает self-signed `HTTPS` на IP
 
-Запуск:
+Для запуска из корня проекта нужны:
+
+- `git`
+- `Node.js` и `npm`
+- `Python 3`
+
+`paramiko` скрипт установит сам, если модуль еще не установлен.
+
+Интерактивный запуск:
 
 ```powershell
 .\scripts\deploy-ubuntu24.ps1
 ```
 
-Самый простой запуск по IP, логину и паролю:
+Короткий запуск по IP, логину и паролю:
 
 ```powershell
-.\scripts\deploy-ubuntu24.ps1 95.182.97.217 root ВАШ_ПАРОЛЬ
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\deploy-ubuntu24.ps1 95.182.97.217 root ВАШ_ПАРОЛЬ
 ```
 
 Если нужен сразу деплой на домен с `Let's Encrypt`:
 
 ```powershell
-.\scripts\deploy-ubuntu24.ps1 95.182.97.217 root ВАШ_ПАРОЛЬ -Domain tescord.ru -LetsEncryptEmail admin@tescord.ru
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\deploy-ubuntu24.ps1 95.182.97.217 root ВАШ_ПАРОЛЬ -Domain tescord.ru -LetsEncryptEmail admin@tescord.ru
+```
+
+Если нужен деплой на домен со своим сертификатом:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\deploy-ubuntu24.ps1 95.182.97.217 root ВАШ_ПАРОЛЬ -Domain kvachat.ru -CustomCertificatePath .\сертификаты\certificate.crt -CustomCertificateKeyPath .\сертификаты\certificate.key -CustomCertificateChainPath .\сертификаты\certificate_ca.crt
 ```
 
 Скрипт спросит:
@@ -215,7 +241,11 @@ npm run build
 Важно:
 - скрипт деплоит только **закоммиченный** код
 - незакоммиченные tracked-изменения он не пропустит
-- для работы нужны `plink.exe` и `pscp.exe` из PuTTY
+- если домен не указан, поднимется self-signed `HTTPS` на IP
+- для доверенного SSL лучше использовать домен
+- после деплоя скрипт сам проверяет `/api/health` и выводит `TURN`-пароль
+- кастомный сертификат можно передать через `-CustomCertificatePath`, `-CustomCertificateKeyPath` и `-CustomCertificateChainPath`
+- если кастомный сертификат уже установлен на сервере, следующие деплои сохранят его и не переключат nginx обратно на `Let's Encrypt`
 
 Подробности по ручному и автоматическому деплою есть в [DEPLOYMENT.md](./DEPLOYMENT.md).
 
