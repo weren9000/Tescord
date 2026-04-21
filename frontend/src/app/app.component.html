@@ -137,26 +137,29 @@
       <button class="drawer-backdrop" type="button" aria-label="Закрыть меню" (click)="closeSideMenu()"></button>
       <aside class="side-drawer">
         <div class="side-drawer__top">
-          <div class="side-drawer__profile">
-            <button
-              class="profile-avatar-button"
-              type="button"
-              [disabled]="!currentUser() || profileSaving()"
-              title="Нажмите, чтобы изменить аватарку"
-              (click)="openProfileAvatarPicker('instant')"
-            >
-              @if (currentUserAvatarUrl(); as avatarUrl) {
-                <img [src]="avatarUrl" [alt]="displayNick(currentUser()?.nick ?? '')" loading="lazy" />
-              } @else {
-                <span>{{ displayNickInitials(currentUser()?.nick ?? '??') }}</span>
-              }
-            </button>
-            <div class="side-drawer__identity">
-              <strong>{{ displayNick(currentUser()?.nick ?? '') }}</strong>
-              @if (currentUser(); as user) {
-                <small>ID: {{ formatPublicUserId(user.public_id) }}</small>
-                <span>{{ user.email }}</span>
-              }
+          <div class="side-drawer__profile-card">
+            <div class="side-drawer__eyebrow">Быстрое меню</div>
+            <div class="side-drawer__profile">
+              <button
+                class="profile-avatar-button"
+                type="button"
+                [disabled]="!currentUser() || profileSaving()"
+                title="Нажмите, чтобы изменить аватарку"
+                (click)="openProfileAvatarPicker('instant')"
+              >
+                @if (currentUserAvatarUrl(); as avatarUrl) {
+                  <img [src]="avatarUrl" [alt]="displayNick(currentUser()?.nick ?? '')" loading="lazy" />
+                } @else {
+                  <span>{{ displayNickInitials(currentUser()?.nick ?? '??') }}</span>
+                }
+              </button>
+              <div class="side-drawer__identity">
+                <strong>{{ displayNick(currentUser()?.nick ?? '') }}</strong>
+                @if (currentUser(); as user) {
+                  <small>ID: {{ formatPublicUserId(user.public_id) }}</small>
+                  <span>{{ user.email }}</span>
+                }
+              </div>
             </div>
           </div>
           <button class="secondary-button side-drawer__close" type="button" aria-label="Закрыть меню" title="Закрыть меню" (click)="closeSideMenu()">
@@ -165,44 +168,95 @@
         </div>
 
         <div class="side-drawer__actions">
-          <button class="side-drawer__action" type="button" (click)="closeSideMenu(); openProfileEditor()">
-            <img src="/assets/User_Profile.svg" alt="" />
-            <span>Профиль</span>
-          </button>
-          <button class="side-drawer__action" type="button" (click)="openCreateGroupShortcut()">
-            <span>+</span>
-            <span>Создать группу</span>
-          </button>
-          <button class="side-drawer__action" type="button" (click)="openCreatePlatformShortcut()">
-            <span>+</span>
-            <span>Создать площадку</span>
-          </button>
-          <button class="side-drawer__action" type="button" (click)="openAddUserShortcut()">
-            <span>+</span>
-            <span>Добавить друга</span>
-          </button>
-          <button class="side-drawer__action" type="button" (click)="openBlockedFriendsModal()">
-            <span>⛔</span>
-            <span>Заблокированные пользователи</span>
-          </button>
-          <button class="side-drawer__action" type="button" (click)="openBlockedServersModal()">
-            <span>⛔</span>
-            <span>Заблокированные группы и площадки</span>
-          </button>
-          @if (isAdmin()) {
-            <button class="side-drawer__action" type="button" (click)="closeSideMenu(); openVoiceAdminPanel()">
-              <span>◉</span>
-              <span>Доступ к голосу</span>
+          <div class="side-drawer__section">
+            <div class="side-drawer__section-title">Аккаунт и связи</div>
+            <button class="side-drawer__action" type="button" (click)="closeSideMenu(); openProfileEditor()">
+              <span class="side-drawer__action-icon">
+                <img src="/assets/User_Profile.svg" alt="" />
+              </span>
+              <span class="side-drawer__action-copy">
+                <strong>Профиль</strong>
+                <small>Аватарка, ник и личные данные</small>
+              </span>
+              <span class="side-drawer__action-arrow" aria-hidden="true">›</span>
             </button>
-          }
-          <button class="side-drawer__action" type="button" (click)="closeSideMenu(); openVoiceSettings()">
-            <span>⚙</span>
-            <span>Настройки</span>
-          </button>
-          <button class="side-drawer__action side-drawer__action--danger" type="button" (click)="closeSideMenu(); logout()">
-            <img src="/assets/Log out.svg" alt="" />
-            <span>Выйти</span>
-          </button>
+            <button class="side-drawer__action" type="button" (click)="openAddUserShortcut()">
+              <span class="side-drawer__action-icon">+</span>
+              <span class="side-drawer__action-copy">
+                <strong>Добавить друга</strong>
+                <small>Найти пользователя и начать общение</small>
+              </span>
+              <span class="side-drawer__action-arrow" aria-hidden="true">›</span>
+            </button>
+          </div>
+
+          <div class="side-drawer__section">
+            <div class="side-drawer__section-title">Пространства</div>
+            <button class="side-drawer__action" type="button" (click)="openCreateGroupShortcut()">
+              <span class="side-drawer__action-icon">+</span>
+              <span class="side-drawer__action-copy">
+                <strong>Создать группу</strong>
+                <small>Небольшое пространство для общения</small>
+              </span>
+              <span class="side-drawer__action-arrow" aria-hidden="true">›</span>
+            </button>
+            <button class="side-drawer__action" type="button" (click)="openCreatePlatformShortcut()">
+              <span class="side-drawer__action-icon">+</span>
+              <span class="side-drawer__action-copy">
+                <strong>Создать площадку</strong>
+                <small>Каналы, роли и голосовые комнаты</small>
+              </span>
+              <span class="side-drawer__action-arrow" aria-hidden="true">›</span>
+            </button>
+          </div>
+
+          <div class="side-drawer__section">
+            <div class="side-drawer__section-title">Безопасность и система</div>
+            <button class="side-drawer__action" type="button" (click)="openBlockedFriendsModal()">
+              <span class="side-drawer__action-icon">⛔</span>
+              <span class="side-drawer__action-copy">
+                <strong>Заблокированные пользователи</strong>
+                <small>Просмотреть и управлять списком</small>
+              </span>
+              <span class="side-drawer__action-arrow" aria-hidden="true">›</span>
+            </button>
+            <button class="side-drawer__action" type="button" (click)="openBlockedServersModal()">
+              <span class="side-drawer__action-icon">⛔</span>
+              <span class="side-drawer__action-copy">
+                <strong>Заблокированные группы и площадки</strong>
+                <small>Управление скрытыми пространствами</small>
+              </span>
+              <span class="side-drawer__action-arrow" aria-hidden="true">›</span>
+            </button>
+            @if (isAdmin()) {
+              <button class="side-drawer__action" type="button" (click)="closeSideMenu(); openVoiceAdminPanel()">
+                <span class="side-drawer__action-icon">◉</span>
+                <span class="side-drawer__action-copy">
+                  <strong>Доступ к голосу</strong>
+                  <small>Проверка заявок и ролей доступа</small>
+                </span>
+                <span class="side-drawer__action-arrow" aria-hidden="true">›</span>
+              </button>
+            }
+            <button class="side-drawer__action" type="button" (click)="closeSideMenu(); openVoiceSettings()">
+              <span class="side-drawer__action-icon">⚙</span>
+              <span class="side-drawer__action-copy">
+                <strong>Настройки</strong>
+                <small>Звук, устройства и поведение приложения</small>
+              </span>
+              <span class="side-drawer__action-arrow" aria-hidden="true">›</span>
+            </button>
+            <button class="side-drawer__action side-drawer__action--danger" type="button" (click)="closeSideMenu(); logout()">
+              <span class="side-drawer__action-icon">
+                <img src="/assets/Log out.svg" alt="" />
+              </span>
+              <span class="side-drawer__action-copy">
+                <strong>Выйти</strong>
+                <small>Завершить текущую сессию</small>
+              </span>
+              <span class="side-drawer__action-arrow" aria-hidden="true">›</span>
+            </button>
+          </div>
         </div>
       </aside>
     }
