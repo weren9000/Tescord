@@ -1460,6 +1460,34 @@ export class AppComponent {
     return this.platformVoiceChannelPendingRequestCount(surface.channelId);
   });
   readonly activeCallCanOpenSettings = computed(() => this.activeCallSurface()?.kind === 'platform' && this.canOpenPlatformSettings());
+  readonly isIncomingDirectCall = computed(() => {
+    const surface = this.activeCallSurface();
+    return surface?.kind === 'direct' && this.directCallState() === 'incoming';
+  });
+  readonly shouldShowDockControls = computed(() =>
+    this.hasActiveCallSurface() && (this.callWindowMode() === 'minimized' || this.isIncomingDirectCall())
+  );
+  readonly shouldShowWindowControls = computed(() =>
+    this.hasActiveCallSurface() && this.callWindowMode() === 'expanded' && !this.isIncomingDirectCall()
+  );
+  readonly activeCallMediaControlsVisible = computed(() => {
+    const surface = this.activeCallSurface();
+    if (!surface) {
+      return false;
+    }
+
+    return surface.kind === 'direct'
+      ? this.directCallState() === 'connected'
+      : this.voiceState() === 'connected';
+  });
+  readonly shouldShowDockMediaControls = computed(() =>
+    this.shouldShowDockControls() && this.activeCallMediaControlsVisible()
+  );
+  readonly shouldShowWindowMediaControls = computed(() =>
+    this.shouldShowWindowControls() && this.activeCallMediaControlsVisible()
+  );
+  readonly shouldShowDockSettings = computed(() => this.shouldShowDockControls() && this.activeCallCanOpenSettings());
+  readonly shouldShowWindowSettings = computed(() => this.shouldShowWindowControls() && this.activeCallCanOpenSettings());
   readonly activeGroupMemberCount = computed(() => this.members().length);
   readonly composerMentionCandidates = computed<ComposerMentionCandidate[]>(() => {
     if (!this.canUseComposerMentions()) {
