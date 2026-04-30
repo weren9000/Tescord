@@ -7,6 +7,7 @@ import { AppEventsMessage } from '../models/app-events.models';
 const APP_EVENTS_PING_INTERVAL_MS = 25000;
 const APP_EVENTS_RECONNECT_BASE_MS = 1000;
 const APP_EVENTS_RECONNECT_MAX_MS = 10000;
+const APP_EVENTS_AUTH_CLOSE_CODES = new Set([4401, 4403]);
 
 @Injectable({
   providedIn: 'root'
@@ -117,7 +118,7 @@ export class AppEventsService {
       this.connectionError.set('Не удалось подключить realtime-канал');
     });
 
-    socket.addEventListener('close', () => {
+    socket.addEventListener('close', (event) => {
       if (this.socket !== socket) {
         return;
       }
@@ -125,6 +126,14 @@ export class AppEventsService {
       this.connected.set(false);
       this.stopPing();
       this.socket = null;
+
+      if (APP_EVENTS_AUTH_CLOSE_CODES.has(event.code)) {
+        this.manuallyStopped = true;
+        this.currentToken = null;
+        this.reconnectAttempt = 0;
+        this.connectionError.set('Сессия устарела. Войдите снова.');
+        return;
+      }
 
       if (this.manuallyStopped) {
         return;

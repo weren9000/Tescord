@@ -631,6 +631,7 @@ export class AppComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly attachmentPreviewUrls = signal<Record<string, string>>({});
   private readonly loadingAttachmentPreviewIds = new Set<string>();
+  private authenticatedServicesStarted = false;
   private wakeLock: BrowserWakeLockSentinel | null = null;
   private wakeLockRequestInFlight = false;
   private readonly handlePresenceActivity = () => this.schedulePresenceHeartbeat();
@@ -2232,7 +2233,7 @@ export class AppComponent {
         this.directCallScreenExpanded.set(false);
       }
       queueMicrotask(() => this.syncDirectCallScreenVideos());
-    });
+    }, { allowSignalWrites: true });
     effect(() => {
       const surfaceId = this.activeCallSurface()?.id ?? null;
       if (!surfaceId) {
@@ -2248,7 +2249,7 @@ export class AppComponent {
         this.callWindowMode.set('expanded');
         this.callDockVolumeOpen.set(false);
       }
-    });
+    }, { allowSignalWrites: true });
     effect(() => {
       const activeChannelId = this.voiceRoom.activeChannelId();
       if (!activeChannelId) {
@@ -2262,7 +2263,7 @@ export class AppComponent {
       if (visibleChannel) {
         this.activeVoiceCallSnapshot.set(this.buildVoiceCallSnapshot(visibleChannel));
       }
-    });
+    }, { allowSignalWrites: true });
     effect(() => {
       const media = this.fullscreenMedia();
       if (!media) {
@@ -2279,7 +2280,7 @@ export class AppComponent {
       if (!this.fullscreenMediaStillAvailable(media)) {
         queueMicrotask(() => this.closeFullscreenMedia());
       }
-    });
+    }, { allowSignalWrites: true });
     effect(() => {
       const candidates = this.composerMentionCandidates();
       const activeIndex = this.composerMentionActiveIndex();
@@ -2293,7 +2294,7 @@ export class AppComponent {
       if (activeIndex > candidates.length - 1) {
         queueMicrotask(() => this.composerMentionActiveIndex.set(0));
       }
-    });
+    }, { allowSignalWrites: true });
     this.bindActionPipelines();
     this.browserPush.navigationRequests$
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -6482,6 +6483,7 @@ export class AppComponent {
   }
 
   logout(): void {
+    this.authenticatedServicesStarted = false;
     this.appEvents.stop();
     this.directCall.stop();
     this.stopMemberPolling();
@@ -7190,7 +7192,7 @@ export class AppComponent {
 
   private schedulePresenceHeartbeat(force = false): void {
     const token = this.session()?.access_token;
-    if (!token) {
+    if (!token || !this.authenticatedServicesStarted) {
       return;
     }
 
@@ -7230,7 +7232,12 @@ export class AppComponent {
         next: () => {
           // Local optimistic update is already applied above.
         },
-        error: () => {
+        error: (error) => {
+          if (this.isUnauthorizedError(error)) {
+            this.expireSession(error);
+            return;
+          }
+
           this.lastPresenceHeartbeatAt = 0;
         }
       });
@@ -7296,7 +7303,7 @@ export class AppComponent {
 
   private async refreshVoiceJoinInbox(): Promise<void> {
     const token = this.session()?.access_token;
-    if (!token) {
+    if (!token || !this.authenticatedServicesStarted) {
       this.ownerVoiceRequests.set([]);
       this.activeOwnerRequestId.set(null);
       this.ownerVoiceRequestModalOpen.set(false);
@@ -7323,7 +7330,12 @@ export class AppComponent {
 
           this.activeOwnerRequestId.set(requests[0]?.id ?? null);
         },
-        error: () => {
+        error: (error) => {
+          if (this.isUnauthorizedError(error)) {
+            this.expireSession(error);
+            return;
+          }
+
           this.ownerVoiceRequests.set([]);
           this.activeOwnerRequestId.set(null);
           this.ownerVoiceRequestModalOpen.set(false);
@@ -8307,12 +8319,7 @@ export class AppComponent {
 
       this.session.set(session);
       this.currentUser.set(session.user);
-      this.appEvents.start(session.access_token);
-      this.directCall.start(session.access_token);
-      void this.initializeBrowserPush(session.access_token);
-      this.schedulePresenceHeartbeat(true);
-      this.startVoiceJoinInboxPolling();
-      this.bootstrapWorkspace(session.access_token);
+      this.bootstrapWorkspace(session.access_token, { startAuthenticatedServices: true });
     } catch {
       this.clearStoredSession();
     }
@@ -8321,12 +8328,9 @@ export class AppComponent {
   private handleAuthenticatedSession(session: AuthSessionResponse): void {
     this.session.set(session);
     this.currentUser.set(session.user);
-    this.appEvents.start(session.access_token);
-    this.directCall.start(session.access_token);
-    void this.initializeBrowserPush(session.access_token);
     this.persistSession(session);
+    this.startAuthenticatedServices(session.access_token);
     this.schedulePresenceHeartbeat(true);
-    this.startVoiceJoinInboxPolling();
     this.authLoading.set(false);
     this.authError.set(null);
     this.managementError.set(null);
@@ -8334,7 +8338,34 @@ export class AppComponent {
     this.bootstrapWorkspace(session.access_token);
   }
 
-  private bootstrapWorkspace(token: string): void {
+  private startAuthenticatedServices(token: string): void {
+    this.authenticatedServicesStarted = true;
+    this.appEvents.start(token);
+    this.directCall.start(token);
+    void this.initializeBrowserPush(token);
+    this.startVoiceJoinInboxPolling();
+  }
+
+  private expireSession(error?: unknown): void {
+    if (!this.session()) {
+      return;
+    }
+
+    const message = this.isUnauthorizedError(error)
+      ? 'Сессия устарела. Войдите снова.'
+      : this.extractErrorMessage(error, 'Сессия устарела. Войдите снова.');
+    this.logout();
+    this.authError.set(message);
+  }
+
+  private isUnauthorizedError(error: unknown): boolean {
+    return error instanceof HttpErrorResponse && error.status === 401;
+  }
+
+  private bootstrapWorkspace(
+    token: string,
+    options: { startAuthenticatedServices?: boolean } = {}
+  ): void {
     this.workspaceLoading.set(true);
     this.workspaceError.set(null);
     this.friendRequestsLoading.set(true);
@@ -8342,15 +8373,24 @@ export class AppComponent {
     this.mobilePanel.set(this.isCompactVoiceWorkspaceViewport() ? 'servers' : null);
     this.voiceRoom.leave();
 
-    forkJoin({
-      me: this.workspaceApi.getCurrentUser(token),
-      servers: this.workspaceApi.getServers(token),
-      conversations: this.workspaceApi.getConversations(token)
-    })
-      .pipe(takeUntilDestroyed(this.destroyRef))
+    this.workspaceApi
+      .getCurrentUser(token)
+      .pipe(
+        switchMap((me) =>
+          forkJoin({
+            me: of(me),
+            servers: this.workspaceApi.getServers(token),
+            conversations: this.workspaceApi.getConversations(token)
+          })
+        ),
+        takeUntilDestroyed(this.destroyRef)
+      )
       .subscribe({
         next: ({ me, servers, conversations }) => {
           this.currentUser.set(me);
+          if (options.startAuthenticatedServices) {
+            this.startAuthenticatedServices(token);
+          }
           this.servers.set(this.mergeServersById(servers));
           const mergedConversations = this.mergeConversationsById(conversations);
           this.conversations.set(mergedConversations);
@@ -8417,6 +8457,7 @@ export class AppComponent {
           this.stopVoiceJoinInboxPolling();
           this.appEvents.stop();
           this.directCall.stop();
+          this.authenticatedServicesStarted = false;
           this.workspaceLoading.set(false);
           this.voiceRoom.leave();
           this.session.set(null);
@@ -8429,8 +8470,8 @@ export class AppComponent {
           this.members.set([]);
           this.voicePresence.set([]);
           this.resetTextChannelState();
-    this.selectedServerId.set(null);
-    this.selectedChannelId.set(null);
+          this.selectedServerId.set(null);
+          this.selectedChannelId.set(null);
           this.clearStoredSession();
           this.authError.set(this.extractErrorMessage(error, 'Сессия устарела. Войдите снова.'));
         }
@@ -8486,6 +8527,11 @@ export class AppComponent {
           this.workspaceLoading.set(false);
         },
         error: (error) => {
+          if (this.isUnauthorizedError(error)) {
+            this.expireSession(error);
+            return;
+          }
+
           this.stopMemberPolling();
           this.stopVoicePresencePolling();
           this.stopMessageAutoRefreshPolling();
@@ -8781,6 +8827,10 @@ export class AppComponent {
     }
 
     if (attachment.deleted_at) {
+      return;
+    }
+
+    if (this.attachmentAvailabilityLabel(attachment.id)) {
       return;
     }
 
@@ -9712,10 +9762,6 @@ export class AppComponent {
   }
 
   private extractErrorMessage(error: unknown, fallback: string): string {
-    if (error instanceof Error && error.message.trim()) {
-      return error.message;
-    }
-
     if (error instanceof HttpErrorResponse) {
       const detail =
         typeof error.error === 'object' && error.error !== null
@@ -9732,6 +9778,12 @@ export class AppComponent {
           return message;
         }
       }
+
+      return fallback;
+    }
+
+    if (error instanceof Error && error.message.trim()) {
+      return error.message;
     }
 
     return fallback;

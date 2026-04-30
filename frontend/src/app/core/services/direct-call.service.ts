@@ -74,6 +74,7 @@ type IncomingDirectCallMessage =
 const DIRECT_CALL_PING_INTERVAL_MS = 25000;
 const DIRECT_CALL_RECONNECT_BASE_MS = 1000;
 const DIRECT_CALL_RECONNECT_MAX_MS = 10000;
+const DIRECT_CALL_AUTH_CLOSE_CODES = new Set([4401, 4403]);
 const DIRECT_CALL_AUDIO_UNLOCK_NOTICE =
   'На телефоне коснитесь экрана еще раз, если браузер не включил звук звонка автоматически.';
 
@@ -446,7 +447,7 @@ export class DirectCallService {
       this.error.set('Не удалось подключить личный звонок');
     });
 
-    socket.addEventListener('close', () => {
+    socket.addEventListener('close', (event) => {
       if (this.socket !== socket) {
         return;
       }
@@ -454,6 +455,18 @@ export class DirectCallService {
       this.connected.set(false);
       this.stopPing();
       this.socket = null;
+
+      if (DIRECT_CALL_AUTH_CLOSE_CODES.has(event.code)) {
+        this.manuallyStopped = true;
+        this.currentToken = null;
+        this.currentUserId = null;
+        this.reconnectAttempt = 0;
+        this.error.set('Сессия устарела. Войдите снова.');
+        if (this.hasActiveCall()) {
+          this.resetCallState();
+        }
+        return;
+      }
 
       if (this.hasActiveCall()) {
         this.resetCallState();
