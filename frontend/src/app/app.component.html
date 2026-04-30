@@ -147,40 +147,114 @@
               <span class="call-dock__eyebrow">{{ activeCallKindLabel(call.kind) }}</span>
             }
             <strong>{{ call.title }}</strong>
-            @if (call.kind === 'platform') {
+            @if (call.kind !== 'direct') {
               <small>{{ call.subtitle }} · {{ callDockParticipantLabel() }}</small>
-            } @else if (call.kind !== 'direct') {
-              <small>{{ callDockParticipantLabel() }}</small>
             } @else if (call.subtitle) {
               <small>{{ call.subtitle }}</small>
             }
           </span>
         </button>
         <div class="call-dock__controls" (click)="$event.stopPropagation()">
-          <button
-            class="call-control-button"
-            [class.call-control-button--active]="activeCallMuted()"
-            type="button"
-            [attr.title]="activeCallMuteLabel()"
-            [attr.aria-label]="activeCallMuteLabel()"
-            (click)="toggleActiveCallMute($event)"
-          >
-            <img [src]="activeCallMuted() ? '/assets/mic_off.svg' : '/assets/mic.svg'" alt="" />
-          </button>
-          <label class="call-volume-control">
-            <span>Громкость</span>
-            <input
-              type="range"
-              min="0"
-              [max]="activeCallVolumeMax()"
-              step="1"
-              [value]="activeCallVolume()"
-              (input)="changeActiveCallVolume($any($event.target).value)"
-            />
-          </label>
-          <button class="call-control-button call-control-button--danger" type="button" title="Завершить звонок" aria-label="Завершить звонок" (click)="endActiveCall($event)">
-            <img src="/assets/Phone outgoing.svg" alt="" />
-          </button>
+          @if (call.kind === 'direct' && directCallState() === 'incoming') {
+            <button class="call-control-button call-control-button--accept" type="button" title="Ответить" aria-label="Ответить" (click)="acceptDirectCall()">
+              <img src="/assets/Phone_connect.svg" alt="" />
+            </button>
+            <button class="call-control-button call-control-button--danger" type="button" title="Отклонить" aria-label="Отклонить" (click)="rejectDirectCall()">
+              <img src="/assets/Phone outgoing.svg" alt="" />
+            </button>
+          } @else {
+            @if (activeCallCanOpenSettings()) {
+              <button class="call-control-button call-dock__media-control" type="button" title="Настройки канала" aria-label="Настройки канала" (click)="openActiveCallSettings($event)">
+                ⚙
+              </button>
+            }
+            <button
+              class="call-control-button"
+              [class.call-control-button--active]="activeCallMuted()"
+              type="button"
+              [attr.title]="activeCallMuteLabel()"
+              [attr.aria-label]="activeCallMuteLabel()"
+              (click)="toggleActiveCallMute($event)"
+            >
+              <img [src]="activeCallMuted() ? '/assets/mic_off.svg' : '/assets/mic.svg'" alt="" />
+            </button>
+            <button
+              class="call-control-button call-dock__media-control"
+              [class.call-control-button--active]="activeCallCameraEnabled()"
+              type="button"
+              title="Камера"
+              aria-label="Камера"
+              [disabled]="!activeCallCanUseCamera()"
+              (click)="toggleActiveCallCamera($event)"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="3" y="7" width="11" height="10" rx="2"></rect>
+                <path d="M14 10.5l5-3v9l-5-3"></path>
+              </svg>
+            </button>
+            <button
+              class="call-control-button call-dock__media-control"
+              [class.call-control-button--active]="activeCallScreenSharing()"
+              type="button"
+              [attr.title]="activeCallScreenSharing() ? 'Остановить показ экрана' : 'Показать экран'"
+              [attr.aria-label]="activeCallScreenSharing() ? 'Остановить показ экрана' : 'Показать экран'"
+              [disabled]="!activeCallCanShareScreen()"
+              (click)="toggleActiveCallScreenShare($event)"
+            >
+              @if (activeCallScreenSharing()) {
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <rect x="3" y="5" width="18" height="12" rx="2"></rect>
+                  <path d="M9 19h6"></path>
+                  <path d="M8 8l8 6"></path>
+                  <path d="M16 8l-8 6"></path>
+                </svg>
+              } @else {
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <rect x="3" y="5" width="18" height="12" rx="2"></rect>
+                  <path d="M9 19h6"></path>
+                  <path d="M12 9v6"></path>
+                  <path d="M9 12h6"></path>
+                </svg>
+              }
+            </button>
+            <div class="call-dock__volume-wrap">
+              <label class="call-volume-control call-volume-control--dock">
+                <span>Громкость</span>
+                <input
+                  type="range"
+                  min="0"
+                  [max]="activeCallVolumeMax()"
+                  step="1"
+                  [value]="activeCallVolume()"
+                  (input)="changeActiveCallVolume($any($event.target).value)"
+                />
+              </label>
+              <button class="call-control-button call-dock__volume-button" type="button" title="Громкость" aria-label="Громкость" (click)="toggleCallDockVolume($event)">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M4 9v6h4l5 4V5L8 9H4z"></path>
+                  <path d="M16 9.5a4 4 0 0 1 0 5"></path>
+                </svg>
+              </button>
+              @if (callDockVolumeOpen()) {
+                <div class="call-dock__volume-popover" (click)="$event.stopPropagation()">
+                  <label class="call-volume-control call-volume-control--popover">
+                    <span>Громкость</span>
+                    <input
+                      type="range"
+                      min="0"
+                      [max]="activeCallVolumeMax()"
+                      step="1"
+                      [value]="activeCallVolume()"
+                      (input)="changeActiveCallVolume($any($event.target).value)"
+                    />
+                  </label>
+                </div>
+              }
+            </div>
+            <button class="call-control-button call-control-button--danger" type="button" title="Завершить звонок" aria-label="Завершить звонок" (click)="endActiveCall($event)">
+              <img src="/assets/Phone outgoing.svg" alt="" />
+            </button>
+          }
           @if (callWindowMode() === 'expanded') {
             <button class="call-control-button" type="button" title="Свернуть звонок" aria-label="Свернуть звонок" (click)="minimizeCallWindow($event)">
               <span aria-hidden="true">−</span>
@@ -203,23 +277,13 @@
             <header class="call-window__header">
               <div class="call-window__title">
                 <h2>{{ call.title }}</h2>
-                @if (call.kind === 'platform') {
+                @if (call.kind !== 'direct') {
                   <p>{{ call.subtitle }} · {{ callDockParticipantLabel() }}</p>
-                } @else if (call.kind !== 'direct') {
-                  <p>{{ callDockParticipantLabel() }}</p>
                 } @else if (call.subtitle) {
                   <p>{{ call.subtitle }}</p>
                 }
               </div>
               <div class="call-window__header-actions">
-                @if (call.kind === 'direct' && directCallState() === 'incoming') {
-                  <button class="call-control-button call-control-button--accept" type="button" title="Ответить" aria-label="Ответить" (click)="acceptDirectCall()">
-                    <img src="/assets/Phone_connect.svg" alt="" />
-                  </button>
-                  <button class="call-control-button call-control-button--danger" type="button" title="Отклонить" aria-label="Отклонить" (click)="rejectDirectCall()">
-                    <img src="/assets/Phone outgoing.svg" alt="" />
-                  </button>
-                }
                 @if (activeCallCanOpenSettings()) {
                   <button class="call-control-button" type="button" title="Настройки канала" aria-label="Настройки канала" (click)="openActiveCallSettings($event)">
                     ⚙
@@ -435,62 +499,73 @@
               </div>
             }
 
-            <footer class="call-window__controls">
-              <button
-                class="call-control-button"
-                [class.call-control-button--active]="activeCallMuted()"
-                type="button"
-                [attr.title]="activeCallMuteLabel()"
-                [attr.aria-label]="activeCallMuteLabel()"
-                (click)="toggleActiveCallMute($event)"
-              >
-                <img [src]="activeCallMuted() ? '/assets/mic_off.svg' : '/assets/mic.svg'" alt="" />
-              </button>
-              <button
-                class="call-control-button"
-                [class.call-control-button--active]="activeCallCameraEnabled()"
-                type="button"
-                title="Камера"
-                aria-label="Камера"
-                [disabled]="!activeCallCanUseCamera()"
-                (click)="toggleActiveCallCamera($event)"
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <rect x="3" y="7" width="11" height="10" rx="2"></rect>
-                  <path d="M14 10.5l5-3v9l-5-3"></path>
-                </svg>
-              </button>
-              <button
-                class="call-control-button"
-                [class.call-control-button--active]="activeCallScreenSharing()"
-                type="button"
-                title="Показать экран"
-                aria-label="Показать экран"
-                [disabled]="!activeCallCanShareScreen()"
-                (click)="toggleActiveCallScreenShare($event)"
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <rect x="3" y="5" width="18" height="12" rx="2"></rect>
-                  <path d="M9 19h6"></path>
-                  <path d="M12 9v6"></path>
-                  <path d="M9 12h6"></path>
-                </svg>
-              </button>
-              <label class="call-volume-control call-volume-control--window">
-                <span>Громкость</span>
-                <input
-                  type="range"
-                  min="0"
-                  [max]="activeCallVolumeMax()"
-                  step="1"
-                  [value]="activeCallVolume()"
-                  (input)="changeActiveCallVolume($any($event.target).value)"
-                />
-              </label>
-              <button class="call-control-button call-control-button--danger" type="button" title="Завершить звонок" aria-label="Завершить звонок" (click)="endActiveCall($event)">
-                <img src="/assets/Phone outgoing.svg" alt="" />
-              </button>
-            </footer>
+            @if (!(call.kind === 'direct' && directCallState() === 'incoming')) {
+              <footer class="call-window__controls">
+                <button
+                  class="call-control-button"
+                  [class.call-control-button--active]="activeCallMuted()"
+                  type="button"
+                  [attr.title]="activeCallMuteLabel()"
+                  [attr.aria-label]="activeCallMuteLabel()"
+                  (click)="toggleActiveCallMute($event)"
+                >
+                  <img [src]="activeCallMuted() ? '/assets/mic_off.svg' : '/assets/mic.svg'" alt="" />
+                </button>
+                <button
+                  class="call-control-button"
+                  [class.call-control-button--active]="activeCallCameraEnabled()"
+                  type="button"
+                  title="Камера"
+                  aria-label="Камера"
+                  [disabled]="!activeCallCanUseCamera()"
+                  (click)="toggleActiveCallCamera($event)"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="3" y="7" width="11" height="10" rx="2"></rect>
+                    <path d="M14 10.5l5-3v9l-5-3"></path>
+                  </svg>
+                </button>
+                <button
+                  class="call-control-button"
+                  [class.call-control-button--active]="activeCallScreenSharing()"
+                  type="button"
+                  [attr.title]="activeCallScreenSharing() ? 'Остановить показ экрана' : 'Показать экран'"
+                  [attr.aria-label]="activeCallScreenSharing() ? 'Остановить показ экрана' : 'Показать экран'"
+                  [disabled]="!activeCallCanShareScreen()"
+                  (click)="toggleActiveCallScreenShare($event)"
+                >
+                  @if (activeCallScreenSharing()) {
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <rect x="3" y="5" width="18" height="12" rx="2"></rect>
+                      <path d="M9 19h6"></path>
+                      <path d="M8 8l8 6"></path>
+                      <path d="M16 8l-8 6"></path>
+                    </svg>
+                  } @else {
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <rect x="3" y="5" width="18" height="12" rx="2"></rect>
+                      <path d="M9 19h6"></path>
+                      <path d="M12 9v6"></path>
+                      <path d="M9 12h6"></path>
+                    </svg>
+                  }
+                </button>
+                <label class="call-volume-control call-volume-control--window">
+                  <span>Громкость</span>
+                  <input
+                    type="range"
+                    min="0"
+                    [max]="activeCallVolumeMax()"
+                    step="1"
+                    [value]="activeCallVolume()"
+                    (input)="changeActiveCallVolume($any($event.target).value)"
+                  />
+                </label>
+                <button class="call-control-button call-control-button--danger" type="button" title="Завершить звонок" aria-label="Завершить звонок" (click)="endActiveCall($event)">
+                  <img src="/assets/Phone outgoing.svg" alt="" />
+                </button>
+              </footer>
+            }
           </div>
         </section>
       }
@@ -3382,66 +3457,125 @@
 
 @if (createConversationModalOpen()) {
   <div class="modal-backdrop" (click)="closeCreateConversationModal()">
-    <section class="modal modal--wide modal--conversation-create" (click)="$event.stopPropagation()">
+    <section class="modal modal--wide modal--conversation-create modal--entity-create" (click)="$event.stopPropagation()">
       <div class="modal__header">
         <div>
-          <p class="eyebrow">Чаты</p>
+          <p class="eyebrow">{{ conversationCreateTab() === 'direct' ? 'Друг' : 'Мини-группа' }}</p>
           <h3>{{ conversationCreateTab() === 'direct' ? 'Добавить друга' : 'Новая мини-группа' }}</h3>
         </div>
         <button class="icon-button" type="button" (click)="closeCreateConversationModal()">×</button>
       </div>
 
-      <div class="modal__body conversation-create">
-        <div class="conversation-create__tabs">
+      <div class="modal__body conversation-create entity-create">
+        <div class="conversation-create__tabs entity-create__tabs">
           <button
-            class="secondary-button"
+            class="secondary-button entity-create__tab"
             [class.secondary-button--active]="conversationCreateTab() === 'direct'"
             type="button"
-            (click)="conversationCreateTab.set('direct')"
+            (click)="switchConversationCreateTab('direct')"
           >
             Друзья
           </button>
           <button
-            class="secondary-button"
+            class="secondary-button entity-create__tab"
             [class.secondary-button--active]="conversationCreateTab() === 'group'"
             type="button"
-            (click)="conversationCreateTab.set('group')"
+            (click)="switchConversationCreateTab('group')"
           >
             Мини-группа
           </button>
         </div>
 
         @if (conversationCreateTab() === 'direct') {
-          <div class="conversation-create__section">
-            <label class="form-field">
-              <span>Полный ID пользователя</span>
+          <div class="conversation-create__section entity-create__section">
+            <div class="entity-create__summary">
+              <div class="entity-create__mark">ID</div>
+              <div>
+                <strong>Запрос в друзья</strong>
+                <small>Пятизначный ID пользователя</small>
+              </div>
+            </div>
+
+            <label class="form-field entity-create__field">
+              <span>ID пользователя</span>
               <input
                 [ngModel]="directDirectoryQuery()"
                 (ngModelChange)="directDirectoryQuery.set($event); createConversationForm.directUserId = ''"
                 name="conversation_direct_query"
                 maxlength="5"
                 inputmode="numeric"
-                placeholder="Например, 12345"
+                placeholder="12345"
                 type="text"
               />
             </label>
 
-            <p class="modal-note">Введите полный пятизначный ID. Чат появится только после того, как пользователь подтвердит запрос в друзья.</p>
+            <div class="entity-create__status" [class.entity-create__status--ready]="directFriendLookupState() === 'ready'" [class.entity-create__status--warning]="directFriendLookupState() === 'invalid'">
+              @if (directFriendLookupConversation(); as existingConversation) {
+                <span>Уже в друзьях</span>
+                <strong>{{ existingConversation.title }}</strong>
+              } @else if (directFriendLookupState() === 'ready') {
+                <span>Можно отправить запрос</span>
+                <strong>ID {{ directDirectoryQuery() }}</strong>
+              } @else if (directFriendLookupState() === 'invalid') {
+                <span>Нужен полный ID</span>
+                <strong>5 цифр без пробелов</strong>
+              } @else {
+                <span>Введите ID</span>
+                <strong>Запрос уйдет пользователю</strong>
+              }
+            </div>
           </div>
         } @else {
-          <div class="conversation-create__section">
-            <label class="form-field">
-              <span>Название мини-группы</span>
+          <div class="conversation-create__section entity-create__section">
+            <label class="form-field entity-create__field">
+              <span>Название</span>
               <input
                 [(ngModel)]="createConversationForm.name"
                 name="conversation_group_name"
                 maxlength="80"
-                placeholder="Например, Проект KVA"
+                placeholder="Проект KVA"
                 type="text"
               />
             </label>
 
-            <p class="modal-note">Группа создается сразу, даже если вы пока один. Участников можно добавить потом внутри группы, а свою иконку загрузить уже после входа.</p>
+            <div class="entity-create__summary">
+              <div class="entity-create__mark">{{ createConversationSelectedMemberCount() }}</div>
+              <div>
+                <strong>{{ createConversationForm.name.trim() || 'Мини-группа' }}</strong>
+                <small>Участников выбрано: {{ createConversationSelectedMemberCount() }}</small>
+              </div>
+            </div>
+
+            <div class="entity-create__people">
+              <div class="entity-create__section-head">
+                <strong>Друзья</strong>
+                <small>{{ createConversationAvailableUsers().length }}</small>
+              </div>
+              <div class="conversation-picker-list conversation-picker-list--compact">
+                @for (user of createConversationAvailableUsers(); track user.user_id) {
+                  <label class="conversation-picker-row conversation-picker-row--check conversation-picker-row--compact">
+                    <input
+                      type="checkbox"
+                      [checked]="createConversationGroupMemberIds().includes(user.user_id)"
+                      (change)="toggleCreateConversationMember(user.user_id, $any($event.target).checked)"
+                    />
+                    <span class="conversation-picker-row__avatar">
+                      @if (userAvatarUrl(user.user_id, user.avatar_updated_at); as avatarUrl) {
+                        <img [src]="avatarUrl" [alt]="displayNick(user.nick)" loading="lazy" />
+                      } @else {
+                        <span>{{ displayNickInitials(user.nick) }}</span>
+                      }
+                    </span>
+                    <span class="conversation-picker-row__copy">
+                      <strong>{{ displayNick(user.nick) }}</strong>
+                      <small>ID {{ formatPublicUserId(user.public_id) }} · {{ user.is_online ? 'онлайн' : 'офлайн' }}</small>
+                    </span>
+                  </label>
+                } @empty {
+                  <div class="rail-empty">Сначала добавьте друзей</div>
+                }
+              </div>
+            </div>
           </div>
         }
 
@@ -3452,20 +3586,20 @@
         }
       </div>
 
-      <div class="modal__actions">
-        <button class="secondary-button" type="button" (click)="closeCreateConversationModal()">Отмена</button>
+      <div class="modal__actions modal__actions--compact">
+        <button class="secondary-button entity-action" type="button" (click)="closeCreateConversationModal()">Отмена</button>
         @if (conversationCreateTab() === 'direct') {
           <button
-            class="primary-button"
+            class="primary-button entity-action entity-action--primary"
             type="button"
             [disabled]="!canCreateDirectConversation()"
             (click)="startDirectConversationFromModal()"
           >
-            {{ createConversationLoading() ? 'Отправляем...' : 'Отправить запрос' }}
+            {{ createConversationLoading() ? 'Отправляем...' : (directFriendLookupConversation() ? 'Открыть чат' : 'Отправить запрос') }}
           </button>
         } @else {
           <button
-            class="primary-button"
+            class="primary-button entity-action entity-action--primary"
             type="button"
             [disabled]="!canCreateConversationGroup()"
             (click)="submitCreateConversationGroup()"
@@ -3480,7 +3614,7 @@
 
 @if (addGroupMemberModalOpen()) {
   <div class="modal-backdrop" (click)="closeAddGroupMemberModal()">
-    <section class="modal modal--wide modal--conversation-create" (click)="$event.stopPropagation()">
+    <section class="modal modal--wide modal--conversation-create modal--entity-create" (click)="$event.stopPropagation()">
       <div class="modal__header">
         <div>
           <p class="eyebrow">{{ isPlatformsMode() ? 'Площадка' : 'Группа' }}</p>
@@ -3489,28 +3623,29 @@
         <button class="icon-button" type="button" (click)="closeAddGroupMemberModal()">×</button>
       </div>
 
-      <div class="modal__body conversation-create">
-        <div class="conversation-create__section">
-          <label class="form-field">
-            <span>Поиск по нику или ID из друзей</span>
+      <div class="modal__body conversation-create entity-create">
+        <div class="conversation-create__section entity-create__section">
+          <label class="form-field entity-create__field">
+            <span>Поиск</span>
             <input
               [ngModel]="addGroupMemberQuery()"
               (ngModelChange)="addGroupMemberQuery.set($event); addGroupMemberUserId.set('')"
               name="group_member_query"
               maxlength="120"
-              placeholder="Введите ник или пятизначный ID"
+              placeholder="Ник или ID"
               type="text"
             />
           </label>
 
-          <p class="modal-note">
-            {{ isPlatformsMode() ? 'На площадку можно добавить только пользователя из раздела «Друзья».' : 'В группу можно добавить только пользователя из раздела «Друзья».' }}
-          </p>
+          <div class="entity-create__section-head">
+            <strong>Друзья</strong>
+            <small>{{ activeGroupKnownCandidates().length }}</small>
+          </div>
 
-          <div class="conversation-picker-list">
+          <div class="conversation-picker-list conversation-picker-list--compact">
             @for (user of activeGroupKnownCandidates(); track user.user_id) {
               <button
-                class="conversation-picker-row"
+                class="conversation-picker-row conversation-picker-row--compact"
                 [class.conversation-picker-row--active]="addGroupMemberUserId() === user.user_id"
                 type="button"
                 (click)="addGroupMemberUserId.set(user.user_id)"
@@ -3524,8 +3659,7 @@
                 </span>
                 <span class="conversation-picker-row__copy">
                   <strong>{{ displayNick(user.nick) }}</strong>
-                  <small>ID: {{ formatPublicUserId(user.public_id) }}</small>
-                  <small>&#64;{{ user.nick }} · {{ user.is_online ? 'онлайн' : 'офлайн' }}</small>
+                  <small>ID {{ formatPublicUserId(user.public_id) }} · {{ user.is_online ? 'онлайн' : 'офлайн' }}</small>
                 </span>
               </button>
             } @empty {
@@ -3543,10 +3677,10 @@
         }
       </div>
 
-      <div class="modal__actions">
-        <button class="secondary-button" type="button" (click)="closeAddGroupMemberModal()">Отмена</button>
+      <div class="modal__actions modal__actions--compact">
+        <button class="secondary-button entity-action" type="button" (click)="closeAddGroupMemberModal()">Отмена</button>
         <button
-          class="primary-button"
+          class="primary-button entity-action entity-action--primary"
           type="button"
           [disabled]="!canAddGroupMember()"
           (click)="submitAddGroupMember()"
@@ -3560,26 +3694,63 @@
 
 @if (createGroupModalOpen()) {
   <div class="modal-backdrop" (click)="closeCreateGroupModal()">
-    <section class="modal modal--compact" (click)="$event.stopPropagation()">
+    <section class="modal modal--wide modal--entity-create" (click)="$event.stopPropagation()">
       <div class="modal__header">
         <div>
           <p class="eyebrow">Группа</p>
-          <h3>Создать новую группу</h3>
+          <h3>Новая группа</h3>
         </div>
         <button class="icon-button" type="button" (click)="closeCreateGroupModal()">✕</button>
       </div>
 
-      <form class="modal__body stack-form" (ngSubmit)="submitCreateGroup()">
-        <label class="field">
-          <span>Название группы</span>
-          <input [(ngModel)]="createGroupForm.name" name="group_name" placeholder="Например, Стратеги" type="text" />
+      <form class="modal__body stack-form entity-create" (ngSubmit)="submitCreateGroup()">
+        <label class="form-field entity-create__field">
+          <span>Название</span>
+          <input [(ngModel)]="createGroupForm.name" name="group_name" maxlength="80" placeholder="Стратеги" type="text" />
         </label>
 
-        <p class="modal-note">Группа создается сразу, даже если вы пока один. Участников можно добавить потом.</p>
+        <div class="entity-create__summary">
+          <div class="entity-create__mark">{{ createGroupSelectedMemberCount() }}</div>
+          <div>
+            <strong>{{ createGroupForm.name.trim() || 'Группа' }}</strong>
+            <small>Друзей выбрано: {{ createGroupSelectedMemberCount() }}</small>
+          </div>
+        </div>
 
-        <div class="modal__actions">
-          <button class="secondary-button" type="button" (click)="closeCreateGroupModal()">Отмена</button>
-          <button class="primary-button" type="submit" [disabled]="createGroupLoading()">
+        <div class="entity-create__people">
+          <div class="entity-create__section-head">
+            <strong>Добавить сразу</strong>
+            <small>{{ createConversationAvailableUsers().length }}</small>
+          </div>
+          <div class="conversation-picker-list conversation-picker-list--compact">
+            @for (user of createConversationAvailableUsers(); track user.user_id) {
+              <label class="conversation-picker-row conversation-picker-row--check conversation-picker-row--compact">
+                <input
+                  type="checkbox"
+                  [checked]="createGroupMemberIds().includes(user.user_id)"
+                  (change)="toggleCreateGroupMember(user.user_id, $any($event.target).checked)"
+                />
+                <span class="conversation-picker-row__avatar">
+                  @if (userAvatarUrl(user.user_id, user.avatar_updated_at); as avatarUrl) {
+                    <img [src]="avatarUrl" [alt]="displayNick(user.nick)" loading="lazy" />
+                  } @else {
+                    <span>{{ displayNickInitials(user.nick) }}</span>
+                  }
+                </span>
+                <span class="conversation-picker-row__copy">
+                  <strong>{{ displayNick(user.nick) }}</strong>
+                  <small>ID {{ formatPublicUserId(user.public_id) }} · {{ user.is_online ? 'онлайн' : 'офлайн' }}</small>
+                </span>
+              </label>
+            } @empty {
+              <div class="rail-empty">Группу можно создать и без участников</div>
+            }
+          </div>
+        </div>
+
+        <div class="modal__actions modal__actions--compact">
+          <button class="secondary-button entity-action" type="button" (click)="closeCreateGroupModal()">Отмена</button>
+          <button class="primary-button entity-action entity-action--primary" type="submit" [disabled]="createGroupLoading() || createGroupForm.name.trim().length < 2">
             {{ createGroupLoading() ? 'Создаем...' : 'Создать группу' }}
           </button>
         </div>
@@ -3590,31 +3761,37 @@
 
 @if (createPlatformModalOpen()) {
   <div class="modal-backdrop" (click)="closeCreatePlatformModal()">
-    <section class="modal modal--compact" (click)="$event.stopPropagation()">
+    <section class="modal modal--compact modal--entity-create" (click)="$event.stopPropagation()">
       <div class="modal__header">
         <div>
           <p class="eyebrow">Площадка</p>
-          <h3>Создать новую площадку</h3>
+          <h3>Новая площадка</h3>
         </div>
         <button class="icon-button" type="button" (click)="closeCreatePlatformModal()">✕</button>
       </div>
 
-      <form class="modal__body stack-form" (ngSubmit)="submitCreatePlatform()">
-        <label class="field">
-          <span>Название площадки</span>
-          <input [(ngModel)]="createPlatformForm.name" name="platform_name" placeholder="Например, Команда KVA" type="text" />
+      <form class="modal__body stack-form entity-create" (ngSubmit)="submitCreatePlatform()">
+        <label class="form-field entity-create__field">
+          <span>Название</span>
+          <input [(ngModel)]="createPlatformForm.name" name="platform_name" maxlength="80" placeholder="Команда KVA" type="text" />
         </label>
 
-        <label class="field">
+        <label class="form-field entity-create__field">
           <span>Описание</span>
-          <input [(ngModel)]="createPlatformForm.description" name="platform_description" placeholder="Коротко о площадке" type="text" />
+          <input [(ngModel)]="createPlatformForm.description" name="platform_description" maxlength="160" placeholder="Коротко о площадке" type="text" />
         </label>
 
-        <p class="modal-note">После создания внутри сразу появятся общий текстовый канал и голосовая таверна. Остальные каналы можно добавить уже внутри площадки.</p>
+        <div class="entity-create__summary">
+          <div class="entity-create__mark">#</div>
+          <div>
+            <strong>{{ createPlatformForm.name.trim() || 'Площадка' }}</strong>
+            <small>Общий чат и голосовой канал появятся автоматически</small>
+          </div>
+        </div>
 
-        <div class="modal__actions">
-          <button class="secondary-button" type="button" (click)="closeCreatePlatformModal()">Отмена</button>
-          <button class="primary-button" type="submit" [disabled]="createPlatformLoading()">
+        <div class="modal__actions modal__actions--compact">
+          <button class="secondary-button entity-action" type="button" (click)="closeCreatePlatformModal()">Отмена</button>
+          <button class="primary-button entity-action entity-action--primary" type="submit" [disabled]="createPlatformLoading() || createPlatformForm.name.trim().length < 2">
             {{ createPlatformLoading() ? 'Создаем...' : 'Создать площадку' }}
           </button>
         </div>

@@ -99,6 +99,7 @@ type MessageUploadOutcome = 'idle' | 'uploading' | 'cancelled' | 'failed';
 type VoiceVideoSource = 'camera' | 'screen-share';
 type VoiceVideoLayoutMode = 'grid-1' | 'grid-2' | 'grid-4' | 'grid-6' | 'grid-9' | 'presentation';
 type CallSurfaceKind = 'direct' | 'group' | 'platform';
+type VoiceCallSurfaceKind = Exclude<CallSurfaceKind, 'direct'>;
 type CallWindowMode = 'expanded' | 'minimized';
 
 interface LoginFormModel {
@@ -188,6 +189,13 @@ interface ActiveCallSurface {
   channelId: string | null;
   participantCount: number;
   activeSpeakerLabel: string | null;
+}
+
+interface VoiceCallSnapshot {
+  kind: VoiceCallSurfaceKind;
+  serverId: string;
+  serverName: string;
+  channel: WorkspaceChannel;
 }
 
 interface ComposerMentionCandidate {
@@ -790,6 +798,8 @@ export class AppComponent {
   readonly authMode = signal<AuthMode>('login');
   readonly directCallScreenExpanded = signal(false);
   readonly callWindowMode = signal<CallWindowMode>('expanded');
+  readonly callDockVolumeOpen = signal(false);
+  readonly activeVoiceCallSnapshot = signal<VoiceCallSnapshot | null>(null);
 
   readonly session = signal<AuthSessionResponse | null>(null);
   readonly currentUser = signal<CurrentUserResponse | null>(null);
@@ -879,6 +889,7 @@ export class AppComponent {
   readonly messageSearchFocusedMessageId = signal<string | null>(null);
   readonly conversationCreateTab = signal<ConversationCreateTab>('direct');
   readonly createConversationGroupMemberIds = signal<string[]>([]);
+  readonly createGroupMemberIds = signal<string[]>([]);
   readonly conversationMentionTotalCount = computed(() =>
     this.conversations().reduce((total, conversation) => total + Math.max(0, conversation.mention_unread_count ?? 0), 0)
   );
@@ -1070,7 +1081,17 @@ export class AppComponent {
 
   readonly connectedVoiceChannel = computed(() => {
     const connectedChannelId = this.voiceRoom.activeChannelId();
-    return this.channels().find((channel) => channel.id === connectedChannelId) ?? null;
+    if (!connectedChannelId) {
+      return null;
+    }
+
+    const visibleChannel = this.channels().find((channel) => channel.id === connectedChannelId) ?? null;
+    if (visibleChannel) {
+      return visibleChannel;
+    }
+
+    const snapshot = this.activeVoiceCallSnapshot();
+    return snapshot?.channel.id === connectedChannelId ? snapshot.channel : null;
   });
 
   readonly connectedVoiceChannelId = computed(() => this.connectedVoiceChannel()?.id ?? null);
@@ -1090,6 +1111,11 @@ export class AppComponent {
   readonly isVoiceChannelSelected = computed(() => this.activeChannel()?.type === 'voice');
   readonly isTextChannelSelected = computed(() => this.activeChannel()?.type === 'text');
   readonly canUseActiveChannelChat = computed(() => this.activeMessagingChannel() !== null);
+  readonly hasVoiceSession = computed(() =>
+    this.voiceRoom.activeChannelId() !== null
+    && this.connectedVoiceChannel() !== null
+    && this.voiceState() !== 'idle'
+  );
   readonly hasVoiceConnection = computed(() => this.voiceRoom.isConnected() && this.connectedVoiceChannel() !== null);
   readonly isInActiveVoiceChannel = computed(
     () => this.hasVoiceConnection() && this.activeChannel()?.id === this.connectedVoiceChannel()?.id
@@ -1178,6 +1204,24 @@ export class AppComponent {
     this.addGroupMemberUserId().trim().length > 0
     && !this.addGroupMemberLoading()
   );
+  readonly directFriendLookupPublicId = computed(() => this.parsePublicUserId(this.directDirectoryQuery()));
+  readonly directFriendLookupConversation = computed(() => {
+    const publicId = this.directFriendLookupPublicId();
+    return publicId === null ? null : this.findDirectConversationByPublicId(publicId);
+  });
+  readonly directFriendLookupState = computed<'idle' | 'invalid' | 'ready' | 'existing'>(() => {
+    const query = this.directDirectoryQuery().trim();
+    if (!query) {
+      return 'idle';
+    }
+
+    const publicId = this.directFriendLookupPublicId();
+    if (publicId === null) {
+      return 'invalid';
+    }
+
+    return this.directFriendLookupConversation() ? 'existing' : 'ready';
+  });
   readonly createConversationAvailableUsers = computed(() =>
     [...this.conversationDirectory()].sort((left, right) => {
       if (left.is_online !== right.is_online) {
@@ -1188,6 +1232,8 @@ export class AppComponent {
         .localeCompare(this.displayNick(right.nick), 'ru');
     })
   );
+  readonly createGroupSelectedMemberCount = computed(() => this.createGroupMemberIds().length);
+  readonly createConversationSelectedMemberCount = computed(() => this.createConversationGroupMemberIds().length);
   readonly personalChatEntries = computed(() => this.directConversationSpaces());
   readonly groupChatEntries = computed(() => this.groupConversationSpaces());
   readonly platformEntries = computed(() => this.platformSpaces());
@@ -1281,7 +1327,7 @@ export class AppComponent {
       };
     }
 
-    if (!this.hasVoiceConnection()) {
+    if (!this.hasVoiceSession()) {
       return null;
     }
 
@@ -1290,17 +1336,21 @@ export class AppComponent {
       return null;
     }
 
+    const snapshot = this.activeVoiceCallSnapshot();
     const participants = this.voiceParticipantsForChannel(channel.id);
     const activeSpeaker = participants.find((participant) => participant.speaking && !participant.muted && !participant.owner_muted);
-    const activeServer = this.activeServer();
-    const kind: CallSurfaceKind = activeServer?.kind === 'workspace' ? 'platform' : 'group';
-    const serverName = activeServer?.name ?? (kind === 'platform' ? 'Площадка' : 'Группа');
+    const kind: VoiceCallSurfaceKind = snapshot?.channel.id === channel.id
+      ? snapshot.kind
+      : (this.activeServer()?.kind === 'workspace' ? 'platform' : 'group');
+    const serverName = snapshot?.channel.id === channel.id
+      ? snapshot.serverName
+      : (this.activeServer()?.name ?? (kind === 'platform' ? 'Площадка' : 'Группа'));
 
     return {
       kind,
       id: `${kind}:${channel.id}`,
-      title: kind === 'platform' ? serverName : channel.name,
-      subtitle: kind === 'platform' ? channel.name : '',
+      title: serverName,
+      subtitle: channel.name,
       channelId: channel.id,
       participantCount: participants.length,
       activeSpeakerLabel: activeSpeaker ? this.displayNick(activeSpeaker.nick) : null,
@@ -1316,6 +1366,10 @@ export class AppComponent {
 
     if (surface.kind === 'direct') {
       return this.directCallSurfaceStatusLabel();
+    }
+
+    if (this.voiceState() !== 'connected') {
+      return this.voiceCallStateLabel();
     }
 
     const count = surface.participantCount;
@@ -1369,7 +1423,10 @@ export class AppComponent {
       return this.canToggleDirectCallCamera();
     }
 
-    return !!surface.channelId && this.voiceCameraSupported() && this.connectedVoiceChannelId() === surface.channelId;
+    return this.voiceState() === 'connected'
+      && !!surface.channelId
+      && this.voiceCameraSupported()
+      && this.connectedVoiceChannelId() === surface.channelId;
   });
   readonly activeCallCameraEnabled = computed(() => {
     const surface = this.activeCallSurface();
@@ -1385,7 +1442,10 @@ export class AppComponent {
       return this.canToggleDirectCallScreenShare();
     }
 
-    return !!surface.channelId && this.voiceScreenShareSupported() && this.connectedVoiceChannelId() === surface.channelId;
+    return this.voiceState() === 'connected'
+      && !!surface.channelId
+      && this.voiceScreenShareSupported()
+      && this.connectedVoiceChannelId() === surface.channelId;
   });
   readonly activeCallScreenSharing = computed(() => {
     const surface = this.activeCallSurface();
@@ -2085,12 +2145,28 @@ export class AppComponent {
       if (!surfaceId) {
         this.lastActiveCallSurfaceId = null;
         this.directCallScreenExpanded.set(false);
+        this.callDockVolumeOpen.set(false);
         return;
       }
 
       if (surfaceId !== this.lastActiveCallSurfaceId) {
         this.lastActiveCallSurfaceId = surfaceId;
         this.callWindowMode.set('expanded');
+        this.callDockVolumeOpen.set(false);
+      }
+    });
+    effect(() => {
+      const activeChannelId = this.voiceRoom.activeChannelId();
+      if (!activeChannelId) {
+        if (this.activeVoiceCallSnapshot() !== null) {
+          this.activeVoiceCallSnapshot.set(null);
+        }
+        return;
+      }
+
+      const visibleChannel = this.channels().find((channel) => channel.id === activeChannelId) ?? null;
+      if (visibleChannel) {
+        this.activeVoiceCallSnapshot.set(this.buildVoiceCallSnapshot(visibleChannel));
       }
     });
     effect(() => {
@@ -2601,6 +2677,7 @@ export class AppComponent {
               this.conversations.set(this.mergeConversationsById([...this.conversations(), conversation]));
               this.workspaceMode.set('groups');
               this.createGroupForm.name = '';
+              this.createGroupMemberIds.set([]);
               this.managementSuccess.set(`Группа «${conversation.title}» создана`);
               this.createGroupModalOpen.set(false);
               this.loadServerWorkspace(token, conversation.id);
@@ -4088,6 +4165,8 @@ export class AppComponent {
 
   openCreateGroupModal(): void {
     this.closeMobilePanel();
+    this.createGroupForm.name = '';
+    this.createGroupMemberIds.set([]);
     this.createGroupModalOpen.set(true);
     this.managementError.set(null);
     this.managementSuccess.set(null);
@@ -4095,6 +4174,7 @@ export class AppComponent {
 
   closeCreateGroupModal(): void {
     this.createGroupModalOpen.set(false);
+    this.createGroupMemberIds.set([]);
   }
 
   openCreatePlatformModal(): void {
@@ -4131,6 +4211,12 @@ export class AppComponent {
     this.conversationCreateTab.set('direct');
   }
 
+  switchConversationCreateTab(tab: ConversationCreateTab): void {
+    this.conversationCreateTab.set(tab);
+    this.managementError.set(null);
+    this.managementSuccess.set(null);
+  }
+
   private parsePublicUserId(value: string): number | null {
     const normalized = value.trim();
     if (!/^\d{5}$/.test(normalized)) {
@@ -4160,6 +4246,19 @@ export class AppComponent {
 
   toggleCreateConversationMember(userId: string, selected: boolean): void {
     this.createConversationGroupMemberIds.update((memberIds) => {
+      const nextIds = new Set(memberIds);
+      if (selected) {
+        nextIds.add(userId);
+      } else {
+        nextIds.delete(userId);
+      }
+
+      return [...nextIds];
+    });
+  }
+
+  toggleCreateGroupMember(userId: string, selected: boolean): void {
+    this.createGroupMemberIds.update((memberIds) => {
       const nextIds = new Set(memberIds);
       if (selected) {
         nextIds.add(userId);
@@ -4362,6 +4461,12 @@ export class AppComponent {
   }
 
   toggleGroupVoiceParticipantsExpanded(): void {
+    const voiceChannel = this.activeGroupVoiceChannel();
+    if (voiceChannel && this.connectedVoiceChannelId() === voiceChannel.id) {
+      this.expandCallWindow();
+      return;
+    }
+
     this.groupVoiceParticipantsExpanded.update((expanded) => !expanded);
   }
 
@@ -4388,6 +4493,11 @@ export class AppComponent {
 
   togglePlatformVoiceChannelExpanded(channel: WorkspaceChannel): void {
     if (channel.type !== 'voice') {
+      return;
+    }
+
+    if (this.connectedVoiceChannelId() === channel.id) {
+      this.expandCallWindow();
       return;
     }
 
@@ -4915,7 +5025,7 @@ export class AppComponent {
   }
 
   private currentVoiceCallDescriptor(): CallSwitchDescriptor | null {
-    if (!this.hasVoiceConnection()) {
+    if (!this.hasVoiceSession()) {
       return null;
     }
 
@@ -4924,7 +5034,8 @@ export class AppComponent {
       return null;
     }
 
-    return this.voiceCallDescriptor(channel);
+    const snapshot = this.activeVoiceCallSnapshot();
+    return this.voiceCallDescriptor(channel, snapshot?.channel.id === channel.id ? snapshot : undefined);
   }
 
   private directCallDescriptor(peer: DirectCallPeer, subtitle = 'Личный звонок'): CallSwitchDescriptor {
@@ -4937,16 +5048,26 @@ export class AppComponent {
     };
   }
 
-  private voiceCallDescriptor(channel: WorkspaceChannel): CallSwitchDescriptor {
-    const activeServer = this.activeServer();
-    const kind: CallSurfaceKind = activeServer?.kind === 'workspace' ? 'platform' : 'group';
-    const serverName = activeServer?.name ?? (kind === 'platform' ? 'Площадка' : 'Группа');
+  private buildVoiceCallSnapshot(channel: WorkspaceChannel): VoiceCallSnapshot {
+    const server =
+      this.currentSpaceList().find((entry) => entry.id === channel.server_id)
+      ?? this.activeServer();
+    const kind: VoiceCallSurfaceKind = server?.kind === 'workspace' ? 'platform' : 'group';
 
     return {
       kind,
-      id: `${kind}:${channel.id}`,
-      title: kind === 'platform' ? `${serverName} → ${channel.name}` : channel.name,
-      subtitle: kind === 'platform' ? 'Голосовой канал площадки' : 'Групповой голосовой чат',
+      serverId: channel.server_id,
+      serverName: server?.name ?? (kind === 'platform' ? 'Площадка' : 'Группа'),
+      channel,
+    };
+  }
+
+  private voiceCallDescriptor(channel: WorkspaceChannel, snapshot = this.buildVoiceCallSnapshot(channel)): CallSwitchDescriptor {
+    return {
+      kind: snapshot.kind,
+      id: `${snapshot.kind}:${channel.id}`,
+      title: `${snapshot.serverName} → ${channel.name}`,
+      subtitle: snapshot.kind === 'platform' ? 'Площадка' : 'Группа',
       channelId: channel.id,
     };
   }
@@ -4981,6 +5102,7 @@ export class AppComponent {
     }
 
     this.directCallScreenExpanded.set(false);
+    this.callDockVolumeOpen.set(false);
     this.callWindowMode.set('minimized');
   }
 
@@ -4990,6 +5112,7 @@ export class AppComponent {
       return;
     }
 
+    this.callDockVolumeOpen.set(false);
     this.callWindowMode.set('expanded');
   }
 
@@ -5022,6 +5145,20 @@ export class AppComponent {
     this.changeMasterVolume(value);
   }
 
+  toggleCallDockVolume(event?: Event): void {
+    event?.stopPropagation();
+    if (!this.activeCallSurface()) {
+      this.callDockVolumeOpen.set(false);
+      return;
+    }
+
+    this.callDockVolumeOpen.update((open) => !open);
+  }
+
+  closeCallDockVolume(): void {
+    this.callDockVolumeOpen.set(false);
+  }
+
   async endActiveCall(event?: Event): Promise<void> {
     event?.stopPropagation();
     const surface = this.activeCallSurface();
@@ -5030,6 +5167,7 @@ export class AppComponent {
     }
 
     this.directCallScreenExpanded.set(false);
+    this.callDockVolumeOpen.set(false);
     if (surface.kind === 'direct') {
       if (this.directCallState() === 'incoming') {
         this.rejectDirectCall();
@@ -5100,6 +5238,18 @@ export class AppComponent {
     }
 
     return this.directCallStatusLabel();
+  }
+
+  voiceCallStateLabel(): string {
+    switch (this.voiceState()) {
+      case 'connecting':
+        return 'Подключаем';
+      case 'error':
+        return this.voiceError() ?? 'Нет связи';
+      case 'connected':
+      case 'idle':
+        return '';
+    }
   }
 
   directCallStatusLabel(): string {
@@ -5391,7 +5541,7 @@ export class AppComponent {
 
     const payload: CreateGroupConversationRequest = {
       name: this.createGroupForm.name.trim(),
-      member_ids: [],
+      member_ids: this.createGroupMemberIds(),
     };
 
     if (!payload.name) {
@@ -5878,6 +6028,8 @@ export class AppComponent {
   }
 
   leaveVoiceChannel(): void {
+    this.activeVoiceCallSnapshot.set(null);
+    this.callDockVolumeOpen.set(false);
     this.voiceRoom.leave();
   }
 
@@ -6133,6 +6285,7 @@ export class AppComponent {
     this.voiceAccessEntriesByChannelId.set({});
     this.conversationCreateTab.set('direct');
     this.createConversationGroupMemberIds.set([]);
+    this.createGroupMemberIds.set([]);
     this.createConversationForm.directUserId = '';
     this.createConversationForm.name = '';
     this.authError.set(null);
@@ -7345,7 +7498,15 @@ export class AppComponent {
     this.channels.set(channels);
     this.syncActiveServerUnreadCountFromChannels(channels);
 
-    if (connectedVoiceChannelId && !channels.some((channel) => channel.id === connectedVoiceChannelId)) {
+    const connectedVoiceSnapshot = this.activeVoiceCallSnapshot();
+    const connectedVoiceBelongsToCurrentServer =
+      !connectedVoiceSnapshot || connectedVoiceSnapshot.serverId === this.selectedServerId();
+
+    if (
+      connectedVoiceChannelId
+      && connectedVoiceBelongsToCurrentServer
+      && !channels.some((channel) => channel.id === connectedVoiceChannelId)
+    ) {
       this.voiceRoom.leave();
     }
 
@@ -8110,10 +8271,12 @@ export class AppComponent {
 
     this.workspaceError.set(null);
     this.closeBlockedVoiceJoinNotice();
+    this.activeVoiceCallSnapshot.set(this.buildVoiceCallSnapshot(channel));
     await this.voiceRoom.join(channel.id, token, currentUser);
     if (this.isPlatformsMode()) {
       this.platformExpandedVoiceChannelId.set(channel.id);
     }
+    this.callWindowMode.set('expanded');
     this.pendingVoiceJoin.set(null);
     this.stopVoiceJoinRequestPolling();
     if (this.currentUser()?.is_admin || this.canManageActiveGroup() || channel.voice_access_role === 'owner') {

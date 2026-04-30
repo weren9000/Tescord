@@ -3888,22 +3888,149 @@ select {
   max-width: 760px;
 }
 
+.modal--entity-create {
+  max-width: 720px;
+}
+
 .conversation-create {
   display: flex;
   flex-direction: column;
   gap: 14px;
 }
 
+.entity-create {
+  gap: 12px;
+}
+
 .conversation-create__tabs {
   display: inline-flex;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
+}
+
+.entity-create__tabs {
+  align-self: flex-start;
+  padding: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.026);
+}
+
+.entity-create__tab {
+  min-height: 30px;
+  padding: 0 12px;
+  border-color: transparent;
+  font-size: 0.76rem;
 }
 
 .conversation-create__section {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.entity-create__section {
+  gap: 10px;
+}
+
+.entity-create__field input {
+  min-height: 38px;
+}
+
+.entity-create__summary,
+.entity-create__status {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border: 1px solid rgba(226, 233, 244, 0.08);
+  background: rgba(255, 255, 255, 0.026);
+}
+
+.entity-create__mark {
+  width: 34px;
+  height: 34px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid rgba(81, 240, 168, 0.22);
+  background: rgba(81, 240, 168, 0.08);
+  color: #d9ffe9;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.entity-create__summary strong,
+.entity-create__summary small,
+.entity-create__status strong,
+.entity-create__status span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.entity-create__summary strong,
+.entity-create__status strong {
+  display: block;
+  font-size: 0.86rem;
+}
+
+.entity-create__summary small,
+.entity-create__status span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.entity-create__status--ready {
+  border-color: rgba(81, 240, 168, 0.2);
+  background: rgba(81, 240, 168, 0.055);
+}
+
+.entity-create__status--warning {
+  border-color: rgba(255, 191, 120, 0.2);
+  background: rgba(255, 191, 120, 0.055);
+}
+
+.entity-create__people {
+  display: grid;
+  gap: 8px;
+}
+
+.entity-create__section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.entity-create__section-head strong {
+  color: var(--text);
+  font-size: 0.82rem;
+}
+
+.entity-create__section-head small {
+  min-width: 24px;
+  text-align: right;
+}
+
+.modal__actions--compact {
+  flex-wrap: nowrap;
+  align-items: center;
+  padding-block: 10px;
+}
+
+.modal__actions > .entity-action {
+  min-height: 32px;
+  padding: 0 12px;
+  font-size: 0.76rem;
+}
+
+.modal__actions > .entity-action--primary {
+  min-width: 132px;
 }
 
 .conversation-picker-list {
@@ -3913,6 +4040,11 @@ select {
   gap: 6px;
   overflow: auto;
   padding-right: 4px;
+}
+
+.conversation-picker-list--compact {
+  max-height: min(280px, 42vh);
+  gap: 5px;
 }
 
 .conversation-picker-row {
@@ -3928,6 +4060,12 @@ select {
   text-align: left;
   cursor: pointer;
   transition: border-color 160ms ease, background 160ms ease;
+}
+
+.conversation-picker-row--compact {
+  min-height: 42px;
+  gap: 8px;
+  padding: 6px 8px;
 }
 
 .conversation-picker-row--member-manage {
@@ -4014,6 +4152,12 @@ select {
   font-weight: 700;
 }
 
+.conversation-picker-row--compact .conversation-picker-row__avatar {
+  width: 30px;
+  height: 30px;
+  font-size: 0.68rem;
+}
+
 .conversation-picker-row__avatar img {
   width: 100%;
   height: 100%;
@@ -4038,6 +4182,10 @@ select {
 
 .conversation-picker-row__copy strong {
   font-size: 0.82rem;
+}
+
+.conversation-picker-row--compact .conversation-picker-row__copy strong {
+  font-size: 0.8rem;
 }
 
 .conversation-picker-row__copy small {
@@ -4078,6 +4226,10 @@ select {
     width: 100%;
   }
 
+  .entity-create__tabs {
+    align-self: stretch;
+  }
+
   .conversation-create__tabs .secondary-button {
     flex: 1 1 0;
     justify-content: center;
@@ -4085,6 +4237,10 @@ select {
 
   .conversation-picker-list {
     max-height: 44vh;
+  }
+
+  .conversation-picker-list--compact {
+    max-height: 34vh;
   }
 }
 
@@ -4115,6 +4271,21 @@ select {
 
   .modal--conversation-create {
     width: min(100%, 100vw - 24px);
+  }
+
+  .modal__actions--compact {
+    gap: 6px;
+  }
+
+  .modal__actions > .entity-action {
+    flex: 1 1 0;
+    min-width: 0;
+    padding-inline: 8px;
+  }
+
+  .entity-create__summary,
+  .entity-create__status {
+    padding: 8px;
   }
 }
 
@@ -6270,9 +6441,16 @@ select {
 .friend-request-row__actions {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
   justify-content: flex-end;
+}
+
+.friend-request-row__actions .primary-button,
+.friend-request-row__actions .secondary-button {
+  min-height: 30px;
+  padding: 0 9px;
+  font-size: 0.72rem;
 }
 
 .secondary-button--danger {
@@ -9693,6 +9871,32 @@ select {
   accent-color: var(--accent-cool);
 }
 
+.call-dock__volume-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.call-dock__volume-button {
+  display: none;
+}
+
+.call-dock__volume-popover {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 170;
+  padding: 8px;
+  border: 1px solid rgba(226, 233, 244, 0.14);
+  border-radius: 8px;
+  background: rgba(13, 18, 25, 0.98);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.34);
+}
+
+.call-volume-control--popover {
+  width: min(220px, calc(100vw - 32px));
+}
+
 .call-window-layer {
   position: fixed;
   inset: calc(86px + env(safe-area-inset-top)) 14px 14px;
@@ -9945,8 +10149,16 @@ select {
     gap: 8px;
   }
 
-  .call-dock .call-volume-control {
+  .call-dock .call-volume-control--dock {
     display: none;
+  }
+
+  .call-dock__volume-button {
+    display: inline-grid;
+  }
+
+  .call-dock__volume-popover .call-volume-control {
+    display: grid;
   }
 
   .call-window-layer {
@@ -9987,11 +10199,15 @@ select {
   }
 
   .call-dock__copy small {
-    max-width: 42vw;
+    max-width: 36vw;
   }
 
   .call-dock__controls {
     gap: 6px;
+  }
+
+  .call-dock__media-control {
+    display: none;
   }
 
   .call-control-button {
