@@ -111,7 +111,11 @@
     </section>
   </div>
 } @else {
-  <div class="messenger-shell" [class.messenger-shell--call-active]="hasActiveCallSurface()">
+  <div
+    class="messenger-shell"
+    [class.messenger-shell--call-active]="hasActiveCallSurface()"
+    [class.messenger-shell--call-window-open]="callWindowExpanded()"
+  >
     <input
       #profileAvatarInput
       hidden

@@ -9677,6 +9677,23 @@ select {
   padding-top: calc(88px + env(safe-area-inset-top));
 }
 
+.messenger-shell--call-window-open .messenger-layout {
+  overflow: hidden;
+}
+
+.messenger-shell--call-window-open .conversation-sidebar__list,
+.messenger-shell--call-window-open .platform-channel-rail,
+.messenger-shell--call-window-open .conversation-stream,
+.messenger-shell--call-window-open .message-list,
+.messenger-shell--call-window-open .group-overview {
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+
+.messenger-shell--call-window-open .mobile-mode-footer {
+  pointer-events: none;
+}
+
 .call-dock {
   position: fixed;
   top: calc(12px + env(safe-area-inset-top));
@@ -9897,7 +9914,9 @@ select {
   display: grid;
   justify-items: center;
   align-items: start;
-  pointer-events: none;
+  overflow: hidden;
+  overscroll-behavior: contain;
+  pointer-events: auto;
 }
 
 .call-window {
@@ -9910,6 +9929,7 @@ select {
   background: rgba(10, 14, 20, 0.96);
   box-shadow: 0 30px 80px rgba(0, 0, 0, 0.42);
   overflow: hidden;
+  overscroll-behavior: contain;
   pointer-events: auto;
 }
 
@@ -9937,6 +9957,7 @@ select {
   min-height: 0;
   padding: 14px;
   overflow: auto;
+  overscroll-behavior: contain;
 }
 
 .call-window__body--direct {
@@ -10065,6 +10086,7 @@ select {
 .call-window__participants {
   min-height: 0;
   overflow: auto;
+  overscroll-behavior: contain;
 }
 
 .call-window__controls {
