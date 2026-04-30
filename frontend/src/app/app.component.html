@@ -143,9 +143,17 @@
         <button class="call-dock__main" type="button" (click)="expandCallWindow($event)">
           <span class="call-dock__pulse" aria-hidden="true"></span>
           <span class="call-dock__copy">
-            <span class="call-dock__eyebrow">{{ activeCallKindLabel(call.kind) }}</span>
+            @if (call.kind !== 'direct') {
+              <span class="call-dock__eyebrow">{{ activeCallKindLabel(call.kind) }}</span>
+            }
             <strong>{{ call.title }}</strong>
-            <small>{{ call.kind === 'platform' ? call.subtitle + ' · ' + callDockParticipantLabel() : callDockParticipantLabel() }}</small>
+            @if (call.kind === 'platform') {
+              <small>{{ call.subtitle }} · {{ callDockParticipantLabel() }}</small>
+            } @else if (call.kind !== 'direct') {
+              <small>{{ callDockParticipantLabel() }}</small>
+            } @else if (call.subtitle) {
+              <small>{{ call.subtitle }}</small>
+            }
           </span>
         </button>
         <div class="call-dock__controls" (click)="$event.stopPropagation()">
@@ -194,16 +202,24 @@
           >
             <header class="call-window__header">
               <div class="call-window__title">
-                <span>{{ activeCallKindLabel(call.kind) }}</span>
                 <h2>{{ call.title }}</h2>
-                <p>
-                  {{ call.subtitle }}
-                  @if (call.kind !== 'direct') {
-                    <span> · {{ callDockParticipantLabel() }}</span>
-                  }
-                </p>
+                @if (call.kind === 'platform') {
+                  <p>{{ call.subtitle }} · {{ callDockParticipantLabel() }}</p>
+                } @else if (call.kind !== 'direct') {
+                  <p>{{ callDockParticipantLabel() }}</p>
+                } @else if (call.subtitle) {
+                  <p>{{ call.subtitle }}</p>
+                }
               </div>
               <div class="call-window__header-actions">
+                @if (call.kind === 'direct' && directCallState() === 'incoming') {
+                  <button class="call-control-button call-control-button--accept" type="button" title="Ответить" aria-label="Ответить" (click)="acceptDirectCall()">
+                    <img src="/assets/Phone_connect.svg" alt="" />
+                  </button>
+                  <button class="call-control-button call-control-button--danger" type="button" title="Отклонить" aria-label="Отклонить" (click)="rejectDirectCall()">
+                    <img src="/assets/Phone outgoing.svg" alt="" />
+                  </button>
+                }
                 @if (activeCallCanOpenSettings()) {
                   <button class="call-control-button" type="button" title="Настройки канала" aria-label="Настройки канала" (click)="openActiveCallSettings($event)">
                     ⚙
@@ -217,30 +233,6 @@
 
             @if (call.kind === 'direct' && directCallPeer(); as peer) {
               <div class="call-window__body call-window__body--direct">
-                <div class="call-window__direct-profile">
-                  <div class="call-window__avatar call-window__avatar--large">
-                    @if (userAvatarUrl(peer.user_id, peer.avatar_updated_at); as avatarUrl) {
-                      <img [src]="avatarUrl" [alt]="displayNick(peer.nick)" loading="lazy" />
-                    } @else {
-                      <span>{{ displayNickInitials(peer.nick) }}</span>
-                    }
-                  </div>
-                  <div>
-                    <strong>{{ displayNick(peer.nick) }}</strong>
-                    <small>{{ directCallStatusLabel() }}</small>
-                  </div>
-                  @if (directCallState() === 'incoming') {
-                    <div class="call-window__quick-actions">
-                      <button class="call-control-button call-control-button--accept" type="button" title="Ответить" aria-label="Ответить" (click)="acceptDirectCall()">
-                        <img src="/assets/Phone_connect.svg" alt="" />
-                      </button>
-                      <button class="call-control-button call-control-button--danger" type="button" title="Отклонить" aria-label="Отклонить" (click)="rejectDirectCall()">
-                        <img src="/assets/Phone outgoing.svg" alt="" />
-                      </button>
-                    </div>
-                  }
-                </div>
-
                 @if (directCallError()) {
                   <p class="call-window__notice call-window__notice--error">{{ directCallError() }}</p>
                 }
@@ -288,8 +280,6 @@
                           <span>{{ displayNickInitials(peer.nick) }}</span>
                         }
                       </div>
-                      <strong>{{ directCallStatusLabel() }}</strong>
-                      <small>Видео или демонстрация появятся здесь</small>
                     </div>
                   }
                 </div>
@@ -369,10 +359,7 @@
                       }
                     </div>
                   } @else {
-                    <div class="call-window__empty-stage">
-                      <strong>{{ call.kind === 'platform' ? 'Голосовая сессия канала' : 'Групповой созвон' }}</strong>
-                      <small>Камеры и демонстрации появятся здесь</small>
-                    </div>
+                    <div class="call-window__empty-stage" aria-hidden="true"></div>
                   }
                 </div>
 
@@ -442,8 +429,6 @@
                           }
                         </div>
                       }
-                    } @else {
-                      <div class="group-voice-roster__empty">В голосовом чате пока никого нет</div>
                     }
                   </div>
                 </aside>
@@ -1474,8 +1459,6 @@
                                     }
                                   </div>
                                 }
-                              } @else {
-                                <div class="group-voice-roster__empty">В голосовом чате пока никого нет</div>
                               }
                             </div>
                           </div>
@@ -1696,8 +1679,6 @@
                                 }
                               </div>
                             }
-                          } @else {
-                            <div class="group-voice-roster__empty">В голосовом чате пока никого нет</div>
                           }
                         </div>
                       </div>
@@ -2332,170 +2313,6 @@
         />
       </button>
     </nav>
-  </div>
-}
-
-@if (shouldShowStandaloneDirectCallModal() && directCallPeer(); as standaloneCallPeer) {
-  <div class="modal-backdrop">
-    <section class="modal modal--compact modal--direct-call" [class.modal--wide]="hasAnyDirectCallVideo()" (click)="$event.stopPropagation()">
-      <div class="modal__header">
-        <div>
-          <p class="eyebrow">Личный звонок</p>
-          <h3>{{ displayNick(standaloneCallPeer.nick) }}</h3>
-        </div>
-        @if (directCallState() === 'incoming') {
-          <button class="icon-button" type="button" (click)="rejectDirectCall()">✕</button>
-        } @else {
-          <button class="icon-button" type="button" (click)="hangupDirectCall()">✕</button>
-        }
-      </div>
-
-      <div class="modal__body">
-        <div class="direct-call-peer-card">
-          <div class="direct-call-peer-card__avatar">
-            @if (userAvatarUrl(standaloneCallPeer.user_id, standaloneCallPeer.avatar_updated_at); as avatarUrl) {
-              <img [src]="avatarUrl" [alt]="displayNick(standaloneCallPeer.nick)" loading="lazy" />
-            } @else {
-              <span>{{ displayNickInitials(standaloneCallPeer.nick) }}</span>
-            }
-          </div>
-
-          <div class="direct-call-peer-card__meta">
-            <strong>{{ displayNick(standaloneCallPeer.nick) }}</strong>
-            <small>&#64;{{ standaloneCallPeer.nick }}</small>
-            <p class="direct-call-status">
-              {{ directCallNotice() || (directCallState() === 'outgoing' ? 'Ожидаем ответа собеседника.' : 'Личный звонок активен.') }}
-            </p>
-          </div>
-        </div>
-
-        @if (directCallState() === 'incoming') {
-          <p class="modal-note modal-note--live">Входящий личный звонок.</p>
-          <div class="direct-call-actions">
-            <button class="direct-call-icon-button direct-call-icon-button--accept" type="button" title="Ответить" aria-label="Ответить" (click)="acceptDirectCall()">
-              <img src="/assets/Phone_connect.svg" alt="" />
-            </button>
-            <button class="direct-call-icon-button direct-call-icon-button--danger" type="button" title="Отклонить" aria-label="Отклонить" (click)="rejectDirectCall()">
-              <img src="/assets/Phone outgoing.svg" alt="" />
-            </button>
-          </div>
-        } @else {
-          <div class="direct-call-actions">
-            <button class="direct-call-icon-button direct-call-icon-button--danger" type="button" title="Положить трубку" aria-label="Положить трубку" (click)="hangupDirectCall()">
-              <img src="/assets/Phone outgoing.svg" alt="" />
-            </button>
-
-            @if (directCallState() === 'connected' && directCallCameraSupported()) {
-              <button
-                class="direct-call-icon-button"
-                [class.direct-call-icon-button--active]="directCallCameraEnabled()"
-                type="button"
-                title="Камера"
-                aria-label="Камера"
-                [disabled]="!canToggleDirectCallCamera()"
-                (click)="toggleDirectCallCamera()"
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <rect x="3" y="7" width="11" height="10" rx="2"></rect>
-                  <path d="M14 10.5l5-3v9l-5-3"></path>
-                </svg>
-              </button>
-            }
-
-            @if (directCallState() === 'connected' && directCallScreenSupported()) {
-              @if (directCallScreenSharing()) {
-                <button class="direct-call-icon-button direct-call-icon-button--active" type="button" title="Остановить показ экрана" aria-label="Остановить показ экрана" (click)="stopDirectCallScreenShare()">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <rect x="3" y="5" width="18" height="12" rx="2"></rect>
-                    <path d="M9 19h6"></path>
-                    <path d="M8 8l8 6"></path>
-                    <path d="M16 8l-8 6"></path>
-                  </svg>
-                </button>
-              } @else {
-                <button class="direct-call-icon-button" type="button" title="Показать экран" aria-label="Показать экран" (click)="startDirectCallScreenShare()" [disabled]="!canToggleDirectCallScreenShare()">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <rect x="3" y="5" width="18" height="12" rx="2"></rect>
-                    <path d="M9 19h6"></path>
-                    <path d="M12 9v6"></path>
-                    <path d="M9 12h6"></path>
-                  </svg>
-                </button>
-              }
-
-              @if (hasAnyDirectCallScreen()) {
-                <button class="direct-call-icon-button" type="button" title="Развернуть экран" aria-label="Развернуть экран" (click)="expandDirectCallScreen()">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M9 4H4v5"></path>
-                    <path d="M15 4h5v5"></path>
-                    <path d="M20 15v5h-5"></path>
-                    <path d="M4 15v5h5"></path>
-                    <path d="M4 9l6-6"></path>
-                    <path d="M20 9l-6-6"></path>
-                    <path d="M4 15l6 6"></path>
-                    <path d="M20 15l-6 6"></path>
-                  </svg>
-                </button>
-              }
-            }
-          </div>
-        }
-
-        @if (directCallRemoteScreenStream() || directCallLocalScreenStream()) {
-          <div class="direct-call-screen-stack" [class.direct-call-screen-stack--overlay]="directCallRemoteScreenStream() && directCallLocalScreenStream()">
-            @if (directCallRemoteScreenStream()) {
-              <div class="direct-call-screen direct-call-screen--primary">
-                <span class="direct-call-screen__caption">Экран собеседника</span>
-                <video #directCallRemoteScreenVideo class="direct-call-screen__video" autoplay playsinline></video>
-              </div>
-            }
-            @if (directCallLocalScreenStream()) {
-              <div class="direct-call-screen direct-call-screen--local">
-                <span class="direct-call-screen__caption">Ваш экран</span>
-                <video #directCallLocalScreenVideo class="direct-call-screen__video" autoplay muted playsinline></video>
-              </div>
-            }
-          </div>
-          @if (directCallRemoteCameraStream() || directCallLocalCameraStream()) {
-            <div class="direct-call-camera-strip">
-              @if (directCallRemoteCameraStream()) {
-                <div class="direct-call-video-stage direct-call-video-stage--tile">
-                  <span class="direct-call-screen__caption">Собеседник</span>
-                  <video class="direct-call-video-stage__video" autoplay playsinline [appMediaStreamSrc]="directCallRemoteCameraStream()"></video>
-                </div>
-              }
-              @if (directCallLocalCameraStream()) {
-                <div class="direct-call-video-stage direct-call-video-stage--tile">
-                  <span class="direct-call-screen__caption">Вы</span>
-                  <video class="direct-call-video-stage__video" autoplay playsinline [appMediaStreamSrc]="directCallLocalCameraStream()" [appMediaStreamMuted]="true"></video>
-                </div>
-              }
-            </div>
-          }
-        } @else if (directCallRemoteCameraStream() || directCallLocalCameraStream()) {
-          <div class="direct-call-video-stage" [class.direct-call-video-stage--overlay]="directCallRemoteCameraStream() && directCallLocalCameraStream()">
-            @if (directCallRemoteCameraStream()) {
-              <div class="direct-call-video-stage__pane direct-call-video-stage__pane--primary">
-                <span class="direct-call-screen__caption">Собеседник</span>
-                <video class="direct-call-video-stage__video" autoplay playsinline [appMediaStreamSrc]="directCallRemoteCameraStream()"></video>
-              </div>
-            }
-            @if (directCallLocalCameraStream()) {
-              <div class="direct-call-video-stage__pane" [class.direct-call-video-stage__pane--local]="directCallRemoteCameraStream()">
-                <span class="direct-call-screen__caption">Вы</span>
-                <video class="direct-call-video-stage__video" autoplay playsinline [appMediaStreamSrc]="directCallLocalCameraStream()" [appMediaStreamMuted]="true"></video>
-              </div>
-            }
-          </div>
-        } @else if (directCallState() === 'connected' && (directCallScreenSupported() || directCallCameraSupported())) {
-          <p class="modal-note">Во время звонка можно включить камеру или показать экран.</p>
-        }
-
-        @if (directCallError()) {
-          <p class="modal-note modal-note--error">{{ directCallError() }}</p>
-        }
-      </div>
-    </section>
   </div>
 }
 

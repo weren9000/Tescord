@@ -1274,7 +1274,7 @@ export class AppComponent {
         kind: 'direct',
         id: `direct:${directPeer.user_id}`,
         title: this.displayNick(directPeer.nick),
-        subtitle: this.directCallStatusLabel(),
+        subtitle: this.directCallSurfaceStatusLabel(),
         channelId: null,
         participantCount: 2,
         activeSpeakerLabel: null,
@@ -1300,7 +1300,7 @@ export class AppComponent {
       kind,
       id: `${kind}:${channel.id}`,
       title: kind === 'platform' ? serverName : channel.name,
-      subtitle: kind === 'platform' ? `${channel.name} · голосовая сессия` : 'Групповой созвон',
+      subtitle: kind === 'platform' ? channel.name : '',
       channelId: channel.id,
       participantCount: participants.length,
       activeSpeakerLabel: activeSpeaker ? this.displayNick(activeSpeaker.nick) : null,
@@ -1315,7 +1315,7 @@ export class AppComponent {
     }
 
     if (surface.kind === 'direct') {
-      return this.directCallStatusLabel();
+      return this.directCallSurfaceStatusLabel();
     }
 
     const count = surface.participantCount;
@@ -1828,13 +1828,6 @@ export class AppComponent {
 
     return peer.user_id === member.userId;
   });
-  readonly shouldShowStandaloneIncomingCall = computed(() => {
-    return false;
-  });
-  readonly shouldShowStandaloneDirectCallModal = computed(() => {
-    return false;
-  });
-
   readonly voiceAdminSelectedChannel = computed(() => {
     const selectedChannelId = this.voiceAdminSelectedChannelId();
     return this.voiceAdminChannels().find((channel) => channel.channel_id === selectedChannelId) ?? null;
@@ -5098,6 +5091,15 @@ export class AppComponent {
     if (token) {
       void this.ensureVoiceChannelAccessLoaded(surface.channelId, true);
     }
+  }
+
+  directCallSurfaceStatusLabel(): string {
+    const state = this.directCallState();
+    if (state === 'connected' || state === 'idle') {
+      return '';
+    }
+
+    return this.directCallStatusLabel();
   }
 
   directCallStatusLabel(): string {
