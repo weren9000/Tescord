@@ -406,17 +406,8 @@
 }
 
 .direct-call-peer-card,
-.direct-call-screen,
-.direct-call-screen-overlay__preview {
+.direct-call-screen {
   border-radius: 2px;
-}
-
-.direct-call-icon-button {
-  border-radius: 2px;
-}
-
-.direct-call-screen-overlay {
-  backdrop-filter: blur(26px);
 }
 
 @media (max-width: 960px) {
@@ -3558,71 +3549,6 @@ select {
   line-height: 1.4;
 }
 
-.direct-call-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-}
-
-.direct-call-actions--overlay {
-  justify-content: flex-end;
-}
-
-.direct-call-icon-button {
-  width: 44px;
-  height: 44px;
-  padding: 0;
-  display: inline-grid;
-  place-items: center;
-  border: 1px solid var(--line-strong);
-  background: rgba(255, 255, 255, 0.02);
-  color: var(--text);
-  cursor: pointer;
-  transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
-}
-
-.direct-call-icon-button:hover:not(:disabled) {
-  border-color: rgba(61, 214, 198, 0.36);
-  background: rgba(61, 214, 198, 0.08);
-}
-
-.direct-call-icon-button:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
-.direct-call-icon-button--accept {
-  border-color: rgba(61, 214, 198, 0.32);
-  background: rgba(61, 214, 198, 0.1);
-}
-
-.direct-call-icon-button--danger {
-  border-color: rgba(255, 107, 107, 0.28);
-  background: rgba(255, 107, 107, 0.08);
-}
-
-.direct-call-icon-button--active {
-  border-color: rgba(255, 159, 67, 0.4);
-  background: rgba(255, 159, 67, 0.12);
-  color: var(--accent);
-}
-
-.direct-call-icon-button img,
-.direct-call-icon-button svg {
-  width: 18px;
-  height: 18px;
-  display: block;
-}
-
-.direct-call-icon-button svg {
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.8;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
 .direct-call-button {
   display: inline-flex;
   align-items: center;
@@ -3647,6 +3573,7 @@ select {
 }
 
 .direct-call-video-stage__pane {
+  position: relative;
   display: grid;
   gap: 6px;
 }
@@ -3688,6 +3615,7 @@ select {
 }
 
 .direct-call-screen {
+  position: relative;
   display: grid;
   gap: 6px;
 }
@@ -3722,73 +3650,151 @@ select {
   aspect-ratio: 16 / 10;
 }
 
-.direct-call-screen-overlay {
+.media-fullscreen-button {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 3;
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgba(226, 233, 244, 0.14);
+  border-radius: 8px;
+  background: rgba(4, 8, 14, 0.72);
+  color: var(--text);
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(-2px);
+  transition: opacity 160ms ease, transform 160ms ease, background 160ms ease, border-color 160ms ease;
+}
+
+.media-fullscreen-button svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.direct-call-screen:hover .media-fullscreen-button,
+.direct-call-video-stage__pane:hover .media-fullscreen-button,
+.group-voice-video-stage__media:hover .media-fullscreen-button,
+.group-voice-video-tile__media:hover .media-fullscreen-button,
+.media-fullscreen-button:focus-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.media-fullscreen-button:hover {
+  border-color: rgba(105, 219, 180, 0.42);
+  background: rgba(105, 219, 180, 0.16);
+}
+
+.call-media-fullscreen {
   position: fixed;
   inset: 0;
-  z-index: 70;
+  z-index: 320;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  gap: 12px;
-  padding: 16px;
-  background: rgba(4, 8, 14, 0.96);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  padding: calc(14px + env(safe-area-inset-top)) 14px calc(14px + env(safe-area-inset-bottom));
+  background: #03060b;
+  color: var(--text);
 }
 
-.direct-call-screen-overlay__toolbar {
+.call-media-fullscreen__bar,
+.call-media-fullscreen__controls {
+  position: relative;
+  z-index: 2;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
+  border: 1px solid rgba(226, 233, 244, 0.12);
+  border-radius: 8px;
+  background: rgba(10, 14, 20, 0.78);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(18px);
+  transition: opacity 180ms ease, transform 180ms ease;
 }
 
-.direct-call-screen-overlay__title {
+.call-media-fullscreen__bar {
+  justify-content: space-between;
+  min-height: 54px;
+  padding: 8px 10px 8px 12px;
+}
+
+.call-media-fullscreen__title {
+  min-width: 0;
   display: grid;
   gap: 2px;
-  min-width: 0;
 }
 
-.direct-call-screen-overlay__title strong {
+.call-media-fullscreen__title span {
+  color: var(--accent-cool);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.call-media-fullscreen__title strong,
+.call-media-fullscreen__title small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.call-media-fullscreen__title strong {
   font-size: 1rem;
 }
 
-.direct-call-screen-overlay__title span {
+.call-media-fullscreen__title small {
   color: var(--muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-size: 0.78rem;
 }
 
-.direct-call-screen-overlay__actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
-.direct-call-screen-overlay__content {
-  position: relative;
+.call-media-fullscreen__stage {
   min-height: 0;
   display: grid;
+  place-items: center;
+  overflow: hidden;
 }
 
-.direct-call-screen-overlay__video {
+.call-media-fullscreen__video {
   width: 100%;
   height: 100%;
   display: block;
-  border: 1px solid var(--line);
-  background: #03060b;
   object-fit: contain;
+  background: #03060b;
 }
 
-.direct-call-screen-overlay__preview {
-  position: absolute;
-  right: 16px;
-  bottom: 16px;
-  width: min(24vw, 280px);
-  display: grid;
-  gap: 6px;
-  padding: 10px;
-  border: 1px solid var(--line);
-  background: rgba(8, 12, 18, 0.94);
+.call-media-fullscreen__controls {
+  justify-self: center;
+  justify-content: center;
+  padding: 8px;
+  flex-wrap: wrap;
+}
+
+.call-volume-control--fullscreen {
+  width: min(240px, 42vw);
+}
+
+.call-media-fullscreen--controls-hidden .call-media-fullscreen__bar {
+  opacity: 0;
+  transform: translateY(-10px);
+  pointer-events: none;
+}
+
+.call-media-fullscreen--controls-hidden .call-media-fullscreen__controls {
+  opacity: 0;
+  transform: translateY(10px);
+  pointer-events: none;
 }
 
 .modal-toolbar--voice-owner {
@@ -5011,36 +5017,6 @@ select {
     word-break: normal;
     overflow-wrap: anywhere;
     font-size: 0.92rem;
-  }
-
-  .direct-call-screen-overlay {
-    padding: 10px;
-    gap: 10px;
-  }
-
-  .direct-call-screen-overlay__toolbar {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .direct-call-actions,
-  .direct-call-actions--overlay {
-    width: 100%;
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    justify-content: stretch;
-  }
-
-  .direct-call-icon-button {
-    width: 100%;
-    height: 42px;
-  }
-
-  .direct-call-screen-overlay__preview {
-    right: 10px;
-    bottom: 10px;
-    width: min(42vw, 180px);
-    padding: 8px;
   }
 
   .direct-call-peer-card {
@@ -9244,8 +9220,7 @@ select {
 
 .modal-backdrop,
 .drawer-backdrop,
-.mobile-backdrop,
-.direct-call-screen-overlay {
+.mobile-backdrop {
   background: rgba(7, 10, 15, 0.68);
   backdrop-filter: blur(12px);
 }
@@ -9420,8 +9395,7 @@ select {
 .group-voice-video-tile__media,
 .direct-call-screen,
 .direct-call-video-stage,
-.direct-call-video-stage__pane,
-.direct-call-screen-overlay__preview {
+.direct-call-video-stage__pane {
   border: 1px solid rgba(226, 233, 244, 0.12);
   border-radius: var(--radius-lg);
   background: #06080d;
@@ -10225,7 +10199,7 @@ select {
     gap: 6px;
   }
 
-  .call-dock__media-control {
+  .call-dock__settings-control {
     display: none;
   }
 
@@ -10268,5 +10242,37 @@ select {
 
   .call-switch-summary {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .call-media-fullscreen {
+    gap: 8px;
+    padding: calc(10px + env(safe-area-inset-top)) 10px calc(10px + env(safe-area-inset-bottom));
+  }
+
+  .call-media-fullscreen__bar {
+    min-height: 48px;
+  }
+
+  .call-media-fullscreen__controls {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .call-volume-control--fullscreen {
+    width: min(220px, 100%);
+    flex: 1 1 150px;
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .call-volume-control--fullscreen span {
+    display: none;
+  }
+}
+
+@media (hover: none) {
+  .media-fullscreen-button {
+    opacity: 1;
+    transform: none;
   }
 }

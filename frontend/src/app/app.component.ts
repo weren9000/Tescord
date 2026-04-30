@@ -181,6 +181,18 @@ interface VoiceVideoScene {
   gridClass: string;
 }
 
+interface FullscreenMediaState {
+  id: string;
+  tileId: string | null;
+  callId: string | null;
+  kind: CallSurfaceKind;
+  source: VoiceVideoSource;
+  title: string;
+  subtitle: string;
+  stream: MediaStream;
+  isSelf: boolean;
+}
+
 interface ActiveCallSurface {
   kind: CallSurfaceKind;
   id: string;
@@ -689,12 +701,37 @@ export class AppComponent {
   private pushFeedbackTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private lastActiveCallSurfaceId: string | null = null;
   private readonly handleCallWindowKeydown = (event: KeyboardEvent): void => {
-    if (event.key !== 'Escape' || this.callWindowMode() !== 'expanded' || !this.activeCallSurface()) {
+    if (event.key !== 'Escape') {
+      return;
+    }
+
+    if (this.fullscreenMedia()) {
+      event.preventDefault();
+      event.stopPropagation();
+      this.closeFullscreenMedia();
+      return;
+    }
+
+    if (this.callWindowMode() !== 'expanded' || !this.activeCallSurface()) {
       return;
     }
 
     event.preventDefault();
     this.minimizeCallWindow();
+  };
+  private readonly handleDocumentFullscreenChange = (): void => {
+    if (typeof document === 'undefined') {
+      return;
+    }
+
+    const wasActive = this.callFullscreenNativeActive;
+    const isActive = document.fullscreenElement === this.callFullscreenLayerElement;
+    this.callFullscreenNativeActive = isActive;
+    if (wasActive && !isActive && this.fullscreenMedia()) {
+      this.fullscreenMedia.set(null);
+      this.fullscreenMediaControlsVisible.set(true);
+      this.clearFullscreenControlsHideTimer();
+    }
   };
 
   @ViewChild('messageList')
@@ -739,10 +776,22 @@ export class AppComponent {
     this.syncDirectCallScreenVideos();
   }
 
+  @ViewChild('callFullscreenLayer')
+  private set callFullscreenLayerRef(ref: ElementRef<HTMLElement> | undefined) {
+    this.callFullscreenLayerElement = ref?.nativeElement ?? null;
+    if (this.callFullscreenRequestPending && this.callFullscreenLayerElement) {
+      void this.enterNativeCallFullscreen();
+    }
+  }
+
   private directCallLocalScreenVideoElement: HTMLVideoElement | null = null;
   private directCallRemoteScreenVideoElement: HTMLVideoElement | null = null;
   private directCallExpandedLocalScreenVideoElement: HTMLVideoElement | null = null;
   private directCallExpandedRemoteScreenVideoElement: HTMLVideoElement | null = null;
+  private callFullscreenLayerElement: HTMLElement | null = null;
+  private callFullscreenRequestPending = false;
+  private callFullscreenNativeActive = false;
+  private fullscreenControlsHideTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
   readonly health = signal<ApiHealthResponse | null>(null);
   readonly healthError = signal<string | null>(null);
@@ -800,6 +849,8 @@ export class AppComponent {
   readonly callWindowMode = signal<CallWindowMode>('expanded');
   readonly callDockVolumeOpen = signal(false);
   readonly activeVoiceCallSnapshot = signal<VoiceCallSnapshot | null>(null);
+  readonly fullscreenMedia = signal<FullscreenMediaState | null>(null);
+  readonly fullscreenMediaControlsVisible = signal(true);
 
   readonly session = signal<AuthSessionResponse | null>(null);
   readonly currentUser = signal<CurrentUserResponse | null>(null);
@@ -2141,10 +2192,16 @@ export class AppComponent {
     if (typeof window !== 'undefined') {
       window.addEventListener('keydown', this.handleCallWindowKeydown);
     }
+    if (typeof document !== 'undefined') {
+      document.addEventListener('fullscreenchange', this.handleDocumentFullscreenChange);
+    }
 
     this.destroyRef.onDestroy(() => {
       if (typeof window !== 'undefined') {
         window.removeEventListener('keydown', this.handleCallWindowKeydown);
+      }
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('fullscreenchange', this.handleDocumentFullscreenChange);
       }
       this.appEvents.stop();
       this.directCall.stop();
@@ -2157,6 +2214,7 @@ export class AppComponent {
       this.stopPresenceKeepalive();
       this.teardownPresenceActivityTracking();
       this.clearPushFeedbackTimer();
+      this.clearFullscreenControlsHideTimer();
       this.clearAttachmentPreviews();
       this.revokeProfileAvatarPreviewObjectUrl();
     });
@@ -2174,6 +2232,7 @@ export class AppComponent {
         this.lastActiveCallSurfaceId = null;
         this.directCallScreenExpanded.set(false);
         this.callDockVolumeOpen.set(false);
+        this.closeFullscreenMedia();
         return;
       }
 
@@ -2195,6 +2254,23 @@ export class AppComponent {
       const visibleChannel = this.channels().find((channel) => channel.id === activeChannelId) ?? null;
       if (visibleChannel) {
         this.activeVoiceCallSnapshot.set(this.buildVoiceCallSnapshot(visibleChannel));
+      }
+    });
+    effect(() => {
+      const media = this.fullscreenMedia();
+      if (!media) {
+        return;
+      }
+
+      this.activeCallSurface();
+      this.directCallLocalCameraStream();
+      this.directCallRemoteCameraStream();
+      this.directCallLocalScreenStream();
+      this.directCallRemoteScreenStream();
+      this.activeCallVoiceVideoScene();
+
+      if (!this.fullscreenMediaStillAvailable(media)) {
+        queueMicrotask(() => this.closeFullscreenMedia());
       }
     });
     effect(() => {
@@ -5390,15 +5466,89 @@ export class AppComponent {
   }
 
   expandDirectCallScreen(): void {
-    if (!this.hasAnyDirectCallScreen()) {
-      return;
-    }
-
-    this.directCallScreenExpanded.set(true);
+    const hasRemoteScreen = this.directCallRemoteScreenStream();
+    this.openDirectCallFullscreenMedia('screen-share', !hasRemoteScreen);
   }
 
   collapseDirectCallScreen(): void {
     this.directCallScreenExpanded.set(false);
+  }
+
+  openDirectCallFullscreenMedia(source: VoiceVideoSource, isSelf: boolean, event?: Event): void {
+    event?.stopPropagation();
+    const stream = this.directCallFullscreenStream(source, isSelf);
+    if (!stream) {
+      return;
+    }
+
+    const peer = this.directCallPeer();
+    const title = isSelf ? 'Вы' : this.displayNick(peer?.nick ?? 'Собеседник');
+    const subtitle = source === 'screen-share'
+      ? (isSelf ? 'Ваш экран' : 'Экран собеседника')
+      : (isSelf ? 'Ваша камера' : 'Камера собеседника');
+
+    this.openCallFullscreenMedia({
+      id: `direct:${isSelf ? 'self' : 'peer'}:${source}`,
+      tileId: null,
+      callId: this.activeCallSurface()?.id ?? null,
+      kind: 'direct',
+      source,
+      title,
+      subtitle,
+      stream,
+      isSelf,
+    });
+  }
+
+  openVoiceTileFullscreenMedia(tile: VoiceVideoTile, event?: Event): void {
+    event?.stopPropagation();
+    const surface = this.activeCallSurface();
+    this.openCallFullscreenMedia({
+      id: `${surface?.id ?? 'voice'}:${tile.id}`,
+      tileId: tile.id,
+      callId: surface?.id ?? null,
+      kind: surface?.kind === 'platform' ? 'platform' : 'group',
+      source: tile.source,
+      title: this.displayNick(tile.nick),
+      subtitle: tile.source === 'screen-share'
+        ? (tile.isSelf ? 'Ваш экран' : 'Демонстрация экрана')
+        : (tile.isSelf ? 'Ваша камера' : 'Камера'),
+      stream: tile.stream,
+      isSelf: tile.isSelf,
+    });
+  }
+
+  closeFullscreenMedia(event?: Event): void {
+    event?.stopPropagation();
+    const shouldExitNativeFullscreen =
+      typeof document !== 'undefined'
+      && document.fullscreenElement === this.callFullscreenLayerElement
+      && typeof document.exitFullscreen === 'function';
+
+    this.fullscreenMedia.set(null);
+    this.fullscreenMediaControlsVisible.set(true);
+    this.callFullscreenRequestPending = false;
+    this.callFullscreenNativeActive = false;
+    this.directCallScreenExpanded.set(false);
+    this.clearFullscreenControlsHideTimer();
+
+    if (shouldExitNativeFullscreen) {
+      void document.exitFullscreen().catch(() => undefined);
+    }
+  }
+
+  showFullscreenMediaControls(event?: Event): void {
+    event?.stopPropagation();
+    if (!this.fullscreenMedia()) {
+      return;
+    }
+
+    this.fullscreenMediaControlsVisible.set(true);
+    this.scheduleFullscreenControlsHide();
+  }
+
+  fullscreenMediaSourceLabel(media: FullscreenMediaState): string {
+    return media.source === 'screen-share' ? 'Экран' : 'Камера';
   }
 
   canToggleDirectCallScreenShare(): boolean {
@@ -5475,6 +5625,85 @@ export class AppComponent {
         video.srcObject = remoteStream;
       }
     }
+  }
+
+  private openCallFullscreenMedia(media: FullscreenMediaState): void {
+    this.directCallScreenExpanded.set(false);
+    this.fullscreenMedia.set(media);
+    this.fullscreenMediaControlsVisible.set(true);
+    this.callFullscreenRequestPending = true;
+    this.scheduleFullscreenControlsHide();
+    queueMicrotask(() => {
+      if (this.callFullscreenRequestPending) {
+        void this.enterNativeCallFullscreen();
+      }
+    });
+  }
+
+  private directCallFullscreenStream(source: VoiceVideoSource, isSelf: boolean): MediaStream | null {
+    if (source === 'screen-share') {
+      return isSelf ? this.directCallLocalScreenStream() : this.directCallRemoteScreenStream();
+    }
+
+    return isSelf ? this.directCallLocalCameraStream() : this.directCallRemoteCameraStream();
+  }
+
+  private fullscreenMediaStillAvailable(media: FullscreenMediaState): boolean {
+    if (!this.streamHasLiveTrack(media.stream) || !this.activeCallSurface()) {
+      return false;
+    }
+
+    if (media.kind === 'direct') {
+      return this.directCallFullscreenStream(media.source, media.isSelf) === media.stream;
+    }
+
+    const scene = this.activeCallVoiceVideoScene();
+    if (!scene || !media.tileId) {
+      return false;
+    }
+
+    return [
+      ...(scene.stageTile ? [scene.stageTile] : []),
+      ...scene.gridTiles,
+      ...scene.secondaryTiles,
+    ].some((tile) => tile.id === media.tileId && tile.stream === media.stream);
+  }
+
+  private streamHasLiveTrack(stream: MediaStream): boolean {
+    return stream.getTracks().some((track) => track.readyState === 'live');
+  }
+
+  private async enterNativeCallFullscreen(): Promise<void> {
+    const layer = this.callFullscreenLayerElement;
+    this.callFullscreenRequestPending = false;
+    if (!layer || typeof layer.requestFullscreen !== 'function') {
+      return;
+    }
+
+    try {
+      await layer.requestFullscreen();
+      this.callFullscreenNativeActive = true;
+    } catch {
+      this.callFullscreenNativeActive = false;
+    }
+  }
+
+  private scheduleFullscreenControlsHide(): void {
+    this.clearFullscreenControlsHideTimer();
+    this.fullscreenControlsHideTimeoutId = setTimeout(() => {
+      if (this.fullscreenMedia()) {
+        this.fullscreenMediaControlsVisible.set(false);
+      }
+    }, 2600);
+  }
+
+  private clearFullscreenControlsHideTimer(): void {
+    if (!this.fullscreenControlsHideTimeoutId) {
+      return;
+    }
+
+    clearTimeout(this.fullscreenControlsHideTimeoutId);
+    this.fullscreenControlsHideTimeoutId = null;
   }
 
   selectVoiceAdminChannelName(channelName: string): void {
