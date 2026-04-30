@@ -843,7 +843,7 @@
                             <div class="platform-channel-entry__headline">
                               <strong># {{ channel.name }}</strong>
                               @if (channelMentionUnreadCount(channel) > 0) {
-                                <span class="platform-channel-entry__unread-badge" style="background:rgba(255,114,149,0.16);color:#ffd8e6;">&#64;{{ channelMentionUnreadBadgeLabel(channel) }}</span>
+                                <span class="platform-channel-entry__unread-badge platform-channel-entry__unread-badge--mention">&#64;{{ channelMentionUnreadBadgeLabel(channel) }}</span>
                               }
                               @if (channelUnreadCount(channel) > 0) {
                                 <span class="platform-channel-entry__unread-badge">{{ channelUnreadBadgeLabel(channel) }}</span>
@@ -900,7 +900,7 @@
                               <div class="platform-channel-entry__headline">
                                 <strong>{{ channel.name }}</strong>
                                 @if (channelMentionUnreadCount(channel) > 0) {
-                                  <span class="platform-channel-entry__unread-badge" style="background:rgba(255,114,149,0.16);color:#ffd8e6;">&#64;{{ channelMentionUnreadBadgeLabel(channel) }}</span>
+                                  <span class="platform-channel-entry__unread-badge platform-channel-entry__unread-badge--mention">&#64;{{ channelMentionUnreadBadgeLabel(channel) }}</span>
                                 }
                                 @if (channelUnreadCount(channel) > 0) {
                                   <span class="platform-channel-entry__unread-badge">{{ channelUnreadBadgeLabel(channel) }}</span>
@@ -1042,24 +1042,23 @@
                                 }
                               </div>
                             }
-                            <div class="group-voice-roster" style="gap:3px;padding:5px 7px;">
+                            <div class="group-voice-roster group-voice-roster--compact">
                               @if (platformVoiceParticipants(channel.id).length) {
                                 @for (participant of platformVoiceParticipants(channel.id); track participant.id) {
-                                  <div class="group-voice-roster__member" style="grid-template-columns:22px minmax(0, 1fr) auto;align-items:center;gap:6px;padding:4px 5px;border-radius:9px;">
-                                    <div class="group-voice-roster__avatar" style="width:22px;height:22px;flex:0 0 22px;font-size:8px;">
+                                  <div class="group-voice-roster__member group-voice-roster__member--compact">
+                                    <div class="group-voice-roster__avatar group-voice-roster__avatar--compact">
                                       @if (userAvatarUrl(participant.user_id, participant.avatar_updated_at); as avatarUrl) {
                                         <img [src]="avatarUrl" [alt]="displayNick(participant.nick)" loading="lazy" />
                                       } @else {
                                         <span>{{ displayNickInitials(participant.nick) }}</span>
                                       }
                                     </div>
-                                    <div class="group-voice-roster__copy" style="gap:2px;">
-                                      <strong style="font-size:11px;">{{ displayNick(participant.nick) }}</strong>
+                                    <div class="group-voice-roster__copy group-voice-roster__copy--compact">
+                                      <strong>{{ displayNick(participant.nick) }}</strong>
                                       @if (!participant.is_self) {
-                                        <div class="group-voice-roster__controls" style="gap:5px;">
+                                        <div class="group-voice-roster__controls group-voice-roster__controls--compact">
                                           <input
-                                            class="group-voice-roster__volume"
-                                            style="height:3px;"
+                                            class="group-voice-roster__volume group-voice-roster__volume--compact"
                                             type="range"
                                             min="0"
                                             max="200"
@@ -1068,31 +1067,28 @@
                                             [attr.aria-label]="'Громкость ' + displayNick(participant.nick)"
                                             (input)="setPlatformVoiceParticipantVolume(participant, $any($event.target).value)"
                                           />
-                                          <small style="min-width:28px;font-size:9px;">{{ platformVoiceParticipantVolume(participant) }}%</small>
+                                          <small class="group-voice-roster__volume-value group-voice-roster__volume-value--compact">{{ platformVoiceParticipantVolume(participant) }}%</small>
                                         </div>
                                       }
                                     </div>
                                     @if (participant.is_self) {
                                       <button
-                                        class="group-voice-roster__state-button"
-                                        style="width:22px;height:22px;"
+                                        class="group-voice-roster__state-button group-voice-roster__state-button--compact"
                                         type="button"
                                         [attr.title]="groupVoiceStateActionLabel(participant)"
                                         [attr.aria-label]="groupVoiceStateActionLabel(participant)"
                                         (click)="togglePlatformVoiceParticipantMute(participant, channel.id)"
                                       >
                                         <img
-                                          class="group-voice-roster__state"
-                                          style="width:13px;height:13px;flex:0 0 13px;"
+                                          class="group-voice-roster__state group-voice-roster__state--compact"
                                           [src]="groupVoiceStateIconPath(participant)"
                                           [alt]="groupVoiceStateIconAlt(participant)"
                                         />
                                       </button>
                                     } @else {
-                                      <span class="group-voice-roster__state-shell" style="width:22px;height:22px;" [attr.title]="groupVoiceStateIconAlt(participant)">
+                                      <span class="group-voice-roster__state-shell group-voice-roster__state-shell--compact" [attr.title]="groupVoiceStateIconAlt(participant)">
                                         <img
-                                          class="group-voice-roster__state"
-                                          style="width:13px;height:13px;flex:0 0 13px;"
+                                          class="group-voice-roster__state group-voice-roster__state--compact"
                                           [src]="groupVoiceStateIconPath(participant)"
                                           [alt]="groupVoiceStateIconAlt(participant)"
                                         />
@@ -1419,22 +1415,22 @@
                   @if (messages().length) {
                     @for (message of messages(); track message.id) {
                       @if (shouldShowUnreadDivider(message)) {
-                        <div style="display:flex;align-items:center;gap:10px;margin:4px 0;">
-                          <span style="flex:1 1 auto;height:1px;background:rgba(255,114,149,0.18);"></span>
-                          <span style="color:rgba(255,214,225,0.88);font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">{{ unreadDividerLabel() }}</span>
-                          <span style="flex:1 1 auto;height:1px;background:rgba(255,114,149,0.18);"></span>
+                        <div class="message-divider message-divider--unread">
+                          <span class="message-divider__line"></span>
+                          <span class="message-divider__label">{{ unreadDividerLabel() }}</span>
+                          <span class="message-divider__line"></span>
                         </div>
                       }
                       <article
                         class="message-card"
                         [attr.data-message-id]="message.id"
                         [class.message-card--self]="message.author.id === currentUser()?.id"
+                        [class.message-card--mention]="messageMentionsCurrentUser(message)"
                         [class.message-card--search-focused]="isSearchFocusedMessage(message)"
-                        [style.border-left]="messageMentionsCurrentUser(message) ? '2px solid rgba(255,114,149,0.4)' : null"
                       >
                         <div
                           class="message-card__avatar"
-                          [style.--avatar-accent]="message.author.id === currentUser()?.id ? '#9dfd38' : '#3dd6c6'"
+                          [style.--avatar-accent]="message.author.id === currentUser()?.id ? '#69dbb4' : '#7aa8ff'"
                         >
                           @if (userAvatarUrl(message.author.id, message.author.avatar_updated_at); as avatarUrl) {
                             <img [src]="avatarUrl" [alt]="displayNick(message.author.nick)" loading="lazy" />
@@ -1448,7 +1444,7 @@
                               <strong>{{ displayNick(message.author.nick) }}</strong>
                               <span>ID: {{ formatPublicUserId(message.author.public_id) }}</span>
                               @if (messageMentionsCurrentUser(message)) {
-                                <span style="display:inline-flex;align-items:center;justify-content:center;min-height:18px;padding:0 6px;border-radius:999px;background:rgba(255,114,149,0.14);color:#ffd8e6;font-size:0.58rem;font-weight:700;line-height:1;">&#64; вас</span>
+                                <span class="message-card__mention-badge">&#64; вас</span>
                               }
                             </div>
                             <time>{{ formatMessageTime(message.created_at) }}</time>
