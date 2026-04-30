@@ -712,6 +712,13 @@ export class AppComponent {
       return;
     }
 
+    if (this.sideMenuOpen()) {
+      event.preventDefault();
+      event.stopPropagation();
+      this.closeSideMenu();
+      return;
+    }
+
     if (this.callWindowMode() !== 'expanded' || !this.activeCallSurface()) {
       return;
     }
