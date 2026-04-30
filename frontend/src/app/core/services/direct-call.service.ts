@@ -117,6 +117,8 @@ export class DirectCallService {
   readonly remoteCameraStream = signal<MediaStream | null>(null);
   readonly localScreenStream = signal<MediaStream | null>(null);
   readonly remoteScreenStream = signal<MediaStream | null>(null);
+  readonly localMuted = signal(false);
+  readonly remoteVolume = signal(100);
   readonly canCall = computed(() => this.connected() && this.state() === 'idle');
   readonly cameraSupported = computed(() => typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia);
   readonly screenShareSupported = computed(
@@ -239,6 +241,25 @@ export class DirectCallService {
   clearFeedback(): void {
     this.error.set(null);
     this.notice.set(null);
+  }
+
+  setLocalMuted(muted: boolean): void {
+    this.localMuted.set(muted);
+    this.applyLocalMuteState();
+  }
+
+  toggleLocalMute(): void {
+    this.setLocalMuted(!this.localMuted());
+  }
+
+  updateRemoteVolume(value: number | string): void {
+    const numericValue = typeof value === 'number' ? value : Number(value);
+    if (!Number.isFinite(numericValue)) {
+      return;
+    }
+
+    this.remoteVolume.set(Math.max(0, Math.min(100, Math.round(numericValue))));
+    this.applyRemoteVolume();
   }
 
   async startCamera(): Promise<void> {
@@ -610,6 +631,7 @@ export class DirectCallService {
     this.localStream = await navigator.mediaDevices.getUserMedia({
       audio: true
     });
+    this.applyLocalMuteState();
   }
 
   private async ensurePeerConnection(targetUserId: string): Promise<RTCPeerConnection> {
@@ -673,14 +695,14 @@ export class DirectCallService {
 
       if (state === 'disconnected') {
         if (this.hasActiveCall()) {
-          this.notice.set('Соединение просело, пытаемся восстановить звонок');
+          this.notice.set('РЎРѕРµРґРёРЅРµРЅРёРµ РїСЂРѕСЃРµР»Рѕ, РїС‹С‚Р°РµРјСЃСЏ РІРѕСЃСЃС‚Р°РЅРѕРІРёС‚СЊ Р·РІРѕРЅРѕРє');
         }
         return;
       }
 
       if (state === 'failed' || state === 'closed') {
         if (this.hasActiveCall()) {
-          this.notice.set('Соединение личного звонка прервано');
+          this.notice.set('РЎРѕРµРґРёРЅРµРЅРёРµ Р»РёС‡РЅРѕРіРѕ Р·РІРѕРЅРєР° РїСЂРµСЂРІР°РЅРѕ');
           void this.hangUp();
         }
       }
@@ -764,6 +786,7 @@ export class DirectCallService {
     }
 
     this.remoteAudioElement.srcObject = stream;
+    this.applyRemoteVolume();
     void this.playRemoteAudio();
   }
 
@@ -802,6 +825,8 @@ export class DirectCallService {
     this.clearRemoteScreenShare();
     this.remoteCameraExpected = false;
     this.remoteScreenExpected = false;
+    this.localMuted.set(false);
+    this.remoteVolume.set(100);
     this.stopLocalStream();
     this.teardownPeerConnection();
     this.teardownRemoteAudio();
@@ -819,6 +844,25 @@ export class DirectCallService {
       track.stop();
     }
     this.localStream = null;
+  }
+
+  private applyLocalMuteState(): void {
+    if (!this.localStream) {
+      return;
+    }
+
+    const enabled = !this.localMuted();
+    for (const track of this.localStream.getAudioTracks()) {
+      track.enabled = enabled;
+    }
+  }
+
+  private applyRemoteVolume(): void {
+    if (!this.remoteAudioElement) {
+      return;
+    }
+
+    this.remoteAudioElement.volume = Math.max(0, Math.min(1, this.remoteVolume() / 100));
   }
 
   private teardownPeerConnection(): void {

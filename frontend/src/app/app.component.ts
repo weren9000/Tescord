@@ -98,6 +98,8 @@ type AttachmentActionSurface = 'message' | 'chat';
 type MessageUploadOutcome = 'idle' | 'uploading' | 'cancelled' | 'failed';
 type VoiceVideoSource = 'camera' | 'screen-share';
 type VoiceVideoLayoutMode = 'grid-1' | 'grid-2' | 'grid-4' | 'grid-6' | 'grid-9' | 'presentation';
+type CallSurfaceKind = 'direct' | 'group' | 'platform';
+type CallWindowMode = 'expanded' | 'minimized';
 
 interface LoginFormModel {
   email: string;
@@ -176,6 +178,16 @@ interface VoiceVideoScene {
   secondaryTiles: VoiceVideoTile[];
   placeholderIds: string[];
   gridClass: string;
+}
+
+interface ActiveCallSurface {
+  kind: CallSurfaceKind;
+  id: string;
+  title: string;
+  subtitle: string;
+  channelId: string | null;
+  participantCount: number;
+  activeSpeakerLabel: string | null;
 }
 
 interface ComposerMentionCandidate {
@@ -652,6 +664,15 @@ export class AppComponent {
   private readonly pendingMessageNavigation = signal<PendingMessageNavigationState | null>(null);
   private readonly pendingSearchNavigation = signal<PendingSearchNavigationState | null>(null);
   private pushFeedbackTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  private lastActiveCallSurfaceId: string | null = null;
+  private readonly handleCallWindowKeydown = (event: KeyboardEvent): void => {
+    if (event.key !== 'Escape' || this.callWindowMode() !== 'expanded' || !this.activeCallSurface()) {
+      return;
+    }
+
+    event.preventDefault();
+    this.minimizeCallWindow();
+  };
 
   @ViewChild('messageList')
   private messageListRef?: ElementRef<HTMLElement>;
@@ -753,6 +774,7 @@ export class AppComponent {
   readonly deletingChannelId = signal<string | null>(null);
   readonly authMode = signal<AuthMode>('login');
   readonly directCallScreenExpanded = signal(false);
+  readonly callWindowMode = signal<CallWindowMode>('expanded');
 
   readonly session = signal<AuthSessionResponse | null>(null);
   readonly currentUser = signal<CurrentUserResponse | null>(null);
@@ -929,6 +951,8 @@ export class AppComponent {
   readonly directCallLocalScreenStream = this.directCall.localScreenStream;
   readonly directCallRemoteScreenStream = this.directCall.remoteScreenStream;
   readonly directCallHasRemoteScreen = this.directCall.hasRemoteScreenShare;
+  readonly directCallMuted = this.directCall.localMuted;
+  readonly directCallRemoteVolume = this.directCall.remoteVolume;
   readonly hasAnyDirectCallScreen = computed(
     () => this.directCallHasRemoteScreen() || this.directCallScreenSharing()
   );
@@ -1227,6 +1251,139 @@ export class AppComponent {
 
     return this.voiceParticipantsForChannel(voiceChannel.id);
   });
+  readonly activeCallSurface = computed<ActiveCallSurface | null>(() => {
+    const directPeer = this.directCallPeer();
+    if (directPeer && this.hasDirectCall()) {
+      return {
+        kind: 'direct',
+        id: `direct:${directPeer.user_id}`,
+        title: this.displayNick(directPeer.nick),
+        subtitle: this.directCallStatusLabel(),
+        channelId: null,
+        participantCount: 2,
+        activeSpeakerLabel: null,
+      };
+    }
+
+    if (!this.hasVoiceConnection()) {
+      return null;
+    }
+
+    const channel = this.connectedVoiceChannel();
+    if (!channel) {
+      return null;
+    }
+
+    const participants = this.voiceParticipantsForChannel(channel.id);
+    const activeSpeaker = participants.find((participant) => participant.speaking && !participant.muted && !participant.owner_muted);
+    const activeServer = this.activeServer();
+    const kind: CallSurfaceKind = activeServer?.kind === 'workspace' ? 'platform' : 'group';
+    const serverName = activeServer?.name ?? (kind === 'platform' ? 'Площадка' : 'Группа');
+
+    return {
+      kind,
+      id: `${kind}:${channel.id}`,
+      title: kind === 'platform' ? serverName : channel.name,
+      subtitle: kind === 'platform' ? `${channel.name} · голосовая сессия` : 'Групповой созвон',
+      channelId: channel.id,
+      participantCount: participants.length,
+      activeSpeakerLabel: activeSpeaker ? this.displayNick(activeSpeaker.nick) : null,
+    };
+  });
+  readonly hasActiveCallSurface = computed(() => this.activeCallSurface() !== null);
+  readonly callWindowExpanded = computed(() => this.hasActiveCallSurface() && this.callWindowMode() === 'expanded');
+  readonly callDockParticipantLabel = computed(() => {
+    const surface = this.activeCallSurface();
+    if (!surface) {
+      return '';
+    }
+
+    if (surface.kind === 'direct') {
+      return this.directCallStatusLabel();
+    }
+
+    const count = surface.participantCount;
+    const remainder10 = count % 10;
+    const remainder100 = count % 100;
+    const noun =
+      remainder10 === 1 && remainder100 !== 11
+        ? 'участник'
+        : remainder10 >= 2 && remainder10 <= 4 && (remainder100 < 12 || remainder100 > 14)
+          ? 'участника'
+          : 'участников';
+    const speaker = surface.activeSpeakerLabel ? ` · говорит ${surface.activeSpeakerLabel}` : '';
+
+    return `${count} ${noun}${speaker}`;
+  });
+  readonly activeCallVoiceParticipants = computed(() => {
+    const surface = this.activeCallSurface();
+    return surface?.channelId ? this.voiceParticipantsForChannel(surface.channelId) : [];
+  });
+  readonly activeCallVoiceVideoScene = computed(() => {
+    const surface = this.activeCallSurface();
+    return surface?.channelId ? this.voiceVideoSceneForChannel(surface.channelId) : null;
+  });
+  readonly activeCallSelfParticipant = computed(() =>
+    this.activeCallVoiceParticipants().find((participant) => participant.is_self) ?? null
+  );
+  readonly activeCallMuted = computed(() => {
+    const surface = this.activeCallSurface();
+    if (!surface) {
+      return false;
+    }
+
+    if (surface.kind === 'direct') {
+      return this.directCallMuted();
+    }
+
+    return this.voiceMuted() || this.voiceOwnerMuted();
+  });
+  readonly activeCallVolume = computed(() => {
+    const surface = this.activeCallSurface();
+    return surface?.kind === 'direct' ? this.directCallRemoteVolume() : this.voiceSettings().masterVolume;
+  });
+  readonly activeCallVolumeMax = computed(() => (this.activeCallSurface()?.kind === 'direct' ? 100 : 200));
+  readonly activeCallCanUseCamera = computed(() => {
+    const surface = this.activeCallSurface();
+    if (!surface) {
+      return false;
+    }
+
+    if (surface.kind === 'direct') {
+      return this.canToggleDirectCallCamera();
+    }
+
+    return !!surface.channelId && this.voiceCameraSupported() && this.connectedVoiceChannelId() === surface.channelId;
+  });
+  readonly activeCallCameraEnabled = computed(() => {
+    const surface = this.activeCallSurface();
+    return surface?.kind === 'direct' ? this.directCallCameraEnabled() : this.voiceCameraEnabled();
+  });
+  readonly activeCallCanShareScreen = computed(() => {
+    const surface = this.activeCallSurface();
+    if (!surface) {
+      return false;
+    }
+
+    if (surface.kind === 'direct') {
+      return this.canToggleDirectCallScreenShare();
+    }
+
+    return !!surface.channelId && this.voiceScreenShareSupported() && this.connectedVoiceChannelId() === surface.channelId;
+  });
+  readonly activeCallScreenSharing = computed(() => {
+    const surface = this.activeCallSurface();
+    return surface?.kind === 'direct' ? this.directCallScreenSharing() : this.voiceScreenSharing();
+  });
+  readonly activeCallPendingRequestCount = computed(() => {
+    const surface = this.activeCallSurface();
+    if (surface?.kind !== 'platform' || !surface.channelId) {
+      return 0;
+    }
+
+    return this.platformVoiceChannelPendingRequestCount(surface.channelId);
+  });
+  readonly activeCallCanOpenSettings = computed(() => this.activeCallSurface()?.kind === 'platform' && this.canOpenPlatformSettings());
   readonly activeGroupMemberCount = computed(() => this.members().length);
   readonly composerMentionCandidates = computed<ComposerMentionCandidate[]>(() => {
     if (!this.canUseComposerMentions()) {
@@ -1656,34 +1813,10 @@ export class AppComponent {
     return peer.user_id === member.userId;
   });
   readonly shouldShowStandaloneIncomingCall = computed(() => {
-    if (this.directCallState() !== 'incoming') {
-      return false;
-    }
-
-    const peer = this.directCallPeer();
-    if (!peer) {
-      return false;
-    }
-
-    const member = this.selectedMember();
-    if (!member || this.selectedVoiceMemberChannelId()) {
-      return true;
-    }
-
-    return member.userId !== peer.user_id;
+    return false;
   });
   readonly shouldShowStandaloneDirectCallModal = computed(() => {
-    const peer = this.directCallPeer();
-    if (!peer || !this.hasDirectCall()) {
-      return false;
-    }
-
-    const member = this.selectedMember();
-    if (!member || this.selectedVoiceMemberChannelId()) {
-      return true;
-    }
-
-    return member.userId !== peer.user_id;
+    return false;
   });
 
   readonly voiceAdminSelectedChannel = computed(() => {
@@ -1908,7 +2041,14 @@ export class AppComponent {
   });
 
   constructor() {
+    if (typeof window !== 'undefined') {
+      window.addEventListener('keydown', this.handleCallWindowKeydown);
+    }
+
     this.destroyRef.onDestroy(() => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('keydown', this.handleCallWindowKeydown);
+      }
       this.appEvents.stop();
       this.directCall.stop();
       void this.releaseWakeLock();
@@ -1930,6 +2070,19 @@ export class AppComponent {
         this.directCallScreenExpanded.set(false);
       }
       queueMicrotask(() => this.syncDirectCallScreenVideos());
+    });
+    effect(() => {
+      const surfaceId = this.activeCallSurface()?.id ?? null;
+      if (!surfaceId) {
+        this.lastActiveCallSurfaceId = null;
+        this.directCallScreenExpanded.set(false);
+        return;
+      }
+
+      if (surfaceId !== this.lastActiveCallSurfaceId) {
+        this.lastActiveCallSurfaceId = surfaceId;
+        this.callWindowMode.set('expanded');
+      }
     });
     effect(() => {
       const candidates = this.composerMentionCandidates();
@@ -4292,6 +4445,7 @@ export class AppComponent {
         nick: peer.nick,
         avatar_updated_at: peer.avatar_updated_at,
       });
+      this.callWindowMode.set('expanded');
       return;
     }
 
@@ -4301,6 +4455,7 @@ export class AppComponent {
         this.closeMobilePanel();
         this.selectedMemberUserId.set(null);
         this.selectedVoiceMemberChannelId.set(null);
+        this.callWindowMode.set('expanded');
         return;
       }
 
@@ -4679,7 +4834,161 @@ export class AppComponent {
   closeMemberVolume(): void {
     this.selectedMemberUserId.set(null);
     this.selectedVoiceMemberChannelId.set(null);
-    this.directCall.clearFeedback();
+  }
+
+  minimizeCallWindow(event?: Event): void {
+    event?.stopPropagation();
+    if (!this.activeCallSurface()) {
+      return;
+    }
+
+    this.directCallScreenExpanded.set(false);
+    this.callWindowMode.set('minimized');
+  }
+
+  expandCallWindow(event?: Event): void {
+    event?.stopPropagation();
+    if (!this.activeCallSurface()) {
+      return;
+    }
+
+    this.callWindowMode.set('expanded');
+  }
+
+  toggleActiveCallMute(event?: Event): void {
+    event?.stopPropagation();
+    const surface = this.activeCallSurface();
+    if (!surface) {
+      return;
+    }
+
+    if (surface.kind === 'direct') {
+      this.directCall.toggleLocalMute();
+      return;
+    }
+
+    this.toggleVoiceMute();
+  }
+
+  changeActiveCallVolume(value: number | string): void {
+    const surface = this.activeCallSurface();
+    if (!surface) {
+      return;
+    }
+
+    if (surface.kind === 'direct') {
+      this.directCall.updateRemoteVolume(value);
+      return;
+    }
+
+    this.changeMasterVolume(value);
+  }
+
+  async endActiveCall(event?: Event): Promise<void> {
+    event?.stopPropagation();
+    const surface = this.activeCallSurface();
+    if (!surface) {
+      return;
+    }
+
+    this.directCallScreenExpanded.set(false);
+    if (surface.kind === 'direct') {
+      if (this.directCallState() === 'incoming') {
+        this.rejectDirectCall();
+        return;
+      }
+
+      await this.hangupDirectCall();
+      return;
+    }
+
+    this.leaveVoiceChannel();
+    this.callWindowMode.set('expanded');
+  }
+
+  toggleActiveCallCamera(event?: Event): void {
+    event?.stopPropagation();
+    const surface = this.activeCallSurface();
+    if (!surface || !this.activeCallCanUseCamera()) {
+      return;
+    }
+
+    if (surface.kind === 'direct') {
+      this.toggleDirectCallCamera();
+      return;
+    }
+
+    this.voiceRoom.toggleCamera();
+  }
+
+  toggleActiveCallScreenShare(event?: Event): void {
+    event?.stopPropagation();
+    const surface = this.activeCallSurface();
+    if (!surface || !this.activeCallCanShareScreen()) {
+      return;
+    }
+
+    if (surface.kind === 'direct') {
+      if (this.directCallScreenSharing()) {
+        this.stopDirectCallScreenShare();
+      } else {
+        this.startDirectCallScreenShare();
+      }
+      return;
+    }
+
+    this.voiceRoom.toggleScreenShare();
+  }
+
+  openActiveCallSettings(event?: Event): void {
+    event?.stopPropagation();
+    const surface = this.activeCallSurface();
+    if (surface?.kind !== 'platform' || !surface.channelId || !this.canOpenPlatformSettings()) {
+      return;
+    }
+
+    this.openPlatformSettingsModal();
+    this.platformVoiceSettingsChannelId.set(surface.channelId);
+    const token = this.session()?.access_token;
+    if (token) {
+      void this.ensureVoiceChannelAccessLoaded(surface.channelId, true);
+    }
+  }
+
+  directCallStatusLabel(): string {
+    switch (this.directCallState()) {
+      case 'incoming':
+        return 'Входящий звонок';
+      case 'outgoing':
+        return 'Звоним';
+      case 'connecting':
+        return 'Подключаем';
+      case 'connected':
+        return 'Звонок идет';
+      case 'idle':
+        return 'Звонок завершен';
+    }
+  }
+
+  activeCallMuteLabel(): string {
+    const surface = this.activeCallSurface();
+    if (!surface) {
+      return 'Микрофон';
+    }
+
+    if (surface.kind !== 'direct' && this.voiceOwnerMuted()) {
+      return 'Микрофон заблокирован владельцем';
+    }
+
+    return this.activeCallMuted() ? 'Включить микрофон' : 'Выключить микрофон';
+  }
+
+  activeCallKindLabel(kind: CallSurfaceKind): string {
+    if (kind === 'direct') {
+      return 'Личный звонок';
+    }
+
+    return kind === 'platform' ? 'Площадка' : 'Группа';
   }
 
   startDirectCallToSelectedMember(): void {
@@ -4693,15 +5002,17 @@ export class AppComponent {
       nick: member.nick,
       avatar_updated_at: member.avatarUpdatedAt,
     });
+    this.callWindowMode.set('expanded');
+    this.closeMemberVolume();
   }
 
   acceptDirectCall(): void {
     this.directCall.acceptIncoming();
+    this.callWindowMode.set('expanded');
   }
 
   rejectDirectCall(): void {
     this.directCall.rejectIncoming();
-    this.closeMemberVolume();
   }
 
   async hangupDirectCall(closeModal = false): Promise<void> {
