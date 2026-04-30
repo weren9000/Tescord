@@ -9884,6 +9884,43 @@ select {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.call-switch-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+}
+
+.call-switch-summary > div {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid rgba(226, 233, 244, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.call-switch-summary span {
+  color: var(--accent-cool);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.call-switch-summary strong,
+.call-switch-summary small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.call-switch-summary small {
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
 @media (max-width: 980px) {
   .messenger-shell--call-active .messenger-layout {
     padding-top: calc(78px + env(safe-area-inset-top));
@@ -9915,6 +9952,16 @@ select {
 
   .call-window__roster {
     max-height: 260px;
+  }
+
+  .conversation-sidebar__tabs {
+    display: none;
+    padding: 0;
+    border: 0;
+  }
+
+  .conversation-sidebar__search {
+    padding-top: 10px;
   }
 }
 
@@ -9975,6 +10022,10 @@ select {
   .call-window .group-voice-video-grid--grid-4,
   .call-window .group-voice-video-grid--grid-6,
   .call-window .group-voice-video-grid--grid-9 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .call-switch-summary {
     grid-template-columns: minmax(0, 1fr);
   }
 }

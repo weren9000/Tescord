@@ -4235,6 +4235,42 @@
   </div>
 }
 
+@if (pendingCallSwitch(); as pendingSwitch) {
+  <div class="modal-backdrop" (click)="closePendingCallSwitch()">
+    <section class="modal modal--compact call-switch-modal" (click)="$event.stopPropagation()">
+      <div class="modal__header">
+        <div>
+          <p class="eyebrow">Голосовой чат</p>
+          <h3>Перейти в другой звонок?</h3>
+        </div>
+      </div>
+
+      <div class="modal__body">
+        <p class="modal-note">
+          Сейчас активен «{{ pendingSwitch.current.title }}». Чтобы перейти в «{{ pendingSwitch.target.title }}», текущий звонок будет завершен.
+        </p>
+        <div class="call-switch-summary">
+          <div>
+            <span>Сейчас</span>
+            <strong>{{ pendingSwitch.current.title }}</strong>
+            <small>{{ pendingSwitch.current.subtitle }}</small>
+          </div>
+          <div>
+            <span>Далее</span>
+            <strong>{{ pendingSwitch.target.title }}</strong>
+            <small>{{ pendingSwitch.target.subtitle }}</small>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal__actions">
+        <button class="secondary-button" type="button" (click)="closePendingCallSwitch()">Остаться</button>
+        <button class="primary-button" type="button" (click)="confirmCallSwitch()">{{ pendingSwitch.confirmLabel }}</button>
+      </div>
+    </section>
+  </div>
+}
+
 @if (pendingServerSwitch(); as pendingSwitch) {
   <div class="modal-backdrop" (click)="stayInCurrentServer()">
     <section class="modal modal--compact" (click)="$event.stopPropagation()">

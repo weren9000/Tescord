@@ -445,6 +445,21 @@ interface PendingServerSwitchState {
   toServerName: string;
 }
 
+interface CallSwitchDescriptor {
+  kind: CallSurfaceKind;
+  id: string;
+  title: string;
+  subtitle: string;
+  channelId: string | null;
+}
+
+interface PendingCallSwitchState {
+  current: CallSwitchDescriptor;
+  target: CallSwitchDescriptor;
+  confirmLabel: string;
+  action: () => void | Promise<void>;
+}
+
 interface UploadServerIconTrigger {
   token: string;
   serverId: string;
@@ -851,6 +866,7 @@ export class AppComponent {
   readonly voiceAdminSelectedChannelId = signal<string | null>(null);
   readonly voiceAccessEntriesByChannelId = signal<Record<string, VoiceChannelAccessEntry[]>>({});
   readonly pendingServerSwitch = signal<PendingServerSwitchState | null>(null);
+  readonly pendingCallSwitch = signal<PendingCallSwitchState | null>(null);
   readonly globalSearchQuery = signal('');
   readonly globalSearchLoading = signal(false);
   readonly globalSearchError = signal<string | null>(null);
@@ -4436,40 +4452,41 @@ export class AppComponent {
       return;
     }
 
-    if (this.directCallCanCall()) {
+    const activePeer = this.directCallPeer();
+    if (this.hasDirectCall() && activePeer?.user_id === peer.user_id) {
       this.closeMobilePanel();
       this.selectedMemberUserId.set(null);
       this.selectedVoiceMemberChannelId.set(null);
-      this.directCall.openCall({
-        user_id: peer.user_id,
-        nick: peer.nick,
-        avatar_updated_at: peer.avatar_updated_at,
-      });
       this.callWindowMode.set('expanded');
       return;
     }
 
-    if (this.hasDirectCall()) {
-      const activePeer = this.directCallPeer();
-      if (activePeer?.user_id === peer.user_id) {
-        this.closeMobilePanel();
-        this.selectedMemberUserId.set(null);
-        this.selectedVoiceMemberChannelId.set(null);
-        this.callWindowMode.set('expanded');
-        return;
-      }
-
+    if (!this.directCallCanCall() && !this.hasDirectCall()) {
       this.setPushFeedback({
         tone: 'warning',
-        message: 'Сначала завершите текущий личный звонок'
+        message: 'Личный звонок пока недоступен'
       });
       return;
     }
 
-    this.setPushFeedback({
-      tone: 'warning',
-      message: 'Личный звонок пока недоступен'
-    });
+    const directPeer: DirectCallPeer = {
+      user_id: peer.user_id,
+      nick: peer.nick,
+      avatar_updated_at: peer.avatar_updated_at,
+    };
+    const target = this.directCallDescriptor(directPeer, 'Личный звонок');
+    const action = () => {
+      this.closeMobilePanel();
+      this.selectedMemberUserId.set(null);
+      this.selectedVoiceMemberChannelId.set(null);
+      this.startDirectCall(directPeer);
+    };
+
+    if (!this.guardCallStart(target, action)) {
+      return;
+    }
+
+    action();
   }
 
   private startActiveGroupMembershipAction(action: 'leave' | 'block'): void {
@@ -4547,15 +4564,22 @@ export class AppComponent {
       return;
     }
 
-    await this.selectChannel(channel, { connectVoice: false });
-    this.platformExpandedVoiceChannelId.set(channel.id);
-
     if (this.connectedVoiceChannelId() === channel.id) {
       this.leaveVoiceChannel();
       return;
     }
 
-    await this.handleVoiceChannelSelection(channel);
+    const action = async () => {
+      await this.selectChannel(channel, { connectVoice: false });
+      this.platformExpandedVoiceChannelId.set(channel.id);
+      await this.handleVoiceChannelSelection(channel, true);
+    };
+
+    if (!this.guardCallStart(this.voiceCallDescriptor(channel), action)) {
+      return;
+    }
+
+    await action();
   }
 
   togglePlatformVoiceCamera(channel: WorkspaceChannel, event?: Event): void {
@@ -4836,6 +4860,127 @@ export class AppComponent {
     this.selectedVoiceMemberChannelId.set(null);
   }
 
+  closePendingCallSwitch(): void {
+    this.pendingCallSwitch.set(null);
+  }
+
+  async confirmCallSwitch(): Promise<void> {
+    const pendingSwitch = this.pendingCallSwitch();
+    if (!pendingSwitch) {
+      return;
+    }
+
+    this.pendingCallSwitch.set(null);
+    await this.stopCallByDescriptor(pendingSwitch.current);
+    await pendingSwitch.action();
+    this.callWindowMode.set('expanded');
+  }
+
+  private guardCallStart(target: CallSwitchDescriptor, action: () => void | Promise<void>): boolean {
+    const conflict = this.findCallConflict(target);
+    if (!conflict) {
+      return true;
+    }
+
+    this.pendingCallSwitch.set({
+      current: conflict,
+      target,
+      confirmLabel: target.kind === 'direct' && this.directCallState() === 'incoming' ? 'Ответить и перейти' : 'Перейти',
+      action,
+    });
+    this.callWindowMode.set('minimized');
+    return false;
+  }
+
+  private findCallConflict(target: CallSwitchDescriptor): CallSwitchDescriptor | null {
+    if (target.kind === 'direct') {
+      const voiceCall = this.currentVoiceCallDescriptor();
+      if (voiceCall) {
+        return voiceCall;
+      }
+
+      const directCall = this.currentDirectCallDescriptor();
+      return directCall && directCall.id !== target.id ? directCall : null;
+    }
+
+    const directCall = this.currentDirectCallDescriptor();
+    if (directCall) {
+      return directCall;
+    }
+
+    const voiceCall = this.currentVoiceCallDescriptor();
+    return voiceCall && voiceCall.id !== target.id ? voiceCall : null;
+  }
+
+  private currentDirectCallDescriptor(): CallSwitchDescriptor | null {
+    const peer = this.directCallPeer();
+    if (!peer || !this.hasDirectCall()) {
+      return null;
+    }
+
+    return this.directCallDescriptor(peer, this.directCallStatusLabel());
+  }
+
+  private currentVoiceCallDescriptor(): CallSwitchDescriptor | null {
+    if (!this.hasVoiceConnection()) {
+      return null;
+    }
+
+    const channel = this.connectedVoiceChannel();
+    if (!channel) {
+      return null;
+    }
+
+    return this.voiceCallDescriptor(channel);
+  }
+
+  private directCallDescriptor(peer: DirectCallPeer, subtitle = 'Личный звонок'): CallSwitchDescriptor {
+    return {
+      kind: 'direct',
+      id: `direct:${peer.user_id}`,
+      title: this.displayNick(peer.nick),
+      subtitle,
+      channelId: null,
+    };
+  }
+
+  private voiceCallDescriptor(channel: WorkspaceChannel): CallSwitchDescriptor {
+    const activeServer = this.activeServer();
+    const kind: CallSurfaceKind = activeServer?.kind === 'workspace' ? 'platform' : 'group';
+    const serverName = activeServer?.name ?? (kind === 'platform' ? 'Площадка' : 'Группа');
+
+    return {
+      kind,
+      id: `${kind}:${channel.id}`,
+      title: kind === 'platform' ? `${serverName} → ${channel.name}` : channel.name,
+      subtitle: kind === 'platform' ? 'Голосовой канал площадки' : 'Групповой голосовой чат',
+      channelId: channel.id,
+    };
+  }
+
+  private async stopCallByDescriptor(call: CallSwitchDescriptor): Promise<void> {
+    this.directCallScreenExpanded.set(false);
+    if (call.kind === 'direct') {
+      if (this.directCallState() === 'incoming') {
+        this.rejectDirectCall();
+        return;
+      }
+
+      await this.hangupDirectCall();
+      return;
+    }
+
+    if (this.connectedVoiceChannelId()) {
+      this.leaveVoiceChannel();
+    }
+  }
+
+  private startDirectCall(peer: DirectCallPeer): void {
+    this.directCall.openCall(peer);
+    this.callWindowMode.set('expanded');
+    this.closeMemberVolume();
+  }
+
   minimizeCallWindow(event?: Event): void {
     event?.stopPropagation();
     if (!this.activeCallSurface()) {
@@ -4997,16 +5142,36 @@ export class AppComponent {
       return;
     }
 
-    this.directCall.openCall({
+    const peer: DirectCallPeer = {
       user_id: member.userId,
       nick: member.nick,
       avatar_updated_at: member.avatarUpdatedAt,
-    });
-    this.callWindowMode.set('expanded');
-    this.closeMemberVolume();
+    };
+    const action = () => this.startDirectCall(peer);
+
+    if (!this.guardCallStart(this.directCallDescriptor(peer, 'Личный звонок'), action)) {
+      return;
+    }
+
+    action();
   }
 
   acceptDirectCall(): void {
+    const peer = this.directCallPeer();
+    if (peer) {
+      const action = () => {
+        this.directCall.acceptIncoming();
+        this.callWindowMode.set('expanded');
+      };
+
+      if (!this.guardCallStart(this.directCallDescriptor(peer, 'Входящий звонок'), action)) {
+        return;
+      }
+
+      action();
+      return;
+    }
+
     this.directCall.acceptIncoming();
     this.callWindowMode.set('expanded');
   }
@@ -5953,6 +6118,7 @@ export class AppComponent {
     this.selectedVoiceMemberChannelId.set(null);
     this.mobilePanel.set(null);
     this.pendingVoiceJoin.set(null);
+    this.pendingCallSwitch.set(null);
     this.blockedVoiceJoinNotice.set(null);
     this.ownerVoiceRequests.set([]);
     this.activeOwnerRequestId.set(null);
@@ -7582,10 +7748,17 @@ export class AppComponent {
       const channel = this.channels().find((entry) => entry.id === request.channel_id) ?? this.activeChannel();
       this.pendingVoiceJoin.set(null);
       if (channel && channel.type === 'voice') {
-        await this.connectToVoiceChannel({
+        const allowedChannel = {
           ...channel,
           voice_access_role: request.status === 'resident' ? 'resident' : 'guest'
-        });
+        } satisfies WorkspaceChannel;
+        const action = () => this.connectToVoiceChannel(allowedChannel);
+
+        if (!this.guardCallStart(this.voiceCallDescriptor(allowedChannel), action)) {
+          return;
+        }
+
+        await action();
       }
       return;
     }
@@ -7899,7 +8072,14 @@ export class AppComponent {
       });
   }
 
-  private async handleVoiceChannelSelection(channel: WorkspaceChannel): Promise<void> {
+  private async handleVoiceChannelSelection(channel: WorkspaceChannel, skipCallSwitchGuard = false): Promise<void> {
+    if (!skipCallSwitchGuard) {
+      const action = () => this.handleVoiceChannelSelection(channel, true);
+      if (!this.guardCallStart(this.voiceCallDescriptor(channel), action)) {
+        return;
+      }
+    }
+
     if (channel.voice_access_role === 'stranger' || channel.voice_access_role === 'guest') {
       await this.requestVoiceChannelEntry(channel);
       return;
