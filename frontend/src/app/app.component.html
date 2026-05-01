@@ -394,6 +394,9 @@
               </div>
             } @else {
               <div class="call-window__body call-window__body--voice">
+                @if (settingsNotice(); as notice) {
+                  <p class="call-window__notice">{{ notice }}</p>
+                }
                 <div class="call-window__stage call-window__stage--voice">
                   @if (activeCallVoiceVideoScene(); as scene) {
                     <div class="group-voice-video-layout group-voice-video-layout--conference" [class.group-voice-video-layout--presentation]="scene.mode === 'presentation'">
@@ -3308,7 +3311,7 @@
             <div class="range-field__control">
               <input
                 type="range"
-                min="0"
+                min="10"
                 max="200"
                 step="1"
                 [ngModel]="voiceSettings().microphoneGain"

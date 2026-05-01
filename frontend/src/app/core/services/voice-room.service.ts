@@ -127,6 +127,7 @@ const SETTINGS_STORAGE_KEY = 'tescord.voice.settings';
 const VOICE_SOCKET_PING_INTERVAL_MS = 20000;
 const VOICE_RECONNECT_BASE_MS = 1000;
 const VOICE_RECONNECT_MAX_MS = 10000;
+const MIN_MICROPHONE_GAIN_PERCENT = 10;
 const MAX_AUDIO_GAIN_PERCENT = 200;
 const OWNER_MUTED_NOTICE = 'Микрофон заблокирован владельцем канала';
 const CONTROL_RECONNECT_NOTICE = 'Связь с голосовой комнатой просела, переподключаемся';
@@ -134,12 +135,15 @@ const MEDIA_RECONNECT_NOTICE = 'Связь с медиасервером про�
 const RECONNECT_RETRY_NOTICE = 'Не удалось быстро восстановить голос, пробуем ещё раз';
 const AUDIO_UNLOCK_NOTICE = 'На телефоне коснитесь экрана ещё раз, если браузер не начал воспроизводить голос автоматически.';
 
+const MICROPHONE_SILENCE_NOTICE = 'Микрофон подключён, но браузер получает тишину. Проверьте выбранный микрофон и входную громкость Windows.';
+
 const TRANSIENT_NOTICES = new Set<string>([
   OWNER_MUTED_NOTICE,
   CONTROL_RECONNECT_NOTICE,
   MEDIA_RECONNECT_NOTICE,
   RECONNECT_RETRY_NOTICE,
   AUDIO_UNLOCK_NOTICE,
+  MICROPHONE_SILENCE_NOTICE,
 ]);
 
 const DEFAULT_VOICE_SETTINGS: VoiceSettings = {
@@ -183,7 +187,11 @@ function loadVoiceSettings(): VoiceSettings {
       inputDeviceId: parsed.inputDeviceId ?? null,
       outputDeviceId: parsed.outputDeviceId ?? null,
       sensitivity: clamp(parsed.sensitivity ?? DEFAULT_VOICE_SETTINGS.sensitivity, 0, 100),
-      microphoneGain: clamp(parsed.microphoneGain ?? DEFAULT_VOICE_SETTINGS.microphoneGain, 0, MAX_AUDIO_GAIN_PERCENT),
+      microphoneGain: clamp(
+        parsed.microphoneGain ?? DEFAULT_VOICE_SETTINGS.microphoneGain,
+        MIN_MICROPHONE_GAIN_PERCENT,
+        MAX_AUDIO_GAIN_PERCENT,
+      ),
       masterVolume: clamp(parsed.masterVolume ?? DEFAULT_VOICE_SETTINGS.masterVolume, 0, MAX_AUDIO_GAIN_PERCENT),
       participantVolumes,
     };
@@ -267,6 +275,7 @@ export class VoiceRoomService {
   });
 
   constructor() {
+    saveVoiceSettings(this.settings());
     void this.refreshDevices();
   }
 
@@ -304,6 +313,9 @@ export class VoiceRoomService {
       this.rawLocalStream = await this.openLocalStream();
       this.localStream = await this.createProcessedLocalStream(this.rawLocalStream);
       this.localAudioTrack = this.createLocalAudioTrack(this.localStream);
+      if (!this.localAudioTrack) {
+        throw new Error('Браузер подключил микрофон, но не отдал аудиодорожку');
+      }
       this.applyLocalMuteState();
       await this.refreshDevices();
 
@@ -616,7 +628,7 @@ export class VoiceRoomService {
   updateMicrophoneGain(value: number): void {
     const usedProcessedStream = this.usesProcessedLocalStream();
     this.updateSettings({
-      microphoneGain: clamp(value, 0, MAX_AUDIO_GAIN_PERCENT),
+      microphoneGain: clamp(value, MIN_MICROPHONE_GAIN_PERCENT, MAX_AUDIO_GAIN_PERCENT),
     });
     const shouldUseProcessedStream = this.usesProcessedLocalStream();
 
@@ -762,6 +774,13 @@ export class VoiceRoomService {
     this.attachRoomEvent(room, 'mediaDevicesChanged', () => {
       void this.refreshDevices();
     });
+    this.attachRoomEvent(room, 'localAudioSilenceDetected', (publication) => {
+      if (publication.source !== Track.Source.Microphone || this.localMuted() || this.ownerMuted()) {
+        return;
+      }
+
+      this.settingsNotice.set(MICROPHONE_SILENCE_NOTICE);
+    });
     this.attachRoomEvent(room, 'trackSubscribed', (track, publication, participant) => {
       void this.handleTrackSubscribed(track, publication.source, participant.identity);
     });
@@ -779,6 +798,9 @@ export class VoiceRoomService {
     });
     this.attachRoomEvent(room, 'activeSpeakersChanged', (speakers) => {
       this.activeSpeakerUserIds = new Set(speakers.map((speaker) => speaker.identity));
+      if (this.lastJoinContext && this.activeSpeakerUserIds.has(this.lastJoinContext.currentUser.id)) {
+        this.clearMicrophoneSilenceNotice();
+      }
       this.syncSpeakingParticipants();
     });
   }
@@ -1090,6 +1112,9 @@ export class VoiceRoomService {
 
   private applyLocalMuteState(): void {
     const shouldMute = this.localMuted() || this.ownerMuted();
+    if (shouldMute) {
+      this.clearMicrophoneSilenceNotice();
+    }
 
     for (const track of this.rawLocalStream?.getAudioTracks() ?? []) {
       track.enabled = !shouldMute;
@@ -1109,6 +1134,12 @@ export class VoiceRoomService {
 
     if (!shouldMute && this.localAudioTrack.isMuted) {
       void this.localAudioTrack.unmute().catch(() => undefined);
+    }
+  }
+
+  private clearMicrophoneSilenceNotice(): void {
+    if (this.settingsNotice() === MICROPHONE_SILENCE_NOTICE) {
+      this.settingsNotice.set(null);
     }
   }
 
