@@ -1472,7 +1472,7 @@ export class AppComponent {
     return surface?.kind === 'direct' ? this.directCallRemoteVolume() : this.voiceSettings().masterVolume;
   });
   readonly activeCallVolumeMin = computed(() => (this.activeCallSurface()?.kind === 'direct' ? 0 : 10));
-  readonly activeCallVolumeMax = computed(() => (this.activeCallSurface()?.kind === 'direct' ? 100 : 200));
+  readonly activeCallVolumeMax = computed(() => 100);
   readonly activeCallCanUseCamera = computed(() => {
     const surface = this.activeCallSurface();
     if (!surface) {

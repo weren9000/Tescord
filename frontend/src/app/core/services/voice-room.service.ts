@@ -103,10 +103,6 @@ interface LocalAudioPipeline {
 interface RemoteAudioOutput {
   audioElement: HTMLAudioElement;
   inputStream: MediaStream | null;
-  source: MediaStreamAudioSourceNode | null;
-  gainNode: GainNode | null;
-  destination: MediaStreamAudioDestinationNode | null;
-  graphUnavailable: boolean;
 }
 
 interface VoiceJoinContext {
@@ -130,7 +126,8 @@ const VOICE_RECONNECT_BASE_MS = 1000;
 const VOICE_RECONNECT_MAX_MS = 10000;
 const MIN_MICROPHONE_GAIN_PERCENT = 10;
 const MIN_OUTPUT_VOLUME_PERCENT = 10;
-const MAX_AUDIO_GAIN_PERCENT = 200;
+const MAX_MICROPHONE_GAIN_PERCENT = 200;
+const MAX_OUTPUT_VOLUME_PERCENT = 100;
 const OWNER_MUTED_NOTICE = 'Микрофон заблокирован владельцем канала';
 const CONTROL_RECONNECT_NOTICE = 'Связь с голосовой комнатой просела, переподключаемся';
 const MEDIA_RECONNECT_NOTICE = 'Связь с медиасервером просела, переподключаемся';
@@ -178,7 +175,7 @@ function loadVoiceSettings(): VoiceSettings {
         accumulator[userId] = clamp(
           typeof volume === 'number' ? volume : DEFAULT_VOICE_SETTINGS.masterVolume,
           MIN_OUTPUT_VOLUME_PERCENT,
-          MAX_AUDIO_GAIN_PERCENT,
+          MAX_OUTPUT_VOLUME_PERCENT,
         );
         return accumulator;
       },
@@ -192,12 +189,12 @@ function loadVoiceSettings(): VoiceSettings {
       microphoneGain: clamp(
         parsed.microphoneGain ?? DEFAULT_VOICE_SETTINGS.microphoneGain,
         MIN_MICROPHONE_GAIN_PERCENT,
-        MAX_AUDIO_GAIN_PERCENT,
+        MAX_MICROPHONE_GAIN_PERCENT,
       ),
       masterVolume: clamp(
         parsed.masterVolume ?? DEFAULT_VOICE_SETTINGS.masterVolume,
         MIN_OUTPUT_VOLUME_PERCENT,
-        MAX_AUDIO_GAIN_PERCENT,
+        MAX_OUTPUT_VOLUME_PERCENT,
       ),
       participantVolumes,
     };
@@ -634,7 +631,7 @@ export class VoiceRoomService {
   updateMicrophoneGain(value: number): void {
     const usedProcessedStream = this.usesProcessedLocalStream();
     this.updateSettings({
-      microphoneGain: clamp(value, MIN_MICROPHONE_GAIN_PERCENT, MAX_AUDIO_GAIN_PERCENT),
+      microphoneGain: clamp(value, MIN_MICROPHONE_GAIN_PERCENT, MAX_MICROPHONE_GAIN_PERCENT),
     });
     const shouldUseProcessedStream = this.usesProcessedLocalStream();
 
@@ -647,36 +644,27 @@ export class VoiceRoomService {
   }
 
   updateMasterVolume(value: number): void {
-    this.resetRemoteAudioGraphUnavailableFlags();
     this.updateSettings({
-      masterVolume: clamp(value, MIN_OUTPUT_VOLUME_PERCENT, MAX_AUDIO_GAIN_PERCENT),
+      masterVolume: clamp(value, MIN_OUTPUT_VOLUME_PERCENT, MAX_OUTPUT_VOLUME_PERCENT),
     });
     this.applyAllRemoteVolumes();
   }
 
   updateParticipantVolume(userId: string, value: number): void {
-    const wasUsingGraph = this.shouldUseRemoteAudioGraph();
-    const nextVolume = clamp(value, MIN_OUTPUT_VOLUME_PERCENT, MAX_AUDIO_GAIN_PERCENT);
+    const nextVolume = clamp(value, MIN_OUTPUT_VOLUME_PERCENT, MAX_OUTPUT_VOLUME_PERCENT);
     const participantVolumes = {
       ...this.settings().participantVolumes,
       [userId]: nextVolume,
     };
 
-    this.resetRemoteAudioGraphUnavailableFlags();
     this.updateSettings({
       participantVolumes,
     });
-
-    if (wasUsingGraph !== this.shouldUseRemoteAudioGraph()) {
-      this.applyAllRemoteVolumes();
-      return;
-    }
-
     this.applyVolumesForUser(userId);
   }
 
   getParticipantVolume(userId: string): number {
-    return clamp(this.settings().participantVolumes[userId] ?? 100, MIN_OUTPUT_VOLUME_PERCENT, MAX_AUDIO_GAIN_PERCENT);
+    return clamp(this.settings().participantVolumes[userId] ?? 100, MIN_OUTPUT_VOLUME_PERCENT, MAX_OUTPUT_VOLUME_PERCENT);
   }
 
   private async reconnectIfNeeded(): Promise<void> {
@@ -1177,15 +1165,10 @@ export class VoiceRoomService {
 
   private async attachRemoteAudio(userId: string, track: RemoteAudioTrack): Promise<void> {
     this.ensureAudiblePlaybackSettings(userId);
-    const wasUsingGraph = this.shouldUseRemoteAudioGraph();
     const stream = new MediaStream([track.mediaStreamTrack]);
     const remoteAudioOutput = await this.ensureRemoteAudioOutput(userId, stream);
     await this.applyOutputDevice(remoteAudioOutput.audioElement).catch(() => undefined);
-    if (wasUsingGraph !== this.shouldUseRemoteAudioGraph()) {
-      this.applyAllRemoteVolumes();
-    } else {
-      this.applyVolumeToAudioElement(userId);
-    }
+    this.applyVolumeToAudioElement(userId);
     await this.playRemoteAudio(userId, remoteAudioOutput.audioElement).catch(() => undefined);
   }
 
@@ -1239,43 +1222,12 @@ export class VoiceRoomService {
       remoteAudioOutput = {
         audioElement,
         inputStream: null,
-        source: null,
-        gainNode: null,
-        destination: null,
-        graphUnavailable: false,
       };
       this.remoteAudioOutputs.set(userId, remoteAudioOutput);
     }
 
     remoteAudioOutput.inputStream = stream;
-    this.disposeRemoteAudioGraph(remoteAudioOutput);
-
-    if (!this.shouldUseRemoteAudioGraph()) {
-      remoteAudioOutput.graphUnavailable = false;
-      remoteAudioOutput.audioElement.srcObject = stream;
-      return remoteAudioOutput;
-    }
-
-    const audioContext = await this.ensureAudioContext();
-    if (!audioContext) {
-      remoteAudioOutput.graphUnavailable = true;
-      remoteAudioOutput.audioElement.srcObject = stream;
-      return remoteAudioOutput;
-    }
-
-    const source = audioContext.createMediaStreamSource(stream);
-    const gainNode = audioContext.createGain();
-    const destination = audioContext.createMediaStreamDestination();
-
-    source.connect(gainNode);
-    gainNode.connect(destination);
-
-    remoteAudioOutput.source = source;
-    remoteAudioOutput.gainNode = gainNode;
-    remoteAudioOutput.destination = destination;
-    remoteAudioOutput.graphUnavailable = false;
-    remoteAudioOutput.audioElement.srcObject = destination.stream;
-
+    remoteAudioOutput.audioElement.srcObject = stream;
     return remoteAudioOutput;
   }
 
@@ -1326,85 +1278,12 @@ export class VoiceRoomService {
     }
 
     const effectiveGain = this.getRemoteParticipantGain(userId);
-    const shouldUseGraph = this.shouldUseRemoteAudioGraph();
-    if (remoteAudioOutput.inputStream && shouldUseGraph !== Boolean(remoteAudioOutput.gainNode)) {
-      if (shouldUseGraph && remoteAudioOutput.graphUnavailable) {
-        remoteAudioOutput.audioElement.volume = clamp(effectiveGain, 0, 1);
-        return;
-      }
-
-      void this.refreshRemoteAudioOutput(userId).catch(() => undefined);
-      if (!shouldUseGraph) {
-        remoteAudioOutput.audioElement.volume = clamp(effectiveGain, 0, 1);
-      }
-      return;
-    }
-
-    if (remoteAudioOutput.gainNode && this.audioContext) {
-      remoteAudioOutput.gainNode.gain.setValueAtTime(effectiveGain, this.audioContext.currentTime);
-      remoteAudioOutput.audioElement.volume = 1;
-      return;
-    }
-
     remoteAudioOutput.audioElement.volume = clamp(effectiveGain, 0, 1);
   }
 
   private getRemoteParticipantGain(userId: string): number {
     const effectiveGain = (this.settings().masterVolume / 100) * (this.getParticipantVolume(userId) / 100);
-    return clamp(effectiveGain, 0, 2);
-  }
-
-  private shouldUseRemoteAudioGraph(): boolean {
-    return [...this.remoteAudioOutputs.keys()].some((userId) => this.getRemoteParticipantGain(userId) > 1);
-  }
-
-  private async refreshRemoteAudioOutput(userId: string): Promise<void> {
-    const remoteAudioOutput = this.remoteAudioOutputs.get(userId);
-    const inputStream = remoteAudioOutput?.inputStream;
-    if (!remoteAudioOutput || !inputStream) {
-      return;
-    }
-
-    const output = await this.ensureRemoteAudioOutput(userId, inputStream);
-    await this.applyOutputDevice(output.audioElement).catch(() => undefined);
-    this.applyVolumeToAudioElement(userId);
-    await this.playRemoteAudio(userId, output.audioElement).catch(() => undefined);
-  }
-
-  private resetRemoteAudioGraphUnavailableFlags(): void {
-    for (const remoteAudioOutput of this.remoteAudioOutputs.values()) {
-      remoteAudioOutput.graphUnavailable = false;
-    }
-  }
-
-  private async refreshRemoteAudioOutputsNeedingGraph(): Promise<void> {
-    if (!this.shouldUseRemoteAudioGraph()) {
-      return;
-    }
-
-    await Promise.all(
-      [...this.remoteAudioOutputs.entries()]
-        .filter(([, remoteAudioOutput]) => remoteAudioOutput.inputStream && !remoteAudioOutput.gainNode)
-        .map(([userId]) => this.refreshRemoteAudioOutput(userId).catch(() => undefined)),
-    );
-  }
-
-  private disposeRemoteAudioGraph(remoteAudioOutput: RemoteAudioOutput): void {
-    try {
-      remoteAudioOutput.source?.disconnect();
-    } catch {
-      // ignore disconnect errors for already disposed graphs
-    }
-
-    try {
-      remoteAudioOutput.gainNode?.disconnect();
-    } catch {
-      // ignore disconnect errors for already disposed graphs
-    }
-
-    remoteAudioOutput.source = null;
-    remoteAudioOutput.gainNode = null;
-    remoteAudioOutput.destination = null;
+    return clamp(effectiveGain, 0, 1);
   }
 
   private attachRemoteVideo(userId: string, track: RemoteVideoTrack): void {
@@ -1484,14 +1363,9 @@ export class VoiceRoomService {
       return;
     }
 
-    const wasUsingGraph = this.shouldUseRemoteAudioGraph();
-    this.disposeRemoteAudioGraph(remoteAudioOutput);
     remoteAudioOutput.audioElement.srcObject = null;
     remoteAudioOutput.audioElement.remove();
     this.remoteAudioOutputs.delete(userId);
-    if (wasUsingGraph !== this.shouldUseRemoteAudioGraph()) {
-      this.applyAllRemoteVolumes();
-    }
     this.pendingPlaybackUnlock.delete(userId);
     if (!this.pendingPlaybackUnlock.size) {
       this.detachUserGestureUnlock();
@@ -1957,7 +1831,6 @@ export class VoiceRoomService {
   private async retryPendingAudioPlayback(): Promise<void> {
     await this.ensureAudioContext().catch(() => null);
     await this.room?.startAudio().catch(() => undefined);
-    await this.refreshRemoteAudioOutputsNeedingGraph();
 
     for (const userId of [...this.pendingPlaybackUnlock]) {
       if (userId === '__room__') {

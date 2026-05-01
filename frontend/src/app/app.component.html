@@ -529,7 +529,7 @@
                                   class="group-voice-roster__volume"
                                   type="range"
                                   min="10"
-                                  max="200"
+                                  max="100"
                                   step="1"
                                   [value]="groupVoiceParticipantVolume(participant)"
                                   [attr.aria-label]="'Громкость ' + displayNick(participant.nick)"
@@ -611,7 +611,7 @@
                   <span>Громкость</span>
                   <input
                     type="range"
-                    min="0"
+                    [min]="activeCallVolumeMin()"
                     [max]="activeCallVolumeMax()"
                     step="1"
                     [value]="activeCallVolume()"
@@ -1580,7 +1580,7 @@
                                             class="group-voice-roster__volume group-voice-roster__volume--compact"
                                             type="range"
                                             min="10"
-                                            max="200"
+                                            max="100"
                                             step="1"
                                             [value]="platformVoiceParticipantVolume(participant)"
                                             [attr.aria-label]="'Громкость ' + displayNick(participant.nick)"
@@ -1800,7 +1800,7 @@
                                         class="group-voice-roster__volume"
                                         type="range"
                                         min="10"
-                                        max="200"
+                                        max="100"
                                         step="1"
                                         [value]="groupVoiceParticipantVolume(participant)"
                                         [attr.aria-label]="'Громкость ' + displayNick(participant.nick)"
@@ -2560,7 +2560,7 @@
           <span>Громкость</span>
           <input
             type="range"
-            min="0"
+            [min]="activeCallVolumeMin()"
             [max]="activeCallVolumeMax()"
             step="1"
             [value]="activeCallVolume()"
@@ -3346,7 +3346,7 @@
               <input
                 type="range"
                 min="10"
-                max="200"
+                max="100"
                 step="1"
                 [ngModel]="voiceSettings().masterVolume"
                 name="master_volume"
@@ -4454,8 +4454,8 @@
             <div class="range-field__control">
               <input
                 type="range"
-                min="0"
-                max="200"
+                min="10"
+                max="100"
                 step="1"
                 [ngModel]="selectedMemberVolume()"
                 name="participant_volume"
