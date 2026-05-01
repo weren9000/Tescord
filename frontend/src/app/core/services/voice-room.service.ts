@@ -128,12 +128,13 @@ const VOICE_SOCKET_PING_INTERVAL_MS = 20000;
 const VOICE_RECONNECT_BASE_MS = 1000;
 const VOICE_RECONNECT_MAX_MS = 10000;
 const MIN_MICROPHONE_GAIN_PERCENT = 10;
+const MIN_OUTPUT_VOLUME_PERCENT = 10;
 const MAX_AUDIO_GAIN_PERCENT = 200;
 const OWNER_MUTED_NOTICE = 'Микрофон заблокирован владельцем канала';
 const CONTROL_RECONNECT_NOTICE = 'Связь с голосовой комнатой просела, переподключаемся';
 const MEDIA_RECONNECT_NOTICE = 'Связь с медиасервером просела, переподключаемся';
 const RECONNECT_RETRY_NOTICE = 'Не удалось быстро восстановить голос, пробуем ещё раз';
-const AUDIO_UNLOCK_NOTICE = 'На телефоне коснитесь экрана ещё раз, если браузер не начал воспроизводить голос автоматически.';
+const AUDIO_UNLOCK_NOTICE = 'Нажмите в любом месте страницы, если браузер не начал воспроизводить голоса автоматически.';
 
 const MICROPHONE_SILENCE_NOTICE = 'Микрофон подключён, но браузер получает тишину. Проверьте выбранный микрофон и входную громкость Windows.';
 
@@ -175,7 +176,7 @@ function loadVoiceSettings(): VoiceSettings {
       (accumulator, [userId, volume]) => {
         accumulator[userId] = clamp(
           typeof volume === 'number' ? volume : DEFAULT_VOICE_SETTINGS.masterVolume,
-          0,
+          MIN_OUTPUT_VOLUME_PERCENT,
           MAX_AUDIO_GAIN_PERCENT,
         );
         return accumulator;
@@ -192,7 +193,11 @@ function loadVoiceSettings(): VoiceSettings {
         MIN_MICROPHONE_GAIN_PERCENT,
         MAX_AUDIO_GAIN_PERCENT,
       ),
-      masterVolume: clamp(parsed.masterVolume ?? DEFAULT_VOICE_SETTINGS.masterVolume, 0, MAX_AUDIO_GAIN_PERCENT),
+      masterVolume: clamp(
+        parsed.masterVolume ?? DEFAULT_VOICE_SETTINGS.masterVolume,
+        MIN_OUTPUT_VOLUME_PERCENT,
+        MAX_AUDIO_GAIN_PERCENT,
+      ),
       participantVolumes,
     };
   } catch {
@@ -642,13 +647,13 @@ export class VoiceRoomService {
 
   updateMasterVolume(value: number): void {
     this.updateSettings({
-      masterVolume: clamp(value, 0, MAX_AUDIO_GAIN_PERCENT),
+      masterVolume: clamp(value, MIN_OUTPUT_VOLUME_PERCENT, MAX_AUDIO_GAIN_PERCENT),
     });
     this.applyAllRemoteVolumes();
   }
 
   updateParticipantVolume(userId: string, value: number): void {
-    const nextVolume = clamp(value, 0, MAX_AUDIO_GAIN_PERCENT);
+    const nextVolume = clamp(value, MIN_OUTPUT_VOLUME_PERCENT, MAX_AUDIO_GAIN_PERCENT);
     const participantVolumes = {
       ...this.settings().participantVolumes,
       [userId]: nextVolume,
@@ -661,7 +666,7 @@ export class VoiceRoomService {
   }
 
   getParticipantVolume(userId: string): number {
-    return clamp(this.settings().participantVolumes[userId] ?? 100, 0, MAX_AUDIO_GAIN_PERCENT);
+    return clamp(this.settings().participantVolumes[userId] ?? 100, MIN_OUTPUT_VOLUME_PERCENT, MAX_AUDIO_GAIN_PERCENT);
   }
 
   private async reconnectIfNeeded(): Promise<void> {
@@ -1161,11 +1166,33 @@ export class VoiceRoomService {
   }
 
   private async attachRemoteAudio(userId: string, track: RemoteAudioTrack): Promise<void> {
+    this.ensureAudiblePlaybackSettings(userId);
     const stream = new MediaStream([track.mediaStreamTrack]);
     const remoteAudioOutput = await this.ensureRemoteAudioOutput(userId, stream);
     await this.applyOutputDevice(remoteAudioOutput.audioElement).catch(() => undefined);
     this.applyVolumeToAudioElement(userId);
     await this.playRemoteAudio(userId, remoteAudioOutput.audioElement).catch(() => undefined);
+  }
+
+  private ensureAudiblePlaybackSettings(userId: string): void {
+    const settings = this.settings();
+    const participantVolume = settings.participantVolumes[userId];
+    const patch: Partial<VoiceSettings> = {};
+
+    if (settings.masterVolume < MIN_OUTPUT_VOLUME_PERCENT) {
+      patch.masterVolume = DEFAULT_VOICE_SETTINGS.masterVolume;
+    }
+
+    if (participantVolume !== undefined && participantVolume < MIN_OUTPUT_VOLUME_PERCENT) {
+      patch.participantVolumes = {
+        ...settings.participantVolumes,
+        [userId]: DEFAULT_VOICE_SETTINGS.masterVolume,
+      };
+    }
+
+    if (Object.keys(patch).length) {
+      this.updateSettings(patch);
+    }
   }
 
   private async playRemoteAudio(userId: string, audioElement: HTMLAudioElement): Promise<void> {
@@ -1245,11 +1272,13 @@ export class VoiceRoomService {
 
     try {
       await sinkCapableElement.setSinkId(outputDeviceId);
-      if (this.settingsNotice() === 'Браузер не дал переключить устройство вывода звука') {
+      if (this.settingsNotice() === 'Браузер не дал переключить устройство вывода звука, используем вывод по умолчанию') {
         this.settingsNotice.set(null);
       }
     } catch {
-      this.settingsNotice.set('Браузер не дал переключить устройство вывода звука');
+      this.updateSettings({ outputDeviceId: null });
+      await sinkCapableElement.setSinkId('').catch(() => undefined);
+      this.settingsNotice.set('Браузер не дал переключить устройство вывода звука, используем вывод по умолчанию');
     }
   }
 
