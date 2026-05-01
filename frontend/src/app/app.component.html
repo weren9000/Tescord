@@ -230,7 +230,7 @@
                   <span>Громкость</span>
                   <input
                     type="range"
-                    min="0"
+                    [min]="activeCallVolumeMin()"
                     [max]="activeCallVolumeMax()"
                     step="1"
                     [value]="activeCallVolume()"
@@ -249,7 +249,7 @@
                       <span>Громкость</span>
                       <input
                         type="range"
-                        min="0"
+                        [min]="activeCallVolumeMin()"
                         [max]="activeCallVolumeMax()"
                         step="1"
                         [value]="activeCallVolume()"
@@ -1487,7 +1487,7 @@
                             </button>
                           </div>
                         </div>
-                        @if (isPlatformVoiceChannelExpanded(channel.id) && connectedVoiceChannelId() !== channel.id) {
+                        @if (isPlatformVoiceChannelExpanded(channel.id)) {
                           <div class="platform-channel-entry__roster">
                             @if (connectedVoiceChannelId() === channel.id && voiceVideoSceneForChannel(channel.id); as scene) {
                               <div class="group-voice-video-layout group-voice-video-layout--compact" [class.group-voice-video-layout--presentation]="scene.mode === 'presentation'">
@@ -1702,7 +1702,7 @@
                         </button>
                       </div>
                     </div>
-                    @if (groupVoiceParticipantsExpanded() && connectedVoiceChannelId() !== groupVoiceChannel.id) {
+                    @if (groupVoiceParticipantsExpanded()) {
                       <div
                         class="group-voice-roster group-voice-roster--conference"
                         [class.group-voice-roster--with-video]="connectedVoiceChannelId() === groupVoiceChannel.id && !!voiceVideoSceneForChannel(groupVoiceChannel.id)"

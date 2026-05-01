@@ -271,7 +271,13 @@ server {
     root ${FRONTEND_DIR};
     index index.html;
 
+    location = /index.html {
+        add_header Cache-Control "no-store";
+        try_files /index.html =404;
+    }
+
     location / {
+        add_header Cache-Control "no-store";
         try_files \$uri \$uri/ /index.html;
     }
 
