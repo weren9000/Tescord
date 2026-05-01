@@ -6,8 +6,10 @@ import {
   LocalAudioTrack,
   LocalVideoTrack,
   type Participant,
+  type RemoteParticipant,
   RemoteAudioTrack,
   type RemoteTrack,
+  type RemoteTrackPublication,
   RemoteVideoTrack,
   Room,
   type RoomEventCallbacks,
@@ -713,13 +715,12 @@ export class VoiceRoomService {
       this.applyLocalMuteState();
     }
 
+    this.syncSubscribedRemoteTracks(room);
     await this.applyAudioOutputPreferences();
     this.applyAllRemoteVolumes();
     void room.startAudio()
       .then(() => {
-        if (this.settingsNotice() === AUDIO_UNLOCK_NOTICE) {
-          this.settingsNotice.set(null);
-        }
+        void this.retryPendingAudioPlayback();
       })
       .catch(() => {
         this.pendingPlaybackUnlock.add('__room__');
@@ -737,6 +738,7 @@ export class VoiceRoomService {
   private attachRoomListeners(room: Room): void {
     this.attachRoomEvent(room, 'connected', () => {
       this.updateOperationalState();
+      this.syncSubscribedRemoteTracks(room);
       this.clearReconnectNoticeIfReady();
     });
     this.attachRoomEvent(room, 'reconnecting', () => {
@@ -751,6 +753,7 @@ export class VoiceRoomService {
     });
     this.attachRoomEvent(room, 'reconnected', () => {
       this.updateOperationalState();
+      this.syncSubscribedRemoteTracks(room);
       this.clearReconnectNoticeIfReady();
     });
     this.attachRoomEvent(room, 'disconnected', (reason) => {
@@ -761,6 +764,10 @@ export class VoiceRoomService {
     });
     this.attachRoomEvent(room, 'trackSubscribed', (track, publication, participant) => {
       void this.handleTrackSubscribed(track, publication.source, participant.identity);
+    });
+    this.attachRoomEvent(room, 'trackPublished', (publication, participant) => {
+      this.ensurePublicationSubscribed(publication);
+      this.attachSubscribedPublication(publication, participant);
     });
     this.attachRoomEvent(room, 'trackUnsubscribed', (track, publication, participant) => {
       this.handleTrackUnsubscribed(track, publication.source, participant.identity);
@@ -774,6 +781,33 @@ export class VoiceRoomService {
       this.activeSpeakerUserIds = new Set(speakers.map((speaker) => speaker.identity));
       this.syncSpeakingParticipants();
     });
+  }
+
+  private syncSubscribedRemoteTracks(room: Room | null = this.room): void {
+    if (!room) {
+      return;
+    }
+
+    for (const participant of room.remoteParticipants.values()) {
+      for (const publication of participant.trackPublications.values()) {
+        this.ensurePublicationSubscribed(publication);
+        this.attachSubscribedPublication(publication, participant);
+      }
+    }
+  }
+
+  private ensurePublicationSubscribed(publication: RemoteTrackPublication): void {
+    if (!publication.isDesired) {
+      publication.setSubscribed(true);
+    }
+  }
+
+  private attachSubscribedPublication(publication: RemoteTrackPublication, participant: RemoteParticipant): void {
+    if (!publication.track || !publication.isSubscribed) {
+      return;
+    }
+
+    void this.handleTrackSubscribed(publication.track, publication.source, participant.identity);
   }
 
   private attachRoomEvent<T extends keyof RoomEventCallbacks>(

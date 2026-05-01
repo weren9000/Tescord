@@ -135,6 +135,11 @@ window.__TESCORD_RUNTIME_CONFIG__ = {
       urls: ['turn:tescord.ru:3478?transport=udp', 'turn:tescord.ru:3478?transport=tcp'],
       username: 'tescordturn',
       credential: 'СИЛЬНЫЙ_TURN_ПАРОЛЬ'
+    },
+    {
+      urls: ['turns:tescord.ru:5349?transport=tcp'],
+      username: 'tescordturn',
+      credential: 'СИЛЬНЫЙ_TURN_ПАРОЛЬ'
     }
   ]
 };
@@ -204,6 +209,7 @@ sudo systemctl restart nginx
 - `server-name`
 - `external-ip`
 - `user=tescordturn:ПАРОЛЬ`
+- `cert` / `pkey` для TURN TLS на `5349`
 - relay ports
 
 После этого:

@@ -29,6 +29,9 @@ CUSTOM_SSL_CERT="${CUSTOM_SSL_DIR}/certificate.crt"
 CUSTOM_SSL_CA="${CUSTOM_SSL_DIR}/certificate_ca.crt"
 CUSTOM_SSL_FULLCHAIN="${CUSTOM_SSL_DIR}/fullchain.pem"
 CUSTOM_SSL_KEY="${CUSTOM_SSL_DIR}/privkey.pem"
+TURN_SSL_DIR="/etc/turnserver/certs"
+TURN_SSL_FULLCHAIN="${TURN_SSL_DIR}/${APP_DOMAIN}-fullchain.pem"
+TURN_SSL_KEY="${TURN_SSL_DIR}/${APP_DOMAIN}-privkey.pem"
 
 install_custom_ssl() {
   local source_cert="$1"
@@ -47,6 +50,15 @@ install_custom_ssl() {
   fi
 
   chmod 644 "${CUSTOM_SSL_FULLCHAIN}"
+}
+
+install_turn_ssl() {
+  local source_cert="$1"
+  local source_key="$2"
+
+  install -o root -g turnserver -m 750 -d "${TURN_SSL_DIR}"
+  install -o root -g turnserver -m 644 "${source_cert}" "${TURN_SSL_FULLCHAIN}"
+  install -o root -g turnserver -m 640 "${source_key}" "${TURN_SSL_KEY}"
 }
 
 export DEBIAN_FRONTEND=noninteractive
@@ -239,6 +251,8 @@ elif [ -f "${CUSTOM_SSL_FULLCHAIN}" ] && [ -f "${CUSTOM_SSL_KEY}" ]; then
   ACTIVE_SSL_MODE="custom"
 fi
 
+install_turn_ssl "${SSL_CERT_PATH}" "${SSL_KEY_PATH}"
+
 cat > /etc/nginx/sites-available/tescord <<EOF
 server {
     listen 80;
@@ -305,6 +319,7 @@ ln -sf /etc/nginx/sites-available/tescord /etc/nginx/sites-enabled/tescord
 
 cat > /etc/turnserver.conf <<EOF
 listening-port=3478
+tls-listening-port=5349
 listening-ip=${SERVER_HOST}
 relay-ip=${SERVER_HOST}
 external-ip=${SERVER_HOST}
@@ -313,10 +328,14 @@ lt-cred-mech
 realm=${APP_DOMAIN}
 server-name=${APP_DOMAIN}
 user=tescordturn:${TURN_PASSWORD}
+cert=${TURN_SSL_FULLCHAIN}
+pkey=${TURN_SSL_KEY}
 total-quota=600
 bps-capacity=0
 stale-nonce=600
 no-cli
+no-tlsv1
+no-tlsv1_1
 min-port=49160
 max-port=49999
 simple-log
@@ -342,6 +361,10 @@ systemctl restart tescord-backend
 
 if [ "${ACTIVE_SSL_MODE}" != "custom" ] && [ "${ENABLE_LETSENCRYPT}" = "true" ] && [ -n "${LETSENCRYPT_EMAIL}" ]; then
   certbot --nginx --non-interactive --agree-tos -m "${LETSENCRYPT_EMAIL}" -d "${APP_DOMAIN}" --redirect || true
+  if [ -f "/etc/letsencrypt/live/${APP_DOMAIN}/fullchain.pem" ] && [ -f "/etc/letsencrypt/live/${APP_DOMAIN}/privkey.pem" ]; then
+    install_turn_ssl "/etc/letsencrypt/live/${APP_DOMAIN}/fullchain.pem" "/etc/letsencrypt/live/${APP_DOMAIN}/privkey.pem"
+    systemctl restart coturn
+  fi
   nginx -t
   systemctl reload nginx
 fi

@@ -192,6 +192,11 @@ window.__TESCORD_RUNTIME_CONFIG__ = {
       urls: ['turn:$TurnHost`:3478?transport=udp', 'turn:$TurnHost`:3478?transport=tcp'],
       username: 'tescordturn',
       credential: '$TurnPassword'
+    },
+    {
+      urls: ['turns:$TurnHost`:5349?transport=tcp'],
+      username: 'tescordturn',
+      credential: '$TurnPassword'
     }
   ]
 };
