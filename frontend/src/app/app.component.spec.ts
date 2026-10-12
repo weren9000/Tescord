@@ -48,6 +48,7 @@ describe('AppComponent', () => {
         {
           provide: DirectCallService,
           useValue: {
+            stop: () => undefined,
             connected: signal(true),
             state: signal('idle'),
             error: signal(null),

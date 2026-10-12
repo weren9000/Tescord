@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timedelta, timezone
 from urllib.parse import quote
 from uuid import UUID, uuid4
@@ -7,11 +8,13 @@ from uuid import UUID, uuid4
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, status
 from fastapi import UploadFile
 from fastapi.responses import FileResponse
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, or_, select, func
 from sqlalchemy.orm import Session, joinedload, load_only, selectinload
 
 from app.api.dependencies.auth import get_current_user
 from app.core.config import get_settings
+from sqlalchemy import text
+from app.db.models import OutboxEvent
 from app.core.security import TokenError, create_signed_token, decode_signed_token
 from app.db.models import (
     Attachment,
@@ -260,12 +263,12 @@ def _escape_like_term(value: str) -> str:
 def _get_accessible_message_channel(db: Session, channel_id: UUID, current_user: User) -> Channel:
     channel = db.get(Channel, channel_id)
     if channel is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="РљР°РЅР°Р» РЅРµ РЅР°Р№РґРµРЅ")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Канал не найден")
 
     if channel.type not in {ChannelType.TEXT, ChannelType.VOICE}:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="РЎРѕРѕР±С‰РµРЅРёСЏ РґРѕСЃС‚СѓРїРЅС‹ С‚РѕР»СЊРєРѕ РІ С‚РµРєСЃС‚РѕРІС‹С… Рё РіРѕР»РѕСЃРѕРІС‹С… РєР°РЅР°Р»Р°С…",
+            detail="Сообщения доступны только в текстовых и голосовых каналах",
         )
 
     if channel.type == ChannelType.VOICE:
@@ -274,7 +277,7 @@ def _get_accessible_message_channel(db: Session, channel_id: UUID, current_user:
             select(ServerMember).where(ServerMember.server_id == channel.server_id, ServerMember.user_id == current_user.id)
         ).scalar_one_or_none()
         if not can_view_voice_channel(access, membership.role if membership is not None else None):
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="РљР°РЅР°Р» РЅРµ РЅР°Р№РґРµРЅ")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Канал не найден")
 
     return channel
 
@@ -319,22 +322,22 @@ def _message_load_options():
 def _conversation_safe_accessible_message_channel(db: Session, channel_id: UUID, current_user: User) -> Channel:
     channel = db.get(Channel, channel_id)
     if channel is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="РљР°РЅР°Р» РЅРµ РЅР°Р№РґРµРЅ")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Канал не найден")
 
     if channel.type not in {ChannelType.TEXT, ChannelType.VOICE}:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="РЎРѕРѕР±С‰РµРЅРёСЏ РґРѕСЃС‚СѓРїРЅС‹ С‚РѕР»СЊРєРѕ РІ С‚РµРєСЃС‚РѕРІС‹С… Рё РіРѕР»РѕСЃРѕРІС‹С… РєР°РЅР°Р»Р°С…",
+            detail="Сообщения доступны только в текстовых и голосовых каналах",
         )
 
     server, membership = ensure_channel_server_access(db, channel, current_user)
     if server.kind in {ServerKind.DIRECT, ServerKind.GROUP_CHAT} and channel.type != ChannelType.TEXT:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="РљР°РЅР°Р» РЅРµ РЅР°Р№РґРµРЅ")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Канал не найден")
 
     if channel.type == ChannelType.VOICE:
         access = get_voice_channel_access(db, channel.id, current_user.id)
         if not can_view_voice_channel(access, membership.role if membership is not None else None):
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="РљР°РЅР°Р» РЅРµ РЅР°Р№РґРµРЅ")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Канал не найден")
 
     return channel
 
@@ -351,7 +354,7 @@ def _load_message(db: Session, message_id: UUID) -> Message | None:
 def _get_accessible_message(db: Session, message_id: UUID, current_user: User) -> Message:
     message = _load_message(db, message_id)
     if message is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="РЎРѕРѕР±С‰РµРЅРёРµ РЅРµ РЅР°Р№РґРµРЅРѕ")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Сообщение не найдено")
 
     _get_accessible_message_channel(db, message.channel_id, current_user)
     return message
@@ -360,20 +363,20 @@ def _get_accessible_message(db: Session, message_id: UUID, current_user: User) -
 def _get_accessible_attachment(db: Session, attachment_id: UUID, current_user: User) -> Attachment:
     attachment = db.get(Attachment, attachment_id)
     if attachment is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Р¤Р°Р№Р» РЅРµ РЅР°Р№РґРµРЅ")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Файл не найден")
 
     message = db.get(Message, attachment.message_id)
     if message is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Р¤Р°Р№Р» РЅРµ РЅР°Р№РґРµРЅ")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Файл не найден")
 
     _get_accessible_message_channel(db, message.channel_id, current_user)
     return attachment
     if attachment.storage_path:
         file_path = resolve_attachment_path(attachment.storage_path)
         if not file_path.exists():
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Р¤Р°Р№Р» РЅРµРґРѕСЃС‚СѓРїРµРЅ")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Файл недоступен")
     elif attachment.content is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Р¤Р°Р№Р» РЅРµРґРѕСЃС‚СѓРїРµРЅ")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Файл недоступен")
 
     return attachment
 
@@ -383,9 +386,9 @@ def _get_downloadable_attachment(db: Session, attachment_id: UUID, current_user:
     if attachment.storage_path:
         file_path = resolve_attachment_path(attachment.storage_path)
         if not file_path.exists():
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Р¤Р°Р№Р» РЅРµРґРѕСЃС‚СѓРїРµРЅ")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Файл недоступен")
     elif attachment.content is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Р¤Р°Р№Р» РЅРµРґРѕСЃС‚СѓРїРµРЅ")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Файл недоступен")
     if attachment.deleted_at is not None:
         raise HTTPException(status_code=status.HTTP_410_GONE, detail="Файл удален")
     return attachment
@@ -425,7 +428,7 @@ def _build_attachment_download_response(attachment: Attachment) -> Response:
     if attachment.storage_path:
         file_path = resolve_attachment_path(attachment.storage_path)
         if not file_path.exists():
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Р В¤Р В°Р в„–Р В» Р Р…Р Вµ Р Р…Р В°Р в„–Р Т‘Р ВµР Р…")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Файл не найден")
         return FileResponse(file_path, media_type=attachment.mime_type, headers=headers)
 
     return Response(content=attachment.content or b"", media_type=attachment.mime_type, headers=headers)
@@ -451,20 +454,20 @@ def _validate_attachment_download_token(token: str, attachment_id: UUID) -> UUID
     except TokenError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Р РЋРЎРѓРЎвЂ№Р В»Р С”Р В° Р Р…Р В° РЎРѓР С”Р В°РЎвЂЎР С‘Р Р†Р В°Р Р…Р С‘Р Вµ Р Р…Р ВµР Т‘Р ВµР в„–РЎРѓРЎвЂљР Р†Р С‘РЎвЂљР ВµР В»РЎРЉР Р…Р В° Р С‘Р В»Р С‘ Р С‘РЎРѓРЎвЂљР ВµР С”Р В»Р В°",
+            detail="Ссылка на скачивание недействительна или истекла",
         ) from exc
 
     if payload.get("typ") != ATTACHMENT_DOWNLOAD_TOKEN_TYPE or payload.get("aid") != str(attachment_id):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Р РЋРЎРѓРЎвЂ№Р В»Р С”Р В° Р Р…Р В° РЎРѓР С”Р В°РЎвЂЎР С‘Р Р†Р В°Р Р…Р С‘Р Вµ Р Р…Р ВµР Т‘Р ВµР в„–РЎРѓРЎвЂљР Р†Р С‘РЎвЂљР ВµР В»РЎРЉР Р…Р В°",
+            detail="Ссылка на скачивание недействительна",
         )
 
     user_id_raw = payload.get("uid")
     if not isinstance(user_id_raw, str):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Р РЋРЎРѓРЎвЂ№Р В»Р С”Р В° Р Р…Р В° РЎРѓР С”Р В°РЎвЂЎР С‘Р Р†Р В°Р Р…Р С‘Р Вµ Р Р…Р ВµР Т‘Р ВµР в„–РЎРѓРЎвЂљР Р†Р С‘РЎвЂљР ВµР В»РЎРЉР Р…Р В°",
+            detail="Ссылка на скачивание недействительна",
         )
 
     try:
@@ -472,7 +475,7 @@ def _validate_attachment_download_token(token: str, attachment_id: UUID) -> UUID
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Р РЋРЎРѓРЎвЂ№Р В»Р С”Р В° Р Р…Р В° РЎРѓР С”Р В°РЎвЂЎР С‘Р Р†Р В°Р Р…Р С‘Р Вµ Р Р…Р ВµР Т‘Р ВµР в„–РЎРѓРЎвЂљР Р†Р С‘РЎвЂљР ВµР В»РЎРЉР Р…Р В°",
+            detail="Ссылка на скачивание недействительна",
         ) from exc
 
 
@@ -480,7 +483,7 @@ def _parse_message_reaction_kind(reaction_code: str) -> MessageReactionKind:
     try:
         return MessageReactionKind(reaction_code)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="РќРµРёР·РІРµСЃС‚РЅР°СЏ СЂРµР°РєС†РёСЏ") from exc
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Неизвестная реакция") from exc
 
 
 def _resolve_target_read_message(
@@ -491,7 +494,7 @@ def _resolve_target_read_message(
     if last_message_id is not None:
         target_message = db.get(Message, last_message_id)
         if target_message is None or target_message.channel_id != channel.id:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="РЎРѕРѕР±С‰РµРЅРёРµ РґР»СЏ РѕС‚РјРµС‚РєРё РїСЂРѕС‡С‚РµРЅРёСЏ РЅРµ РЅР°Р№РґРµРЅРѕ")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Сообщение для отметки прочтения не найдено")
         return target_message
 
     return db.execute(
@@ -506,17 +509,18 @@ def _resolve_target_read_message(
 def list_channel_messages(
     channel_id: UUID,
     before: UUID | None = Query(default=None),
+    after: UUID | None = Query(default=None),
     from_message_id: UUID | None = Query(default=None, alias="from"),
     limit: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> ChannelMessagesPage:
     channel = _get_accessible_message_channel(db, channel_id, current_user)
-    if before is not None and from_message_id is not None:
+    if sum(value is not None for value in (before, after, from_message_id)) > 1:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Нельзя одновременно использовать before и from")
 
-    if from_message_id is not None:
-        anchor_message = db.get(Message, from_message_id)
+    if from_message_id is not None or after is not None:
+        anchor_message = db.get(Message, from_message_id or after)
         if anchor_message is None or anchor_message.channel_id != channel.id:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Сообщение-якорь не найдено")
 
@@ -526,14 +530,16 @@ def list_channel_messages(
                 Message.channel_id == channel.id,
                 or_(
                     Message.created_at > anchor_message.created_at,
-                    and_(Message.created_at == anchor_message.created_at, Message.id >= anchor_message.id),
+                    and_(Message.created_at == anchor_message.created_at, Message.id > anchor_message.id if after else Message.id >= anchor_message.id),
                 ),
             )
             .options(*_message_load_options())
             .order_by(Message.created_at.asc(), Message.id.asc())
-            .limit(limit)
+            .limit(limit + 1)
         ).unique().scalars().all()
 
+        has_newer = len(page_rows) > limit
+        page_rows = page_rows[:limit]
         first_visible_message = page_rows[0] if page_rows else anchor_message
         has_more = db.execute(
             select(Message.id)
@@ -552,6 +558,8 @@ def list_channel_messages(
             items=[_build_message_summary(message, current_user.id) for message in page_rows],
             has_more=has_more,
             next_before=next_before,
+            has_newer=has_newer,
+            next_after=page_rows[-1].id if has_newer and page_rows else None,
         )
 
     statement = (
@@ -564,7 +572,7 @@ def list_channel_messages(
     if before is not None:
         cursor_message = db.get(Message, before)
         if cursor_message is None or cursor_message.channel_id != channel.id:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="РљСѓСЂСЃРѕСЂ СЃРѕРѕР±С‰РµРЅРёР№ РЅРµ РЅР°Р№РґРµРЅ")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Курсор сообщений не найден")
 
         statement = statement.where(
             or_(
@@ -623,6 +631,7 @@ async def create_channel_message(
     channel_id: UUID,
     content: str = Form(default=""),
     reply_to_message_id: UUID | None = Form(default=None),
+    client_message_id: UUID | None = Form(default=None),
     files: list[UploadFile] | None = File(default=None),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -630,22 +639,41 @@ async def create_channel_message(
     channel = _get_accessible_message_channel(db, channel_id, current_user)
 
     normalized_content = content.strip()
+    if len(normalized_content) > 20000:
+        raise HTTPException(status_code=413, detail="Сообщение слишком длинное")
+    if client_message_id is not None:
+        # Serialize retries of this nonce before writing any attachment files.
+        if db.bind.dialect.name == "postgresql":
+            await asyncio.to_thread(db.execute, text("SELECT pg_advisory_xact_lock(:key)"), {"key": int.from_bytes(client_message_id.bytes[:8], "big", signed=True)})
+        previous = db.execute(select(Message.id).where(
+            Message.author_id == current_user.id, Message.client_message_id == client_message_id,
+        )).scalar_one_or_none()
+        if previous:
+            original = _load_message(db, previous)
+            if original.channel_id != channel.id or original.content != normalized_content or original.reply_to_message_id != reply_to_message_id:
+                raise HTTPException(status_code=409, detail="Идентификатор отправки уже использован")
+            for upload in files or []:
+                await upload.close()
+            return _build_message_summary(original, current_user.id)
     uploads = [upload for upload in (files or []) if upload.filename]
+    if len(uploads) > 10:
+        raise HTTPException(status_code=413, detail="Не более 10 вложений в сообщении")
     if not normalized_content and not uploads:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="РќСѓР¶РЅРѕ РѕС‚РїСЂР°РІРёС‚СЊ С‚РµРєСЃС‚ СЃРѕРѕР±С‰РµРЅРёСЏ РёР»Рё С…РѕС‚СЏ Р±С‹ РѕРґРёРЅ С„Р°Р№Р»",
+            detail="Нужно отправить текст сообщения или хотя бы один файл",
         )
 
     reply_to_message: Message | None = None
     if reply_to_message_id is not None:
         reply_to_message = db.get(Message, reply_to_message_id)
         if reply_to_message is None or reply_to_message.channel_id != channel.id:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="РЎРѕРѕР±С‰РµРЅРёРµ РґР»СЏ РѕС‚РІРµС‚Р° РЅРµ РЅР°Р№РґРµРЅРѕ")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Сообщение для ответа не найдено")
 
     message = Message(
         channel_id=channel.id,
         author_id=current_user.id,
+        client_message_id=client_message_id,
         reply_to_message_id=reply_to_message.id if reply_to_message else None,
         content=normalized_content,
         type=MessageType.TEXT,
@@ -669,6 +697,14 @@ async def create_channel_message(
 
     created_storage_paths: list[str] = []
     try:
+        remaining_upload_bytes = get_settings().max_message_upload_bytes
+        if uploads:
+            # Lock the author's quota until this message commits, including concurrent uploads.
+            await asyncio.to_thread(db.execute, text("SELECT pg_advisory_xact_lock(:key)"), {"key": int.from_bytes(current_user.id.bytes[:8], "big", signed=True)})
+            used_bytes = db.scalar(select(func.coalesce(func.sum(Attachment.size_bytes), 0)).join(Message, Message.id == Attachment.message_id).where(Message.author_id == current_user.id, Attachment.deleted_at.is_(None)))
+            remaining_upload_bytes = min(remaining_upload_bytes, get_settings().user_upload_quota_bytes - used_bytes)
+            if remaining_upload_bytes <= 0:
+                raise HTTPException(status_code=413, detail="Лимит хранения вложений исчерпан")
         for upload in uploads:
             attachment_id = uuid4()
             sanitized_filename = _sanitize_filename(upload.filename)
@@ -677,15 +713,16 @@ async def create_channel_message(
                     upload,
                     attachment_id=attachment_id,
                     filename=sanitized_filename,
-                    max_size_bytes=MAX_ATTACHMENT_SIZE_BYTES,
+                    max_size_bytes=min(MAX_ATTACHMENT_SIZE_BYTES, remaining_upload_bytes),
                 )
             except AttachmentTooLargeError as exc:
                 raise HTTPException(
                     status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                    detail=f"Р¤Р°Р№Р» {upload.filename!r} РїСЂРµРІС‹С€Р°РµС‚ Р»РёРјРёС‚ 500 РњР‘",
+                    detail=f"Файл {upload.filename!r} превышает лимит 500 МБ",
                 ) from exc
 
             created_storage_paths.append(stored_attachment.storage_path)
+            remaining_upload_bytes -= stored_attachment.size_bytes
 
             attachment = Attachment(
                 id=attachment_id,
@@ -699,6 +736,7 @@ async def create_channel_message(
             )
             db.add(attachment)
 
+        db.add(OutboxEvent(message_id=message.id))
         db.commit()
     except HTTPException:
         db.rollback()
@@ -716,17 +754,9 @@ async def create_channel_message(
 
     created_message = _load_message(db, message.id)
     if created_message is None:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="РЎРѕРѕР±С‰РµРЅРёРµ РЅРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Сообщение не удалось загрузить")
 
     message_summary = _build_message_summary(created_message, current_user.id)
-    await publish_message_created(channel.server_id, message_summary.model_dump(mode="json"))
-    await publish_message_push_notifications(
-        server_id=channel.server_id,
-        author_id=current_user.id,
-        author_nick=current_user.username,
-        content=created_message.content,
-        attachments_count=len(created_message.attachments),
-    )
     return message_summary
 
 
@@ -833,7 +863,7 @@ async def add_message_reaction(
 
     updated_message = _load_message(db, message.id)
     if updated_message is None:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="РќРµ СѓРґР°Р»РѕСЃСЊ РѕР±РЅРѕРІРёС‚СЊ СЂРµР°РєС†РёРё")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Не удалось обновить реакции")
 
     snapshot = _build_message_reactions_snapshot(updated_message, current_user.id)
     event_snapshot = _build_message_reactions_event_snapshot(updated_message)
@@ -870,7 +900,7 @@ def download_attachment_by_token(
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Р РЋРЎРѓРЎвЂ№Р В»Р С”Р В° Р Р…Р В° РЎРѓР С”Р В°РЎвЂЎР С‘Р Р†Р В°Р Р…Р С‘Р Вµ Р Р…Р ВµР Т‘Р ВµР в„–РЎРѓРЎвЂљР Р†Р С‘РЎвЂљР ВµР В»РЎРЉР Р…Р В°",
+            detail="Ссылка на скачивание недействительна",
         )
 
     attachment = _get_downloadable_attachment(db, attachment_id, user)
@@ -901,7 +931,7 @@ async def remove_message_reaction(
 
     updated_message = _load_message(db, message.id)
     if updated_message is None:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="РќРµ СѓРґР°Р»РѕСЃСЊ РѕР±РЅРѕРІРёС‚СЊ СЂРµР°РєС†РёРё")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Не удалось обновить реакции")
 
     snapshot = _build_message_reactions_snapshot(updated_message, current_user.id)
     event_snapshot = _build_message_reactions_event_snapshot(updated_message)
@@ -922,7 +952,7 @@ async def delete_attachment(
     attachment = _get_accessible_attachment(db, attachment_id, current_user)
     message = db.get(Message, attachment.message_id)
     if message is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Р¤Р°Р№Р» РЅРµ РЅР°Р№РґРµРЅ")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Файл не найден")
 
     if message.author_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Можно удалить только свой файл")

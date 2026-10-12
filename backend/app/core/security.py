@@ -43,11 +43,12 @@ def verify_password(password: str, password_hash: str) -> bool:
     return hmac.compare_digest(derived, expected)
 
 
-def create_access_token(subject: str, secret_key: str, expires_in_minutes: int) -> str:
+def create_access_token(subject: str, secret_key: str, expires_in_minutes: int, *, session_id: str | None = None) -> str:
     header = {"alg": "HS256", "typ": "JWT"}
     now = int(time.time())
     payload = {
         "sub": subject,
+        "sid": session_id,
         "iat": now,
         "exp": now + expires_in_minutes * 60,
     }
@@ -75,43 +76,32 @@ def create_signed_token(payload: dict[str, Any], secret_key: str, expires_in_sec
     return f"{header_segment}.{payload_segment}.{_b64url_encode(signature)}"
 
 
-def decode_access_token(token: str, secret_key: str) -> dict[str, Any]:
+def _decode_token(token: str, secret_key: str, expected_type: str) -> dict[str, Any]:
     try:
-        header_segment, payload_segment, signature_segment = token.split(".", maxsplit=2)
-    except ValueError as exc:
-        raise TokenError("Malformed access token") from exc
+        if not isinstance(token, str) or len(token) > 8192:
+            raise ValueError("Invalid token length")
+        header_segment, payload_segment, signature_segment = token.split(".")
+        header = json.loads(_b64url_decode(header_segment))
+        if header != {"alg": "HS256", "typ": expected_type}:
+            raise ValueError("Invalid token type")
+        signing_input = f"{header_segment}.{payload_segment}".encode("ascii")
+        expected = hmac.new(secret_key.encode("utf-8"), signing_input, hashlib.sha256).digest()
+        if not hmac.compare_digest(expected, _b64url_decode(signature_segment)):
+            raise ValueError("Invalid signature")
+        payload = json.loads(_b64url_decode(payload_segment))
+        if not isinstance(payload, dict):
+            raise ValueError("Invalid payload")
+        expires = payload.get("exp")
+        if type(expires) is not int or expires <= int(time.time()):
+            raise ValueError("Expired token")
+        return payload
+    except (ValueError, TypeError, UnicodeError, KeyError) as exc:
+        raise TokenError("Invalid or expired token") from exc
 
-    signing_input = f"{header_segment}.{payload_segment}".encode("ascii")
-    expected_signature = hmac.new(secret_key.encode("utf-8"), signing_input, hashlib.sha256).digest()
 
-    if not hmac.compare_digest(expected_signature, _b64url_decode(signature_segment)):
-        raise TokenError("Invalid access token signature")
-
-    payload = json.loads(_b64url_decode(payload_segment).decode("utf-8"))
-    expires_at = payload.get("exp")
-
-    if not isinstance(expires_at, int) or expires_at < int(time.time()):
-        raise TokenError("Access token has expired")
-
-    return payload
+def decode_access_token(token: str, secret_key: str) -> dict[str, Any]:
+    return _decode_token(token, secret_key, "JWT")
 
 
 def decode_signed_token(token: str, secret_key: str) -> dict[str, Any]:
-    try:
-        header_segment, payload_segment, signature_segment = token.split(".", maxsplit=2)
-    except ValueError as exc:
-        raise TokenError("Malformed signed token") from exc
-
-    signing_input = f"{header_segment}.{payload_segment}".encode("ascii")
-    expected_signature = hmac.new(secret_key.encode("utf-8"), signing_input, hashlib.sha256).digest()
-
-    if not hmac.compare_digest(expected_signature, _b64url_decode(signature_segment)):
-        raise TokenError("Invalid signed token signature")
-
-    payload = json.loads(_b64url_decode(payload_segment).decode("utf-8"))
-    expires_at = payload.get("exp")
-
-    if not isinstance(expires_at, int) or expires_at < int(time.time()):
-        raise TokenError("Signed token has expired")
-
-    return payload
+    return _decode_token(token, secret_key, "SIGNED")

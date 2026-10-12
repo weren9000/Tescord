@@ -101,7 +101,7 @@ class User(TimestampMixin, Base):
     avatar_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, server_default="false")
 
-    owned_servers: Mapped[list["Server"]] = relationship(back_populates="owner")
+    owned_servers: Mapped[list["Server"]] = relationship(back_populates="owner", passive_deletes=True)
     memberships: Mapped[list["ServerMember"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     messages: Mapped[list["Message"]] = relationship(back_populates="author", cascade="all, delete-orphan")
     message_reactions: Mapped[list["MessageReaction"]] = relationship(
@@ -112,7 +112,7 @@ class User(TimestampMixin, Base):
         back_populates="user",
         cascade="all, delete-orphan",
     )
-    created_channels: Mapped[list["Channel"]] = relationship(back_populates="created_by")
+    created_channels: Mapped[list["Channel"]] = relationship(back_populates="created_by", passive_deletes=True)
     voice_permissions: Mapped[list["VoiceChannelAccess"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     requested_voice_joins: Mapped[list["VoiceJoinRequest"]] = relationship(
         back_populates="requester",
@@ -348,7 +348,8 @@ class ConversationPushSetting(Base):
 
 class Message(TimestampMixin, Base):
     __tablename__ = "messages"
-    __table_args__ = (Index("ix_messages_channel_created_at", "channel_id", "created_at"),)
+    __table_args__ = (Index("ix_messages_channel_created_at", "channel_id", "created_at"),
+                      UniqueConstraint("author_id", "client_message_id", name="uq_messages_author_client"),)
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     channel_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("channels.id", ondelete="CASCADE"), nullable=False)
@@ -357,6 +358,7 @@ class Message(TimestampMixin, Base):
         ForeignKey("messages.id", ondelete="SET NULL"),
         nullable=True,
     )
+    client_message_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     type: Mapped[MessageType] = mapped_column(
         Enum(MessageType, name="messagetype", values_callable=enum_values),
@@ -503,3 +505,21 @@ class VoiceJoinRequest(TimestampMixin, Base):
 
     channel: Mapped["Channel"] = relationship(back_populates="voice_join_requests")
     requester: Mapped["User"] = relationship(back_populates="requested_voice_joins")
+
+
+class AuthSession(Base):
+    __tablename__ = "auth_sessions"
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class OutboxEvent(Base):
+    __tablename__ = "outbox_events"
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    message_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("messages.id", ondelete="CASCADE"), unique=True)
+    attempts: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    available_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
+    delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

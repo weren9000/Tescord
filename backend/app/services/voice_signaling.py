@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Any
 from uuid import uuid4
 
+from starlette.websockets import WebSocketState
 from fastapi import WebSocket
 
 
@@ -62,7 +63,8 @@ class VoiceSignalingManager:
             owner_muted=owner_muted,
         )
 
-        await websocket.accept()
+        if websocket.application_state != WebSocketState.CONNECTED:
+            await websocket.accept()
 
         async with self._lock:
             room = self._rooms.setdefault(channel_id, {})

@@ -1,3 +1,4 @@
+import { authenticatedWebSocket } from './authenticated-websocket';
 import { Injectable, computed, signal } from '@angular/core';
 
 import { VOICE_ICE_SERVERS, WS_BASE_URL } from '../api/api-base';
@@ -412,8 +413,8 @@ export class DirectCallService {
       return;
     }
 
-    const websocketUrl = `${WS_BASE_URL}/api/calls/ws?token=${encodeURIComponent(this.currentToken)}`;
-    const socket = new WebSocket(websocketUrl);
+    const websocketUrl = `${WS_BASE_URL}/api/calls/ws`;
+    const socket = authenticatedWebSocket(websocketUrl, this.currentToken);
     this.socket = socket;
 
     socket.addEventListener('open', () => {

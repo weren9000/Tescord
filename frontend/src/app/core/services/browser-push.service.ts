@@ -233,7 +233,7 @@ export class BrowserPushService {
     return 'Не удалось подготовить push-уведомления в браузере';
   }
 
-  private urlBase64ToUint8Array(base64String: string): Uint8Array {
+  private urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
     const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
     const normalized = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
     const rawData = window.atob(normalized);

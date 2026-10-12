@@ -96,14 +96,15 @@ def _send_web_push(
             data=json.dumps(payload, ensure_ascii=False),
             vapid_private_key=settings.push_vapid_private_key_path,
             vapid_claims={"sub": settings.push_vapid_subject},
+            timeout=5,
         )
         return True, None
     except WebPushException as exc:
         status_code = getattr(getattr(exc, "response", None), "status_code", None)
-        logger.warning("Push delivery failed for subscription %s: %s", target.subscription_id, exc)
+        logger.warning("Push delivery failed for subscription %s: HTTP %s", target.subscription_id, status_code)
         return False, status_code
     except Exception:
-        logger.exception("Unexpected push delivery failure for subscription %s", target.subscription_id)
+        logger.warning("Unexpected push delivery failure for subscription %s", target.subscription_id)
         return False, None
 
 
@@ -192,14 +193,18 @@ async def publish_message_push_notifications(
     )
 
     stale_subscription_ids: list[UUID] = []
+    retry_required = False
     for target, result in zip(targets, results, strict=False):
         if isinstance(result, Exception):
-            logger.exception("Push delivery task failed for subscription %s", target.subscription_id, exc_info=result)
+            logger.warning("Push delivery task failed for subscription %s", target.subscription_id)
+            retry_required = True
             continue
 
         delivered, status_code = result
         if not delivered and status_code in {404, 410}:
             stale_subscription_ids.append(target.subscription_id)
+        elif not delivered and (status_code is None or status_code == 429 or status_code >= 500):
+            retry_required = True
 
     if stale_subscription_ids:
         with SessionLocal() as db:
@@ -209,3 +214,5 @@ async def publish_message_push_notifications(
             for subscription in subscriptions:
                 db.delete(subscription)
             db.commit()
+    if retry_required:
+        raise RuntimeError("Transient push delivery failure")

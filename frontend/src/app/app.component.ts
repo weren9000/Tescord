@@ -1,4 +1,5 @@
-﻿import { HttpErrorResponse } from '@angular/common/http';
+import { synchronizeMessages } from './core/services/message-sync';
+import { HttpErrorResponse } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
 import { Component, DestroyRef, ElementRef, ViewChild, computed, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -11,6 +12,7 @@ import {
   distinctUntilChanged,
   exhaustMap,
   finalize,
+  firstValueFrom,
   forkJoin,
   mergeMap,
   of,
@@ -19,7 +21,7 @@ import {
   tap
 } from 'rxjs';
 
-import { AuthApiService } from './core/api/auth-api.service';
+import { AuthFormStore } from './core/services/auth-form.store';
 import { API_BASE_URL } from './core/api/api-base';
 import { SystemApiService } from './core/api/system-api.service';
 import { WorkspaceApiService, WorkspaceMessageUploadEvent } from './core/api/workspace-api.service';
@@ -49,7 +51,7 @@ import {
   AppVoicePresenceUpdatedEvent,
   AppVoiceRequestResolvedEvent
 } from './core/models/app-events.models';
-import { AuthLoginRequest, AuthRegisterRequest, AuthSessionResponse } from './core/models/auth.models';
+import { AuthSessionResponse } from './core/models/auth.models';
 import { ApiHealthResponse } from './core/models/system.models';
 import {
   AddWorkspaceMemberRequest,
@@ -101,18 +103,6 @@ type VoiceVideoLayoutMode = 'grid-1' | 'grid-2' | 'grid-4' | 'grid-6' | 'grid-9'
 type CallSurfaceKind = 'direct' | 'group' | 'platform';
 type VoiceCallSurfaceKind = Exclude<CallSurfaceKind, 'direct'>;
 type CallWindowMode = 'expanded' | 'minimized';
-
-interface LoginFormModel {
-  email: string;
-  password: string;
-}
-
-interface RegisterFormModel {
-  email: string;
-  password: string;
-  password_confirmation: string;
-  nick: string;
-}
 
 interface CreateGroupFormModel {
   name: string;
@@ -388,6 +378,7 @@ interface SendMessageTrigger {
     content: string;
     files: File[];
     replyToMessageId?: string | null;
+    clientMessageId: string;
   };
 }
 
@@ -614,15 +605,15 @@ const DEFAULT_SERVER_ICON_ASSET_BY_NAME: Record<string, string> = {
 };
 
 @Component({
-  selector: 'app-root',
-  standalone: true,
-  imports: [CommonModule, FormsModule, MediaStreamSrcDirective],
-  templateUrl: './app.component.html',
-  styleUrl: './app.component.scss'
+  providers: [AuthFormStore],
+    selector: 'app-root',
+    imports: [CommonModule, FormsModule, MediaStreamSrcDirective],
+    templateUrl: './app.component.html',
+    styleUrl: './app.component.scss'
 })
 export class AppComponent {
   private readonly systemApi = inject(SystemApiService);
-  private readonly authApi = inject(AuthApiService);
+  private readonly authForm = inject(AuthFormStore);
   private readonly workspaceApi = inject(WorkspaceApiService);
   private readonly appEvents = inject(AppEventsService);
   private readonly browserPush = inject(BrowserPushService);
@@ -657,8 +648,6 @@ export class AppComponent {
   private voiceJoinRequestPollIntervalId: number | null = null;
   private voiceJoinInboxPollIntervalId: number | null = null;
   private lastPresenceHeartbeatAt = 0;
-  private readonly loginSubmit$ = new Subject<AuthLoginRequest>();
-  private readonly registrationSubmit$ = new Subject<AuthRegisterRequest>();
   private readonly voiceAdminAccessMutation$ = new Subject<VoiceAdminAccessMutation>();
   private readonly sendFriendRequestTrigger$ = new Subject<SendFriendRequestTrigger>();
   private readonly respondFriendRequestTrigger$ = new Subject<RespondFriendRequestTrigger>();
@@ -672,6 +661,8 @@ export class AppComponent {
   private readonly createGroupSubmit$ = new Subject<CreateGroupTrigger>();
   private readonly createChannelSubmit$ = new Subject<CreateChannelTrigger>();
   private readonly deleteChannelTrigger$ = new Subject<DeleteChannelTrigger>();
+  private messageRefreshInFlight = false;
+  private readonly pendingMessageIds = new Map<string, { signature: string; id: string }>();
   private readonly sendMessageTrigger$ = new Subject<SendMessageTrigger>();
   private readonly cancelMessageUploadTrigger$ = new Subject<void>();
   private readonly markChannelReadTrigger$ = new Subject<MarkChannelReadTrigger>();
@@ -803,13 +794,13 @@ export class AppComponent {
 
   readonly health = signal<ApiHealthResponse | null>(null);
   readonly healthError = signal<string | null>(null);
-  readonly authError = signal<string | null>(null);
+  readonly authError = this.authForm.error;
   readonly workspaceError = signal<string | null>(null);
   readonly messageError = signal<string | null>(null);
   readonly managementError = signal<string | null>(null);
   readonly managementSuccess = signal<string | null>(null);
   readonly pushFeedback = signal<{ tone: PushFeedbackTone; message: string } | null>(null);
-  readonly authLoading = signal(false);
+  readonly authLoading = this.authForm.loading;
   readonly workspaceLoading = signal(false);
   readonly messagesLoading = signal(false);
   readonly messagesLoadingMore = signal(false);
@@ -852,7 +843,7 @@ export class AppComponent {
   readonly createChannelLoading = signal(false);
   readonly conversationPushPendingId = signal<string | null>(null);
   readonly deletingChannelId = signal<string | null>(null);
-  readonly authMode = signal<AuthMode>('login');
+  readonly authMode = this.authForm.mode;
   readonly directCallScreenExpanded = signal(false);
   readonly callWindowMode = signal<CallWindowMode>('expanded');
   readonly callDockVolumeOpen = signal(false);
@@ -965,17 +956,8 @@ export class AppComponent {
   });
   readonly activeConversationPushEnabled = computed(() => this.activeConversation()?.push_enabled === true);
 
-  readonly loginForm: LoginFormModel = {
-    email: '',
-    password: ''
-  };
-
-  readonly registerForm: RegisterFormModel = {
-    email: '',
-    password: '',
-    password_confirmation: '',
-    nick: ''
-  };
+  readonly loginForm = this.authForm.loginForm;
+  readonly registerForm = this.authForm.registerForm;
 
   readonly createGroupForm: CreateGroupFormModel = {
     name: '',
@@ -2234,7 +2216,7 @@ export class AppComponent {
         this.directCallScreenExpanded.set(false);
       }
       queueMicrotask(() => this.syncDirectCallScreenVideos());
-    }, { allowSignalWrites: true });
+    });
     effect(() => {
       const surfaceId = this.activeCallSurface()?.id ?? null;
       if (!surfaceId) {
@@ -2250,7 +2232,7 @@ export class AppComponent {
         this.callWindowMode.set('expanded');
         this.callDockVolumeOpen.set(false);
       }
-    }, { allowSignalWrites: true });
+    });
     effect(() => {
       const activeChannelId = this.voiceRoom.activeChannelId();
       if (!activeChannelId) {
@@ -2264,7 +2246,7 @@ export class AppComponent {
       if (visibleChannel) {
         this.activeVoiceCallSnapshot.set(this.buildVoiceCallSnapshot(visibleChannel));
       }
-    }, { allowSignalWrites: true });
+    });
     effect(() => {
       const media = this.fullscreenMedia();
       if (!media) {
@@ -2281,7 +2263,7 @@ export class AppComponent {
       if (!this.fullscreenMediaStillAvailable(media)) {
         queueMicrotask(() => this.closeFullscreenMedia());
       }
-    }, { allowSignalWrites: true });
+    });
     effect(() => {
       const candidates = this.composerMentionCandidates();
       const activeIndex = this.composerMentionActiveIndex();
@@ -2295,7 +2277,7 @@ export class AppComponent {
       if (activeIndex > candidates.length - 1) {
         queueMicrotask(() => this.composerMentionActiveIndex.set(0));
       }
-    }, { allowSignalWrites: true });
+    });
     this.bindActionPipelines();
     this.browserPush.navigationRequests$
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -2348,41 +2330,8 @@ export class AppComponent {
   }
 
   private bindAuthPipelines(): void {
-    this.loginSubmit$
-      .pipe(
-        exhaustMap((payload) =>
-          this.authApi.login(payload).pipe(
-            tap((session) => this.handleAuthenticatedSession(session)),
-            catchError((error) => {
-              this.authError.set(this.extractErrorMessage(error, 'Не удалось выполнить вход'));
-              return EMPTY;
-            }),
-            finalize(() => {
-              this.authLoading.set(false);
-            })
-          )
-        ),
-        takeUntilDestroyed(this.destroyRef)
-      )
-      .subscribe();
-
-    this.registrationSubmit$
-      .pipe(
-        exhaustMap((payload) =>
-          this.authApi.register(payload).pipe(
-            tap((session) => this.handleAuthenticatedSession(session)),
-            catchError((error) => {
-              this.authError.set(this.extractErrorMessage(error, 'Не удалось зарегистрироваться'));
-              return EMPTY;
-            }),
-            finalize(() => {
-              this.authLoading.set(false);
-            })
-          )
-        ),
-        takeUntilDestroyed(this.destroyRef)
-      )
-      .subscribe();
+    this.authForm.authenticated.pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(session => this.handleAuthenticatedSession(session));
   }
 
   private bindGlobalSearchPipeline(): void {
@@ -2928,6 +2877,8 @@ export class AppComponent {
 
               completed = true;
               const message = event.message;
+              this.pendingMessageIds.delete(channelId);
+              if (this.selectedChannelId() !== channelId) { return; }
               this.messageDraft.set('');
               this.pendingFiles.set([]);
               this.selectedReplyMessage.set(null);
@@ -2968,7 +2919,12 @@ export class AppComponent {
     this.markChannelReadTrigger$
       .pipe(
         switchMap(({ token, channelId, lastMessageId }) =>
-          this.workspaceApi.markChannelRead(token, channelId, lastMessageId).pipe(catchError(() => EMPTY))
+          this.workspaceApi.markChannelRead(token, channelId, lastMessageId).pipe(catchError(() => {
+            if (this.lastMarkedReadMessageIdByChannel.get(channelId) === lastMessageId) {
+              this.lastMarkedReadMessageIdByChannel.delete(channelId);
+            }
+            return EMPTY;
+          }))
         ),
         takeUntilDestroyed(this.destroyRef)
       )
@@ -3358,49 +3314,9 @@ export class AppComponent {
       .subscribe();
   }
 
-  switchAuthMode(mode: AuthMode): void {
-    this.authMode.set(mode);
-    this.authError.set(null);
-  }
-
-  submitLogin(): void {
-    const payload: AuthLoginRequest = {
-      email: this.loginForm.email.trim(),
-      password: this.loginForm.password
-    };
-
-    if (!payload.email || !payload.password) {
-      this.authError.set('Введите email и пароль');
-      return;
-    }
-
-    this.authLoading.set(true);
-    this.authError.set(null);
-    this.loginSubmit$.next(payload);
-  }
-
-  submitRegistration(): void {
-    const payload: AuthRegisterRequest = {
-      email: this.registerForm.email.trim(),
-      password: this.registerForm.password,
-      password_confirmation: this.registerForm.password_confirmation,
-      nick: this.registerForm.nick.trim()
-    };
-
-    if (!payload.email || !payload.password || !payload.password_confirmation || !payload.nick) {
-      this.authError.set('Заполните email, ник и оба поля пароля');
-      return;
-    }
-
-    if (payload.password !== payload.password_confirmation) {
-      this.authError.set('Пароли не совпадают');
-      return;
-    }
-
-    this.authLoading.set(true);
-    this.authError.set(null);
-    this.registrationSubmit$.next(payload);
-  }
+  switchAuthMode(mode: AuthMode): void { this.authForm.switchMode(mode); }
+  submitLogin(): void { this.authForm.submitLogin(); }
+  submitRegistration(): void { this.authForm.submitRegistration(); }
 
   openVoiceSettings(): void {
     this.closeMobilePanel();
@@ -6115,8 +6031,13 @@ export class AppComponent {
       content: this.messageDraft().trim(),
       files: this.pendingFiles(),
       replyToMessageId: this.selectedReplyMessage()?.id ?? null,
+      clientMessageId: '',
     };
     const channelId = activeChannel.id;
+    const signature = JSON.stringify([payload.content, payload.replyToMessageId, payload.files.map(file => [file.name, file.size, file.lastModified])]);
+    const pending = this.pendingMessageIds.get(channelId);
+    payload.clientMessageId = pending?.signature === signature ? pending.id : crypto.randomUUID();
+    this.pendingMessageIds.set(channelId, { signature, id: payload.clientMessageId });
 
     this.messageUploadCancelRequested = false;
     this.messageSubmitting.set(true);
@@ -6484,6 +6405,10 @@ export class AppComponent {
   }
 
   logout(): void {
+    const token = this.session()?.access_token;
+    if (token) {
+      void fetch(`${API_BASE_URL}/api/auth/logout`, { method: 'POST', headers: { Authorization: `Bearer ${token}` }, keepalive: true }).catch(() => undefined);
+    }
     this.authenticatedServicesStarted = false;
     this.appEvents.stop();
     this.directCall.stop();
@@ -7234,7 +7159,7 @@ export class AppComponent {
           // Local optimistic update is already applied above.
         },
         error: (error) => {
-          if (this.isUnauthorizedError(error)) {
+          if ((error instanceof HttpErrorResponse && error.status === 401)) {
             this.expireSession(error);
             return;
           }
@@ -7332,7 +7257,7 @@ export class AppComponent {
           this.activeOwnerRequestId.set(requests[0]?.id ?? null);
         },
         error: (error) => {
-          if (this.isUnauthorizedError(error)) {
+          if ((error instanceof HttpErrorResponse && error.status === 401)) {
             this.expireSession(error);
             return;
           }
@@ -7465,6 +7390,9 @@ export class AppComponent {
         await this.resyncAfterAppEventsReconnect();
         return;
       case 'pong':
+        return;
+      case 'resync_required':
+        await this.resyncAfterAppEventsReconnect();
         return;
       case 'error':
         return;
@@ -7651,7 +7579,7 @@ export class AppComponent {
       this.scrollMessagesToBottom();
     }
 
-    if (!isOwnMessage && isNearBottom) {
+    if (!isOwnMessage && isNearBottom && document.visibilityState === 'visible') {
       this.markChannelAsRead(event.message.channel_id, event.message.id);
       return;
     }
@@ -8352,7 +8280,7 @@ export class AppComponent {
       return;
     }
 
-    const message = this.isUnauthorizedError(error)
+    const message = (error instanceof HttpErrorResponse && error.status === 401)
       ? 'Сессия устарела. Войдите снова.'
       : this.extractErrorMessage(error, 'Сессия устарела. Войдите снова.');
     this.logout();
@@ -8528,7 +8456,7 @@ export class AppComponent {
           this.workspaceLoading.set(false);
         },
         error: (error) => {
-          if (this.isUnauthorizedError(error)) {
+          if ((error instanceof HttpErrorResponse && error.status === 401)) {
             this.expireSession(error);
             return;
           }
@@ -8711,7 +8639,9 @@ export class AppComponent {
               this.scrollMessagesToBottom();
             }
             const latestMessage = page.items.length ? page.items[page.items.length - 1] : null;
-            this.markChannelAsRead(channelId, latestMessage?.id ?? null);
+            if (!focusMessageId && document.visibilityState === 'visible') {
+              this.markChannelAsRead(channelId, latestMessage?.id ?? null);
+            }
           }
         },
         error: (error) => {
@@ -9053,64 +8983,33 @@ export class AppComponent {
     }
   }
 
-  private refreshCurrentChannelMessages(): void {
+  private async refreshCurrentChannelMessages(): Promise<void> {
     const token = this.session()?.access_token;
-    const activeChannel = this.activeMessagingChannel();
-    if (
-      !token
-      || !activeChannel
-      || (activeChannel.type !== 'text' && activeChannel.type !== 'voice')
-      || this.workspaceLoading()
-      || this.messagesLoading()
-      || this.messagesLoadingMore()
-    ) {
+    const channel = this.activeMessagingChannel();
+    if (!token || !channel || this.workspaceLoading() || this.messagesLoading() || this.messagesLoadingMore() || this.messageRefreshInFlight) {
       return;
     }
-
-    const channelId = activeChannel.id;
-    const listElement = this.messageListRef?.nativeElement;
-    const isNearBottom = !listElement || listElement.scrollHeight - listElement.scrollTop - listElement.clientHeight <= 80;
-
-    this.workspaceApi
-      .getMessages(token, channelId, MESSAGES_PAGE_SIZE)
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: (page) => {
-          if (this.selectedChannelId() !== channelId) {
-            return;
-          }
-
-          const existingMessages = this.messages();
-          if (!existingMessages.length) {
-            this.messages.set(page.items);
-            this.preloadInlineImagePreviews(page.items);
-            if (isNearBottom) {
-              this.scrollMessagesToBottom();
-            }
-            return;
-          }
-
-          const existingIds = new Set(existingMessages.map((message) => message.id));
-          const newItems = page.items.filter((message) => !existingIds.has(message.id));
-          if (!newItems.length) {
-            return;
-          }
-
-          this.messages.set(this.mergeMessagesChronologically([...existingMessages, ...page.items]));
-          this.preloadInlineImagePreviews(newItems);
-
-          if (isNearBottom) {
-            this.scrollMessagesToBottom();
-          }
-
-          const currentMessages = this.messages();
-          const latestMessage = currentMessages.length ? currentMessages[currentMessages.length - 1] : null;
-          this.markChannelAsRead(channelId, latestMessage?.id ?? null);
-        },
-        error: () => {
-          // Silent refresh should not interrupt reading with transient errors.
-        }
-      });
+    const channelId = channel.id;
+    const list = this.messageListRef?.nativeElement;
+    const nearBottom = !!list && list.scrollHeight - list.scrollTop - list.clientHeight <= 80;
+    this.messageRefreshInFlight = true;
+    try {
+      const synchronized = await synchronizeMessages(this.messages(), (from, after) => firstValueFrom(
+        this.workspaceApi.getMessages(token, channelId, 100, null, from, after).pipe(takeUntilDestroyed(this.destroyRef))
+      ), () => this.selectedChannelId() === channelId && this.session()?.access_token === token);
+      if (this.selectedChannelId() !== channelId || this.session()?.access_token !== token) { return; }
+      this.messages.set(this.mergeMessagesChronologically([...this.messages(), ...synchronized]));
+      this.preloadInlineImagePreviews(synchronized);
+      if (nearBottom && document.visibilityState === 'visible') {
+        this.scrollMessagesToBottom();
+        const latest = this.messages().at(-1);
+        this.markChannelAsRead(channelId, latest?.id ?? null);
+      }
+    } catch (error) {
+      if ((error instanceof HttpErrorResponse && error.status === 401)) { this.logout(); }
+    } finally {
+      this.messageRefreshInFlight = false;
+    }
   }
 
   private resetTextChannelState(): void {
@@ -9382,7 +9281,7 @@ export class AppComponent {
 
   private markChannelAsRead(channelId: string, lastMessageId: string | null): void {
     const token = this.session()?.access_token;
-    if (!token || !channelId || !lastMessageId) {
+    if (!token || !channelId || !lastMessageId || document.visibilityState !== 'visible') {
       return;
     }
 

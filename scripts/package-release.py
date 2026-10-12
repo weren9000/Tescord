@@ -1,0 +1,37 @@
+"""Package committed source and the production frontend build for deploy-release.sh."""
+import hashlib
+import io
+from pathlib import Path
+import subprocess
+import sys
+import tarfile
+
+root = Path(__file__).resolve().parents[1]
+if subprocess.check_output(['git', 'status', '--porcelain'], cwd=root).strip():
+    raise SystemExit('Commit reviewed source changes before packaging a release')
+revision = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=root, text=True).strip()
+output = Path(sys.argv[1]) if len(sys.argv) > 1 else root.parent / f'kva-{revision}.tar.gz'
+build = root / 'frontend/dist/frontend/browser'
+if not (build / 'index.html').is_file():
+    raise SystemExit('Run npm ci and npm run build in frontend first')
+source = subprocess.check_output(['git', 'archive', '--format=tar', 'HEAD'], cwd=root)
+checksums = []
+with tarfile.open(output, 'w:gz') as target:
+    with tarfile.open(fileobj=io.BytesIO(source)) as archive:
+        for entry in archive:
+            if not entry.isfile():
+                continue
+            content = archive.extractfile(entry).read()
+            target.addfile(entry, io.BytesIO(content))
+            checksums.append((entry.name, hashlib.sha256(content).hexdigest()))
+    for path in sorted(build.rglob('*')):
+        if path.is_file():
+            name = path.relative_to(root).as_posix()
+            target.add(path, arcname=name)
+            checksums.append((name, hashlib.sha256(path.read_bytes()).hexdigest()))
+    for name, content in [('SOURCE_REVISION', revision + '\n'), ('RELEASE.sha256', ''.join(f'{digest}  {name}\n' for name, digest in checksums))]:
+        data = content.encode()
+        entry = tarfile.TarInfo(name)
+        entry.size = len(data)
+        target.addfile(entry, io.BytesIO(data))
+print(f'{output}\nSHA256 {hashlib.sha256(output.read_bytes()).hexdigest()}')

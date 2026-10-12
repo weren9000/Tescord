@@ -68,7 +68,7 @@ async def update_current_user_profile(
                     detail="Поддерживаются только PNG и JPG аватарки",
                 )
 
-            payload = await avatar.read()
+            payload = await avatar.read(MAX_AVATAR_SIZE_BYTES + 1)
             if len(payload) > MAX_AVATAR_SIZE_BYTES:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,

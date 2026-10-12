@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+if [ -d /srv/tescord/app ]; then
+  echo "Existing installation detected. Use deploy-release.sh; bootstrap is for first installation only." >&2
+  exit 1
+fi
+
 : "${SERVER_HOST:?SERVER_HOST is required}"
 : "${APP_DOMAIN:?APP_DOMAIN is required}"
 : "${ENABLE_LETSENCRYPT:?ENABLE_LETSENCRYPT is required}"
@@ -98,6 +103,7 @@ rsync -a --delete \
   --exclude '.git' \
   --exclude 'backend/.venv' \
   --exclude 'backend/.env' \
+  --exclude 'backend/storage' \
   "${TEMP_EXTRACT_DIR}/" "${APP_DIR}/"
 
 chown -R tescord:tescord /srv/tescord
@@ -139,7 +145,9 @@ TESCORD_CORS_ORIGINS=${CORS_JSON}
 TESCORD_ALLOWED_HOSTS=${HOSTS_JSON}
 TESCORD_SECRET_KEY=${APP_SECRET}
 TESCORD_ACCESS_TOKEN_EXPIRE_MINUTES=10080
-TESCORD_SEED_DEMO_DATA=true
+TESCORD_SEED_DEMO_DATA=false
+TESCORD_RATE_LIMITS_ENABLED=true
+TESCORD_REDIS_URL=redis://127.0.0.1:6379/1
 TESCORD_DEMO_LOGIN=weren9000
 TESCORD_DEMO_NICK=weren9000
 TESCORD_DEMO_FULL_NAME=Верен Чебыкин
@@ -164,6 +172,7 @@ fi
 mkdir -p "${LIVEKIT_CONFIG_DIR}"
 cat > "${LIVEKIT_CONFIG_PATH}" <<EOF
 port: 7880
+bind_addresses: [127.0.0.1]
 redis:
   address: 127.0.0.1:6379
 rtc:

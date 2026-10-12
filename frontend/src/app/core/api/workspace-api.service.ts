@@ -420,6 +420,7 @@ export class WorkspaceApiService {
     limit: number,
     before?: string | null,
     fromMessageId?: string | null,
+    afterMessageId?: string | null,
   ): Observable<WorkspaceMessagePage> {
     let params = new HttpParams().set('limit', limit);
     if (before) {
@@ -427,6 +428,9 @@ export class WorkspaceApiService {
     }
     if (fromMessageId) {
       params = params.set('from', fromMessageId);
+    }
+    if (afterMessageId) {
+      params = params.set('after', afterMessageId);
     }
 
     return this.http.get<WorkspaceMessagePage>(`${API_BASE_URL}/api/channels/${channelId}/messages`, {
@@ -458,10 +462,12 @@ export class WorkspaceApiService {
       content: string;
       files: File[];
       replyToMessageId?: string | null;
+      clientMessageId: string;
     }
   ): Observable<WorkspaceMessageUploadEvent> {
     const formData = new FormData();
     formData.append('content', payload.content);
+    formData.append('client_message_id', payload.clientMessageId);
     if (payload.replyToMessageId) {
       formData.append('reply_to_message_id', payload.replyToMessageId);
     }

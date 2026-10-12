@@ -23,6 +23,8 @@ def ensure_development_seed_data() -> None:
     settings = get_settings()
     if settings.environment != "development" or not settings.seed_demo_data:
         return
+    if not settings.demo_password:
+        raise ValueError("Set an explicit demo_password to create development data")
 
     with SessionLocal() as db:
         user = db.execute(
@@ -50,8 +52,6 @@ def ensure_development_seed_data() -> None:
             user.email = settings.demo_login.lower()
             user.username = settings.demo_nick
             user.is_admin = settings.demo_is_admin
-            if not verify_password(settings.demo_password, user.password_hash):
-                user.password_hash = hash_password(settings.demo_password)
 
         server_slug = _slugify(settings.demo_server_name)
         server = db.execute(select(Server).where(Server.slug == server_slug)).scalar_one_or_none()

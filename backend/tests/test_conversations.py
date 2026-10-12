@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from uuid import uuid4
 
@@ -11,6 +11,7 @@ from test_auth_workspace import (
     delete_user,
     get_current_user_profile,
     login_admin_user,
+    make_friends,
     register_regular_user,
 )
 
@@ -19,6 +20,7 @@ def test_open_direct_conversation_creates_single_shared_chat() -> None:
     with TestClient(app) as client:
         admin_token = login_admin_user(client)
         user_token, payload = register_regular_user(client)
+        make_friends(client, admin_token, user_token)
         conversation_id = None
 
         try:
@@ -59,6 +61,7 @@ def test_open_direct_conversation_by_public_id() -> None:
     with TestClient(app) as client:
         admin_token = login_admin_user(client)
         user_token, payload = register_regular_user(client)
+        make_friends(client, admin_token, user_token)
         conversation_id = None
 
         try:
@@ -84,6 +87,7 @@ def test_conversation_messages_are_private_to_members() -> None:
     with TestClient(app) as client:
         admin_token = login_admin_user(client)
         user_token, payload = register_regular_user(client)
+        make_friends(client, admin_token, user_token)
         outsider_token, outsider_payload = register_regular_user(client)
 
         conversation_id = None
@@ -103,7 +107,7 @@ def test_conversation_messages_are_private_to_members() -> None:
             message_response = client.post(
                 f"/api/channels/{channel_id}/messages",
                 headers={"Authorization": f"Bearer {admin_token}"},
-                data={"content": "РџСЂРёРІРµС‚ РёР· Р»РёС‡РЅРѕРіРѕ С‡Р°С‚Р°"},
+                data={"content": "Привет из личного чата"},
             )
             assert message_response.status_code == 201
 
@@ -112,7 +116,7 @@ def test_conversation_messages_are_private_to_members() -> None:
                 headers={"Authorization": f"Bearer {user_token}"},
             )
             assert member_messages_response.status_code == 200
-            assert member_messages_response.json()["items"][0]["content"] == "РџСЂРёРІРµС‚ РёР· Р»РёС‡РЅРѕРіРѕ С‡Р°С‚Р°"
+            assert member_messages_response.json()["items"][0]["content"] == "Привет из личного чата"
 
             outsider_messages_response = client.get(
                 f"/api/channels/{channel_id}/messages",
@@ -146,7 +150,7 @@ def test_user_can_create_group_conversation() -> None:
                 "/api/conversations/group",
                 headers={"Authorization": f"Bearer {owner_token}"},
                 json={
-                    "name": f"РњРёРЅРё-РіСЂСѓРїРїР° {uuid4().hex[:6]}",
+                    "name": f"Мини-группа {uuid4().hex[:6]}",
                     "member_ids": [member_one_profile["id"], member_two_profile["id"]],
                 },
             )

@@ -1,9 +1,16 @@
 from __future__ import annotations
 
+from app.api.dependencies.websocket_auth import authenticate_websocket, receive_authenticated_json
+
 from datetime import timedelta
+import json
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Response, WebSocket, WebSocketDisconnect, status
+from fastapi.security import HTTPAuthorizationCredentials
+from app.api.dependencies.auth import bearer_scheme
+from app.core.security import decode_access_token
+from app.services.voice_sfu import enforce_participant, media_permission
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -139,7 +146,7 @@ def _require_voice_join_access(
     return membership, access, membership_created
 
 
-def _build_voice_sfu_token(channel: Channel, current_user: User) -> VoiceSfuTokenResponse:
+def _build_voice_sfu_token(channel: Channel, current_user: User, *, owner_muted: bool = False, session_id: str) -> VoiceSfuTokenResponse:
     if not settings.livekit_enabled or livekit_api is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -151,12 +158,13 @@ def _build_voice_sfu_token(channel: Channel, current_user: User) -> VoiceSfuToke
         livekit_api.AccessToken(settings.livekit_api_key, settings.livekit_api_secret)
         .with_identity(str(current_user.id))
         .with_name(current_user.username)
-        .with_ttl(timedelta(minutes=30))
+        .with_metadata(json.dumps({"session_id": session_id}))
+        .with_ttl(timedelta(minutes=5))
         .with_grants(
             livekit_api.VideoGrants(
                 room_join=True,
                 room=room_name,
-                can_publish=True,
+                can_publish=not owner_muted,
                 can_subscribe=True,
             )
         )
@@ -545,6 +553,8 @@ async def update_voice_channel_access(
 
         db.delete(current_access)
         db.commit()
+        await enforce_participant(channel.id, user_id, can_publish=None)
+        await voice_signaling_manager.disconnect_user_sessions(str(channel.id), str(user_id))
         entries = await _load_channel_access_entries(db, channel.id)
         await publish_channels_updated(channel.server_id, reason="voice_access_changed")
         await publish_voice_presence_updated(channel.server_id)
@@ -563,6 +573,7 @@ async def update_voice_channel_access(
     _upsert_voice_access(db, channel, target_user, next_role)
     db.commit()
     if next_role == VoiceAccessRole.STRANGER:
+        await enforce_participant(channel.id, user_id, can_publish=None)
         await voice_signaling_manager.disconnect_user_sessions(str(channel.id), str(user_id))
     entries = await _load_channel_access_entries(db, channel.id)
     await publish_channels_updated(channel.server_id, reason="voice_access_changed")
@@ -787,9 +798,9 @@ async def kick_voice_participant(
     if access.role == VoiceAccessRole.OWNER:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Нельзя выгнать владельца канала")
 
-    if access.role in {VoiceAccessRole.GUEST, VoiceAccessRole.STRANGER}:
-        block_guest_access(access)
-        db.commit()
+    block_guest_access(access)
+    db.commit()
+    await enforce_participant(channel.id, user_id, can_publish=None)
     await voice_signaling_manager.disconnect_user_sessions(str(channel.id), str(user_id))
     await publish_channels_updated(channel.server_id, reason="voice_access_changed")
     await publish_voice_presence_updated(channel.server_id)
@@ -816,6 +827,7 @@ async def update_voice_participant_owner_mute(
 
     access.owner_muted = payload.owner_muted
     db.commit()
+    await enforce_participant(channel.id, user_id, can_publish=not access.owner_muted)
 
     await voice_signaling_manager.update_owner_mute_state(str(channel.id), str(user_id), access.owner_muted)
     await publish_voice_presence_updated(channel.server_id)
@@ -825,31 +837,40 @@ async def update_voice_participant_owner_mute(
 @router.post("/channels/{channel_id}/sfu-token", response_model=VoiceSfuTokenResponse)
 async def create_voice_sfu_token(
     channel_id: UUID,
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> VoiceSfuTokenResponse:
     channel = _get_voice_channel_or_404(db, channel_id)
-    _, _, membership_created = _require_voice_join_access(db, channel, current_user)
+    _, access, membership_created = _require_voice_join_access(db, channel, current_user)
     if membership_created:
         await publish_members_updated(channel.server_id, reason="member_joined")
 
-    return _build_voice_sfu_token(channel, current_user)
+    session_id = decode_access_token(credentials.credentials, settings.secret_key)["sid"]
+    return _build_voice_sfu_token(channel, current_user, owner_muted=bool(access and access.owner_muted), session_id=session_id)
+
+
+@router.get("/authorize-sfu", include_in_schema=False)
+def authorize_sfu(x_sfu_token: str = Header(default="")) -> Response:
+    # Nginx auth_request calls this before admitting a LiveKit signaling connection.
+    if not settings.livekit_enabled or not x_sfu_token or len(x_sfu_token) > 8192:
+        raise HTTPException(403, "Access denied")
+    try:
+        claims = livekit_api.TokenVerifier(settings.livekit_api_key, settings.livekit_api_secret).verify(x_sfu_token)
+        permitted = media_permission(claims.video.room, claims.identity, claims.metadata, joining=True)
+        if not claims.video.room_join or permitted is None or (claims.video.can_publish and not permitted):
+            raise ValueError("Access denied")
+    except Exception as exc:
+        raise HTTPException(403, "Access denied") from exc
+    return Response(status_code=204)
 
 
 @router.websocket("/channels/{channel_id}/ws")
 async def connect_to_voice_channel(websocket: WebSocket, channel_id: UUID) -> None:
-    token = websocket.query_params.get("token")
-    if not token:
-        await websocket.close(code=4401, reason="Missing token")
+    current_user = await authenticate_websocket(websocket)
+    if current_user is None:
         return
-
     with SessionLocal() as db:
-        try:
-            current_user = resolve_user_from_token(token, db)
-        except HTTPException:
-            await websocket.close(code=4401, reason="Unauthorized")
-            return
-
         try:
             channel = _get_voice_channel_or_404(db, channel_id)
         except HTTPException:
@@ -901,7 +922,7 @@ async def connect_to_voice_channel(websocket: WebSocket, channel_id: UUID) -> No
 
     try:
         while True:
-            message = await websocket.receive_json()
+            message = await receive_authenticated_json(websocket)
             message_type = message.get("type")
 
             if message_type in {"offer", "answer", "ice_candidate"}:

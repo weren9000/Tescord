@@ -1,4 +1,4 @@
-﻿param(
+param(
     [Parameter(Position = 0)]
     [string]$ServerHost,
     [Parameter(Position = 1)]
@@ -424,7 +424,7 @@ $appSecret = New-RandomHex -Bytes 32
 $turnPassword = New-RandomHex -Bytes 18
 $livekitApiSecret = New-RandomHex -Bytes 24
 $livekitApiKey = 'tescord-livekit'
-$demoPassword = 'Vfrfhjys9000'
+$demoPassword = 'CHANGE_WITH_INTERACTIVE_RESET'
 
 if (-not $SkipGitStatusCheck) {
     $workingTreeDirty = & $gitPath -C $repoRoot status --porcelain --untracked-files=no

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from app.api.dependencies.websocket_auth import authenticate_websocket, receive_authenticated_json
+
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 
 from app.api.dependencies.auth import resolve_user_from_token
@@ -12,17 +14,9 @@ router = APIRouter(prefix="/events", tags=["events"])
 
 @router.websocket("/ws")
 async def connect_app_events(websocket: WebSocket) -> None:
-    token = websocket.query_params.get("token")
-    if not token:
-        await websocket.close(code=4401, reason="Missing token")
+    current_user = await authenticate_websocket(websocket)
+    if current_user is None:
         return
-
-    with SessionLocal() as db:
-        try:
-            current_user = resolve_user_from_token(token, db)
-        except HTTPException:
-            await websocket.close(code=4401, reason="Unauthorized")
-            return
 
     connection_id = await app_event_manager.connect(websocket, current_user.id)
     became_online = site_presence_manager.mark_active(current_user.id)
@@ -37,7 +31,7 @@ async def connect_app_events(websocket: WebSocket) -> None:
 
     try:
         while True:
-            payload = await websocket.receive_json()
+            payload = await receive_authenticated_json(websocket)
             message_type = payload.get("type")
 
             if message_type == "ping":
@@ -61,7 +55,9 @@ async def connect_app_events(websocket: WebSocket) -> None:
                     )
                     continue
 
-                await app_event_manager.set_active_server(current_user.id, connection_id, server_id)
+                allowed = await app_event_manager.set_active_server(current_user.id, connection_id, server_id)
+                if not allowed:
+                    await websocket.send_json({"type": "error", "detail": "Access denied"})
                 continue
 
             await websocket.send_json(

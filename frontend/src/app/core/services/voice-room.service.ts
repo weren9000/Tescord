@@ -1,18 +1,18 @@
+import { authenticatedWebSocket } from './authenticated-websocket';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
-import {
-  ConnectionState as LiveKitConnectionState,
+import type {
   DisconnectReason,
   LocalAudioTrack,
   LocalVideoTrack,
-  type Participant,
-  type RemoteParticipant,
+  Participant,
+  RemoteParticipant,
   RemoteAudioTrack,
-  type RemoteTrack,
-  type RemoteTrackPublication,
+  RemoteTrack,
+  RemoteTrackPublication,
   RemoteVideoTrack,
   Room,
-  type RoomEventCallbacks,
+  RoomEventCallbacks,
   Track,
 } from 'livekit-client';
 import { firstValueFrom } from 'rxjs';
@@ -223,6 +223,8 @@ export class VoiceRoomService {
   private reconnectTimerId: number | null = null;
   private reconnectAttempt = 0;
   private reconnectMode: ReconnectMode | null = null;
+  private sdk!: typeof import('livekit-client');
+  private publishingAudio = false;
   private room: Room | null = null;
   private roomEventDisposers: Array<() => void> = [];
   private rawLocalStream: MediaStream | null = null;
@@ -312,6 +314,7 @@ export class VoiceRoomService {
     }
 
     try {
+      this.sdk = await import('livekit-client');
       void this.ensureAudioContext().catch(() => null);
       this.rawLocalStream = await this.openLocalStream();
       this.localStream = await this.createProcessedLocalStream(this.rawLocalStream);
@@ -425,7 +428,7 @@ export class VoiceRoomService {
       return;
     }
 
-    if (!this.room || this.room.state !== LiveKitConnectionState.Connected || !this.activeChannelId()) {
+    if (!this.room || this.room.state !== 'connected' || !this.activeChannelId()) {
       this.settingsNotice.set('Сначала подключитесь к голосовому каналу');
       return;
     }
@@ -446,9 +449,9 @@ export class VoiceRoomService {
         throw new Error('Не удалось получить видеодорожку камеры');
       }
 
-      const localVideoTrack = new LocalVideoTrack(track, undefined, true);
+      const localVideoTrack = new this.sdk.LocalVideoTrack(track, undefined, true);
       await this.room.localParticipant.publishTrack(localVideoTrack, {
-        source: Track.Source.Camera,
+        source: this.sdk.Track.Source.Camera,
       });
 
       track.onended = () => {
@@ -508,7 +511,7 @@ export class VoiceRoomService {
       return;
     }
 
-    if (!this.room || this.room.state !== LiveKitConnectionState.Connected || !this.activeChannelId()) {
+    if (!this.room || this.room.state !== 'connected' || !this.activeChannelId()) {
       this.settingsNotice.set('Сначала подключитесь к голосовому каналу');
       return;
     }
@@ -532,9 +535,9 @@ export class VoiceRoomService {
         throw new Error('Не удалось получить видеодорожку экрана');
       }
 
-      const localScreenShareTrack = new LocalVideoTrack(track, undefined, true);
+      const localScreenShareTrack = new this.sdk.LocalVideoTrack(track, undefined, true);
       await this.room.localParticipant.publishTrack(localScreenShareTrack, {
-        source: Track.Source.ScreenShare,
+        source: this.sdk.Track.Source.ScreenShare,
       });
 
       track.onended = () => {
@@ -584,7 +587,7 @@ export class VoiceRoomService {
     this.settingsNotice.set(this.settingsNotice() === OWNER_MUTED_NOTICE ? OWNER_MUTED_NOTICE : null);
 
     try {
-      const devices = await Room.getLocalDevices(undefined, false).catch(async () => navigator.mediaDevices.enumerateDevices());
+      const devices = await navigator.mediaDevices.enumerateDevices();
       const inputs = devices
         .filter((device) => device.kind === 'audioinput')
         .map((device, index) => ({
@@ -708,7 +711,7 @@ export class VoiceRoomService {
   }
 
   private async connectRoom(sfuToken: VoiceSfuTokenResponse): Promise<void> {
-    const room = new Room({
+    const room = new this.sdk.Room({
       adaptiveStream: false,
       dynacast: true,
       disconnectOnPageLeave: false,
@@ -723,12 +726,7 @@ export class VoiceRoomService {
       },
     });
 
-    if (this.localAudioTrack) {
-      await room.localParticipant.publishTrack(this.localAudioTrack, {
-        source: Track.Source.Microphone,
-      });
-      this.applyLocalMuteState();
-    }
+    await this.publishAudioIfPermitted();
 
     this.syncSubscribedRemoteTracks(room);
     await this.applyAudioOutputPreferences();
@@ -750,7 +748,26 @@ export class VoiceRoomService {
     this.updateOperationalState();
   }
 
+  private async publishAudioIfPermitted(): Promise<void> {
+    const room = this.room;
+    if (!room || room.state !== 'connected' || !room.localParticipant.permissions?.canPublish
+      || !this.localAudioTrack || this.ownerMuted() || this.publishingAudio
+      || room.localParticipant.getTrackPublication(this.sdk.Track.Source.Microphone)) { return; }
+    this.publishingAudio = true;
+    try {
+      await room.localParticipant.publishTrack(this.localAudioTrack, { source: this.sdk.Track.Source.Microphone });
+      this.applyLocalMuteState();
+    } catch {
+      this.error.set('Не удалось включить микрофон. Повторите подключение.');
+    } finally {
+      this.publishingAudio = false;
+    }
+  }
+
   private attachRoomListeners(room: Room): void {
+    this.attachRoomEvent(room, 'participantPermissionsChanged', (_, participant) => {
+      if (participant === room.localParticipant) { void this.publishAudioIfPermitted(); }
+    });
     this.attachRoomEvent(room, 'connected', () => {
       this.updateOperationalState();
       this.syncSubscribedRemoteTracks(room);
@@ -778,7 +795,7 @@ export class VoiceRoomService {
       void this.refreshDevices();
     });
     this.attachRoomEvent(room, 'localAudioSilenceDetected', (publication) => {
-      if (publication.source !== Track.Source.Microphone || this.localMuted() || this.ownerMuted()) {
+      if (publication.source !== this.sdk.Track.Source.Microphone || this.localMuted() || this.ownerMuted()) {
         return;
       }
 
@@ -858,12 +875,12 @@ export class VoiceRoomService {
       return;
     }
 
-    if (reason === DisconnectReason.DUPLICATE_IDENTITY) {
+    if (reason === this.sdk.DisconnectReason.DUPLICATE_IDENTITY) {
       await this.failSession('Этот аккаунт уже подключён к голосовому каналу в другой вкладке или на другом устройстве');
       return;
     }
 
-    if (reason === DisconnectReason.PARTICIPANT_REMOVED) {
+    if (reason === this.sdk.DisconnectReason.PARTICIPANT_REMOVED) {
       await this.failSession('Вы были отключены от голосового канала');
       return;
     }
@@ -875,13 +892,13 @@ export class VoiceRoomService {
   }
 
   private async handleTrackSubscribed(track: RemoteTrack, source: Track.Source | undefined, userId: string): Promise<void> {
-    if (track.kind === Track.Kind.Audio) {
+    if (track.kind === this.sdk.Track.Kind.Audio) {
       await this.attachRemoteAudio(userId, track as RemoteAudioTrack);
       return;
     }
 
-    if (track.kind === Track.Kind.Video) {
-      if (source === Track.Source.ScreenShare) {
+    if (track.kind === this.sdk.Track.Kind.Video) {
+      if (source === this.sdk.Track.Source.ScreenShare) {
         this.attachRemoteScreenShare(userId, track as RemoteVideoTrack);
         return;
       }
@@ -891,13 +908,13 @@ export class VoiceRoomService {
   }
 
   private handleTrackUnsubscribed(track: RemoteTrack, source: Track.Source | undefined, userId: string): void {
-    if (track.kind === Track.Kind.Audio) {
+    if (track.kind === this.sdk.Track.Kind.Audio) {
       this.clearRemoteAudioForUser(userId);
       return;
     }
 
-    if (track.kind === Track.Kind.Video) {
-      if (source === Track.Source.ScreenShare) {
+    if (track.kind === this.sdk.Track.Kind.Video) {
+      if (source === this.sdk.Track.Source.ScreenShare) {
         this.clearRemoteScreenShareForUser(userId);
         return;
       }
@@ -908,7 +925,7 @@ export class VoiceRoomService {
 
   private async openControlSocket(channelId: string, token: string): Promise<void> {
     await new Promise<void>((resolve, reject) => {
-      const socket = new WebSocket(`${WS_BASE_URL}/api/voice/channels/${channelId}/ws?token=${encodeURIComponent(token)}`);
+      const socket = authenticatedWebSocket(`${WS_BASE_URL}/api/voice/channels/${channelId}/ws`, token);
       this.controlSocket = socket;
 
       let opened = false;
@@ -1155,6 +1172,7 @@ export class VoiceRoomService {
 
     if (participantId === (this.selfId ?? 'local')) {
       this.applyLocalMuteState();
+      void this.publishAudioIfPermitted();
       if (ownerMuted) {
         this.settingsNotice.set(OWNER_MUTED_NOTICE);
       } else if (this.settingsNotice() === OWNER_MUTED_NOTICE) {
@@ -1432,7 +1450,7 @@ export class VoiceRoomService {
       return null;
     }
 
-    return new LocalAudioTrack(track, undefined, true);
+    return new this.sdk.LocalAudioTrack(track, undefined, true);
   }
 
   private applyLocalMicrophoneGain(): void {
@@ -1646,7 +1664,7 @@ export class VoiceRoomService {
       return;
     }
 
-    const roomConnected = this.room?.state === LiveKitConnectionState.Connected;
+    const roomConnected = this.room?.state === 'connected';
     const socketConnected = this.controlSocket?.readyState === WebSocket.OPEN;
 
     if (roomConnected && socketConnected) {
@@ -1661,7 +1679,7 @@ export class VoiceRoomService {
   }
 
   private clearReconnectNoticeIfReady(): void {
-    if (this.room?.state !== LiveKitConnectionState.Connected || this.controlSocket?.readyState !== WebSocket.OPEN) {
+    if (this.room?.state !== 'connected' || this.controlSocket?.readyState !== WebSocket.OPEN) {
       return;
     }
 

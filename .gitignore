@@ -17,3 +17,4 @@ backend/*.db
 *.pyo
 *.pyd
 *.log
+backend/storage/

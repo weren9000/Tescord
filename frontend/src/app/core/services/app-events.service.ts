@@ -1,3 +1,4 @@
+import { authenticatedWebSocket } from './authenticated-websocket';
 import { Injectable, signal } from '@angular/core';
 import { Subject } from 'rxjs';
 
@@ -80,8 +81,8 @@ export class AppEventsService {
       return;
     }
 
-    const websocketUrl = `${WS_BASE_URL}/api/events/ws?token=${encodeURIComponent(this.currentToken)}`;
-    const socket = new WebSocket(websocketUrl);
+    const websocketUrl = `${WS_BASE_URL}/api/events/ws`;
+    const socket = authenticatedWebSocket(websocketUrl, this.currentToken);
     this.socket = socket;
 
     socket.addEventListener('open', () => {

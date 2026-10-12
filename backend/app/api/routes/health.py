@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Response, status
 from sqlalchemy import text
 
 from app.core.config import get_settings
@@ -11,7 +11,7 @@ router = APIRouter(tags=["system"])
 
 
 @router.get("/health", response_model=HealthResponse, status_code=status.HTTP_200_OK)
-def read_health() -> HealthResponse:
+def read_health(response: Response) -> HealthResponse:
     settings = get_settings()
     database_status = "offline"
     app_status = "ok"
@@ -22,6 +22,7 @@ def read_health() -> HealthResponse:
         database_status = "online"
     except Exception:
         app_status = "degraded"
+        response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
 
     return HealthResponse(
         service=settings.app_name,

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from app.api.dependencies.websocket_auth import authenticate_websocket, receive_authenticated_json
+
 from uuid import UUID
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
@@ -41,20 +43,11 @@ def _can_start_direct_call(current_user_id: UUID, target_user_id: UUID) -> bool:
 
 @router.websocket("/ws")
 async def connect_to_direct_calls(websocket: WebSocket) -> None:
-    token = websocket.query_params.get("token")
-    if not token:
-        await websocket.close(code=4401, reason="Missing token")
+    current_user = await authenticate_websocket(websocket)
+    if current_user is None:
         return
-
     connection_id = ""
-
     with SessionLocal() as db:
-        try:
-            current_user = resolve_user_from_token(token, db)
-        except Exception:
-            await websocket.close(code=4401, reason="Unauthorized")
-            return
-
         connection_id = await direct_call_signaling_manager.connect(
             websocket,
             user_id=str(current_user.id),
@@ -66,7 +59,7 @@ async def connect_to_direct_calls(websocket: WebSocket) -> None:
 
     try:
         while True:
-            message = await websocket.receive_json()
+            message = await receive_authenticated_json(websocket)
             message_type = message.get("type")
 
             if message_type == "call_request":

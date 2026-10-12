@@ -127,7 +127,7 @@ Frontend будет доступен по адресу:
 
 По умолчанию:
 - логин: `weren9000@kva-chat.local`
-- пароль: `Vfrfhjys9000`
+- пароль: `CHANGE_WITH_INTERACTIVE_RESET`
 
 ## Полезные команды
 

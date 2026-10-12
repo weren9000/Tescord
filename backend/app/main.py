@@ -15,6 +15,13 @@ from app.db.session import SessionLocal
 from app.services.app_events import publish_presence_updated
 from app.services.workspace_defaults import ensure_workspace_defaults_for_all
 from app.services.site_presence import site_presence_manager
+from app.services.message_outbox import run_message_outbox
+from app.services.rate_limits import RateLimitMiddleware
+from app.services.voice_sfu import reconcile_media_permissions
+from sqlalchemy import select
+from app.db.models import AuthSession, OutboxEvent
+from app.api.dependencies.upload_admission import UploadAdmissionMiddleware
+from app.services.event_bus import start_event_bus, stop_event_bus
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
@@ -28,22 +35,30 @@ async def run_presence_sweeper() -> None:
             await publish_presence_updated(user_id, is_online=False)
 
 
+def initialize_database():
+    ensure_development_seed_data()
+    with SessionLocal() as db:
+        db.execute(select(AuthSession.id).limit(0))
+        db.execute(select(OutboxEvent.id).limit(0))
+        ensure_workspace_defaults_for_all(db)
+        db.commit()
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    await asyncio.to_thread(initialize_database)
+    event_bus_task = await start_event_bus()
     presence_sweeper_task = asyncio.create_task(run_presence_sweeper())
-    try:
-        ensure_development_seed_data()
-    except Exception:  # pragma: no cover - startup resilience matters more than failing hard here
-        logger.exception("Could not seed development data")
-    try:
-        with SessionLocal() as db:
-            ensure_workspace_defaults_for_all(db)
-            db.commit()
-    except Exception:  # pragma: no cover - startup resilience matters more than failing hard here
-        logger.exception("Could not ensure workspace defaults")
+    outbox_task = asyncio.create_task(run_message_outbox())
+    media_task = asyncio.create_task(reconcile_media_permissions())
     try:
         yield
     finally:
+        await stop_event_bus(event_bus_task)
+        media_task.cancel()
+        await asyncio.gather(media_task, return_exceptions=True)
+        outbox_task.cancel()
+        await asyncio.gather(outbox_task, return_exceptions=True)
         presence_sweeper_task.cancel()
         try:
             await presence_sweeper_task
@@ -70,6 +85,8 @@ app.add_middleware(
 )
 
 app.include_router(api_router, prefix=settings.api_prefix)
+app.add_middleware(UploadAdmissionMiddleware)
+app.add_middleware(RateLimitMiddleware)
 
 
 @app.get("/", include_in_schema=False)

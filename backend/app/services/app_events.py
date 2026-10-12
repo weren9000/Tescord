@@ -2,17 +2,20 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID, uuid4
 
 from anyio import from_thread
+from starlette.websockets import WebSocketState
 from fastapi import WebSocket
 from sqlalchemy import func, select
 
 from app.db.models import FriendRequest, FriendRequestStatus, ServerMember
 from app.db.session import SessionLocal
+from app.services.event_access import allowed_event_user_ids
+from app.services.event_bus import distributed_event
 from app.services.workspace_events import (
     list_server_channels_for_user,
     list_server_members_for_user,
@@ -36,6 +39,7 @@ def _utc_now_iso() -> str:
 class AppEventConnection:
     websocket: WebSocket
     active_server_id: str | None = None
+    send_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
 
 
 class AppEventManager:
@@ -47,7 +51,8 @@ class AppEventManager:
         connection_id = uuid4().hex
         normalized_user_id = _normalize_user_id(user_id)
 
-        await websocket.accept()
+        if websocket.application_state != WebSocketState.CONNECTED:
+            await websocket.accept()
 
         async with self._lock:
             user_connections = self._connections.setdefault(normalized_user_id, {})
@@ -72,20 +77,24 @@ class AppEventManager:
         user_id: UUID | str,
         connection_id: str,
         server_id: UUID | str | None,
-    ) -> None:
+    ) -> bool:
         normalized_user_id = _normalize_user_id(user_id)
         normalized_server_id = _normalize_server_id(server_id)
+        permitted = normalized_server_id is None or normalized_user_id in await asyncio.to_thread(
+            allowed_event_user_ids, normalized_server_id, {normalized_user_id},
+        )
 
         async with self._lock:
             user_connections = self._connections.get(normalized_user_id)
             if user_connections is None:
-                return
+                return False
 
             connection = user_connections.get(connection_id)
             if connection is None:
-                return
+                return False
 
-            connection.active_server_id = normalized_server_id
+            connection.active_server_id = normalized_server_id if permitted else None
+            return permitted
 
     async def broadcast(self, payload: dict[str, Any]) -> None:
         async with self._lock:
@@ -136,7 +145,11 @@ class AppEventManager:
                 if connection.active_server_id == normalized_server_id
             ]
 
-        await self._send_payload(recipients, payload)
+        channel_id = payload.get("channel_id") or (payload.get("message") or {}).get("channel_id")
+        allowed = await asyncio.to_thread(
+            allowed_event_user_ids, normalized_server_id, {row[0] for row in recipients}, channel_id,
+        )
+        await self._send_payload([row for row in recipients if row[0] in allowed], payload)
 
     async def send_to_user_on_server(
         self,
@@ -157,7 +170,11 @@ class AppEventManager:
                 if connection.active_server_id == normalized_server_id
             ]
 
-        await self._send_payload(recipients, payload)
+        channel_id = payload.get("channel_id") or (payload.get("message") or {}).get("channel_id")
+        allowed = await asyncio.to_thread(
+            allowed_event_user_ids, normalized_server_id, {row[0] for row in recipients}, channel_id,
+        )
+        await self._send_payload([row for row in recipients if row[0] in allowed], payload)
 
     async def get_server_subscriber_user_ids(self, server_id: UUID | str) -> set[str]:
         normalized_server_id = _normalize_server_id(server_id)
@@ -176,16 +193,25 @@ class AppEventManager:
         recipients: list[tuple[str, str, WebSocket]],
         payload: dict[str, Any],
     ) -> None:
-        stale_connections: list[tuple[str, str]] = []
+        semaphore = asyncio.Semaphore(64)
 
-        for user_id, connection_id, websocket in recipients:
+        async def deliver(user_id: str, connection_id: str, websocket: WebSocket) -> None:
+            connection = self._connections.get(user_id, {}).get(connection_id)
+            if connection is None:
+                return
             try:
-                await websocket.send_json(payload)
+                async with semaphore:
+                    async with asyncio.timeout(3):
+                        async with connection.send_lock:
+                            await websocket.send_json(payload)
             except Exception:
-                stale_connections.append((user_id, connection_id))
+                await self.disconnect(user_id, connection_id)
+                try:
+                    await asyncio.wait_for(websocket.close(code=1013), timeout=1)
+                except Exception:
+                    pass
 
-        for user_id, connection_id in stale_connections:
-            await self.disconnect(user_id, connection_id)
+        await asyncio.gather(*(deliver(*recipient) for recipient in recipients))
 
 
 app_event_manager = AppEventManager()
@@ -326,6 +352,7 @@ def _run_async_or_schedule(function, *args) -> None:
     loop.create_task(function(*args))
 
 
+@distributed_event
 async def publish_presence_updated(user_id: UUID | str, is_online: bool = True) -> None:
     normalized_user_id = _normalize_user_id(user_id)
     with SessionLocal() as db:
@@ -341,6 +368,7 @@ async def publish_presence_updated(user_id: UUID | str, is_online: bool = True) 
         await app_event_manager.send_to_server(server_id, payload)
 
 
+@distributed_event
 async def publish_message_created(server_id: UUID | str, message: dict[str, Any]) -> None:
     normalized_server_id = _normalize_server_id(server_id)
     if normalized_server_id is None:
@@ -364,6 +392,7 @@ async def publish_message_created(server_id: UUID | str, message: dict[str, Any]
         )
 
 
+@distributed_event
 async def publish_message_reactions_updated(
     server_id: UUID | str,
     channel_id: UUID | str,
@@ -375,6 +404,7 @@ async def publish_message_reactions_updated(
     )
 
 
+@distributed_event
 async def publish_message_read_updated(
     server_id: UUID | str,
     channel_id: UUID | str,
@@ -386,6 +416,7 @@ async def publish_message_read_updated(
     )
 
 
+@distributed_event
 async def publish_attachment_deleted(
     server_id: UUID | str,
     channel_id: UUID | str,
@@ -397,14 +428,17 @@ async def publish_attachment_deleted(
     )
 
 
+@distributed_event
 async def publish_servers_changed(reason: str) -> None:
     await app_event_manager.broadcast(build_servers_changed_event(reason=reason))
 
 
+@distributed_event
 async def publish_servers_changed_for_users(user_ids: Iterable[UUID | str], reason: str) -> None:
     await app_event_manager.send_to_users(user_ids, build_servers_changed_event(reason=reason))
 
 
+@distributed_event
 async def publish_channels_updated(server_id: UUID | str, reason: str) -> None:
     normalized_server_id = _normalize_server_id(server_id)
     if normalized_server_id is None:
@@ -428,6 +462,7 @@ async def publish_channels_updated(server_id: UUID | str, reason: str) -> None:
         await app_event_manager.send_to_user_on_server(user_id, normalized_server_id, payload)
 
 
+@distributed_event
 async def publish_members_updated(server_id: UUID | str, reason: str) -> None:
     normalized_server_id = _normalize_server_id(server_id)
     if normalized_server_id is None:
@@ -443,6 +478,7 @@ async def publish_members_updated(server_id: UUID | str, reason: str) -> None:
     await app_event_manager.send_to_server(normalized_server_id, payload)
 
 
+@distributed_event
 async def publish_voice_presence_updated(server_id: UUID | str) -> None:
     normalized_server_id = _normalize_server_id(server_id)
     if normalized_server_id is None:
@@ -466,14 +502,17 @@ async def publish_voice_presence_updated(server_id: UUID | str) -> None:
         await app_event_manager.send_to_user_on_server(user_id, normalized_server_id, payload)
 
 
+@distributed_event
 async def publish_voice_inbox_changed(user_ids: Iterable[UUID | str]) -> None:
     await app_event_manager.send_to_users(user_ids, build_voice_inbox_changed_event())
 
 
+@distributed_event
 async def publish_voice_request_resolved(user_id: UUID | str, request: dict[str, Any]) -> None:
     await app_event_manager.send_to_user(user_id, build_voice_request_resolved_event(request))
 
 
+@distributed_event
 async def publish_friend_requests_changed(user_id: UUID | str) -> None:
     normalized_user_id = _normalize_user_id(user_id)
     with SessionLocal() as db:
@@ -490,6 +529,7 @@ async def publish_friend_requests_changed(user_id: UUID | str) -> None:
     )
 
 
+@distributed_event
 async def publish_friend_requests_changed_for_users(user_ids: Iterable[UUID | str]) -> None:
     normalized_user_ids = {_normalize_user_id(user_id) for user_id in user_ids}
     if not normalized_user_ids:
@@ -513,6 +553,7 @@ async def publish_friend_requests_changed_for_users(user_ids: Iterable[UUID | st
         )
 
 
+@distributed_event
 async def publish_server_changed(server_id: UUID | str, reason: str) -> None:
     await publish_channels_updated(server_id, reason)
 

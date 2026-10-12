@@ -210,6 +210,8 @@ class ChannelMessagesPage(BaseModel):
     items: list[ChannelMessageSummary]
     has_more: bool
     next_before: UUID | None
+    has_newer: bool = False
+    next_after: UUID | None = None
 
 
 class MarkChannelReadRequest(BaseModel):

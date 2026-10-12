@@ -202,6 +202,8 @@ export interface WorkspaceMessagePage {
   items: WorkspaceMessage[];
   has_more: boolean;
   next_before: string | null;
+  has_newer?: boolean;
+  next_after?: string | null;
 }
 
 export interface WorkspaceMessageReactionsSnapshot {

@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Any
 from uuid import uuid4
 
+from starlette.websockets import WebSocketState
 from fastapi import WebSocket
 
 
@@ -63,7 +64,8 @@ class DirectCallSignalingManager:
         nick: str,
         avatar_updated_at: datetime | None = None,
     ) -> str:
-        await websocket.accept()
+        if websocket.application_state != WebSocketState.CONNECTED:
+            await websocket.accept()
         connection_id = uuid4().hex
 
         async with self._lock:

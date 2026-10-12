@@ -41,7 +41,11 @@ def _storage_relative_path(attachment_id: UUID, filename: str) -> Path:
 
 
 def resolve_attachment_path(relative_path: str) -> Path:
-    return (_uploads_root() / relative_path).resolve()
+    root = _uploads_root().resolve()
+    path = (root / relative_path).resolve()
+    if not path.is_relative_to(root) or path == root:
+        raise ValueError("Attachment path is outside uploads directory")
+    return path
 
 
 def delete_stored_attachment(relative_path: str | None) -> None:
