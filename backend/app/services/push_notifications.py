@@ -184,13 +184,11 @@ async def publish_message_push_notifications(
         attachments_count=attachments_count,
     )
 
-    results = await asyncio.gather(
-        *[
-            asyncio.to_thread(_send_web_push, target=target, payload=payload)
-            for target in targets
-        ],
-        return_exceptions=True,
-    )
+    slots = asyncio.Semaphore(8)
+    async def deliver(target):
+        async with slots:
+            return await asyncio.to_thread(_send_web_push, target=target, payload=payload)
+    results = await asyncio.gather(*(deliver(target) for target in targets), return_exceptions=True)
 
     stale_subscription_ids: list[UUID] = []
     retry_required = False

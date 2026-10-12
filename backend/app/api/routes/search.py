@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import select
+from sqlalchemy import String, cast, func, select
 from sqlalchemy.orm import Session
 
 from app.api.dependencies.auth import get_current_user
-from app.db.models import Server, ServerKind, ServerMember, User
+from app.db.models import Channel, Server, ServerBlock, ServerKind, ServerMember, User
 from app.db.session import get_db
 from app.schemas.workspace import WorkspaceChannelSearchSummary
 from app.services.workspace_events import list_server_channels_for_user
@@ -37,19 +37,27 @@ def search_workspace_channels(
     if not terms:
         return []
 
-    servers = db.execute(
-        select(Server)
+    # Filter candidates before loading per-channel unread counters and voice permissions.
+    searchable = func.lower(func.concat_ws(" ", Server.name, Server.description, Channel.name, Channel.topic, cast(Channel.type, String)))
+    candidates = db.execute(
+        select(Server, Channel.id)
+        .join(Channel, Channel.server_id == Server.id)
         .join(ServerMember, ServerMember.server_id == Server.id)
         .where(
             Server.kind == ServerKind.WORKSPACE,
             ServerMember.user_id == current_user.id,
+            ~select(ServerBlock.id).where(ServerBlock.server_id == Server.id, ServerBlock.user_id == current_user.id).exists(),
+            *(searchable.contains(term, autoescape=True) for term in terms),
         )
         .order_by(Server.name)
-    ).scalars().all()
+    ).all()
+    by_server = {}
+    for server, channel_id in candidates:
+        by_server.setdefault(server.id, (server, []))[1].append(channel_id)
 
     results: list[WorkspaceChannelSearchSummary] = []
-    for server in servers:
-        visible_channels = list_server_channels_for_user(db, server.id, current_user.id)
+    for server, channel_ids in by_server.values():
+        visible_channels = list_server_channels_for_user(db, server.id, current_user.id, channel_ids=channel_ids)
         for channel in visible_channels:
             if not _matches_search_terms(
                 terms,

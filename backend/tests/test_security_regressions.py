@@ -206,6 +206,37 @@ def test_unauthenticated_upload_is_rejected_before_reading_body():
     asyncio.run(run())
 
 
+def test_push_subscription_cap_preserves_existing_device_updates(conversation, monkeypatch):
+    client, owner, *_ = conversation
+    settings = get_settings()
+    monkeypatch.setattr(settings, 'push_vapid_public_key', 'test-only')
+    monkeypatch.setattr(settings, 'push_vapid_private_key_path', 'test-only')
+    monkeypatch.setattr(settings, 'push_vapid_subject', 'mailto:test@example.test')
+    headers = {'Authorization': f'Bearer {owner}'}
+    prefix = f'https://fcm.googleapis.com/fcm/send/{uuid4().hex}'
+    def subscribe(index):
+        return client.post('/api/push/subscriptions', headers=headers, json={'endpoint': f'{prefix}-{index}', 'keys': {'p256dh': 'test', 'auth': 'test'}})
+    for i in range(10):
+        assert subscribe(i).status_code == 204
+    assert subscribe(0).status_code == 204
+    assert subscribe(10).status_code == 409
+
+
+def test_channel_search_filters_membership_and_escapes_wildcards(conversation):
+    client, owner, guest, outsider, _ = conversation
+    headers = {'Authorization': f'Bearer {owner}'}
+    needle = f'find%_{uuid4().hex[:8]}'
+    server = client.post('/api/servers', headers=headers, json={'name': 'Search verification'}).json()
+    try:
+        channel = client.post(f"/api/servers/{server['id']}/channels", headers=headers, json={'name': needle, 'type': 'text'}).json()
+        found = client.get('/api/search/channels', headers=headers, params={'query': needle}).json()
+        assert [item['channel_id'] for item in found] == [channel['id']]
+        assert client.get('/api/search/channels', headers={'Authorization': f'Bearer {outsider}'}, params={'query': needle}).json() == []
+        assert client.get('/api/search/channels', headers=headers, params={'query': needle.replace('%_', 'xx')}).json() == []
+    finally:
+        delete_server(server['id'])
+
+
 def test_push_endpoint_rejects_internal_and_untrusted_hosts():
     from pydantic import ValidationError
     from app.schemas.push import PushSubscriptionUpsertRequest

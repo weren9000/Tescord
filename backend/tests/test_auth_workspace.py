@@ -189,6 +189,9 @@ def connect_app_events_websocket(client: TestClient, token: str, server_id: str 
         assert ready_event["type"] == "ready"
         if server_id is not None:
             websocket.send_json({"type": "subscribe_server", "server_id": server_id})
+            # Wait until the subscription frame has been processed before issuing HTTP writes.
+            websocket.send_json({"type": "ping"})
+            receive_app_event(websocket, "pong")
         yield websocket
 
 

@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
-from sqlalchemy import and_, select
+from sqlalchemy import and_, func, select
 from sqlalchemy.orm import Session
 
 from app.api.dependencies.auth import get_current_user
@@ -69,10 +69,17 @@ def upsert_push_subscription(
             detail="Push-уведомления еще не настроены на сервере",
         )
 
+    # Serialize per-user subscriptions so concurrent devices cannot bypass the cap.
+    db.execute(select(User.id).where(User.id == current_user.id).with_for_update())
     user_agent = payload.user_agent or request.headers.get("user-agent")
     subscription = db.execute(
         select(PushSubscription).where(PushSubscription.endpoint == payload.endpoint)
     ).scalar_one_or_none()
+
+    if subscription is None or subscription.user_id != current_user.id:
+        count = db.scalar(select(func.count()).select_from(PushSubscription).where(PushSubscription.user_id == current_user.id))
+        if count >= 10:
+            raise HTTPException(409, "Maximum of 10 push devices reached")
 
     if subscription is None:
         subscription = PushSubscription(

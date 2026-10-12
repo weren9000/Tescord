@@ -195,13 +195,16 @@ def list_server_channels_for_user(
     db: Session,
     server_id: UUID,
     user_id: UUID,
+    *,
+    channel_ids: list[UUID] | None = None,
 ) -> list[ChannelSummary]:
     membership_role = db.execute(
         select(ServerMember.role).where(ServerMember.server_id == server_id, ServerMember.user_id == user_id)
     ).scalar_one_or_none()
-    channels = db.execute(
-        select(Channel).where(Channel.server_id == server_id).order_by(Channel.position, Channel.name)
-    ).scalars().all()
+    statement = select(Channel).where(Channel.server_id == server_id)
+    if channel_ids is not None:
+        statement = statement.where(Channel.id.in_(channel_ids))
+    channels = db.execute(statement.order_by(Channel.position, Channel.name)).scalars().all()
     voice_channel_ids = [channel.id for channel in channels if channel.type == ChannelType.VOICE]
     voice_access_map = list_voice_channel_access_map(db, voice_channel_ids, user_id)
     unread_states_by_channel_id = load_unread_states_by_channel_id(

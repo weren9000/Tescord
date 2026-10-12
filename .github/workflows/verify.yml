@@ -5,6 +5,7 @@ permissions:
 jobs:
   backend:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     services:
       postgres:
         image: postgres:16
@@ -12,7 +13,7 @@ jobs:
           POSTGRES_PASSWORD: test-only
           POSTGRES_DB: test_kva
         ports: ['5432:5432']
-        options: --health-cmd pg_isready --health-interval 5s --health-timeout 3s --health-retries 10
+        options: --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 3s --health-retries 10
     env:
       TESCORD_DATABASE_URL: postgresql+psycopg://postgres:test-only@127.0.0.1:5432/test_kva
     defaults:
@@ -26,10 +27,11 @@ jobs:
           cache: pip
       - run: pip install -r requirements.lock -r requirements-dev.lock
       - run: alembic upgrade head
-      - run: pytest -q
+      - run: timeout 180 pytest -q -o faulthandler_timeout=60
       - run: pip check
   frontend:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: frontend
