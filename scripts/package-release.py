@@ -14,7 +14,7 @@ output = Path(sys.argv[1]) if len(sys.argv) > 1 else root.parent / f'kva-{revisi
 build = root / 'frontend/dist/frontend/browser'
 if not (build / 'index.html').is_file():
     raise SystemExit('Run npm ci and npm run build in frontend first')
-source = subprocess.check_output(['git', 'archive', '--format=tar', 'HEAD'], cwd=root)
+source = subprocess.check_output(['git', '-c', 'core.autocrlf=false', 'archive', '--format=tar', 'HEAD'], cwd=root)
 checksums = []
 with tarfile.open(output, 'w:gz') as target:
     with tarfile.open(fileobj=io.BytesIO(source)) as archive:
