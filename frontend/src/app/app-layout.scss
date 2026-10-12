@@ -1,6 +1,6 @@
 /* Workspace navigation and conversation density. */
 .messenger-shell { height: 100dvh; min-height: 0; }
-.messenger-layout { grid-template-columns: 68px 264px minmax(0, 1fr); gap: 0; padding: 0; }
+.messenger-layout { grid-template-columns: 92px 280px minmax(0, 1fr); gap: 0; padding: 0; }
 .conversation-sidebar, .messenger-workspace { border-radius: 0; border: 0; }
 .conversation-sidebar { border-right: 1px solid var(--line); }
 .conversation-sidebar__tabs { display: flex; gap: 6px; padding: 12px; min-height: 64px; box-sizing: border-box; }
@@ -58,9 +58,6 @@ button:focus-visible, article:focus-visible, input:focus-visible, textarea:focus
 .messenger-shell--call-window-open .group-overview { overflow-y: auto; }
 .messenger-shell--call-window-open .mobile-mode-footer { pointer-events: auto; }
 @media (min-width: 981px) {
-  .messenger-layout--platform { grid-template-columns: 68px minmax(0, 1fr); }
-  .messenger-layout--platform > .conversation-sidebar { display: none; }
-  .workspace-content--platform { grid-template-columns: 264px minmax(0, 1fr); }
   .platform-channel-rail { padding: 12px 10px; }
   .messenger-shell--call-active .messenger-layout { padding-top: 88px; }
 }
@@ -75,9 +72,7 @@ button:focus-visible, article:focus-visible, input:focus-visible, textarea:focus
   .workspace-tools button { min-height: 44px; min-width: 40px; padding: 0 6px; }
   .workspace-tools button { display: none; }
   .workspace-tools button[aria-label='Быстрый переход'], .workspace-tools .mobile-channels-toggle { display: block; }
-  .platform-channel-rail { display: none; }
   .platform-channel-rail--mobile-open { display: grid; max-height: none; flex: 1; }
-  .workspace-content--platform:has(.platform-channel-rail--mobile-open) .workspace-main-pane { display: none; }
   .conversation-sidebar { width: 100%; max-width: none; border: 0; }
   .conversation-sidebar--mobile-open { position: fixed; inset: 0 0 calc(72px + env(safe-area-inset-bottom)); z-index: 40; transform: none; border-radius: 0; }
   .conversation-sidebar__tabs { min-height: 60px; }
@@ -99,4 +94,46 @@ button:focus-visible, article:focus-visible, input:focus-visible, textarea:focus
   .call-dock .call-control-button { width: 44px; height: 44px; min-height: 44px; }
   .call-window-layer { background: #0e151d; pointer-events: auto; inset: 76px 0 66px; }
   .call-window, .call-window:has(.call-window__empty-stage) { width: 100%; max-height: 100%; border-radius: 0; }
+}
+/* Stable navigation for the three independent sections. */
+.conversation-sidebar { display: flex; flex-direction: column; background: #171d27; padding: 0; min-height: 0; }
+.section-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 24px 18px 20px; }
+.section-heading h1 { margin: 0 0 6px; color: var(--text); font-size: 20px; font-weight: 650; }
+.section-heading p { margin: 0; font-size: 12px; color: var(--muted); }
+.section-heading button { width: 32px; height: 32px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 8px; background: #ffffff04; color: #b6d9c8; cursor: pointer; flex-shrink: 0; }
+.section-search { display: flex; align-items: center; gap: 8px; margin: 0 14px 16px; padding: 0 10px; height: 38px; border: 1px solid #ffffff09; border-radius: 8px; color: #8491a3; background: #101620; flex-shrink: 0; }
+.section-search app-ui-icon { width: 16px; }
+.section-search input { width: 100%; min-width: 0; border: 0; background: transparent; color: var(--text); font: inherit; font-size: 13px; }
+.section-search input::placeholder { color: #8e9caf; }
+.conversation-sidebar__list { display: block; flex: 1; min-width: 0; min-height: 0; overflow-y: auto; padding: 0 10px 12px; }
+.section-create { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 12px 14px 18px; padding: 11px 8px; border: 1px solid #91d4b226; border-radius: 8px; background: #91d4b209; color: #b1d6c3; font: inherit; font-size: 13px; cursor: pointer; }
+.platform-picker { display: flex; flex-direction: column; gap: 8px; margin: 0 14px 16px; }
+.platform-picker > span { font-size: 11px; color: var(--muted); }
+.platform-picker select { width: 100%; border: 1px solid #ffffff12; background: #202935; color: var(--text); padding: 12px 8px; border-radius: 8px; font: inherit; font-size: 14px; }
+.workspace-content--platform { display: flex; flex-direction: column; }
+.conversation-sidebar .platform-channel-rail { display: flex; flex-direction: column; width: 100%; max-height: none; height: auto; min-height: 0; padding: 0; border: 0; background: transparent; overflow: visible; gap: 20px; }
+.conversation-head__summary { flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; }
+.conversation-head__summary strong { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 16px; }
+.channel-context { font-size: 12px; }
+.workspace-tools button { display: grid; place-items: center; width: 36px; padding: 0; }
+.conversation-head__settings-toggle { background: transparent; border: 0; width: 36px; height: 36px; }
+.workspace-main-pane { flex: 1; min-width: 0; min-height: 0; }
+.message-card--self { margin-left: 0; }
+.conversation-sidebar .platform-channel-entry__row { display: flex; flex-wrap: wrap; }
+.conversation-sidebar .platform-channel-entry--voice .platform-channel-entry__main { flex: 1; min-width: 130px; }
+.conversation-sidebar .platform-channel-entry__actions { width: auto; display: flex; padding: 4px 8px; gap: 6px; }
+.conversation-sidebar .platform-channel-entry__voice-action:disabled { display: none; }
+.conversation-sidebar .platform-channel-entry:not(.platform-channel-entry--voice) .platform-channel-entry__copy > small { display: none; }
+.conversation-sidebar .platform-channel-entry__headline strong { white-space: normal; overflow-wrap: anywhere; }
+.conversation-sidebar .platform-channel-entry--active { background: #91d4b212; border-color: #91d4b22b; }
+@media(max-width:980px) {
+ .section-heading { padding: 22px 20px 18px; }
+ .conversation-sidebar .platform-channel-rail { display: flex; }
+ .workspace-tools button { display: none; }
+ .workspace-tools .workspace-call, .workspace-tools .workspace-search { display: grid; }
+ .conversation-head__summary strong { font-size: 14px; }
+ .workspace-back { display: grid; place-items: center; }
+ .mobile-mode-footer__button--active span { color: #b0e3c6 !important; }
+ .mobile-mode-footer button { color: #b8c5d5; }
+ .mobile-mode-footer .mobile-mode-footer__button--active { color: #b0e3c6; }
 }

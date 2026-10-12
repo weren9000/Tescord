@@ -1,5 +1,6 @@
 import { synchronizeMessages } from './core/services/message-sync';
-import { WorkspaceRailComponent } from './workspace/workspace-rail.component';
+import { SectionNavigationComponent } from './workspace/section-navigation.component';
+import { UiIconComponent } from './workspace/ui-icon.component';
 import { ConversationListComponent } from './workspace/conversation-list.component';
 import { QuickSwitchComponent, QuickLink } from './workspace/quick-switch.component';
 import { WorkspaceMemoryService } from './core/services/workspace-memory.service';
@@ -612,7 +613,7 @@ const DEFAULT_SERVER_ICON_ASSET_BY_NAME: Record<string, string> = {
 @Component({
   providers: [AuthFormStore],
     selector: 'app-root',
-    imports: [CommonModule, FormsModule, MediaStreamSrcDirective, WorkspaceRailComponent, ConversationListComponent, QuickSwitchComponent],
+    imports: [CommonModule, FormsModule, MediaStreamSrcDirective, SectionNavigationComponent, UiIconComponent, ConversationListComponent, QuickSwitchComponent],
     templateUrl: './app.component.html',
     styleUrls: ['./app.component.scss', './app-layout.scss']
 })
@@ -636,14 +637,24 @@ export class AppComponent {
     if (target && this.session()) this.openWorkspaceTarget(target.spaceId, target.channelId);
     else if (this.session()) this.openHome();
   };
-  readonly railSpaces = computed(() => this.platformSpaces().map(space => ({
-    id: space.id, name: space.name,
-    icon: this.resolveSpaceIconUrl(space.id, space.icon_asset, space.icon_updated_at),
-    unread: this.platformUnreadCount(space),
-  })));
-  readonly conversationLinks = computed(() => this.conversations().map(conversation => ({
+  readonly sidebarQuery = signal('');
+  private readonly sectionSelection: Partial<Record<WorkspaceMode, string>> = {};
+  readonly sectionTitle = computed(() => this.isChatsMode() ? 'Друзья' : this.isGroupsMode() ? 'Группы' : 'Площадки');
+  readonly sectionDescription = computed(() => this.isChatsMode() ? 'Личные беседы и звонки' : this.isGroupsMode() ? 'Общение в своём кругу' : 'Сообщества и каналы');
+  readonly sectionCreateLabel = computed(() => this.isChatsMode() ? 'Добавить друга' : this.isGroupsMode() ? 'Создать группу' : 'Создать площадку');
+  readonly sidebarTextChannels = computed(() => this.textChannels().filter(c => c.name.toLocaleLowerCase('ru').includes(this.sidebarQuery().trim().toLocaleLowerCase('ru'))));
+  readonly sidebarVoiceChannels = computed(() => this.voiceChannels().filter(c => c.name.toLocaleLowerCase('ru').includes(this.sidebarQuery().trim().toLocaleLowerCase('ru'))));
+  openSectionCreate(): void {
+    if (this.isPlatformsMode()) this.openCreatePlatformShortcut();
+    else if (this.isGroupsMode()) this.openCreateGroupShortcut();
+    else this.openCreateConversationModal('direct');
+  }
+  readonly conversationLinks = computed(() => this.conversations()
+    .filter(c => c.kind === (this.isGroupsMode() ? 'group_chat' : 'direct') && c.title.toLocaleLowerCase('ru').includes(this.sidebarQuery().trim().toLocaleLowerCase('ru')))
+    .map(conversation => ({
     id: conversation.id, name: conversation.title, subtitle: this.conversationMetaLabel(conversation),
     icon: this.conversationIconUrl(conversation), group: conversation.kind === 'group_chat',
+    online: conversation.kind === 'direct' ? this.conversationPeer(conversation)?.is_online : undefined,
     unread: this.conversationUnreadCount(conversation), mentions: this.conversationMentionUnreadCount(conversation),
   })));
   readonly quickLinks = computed<QuickLink[]>(() => {
@@ -4243,8 +4254,10 @@ export class AppComponent {
 
     if (!spaces.some((space) => space.id === this.selectedServerId())) {
       const token = this.session()?.access_token;
-      const nextSpaceId = spaces[0]?.id ?? null;
+      const nextSpaceId = spaces.find(space => space.id === this.sectionSelection[mode])?.id ?? spaces[0]?.id ?? null;
       if (token && nextSpaceId) {
+        const channelId = this.workspaceMemory.lastChannel(nextSpaceId);
+        if (channelId) this.pendingSearchNavigation.set({serverId: nextSpaceId, channelId});
         this.loadServerWorkspace(token, nextSpaceId);
       } else {
         this.selectedServerId.set(null);
@@ -4258,6 +4271,9 @@ export class AppComponent {
   }
 
   private applyWorkspaceMode(mode: WorkspaceMode): void {
+    const currentId = this.selectedServerId();
+    if (currentId) this.sectionSelection[this.workspaceMode()] = currentId;
+    if (mode !== this.workspaceMode()) this.sidebarQuery.set('');
     this.closeQuickCreateMenu();
     this.closeConversationActionMenu();
     this.closeGroupOwnershipModal();
@@ -4318,7 +4334,7 @@ export class AppComponent {
   }
 
   isMobileFooterWorkspaceModeActive(mode: WorkspaceMode): boolean {
-    return this.workspaceMode() === mode && this.mobilePanel() === 'servers';
+    return this.workspaceMode() === mode;
   }
 
   isMobileFooterMenuActive(): boolean {

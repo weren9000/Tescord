@@ -788,480 +788,28 @@
       <app-quick-switch [query]="globalSearchQuery()" [links]="quickLinks()" (search)="updateGlobalSearchQuery($event)" (open)="openQuickLink($event)" (close)="closeQuickSwitch()" />
     }
     <div class="messenger-layout" [class.messenger-layout--platform]="isPlatformsMode()">
-      <app-workspace-rail [spaces]="railSpaces()" [selected]="selectedServerId()" [homeActive]="!isPlatformsMode()" [initials]="displayNickInitials(currentUser()?.nick ?? 'Я')" (menu)="toggleSideMenu()" (home)="openHome()" (search)="openQuickSwitch()" (selectSpace)="openWorkspaceTarget($event)" (create)="openCreatePlatformShortcut()" (profile)="openProfileEditor()" (notifications)="openFriendRequestsModal()" />
+      <app-section-navigation [selected]="workspaceMode()" [initials]="displayNickInitials(currentUser()?.nick ?? 'Я')" [hasNotifications]="friendRequestBadgeVisible()" (selectSection)="selectWorkspaceMode($event)" (menu)="toggleSideMenu()" (search)="openQuickSwitch()" (profile)="openProfileEditor()" (notifications)="openFriendRequestsModal()" />
       <aside class="conversation-sidebar" [class.conversation-sidebar--mobile-open]="mobilePanel() === 'servers'">
-        <div class="conversation-sidebar__tabs">
-          <strong class="sidebar-heading">{{ isPlatformsMode() ? 'Площадки' : 'Сообщения' }}</strong>
-          <button class="sidebar-new-chat" type="button" title="Начать беседу" aria-label="Начать беседу" (click)="openCreateConversationModal('direct')">+</button>
-          <div class="conversation-sidebar__tabs-actions">
-            <button
-              class="icon-button conversation-sidebar__menu"
-              type="button"
-              aria-label="Открыть меню"
-              title="Открыть меню"
-              (click)="toggleSideMenu()"
-            >
-              <img class="conversation-sidebar__menu-art" src="/assets/burger_menu.png" alt="" />
-            </button>
-          </div>
-
-          <div class="conversation-sidebar__mode-tabs">
-            <button
-              class="conversation-sidebar__tab"
-              [class.conversation-sidebar__tab--active]="isChatsMode()"
-              type="button"
-              aria-label="Друзья"
-              title="Друзья"
-              (click)="selectWorkspaceMode('chats')"
-            >
-              <img src="/assets/User_Profile.svg" alt="" />
-            </button>
-            <button
-              class="conversation-sidebar__tab"
-              [class.conversation-sidebar__tab--active]="isGroupsMode()"
-              type="button"
-              aria-label="Группы"
-              title="Группы"
-              (click)="selectWorkspaceMode('groups')"
-            >
-              <img src="/assets/Group_fill.svg" alt="" />
-            </button>
-            <button
-              class="conversation-sidebar__tab"
-              [class.conversation-sidebar__tab--active]="isPlatformsMode()"
-              type="button"
-              aria-label="Площадка"
-              title="Площадка"
-              (click)="selectWorkspaceMode('platforms')"
-            >
-              <img src="/assets/place.svg" alt="" />
-            </button>
-          </div>
-
-          <button
-            class="secondary-button conversation-sidebar__icon-button conversation-sidebar__notifications"
-            type="button"
-            aria-label="Уведомления"
-            title="Уведомления"
-            (click)="openFriendRequestsModal()"
-          >
-            <img
-              [src]="friendRequestBadgeVisible() ? '/assets/Bell_pin_fill.svg' : '/assets/Bell_fill.svg'"
-              alt=""
-            />
-          </button>
+        <div class="section-heading">
+          <div><h1>{{ sectionTitle() }}</h1><p>{{ sectionDescription() }}</p></div>
+          <button type="button" [attr.aria-label]="sectionCreateLabel()" [attr.title]="sectionCreateLabel()" (click)="openSectionCreate()"><app-ui-icon name="plus" /></button>
         </div>
-
-        <div class="conversation-sidebar__search">
-          <label class="conversation-sidebar__search-field">
-            <span class="conversation-sidebar__search-icon">⌕</span>
-            <input
-              type="text"
-              [ngModel]="globalSearchQuery()"
-              placeholder="Поиск бесед и каналов"
-              aria-label="Глобальный поиск"
-              (ngModelChange)="updateGlobalSearchQuery($event)"
-              (keydown.escape)="clearGlobalSearch()"
-            />
-            @if (hasGlobalSearchQuery()) {
-              <button
-                class="conversation-sidebar__search-clear"
-                type="button"
-                aria-label="Очистить поиск"
-                title="Очистить поиск"
-                (click)="clearGlobalSearch()"
-              >
-                ×
-              </button>
-            }
+        @if (isPlatformsMode() && platformSpaces().length) {
+          <label class="platform-picker"><span>Текущая площадка</span>
+            <select aria-label="Выбрать площадку" [ngModel]="selectedServerId()" (ngModelChange)="openWorkspaceTarget($event)">
+              @for (space of platformSpaces(); track space.id) {<option [value]="space.id">{{ space.name }}</option>}
+            </select>
           </label>
-        </div>
-
-        <div class="conversation-sidebar__list" [class.conversation-sidebar__list--search]="hasGlobalSearchQuery()">
-          @if (hasGlobalSearchQuery()) {
-            @if (globalSearchDirectResults().length) {
-              <section class="sidebar-search-section">
-                <div class="sidebar-search-section__head">
-                  <strong>Друзья</strong>
-                  <small>{{ globalSearchDirectResults().length }}</small>
-                </div>
-                @for (conversation of globalSearchDirectResults(); track conversation.id) {
-                  <button
-                    class="sidebar-entry sidebar-entry--search"
-                    [class.sidebar-entry--unread]="conversationUnreadCount(conversation) > 0 || conversationMentionUnreadCount(conversation) > 0"
-                    [class.sidebar-entry--mention]="conversationMentionUnreadCount(conversation) > 0"
-                    type="button"
-                    (click)="openGlobalSearchConversation('chats', conversation.id)"
-                  >
-                    <div class="sidebar-entry__avatar">
-                      @if (conversationIconUrl(conversation); as iconUrl) {
-                        <img [src]="iconUrl" [alt]="conversation.title" loading="lazy" />
-                      } @else {
-                        <span>{{ displayNickInitials(conversation.title) }}</span>
-                      }
-                    </div>
-                    <div class="sidebar-entry__copy">
-                      <div class="sidebar-entry__headline">
-                        <strong>{{ conversation.title }}</strong>
-                        <div class="sidebar-entry__meta">
-                          <span class="sidebar-entry__tag">Друг</span>
-                          @if (conversationMentionUnreadCount(conversation) > 0) {
-                            <span class="sidebar-entry__unread-badge sidebar-entry__unread-badge--mention">&#64;{{ conversationMentionUnreadBadgeLabel(conversation) }}</span>
-                          }
-                          @if (conversationUnreadCount(conversation) > 0) {
-                            <span class="sidebar-entry__unread-badge">{{ conversationUnreadBadgeLabel(conversation) }}</span>
-                          }
-                        </div>
-                      </div>
-                      <small>{{ conversationMetaLabel(conversation) }}</small>
-                    </div>
-                  </button>
-                }
-              </section>
-            }
-
-            @if (globalSearchGroupResults().length) {
-              <section class="sidebar-search-section">
-                <div class="sidebar-search-section__head">
-                  <strong>Группы</strong>
-                  <small>{{ globalSearchGroupResults().length }}</small>
-                </div>
-                @for (conversation of globalSearchGroupResults(); track conversation.id) {
-                  <button
-                    class="sidebar-entry sidebar-entry--search"
-                    [class.sidebar-entry--unread]="conversationUnreadCount(conversation) > 0 || conversationMentionUnreadCount(conversation) > 0"
-                    [class.sidebar-entry--mention]="conversationMentionUnreadCount(conversation) > 0"
-                    type="button"
-                    (click)="openGlobalSearchConversation('groups', conversation.id)"
-                  >
-                    <div class="sidebar-entry__avatar sidebar-entry__avatar--group">
-                      @if (conversationIconUrl(conversation); as iconUrl) {
-                        <img [src]="iconUrl" [alt]="conversation.title" loading="lazy" />
-                      } @else {
-                        <span>{{ displayNickInitials(conversation.title) }}</span>
-                      }
-                    </div>
-                    <div class="sidebar-entry__copy">
-                      <div class="sidebar-entry__headline">
-                        <strong>{{ conversation.title }}</strong>
-                        <div class="sidebar-entry__meta">
-                          <span class="sidebar-entry__tag">Группа</span>
-                          @if (conversationMentionUnreadCount(conversation) > 0) {
-                            <span class="sidebar-entry__unread-badge sidebar-entry__unread-badge--mention">&#64;{{ conversationMentionUnreadBadgeLabel(conversation) }}</span>
-                          }
-                          @if (conversationUnreadCount(conversation) > 0) {
-                            <span class="sidebar-entry__unread-badge">{{ conversationUnreadBadgeLabel(conversation) }}</span>
-                          }
-                        </div>
-                      </div>
-                      <small>{{ conversationMetaLabel(conversation) }}</small>
-                    </div>
-                  </button>
-                }
-              </section>
-            }
-
-            @if (globalSearchPlatformResults().length) {
-              <section class="sidebar-search-section">
-                <div class="sidebar-search-section__head">
-                  <strong>Площадки</strong>
-                  <small>{{ globalSearchPlatformResults().length }}</small>
-                </div>
-                @for (space of globalSearchPlatformResults(); track space.id) {
-                  <button
-                    class="sidebar-entry sidebar-entry--search"
-                    [class.sidebar-entry--unread]="platformUnreadCount(space) > 0 || platformMentionUnreadCount(space) > 0"
-                    [class.sidebar-entry--mention]="platformMentionUnreadCount(space) > 0"
-                    type="button"
-                    (click)="openGlobalSearchConversation('platforms', space.id)"
-                  >
-                    <div class="sidebar-entry__avatar sidebar-entry__avatar--group">
-                      @if (resolveSpaceIconUrl(space.id, space.icon_asset, space.icon_updated_at); as iconUrl) {
-                        <img [src]="iconUrl" [alt]="space.name" loading="lazy" />
-                      } @else {
-                        <span>{{ displayNickInitials(space.name) }}</span>
-                      }
-                    </div>
-                    <div class="sidebar-entry__copy">
-                      <div class="sidebar-entry__headline">
-                        <strong>{{ space.name }}</strong>
-                        <div class="sidebar-entry__meta">
-                          <span class="sidebar-entry__tag">Площадка</span>
-                          @if (platformMentionUnreadCount(space) > 0) {
-                            <span class="sidebar-entry__unread-badge sidebar-entry__unread-badge--mention">&#64;{{ platformMentionUnreadBadgeLabel(space) }}</span>
-                          }
-                          @if (platformUnreadCount(space) > 0) {
-                            <span class="sidebar-entry__unread-badge">{{ platformUnreadBadgeLabel(space) }}</span>
-                          }
-                        </div>
-                      </div>
-                      <small>{{ platformMetaLabel(space) }}</small>
-                    </div>
-                  </button>
-                }
-              </section>
-            }
-
-            @if (globalSearchChannelResults().length) {
-              <section class="sidebar-search-section">
-                <div class="sidebar-search-section__head">
-                  <strong>Каналы</strong>
-                  <small>{{ globalSearchChannelResults().length }}</small>
-                </div>
-                @for (channel of globalSearchChannelResults(); track channel.channel_id) {
-                  <button
-                    class="sidebar-entry sidebar-entry--search"
-                    [class.sidebar-entry--unread]="channel.unread_count > 0 || channel.mention_unread_count > 0"
-                    [class.sidebar-entry--mention]="channel.mention_unread_count > 0"
-                    type="button"
-                    (click)="openGlobalSearchChannel(channel)"
-                  >
-                    <div class="sidebar-entry__avatar sidebar-entry__avatar--group">
-                      @if (resolveSpaceIconUrl(channel.server_id, channel.server_icon_asset, channel.server_icon_updated_at); as iconUrl) {
-                        <img [src]="iconUrl" [alt]="channel.server_name" loading="lazy" />
-                      } @else {
-                        <span>{{ displayNickInitials(channel.server_name) }}</span>
-                      }
-                    </div>
-                    <div class="sidebar-entry__copy">
-                      <div class="sidebar-entry__headline">
-                        <strong>{{ globalSearchChannelLabel(channel) }}</strong>
-                        <div class="sidebar-entry__meta">
-                          <span class="sidebar-entry__tag" [class.sidebar-entry__tag--voice]="channel.type === 'voice'">
-                            {{ globalSearchChannelTypeLabel(channel) }}
-                          </span>
-                          @if (channel.mention_unread_count > 0) {
-                            <span class="sidebar-entry__unread-badge sidebar-entry__unread-badge--mention">&#64;{{ searchBadgeLabel(channel.mention_unread_count) }}</span>
-                          }
-                          @if (channel.unread_count > 0) {
-                            <span class="sidebar-entry__unread-badge">{{ searchBadgeLabel(channel.unread_count) }}</span>
-                          }
-                        </div>
-                      </div>
-                      <small>{{ globalSearchChannelMetaLabel(channel) }}</small>
-                    </div>
-                  </button>
-                }
-              </section>
-            }
-
-            @if (globalSearchLoading()) {
-              <div class="sidebar-search-state">Ищем каналы...</div>
-            }
-
-            @if (globalSearchError()) {
-              <div class="sidebar-search-state sidebar-search-state--error">{{ globalSearchError() }}</div>
-            }
-
-            @if (!globalSearchLoading() && !globalSearchHasResults() && !globalSearchError()) {
-              <div class="sidebar-empty">Ничего не найдено</div>
-            }
-          } @else if (!isPlatformsMode()) {
-            <app-conversation-list [entries]="conversationLinks()" [selected]="selectedServerId()" (open)="openWorkspaceTarget($event)" />
-          } @else {
-            @if (platformEntries().length) {
-              @for (space of platformEntries(); track space.id) {
-                <button
-                  class="sidebar-entry"
-                  [class.sidebar-entry--active]="space.id === selectedServerId()"
-                  [class.sidebar-entry--unread]="platformUnreadCount(space) > 0 || platformMentionUnreadCount(space) > 0"
-                  [class.sidebar-entry--mention]="platformMentionUnreadCount(space) > 0"
-                  type="button"
-                  (click)="selectServer(space.id)"
-                >
-                  <div class="sidebar-entry__avatar sidebar-entry__avatar--group">
-                    @if (resolveSpaceIconUrl(space.id, space.icon_asset, space.icon_updated_at); as iconUrl) {
-                      <img [src]="iconUrl" [alt]="space.name" loading="lazy" />
-                    } @else {
-                      <span>{{ displayNickInitials(space.name) }}</span>
-                    }
-                  </div>
-                  <div class="sidebar-entry__copy">
-                    <div class="sidebar-entry__headline">
-                      <strong>{{ space.name }}</strong>
-                      @if (platformMentionUnreadCount(space) > 0 || platformUnreadCount(space) > 0) {
-                        <div class="sidebar-entry__meta">
-                          @if (platformMentionUnreadCount(space) > 0) {
-                            <span class="sidebar-entry__unread-badge sidebar-entry__unread-badge--mention">&#64;{{ platformMentionUnreadBadgeLabel(space) }}</span>
-                          }
-                          @if (platformUnreadCount(space) > 0) {
-                            <span class="sidebar-entry__unread-badge">{{ platformUnreadBadgeLabel(space) }}</span>
-                          }
-                        </div>
-                      }
-                    </div>
-                    <small>{{ platformMetaLabel(space) }}</small>
-                  </div>
-                </button>
-              }
-            } @else {
-              <div class="sidebar-empty">Площадок пока нет</div>
-            }
-          }
-        </div>
-      </aside>
-
-      <main class="messenger-workspace">
-        @if (workspaceOverlayVisible()) {
-          <div class="workspace-overlay">
-            <div class="workspace-overlay__loader"></div>
-            <span>{{ workspaceOverlayLabel() }}</span>
-          </div>
         }
-
-        @if (activeServer()) {
-          @if (conversationActionMenuOpen()) {
-            <button
-              class="floating-menu-backdrop"
-              type="button"
-              aria-label="Закрыть меню действий"
-              (click)="closeConversationActionMenu()"
-            ></button>
-          }
-          <section class="conversation-head conversation-head--managed">
-            <button class="workspace-back" type="button" aria-label="Назад к списку" (click)="toggleMobilePanel(isPlatformsMode() ? 'channels' : 'servers')">‹</button>
-            <div class="conversation-head__identity conversation-head__identity--managed">
-              <button
-                class="conversation-head__avatar"
-                [class.conversation-head__avatar--group]="!isChatsMode()"
-                [class.conversation-head__avatar--editable]="!isChatsMode() && canEditActiveServerIcon()"
-                type="button"
-                [disabled]="!(!isChatsMode() && canEditActiveServerIcon()) || serverIconSaving()"
-                [attr.title]="!isChatsMode() && canEditActiveServerIcon() ? 'Загрузить иконку пространства' : null"
-                [attr.aria-label]="!isChatsMode() && canEditActiveServerIcon() ? 'Загрузить иконку пространства' : null"
-                (click)="!isChatsMode() && canEditActiveServerIcon() ? openServerIconPicker() : null"
-              >
-                @if (activeSpaceIconUrl(); as iconUrl) {
-                  <img [src]="iconUrl" [alt]="activeServer()?.name ?? ''" loading="lazy" />
-                } @else {
-                  <span>{{ displayNickInitials(activeServer()?.name ?? 'KVA') }}</span>
-                }
-              </button>
-
-              <div class="conversation-head__summary">
-                <span class="conversation-head__kind">{{ activeSpaceKindLabel() }}</span>
-                <strong>{{ activeServer()?.name }}</strong>
-                @if (isPlatformsMode() && activeChannel()) { <small class="channel-context"># {{ activeChannel()?.name }}</small> }
-              </div>
-
-              <div class="conversation-head__menu">
-                <div class="workspace-tools">
-                  @if (isPlatformsMode()) { <button class="mobile-channels-toggle" type="button" aria-label="Каналы площадки" (click)="toggleMobilePanel('channels')">#</button> }
-                  <button type="button" aria-label="Быстрый переход" title="Быстрый переход (Ctrl+K)" (click)="openQuickSwitch()">⌕</button>
-                  <button type="button" aria-label="Поиск сообщений" title="Поиск в этой беседе" (click)="toggleMessageSearchPanel()">Поиск</button>
-                  <button type="button" aria-label="Файлы беседы" title="Файлы беседы" (click)="openChatFilesModal()">Файлы</button>
-                  @if (!isChatsMode()) { <button type="button" aria-label="Участники беседы" title="Участники" (click)="openGroupMembersPanel()">Участники</button> }
-                </div>
-                <button
-                  class="secondary-button conversation-head__action conversation-head__action--icon conversation-head__settings-toggle"
-                  [class.conversation-head__settings-toggle--active]="conversationActionMenuOpen()"
-                  type="button"
-                  [attr.aria-label]="'Действия ' + (isChatsMode() ? 'друга' : activeManagedSpaceLabel())"
-                  [attr.title]="'Действия ' + (isChatsMode() ? 'друга' : activeManagedSpaceLabel())"
-                  (click)="toggleConversationActionMenu()"
-                >
-                  <span class="conversation-head__action-symbol" aria-hidden="true">⚙</span>
-                  @if (isPlatformsMode() && activePlatformVoiceRequestCount() > 0) {
-                    <span class="conversation-head__action-badge">{{ activePlatformVoiceRequestCount() > 99 ? '99+' : activePlatformVoiceRequestCount() }}</span>
-                  }
-                </button>
-
-                @if (conversationActionMenuOpen()) {
-                  <div class="conversation-action-menu conversation-action-menu--managed">
-                    @if (isChatsMode() && activeDirectPeer()) {
-                      <button class="conversation-action-menu__item" type="button" (click)="closeConversationActionMenu(); openActiveDirectPeerCall()">
-                        <img class="conversation-action-menu__item-icon" src="/assets/Phone_connect.svg" alt="" />
-                        Позвонить
-                      </button>
-                    }
-                    @if (activeConversation()) {
-                      <button
-                        class="conversation-action-menu__item"
-                        type="button"
-                        [disabled]="isActiveConversationPushPending()"
-                        (click)="closeConversationActionMenu(); toggleActiveConversationPush()"
-                      >
-                        <img class="conversation-action-menu__item-icon" [src]="activeConversationPushIcon()" alt="" />
-                        {{ activeConversationPushActionLabel() }}
-                      </button>
-                    }
-                    @if (canUseActiveChannelChat()) {
-                      <button class="conversation-action-menu__item" type="button" (click)="closeConversationActionMenu(); toggleMessageSearchPanel()">
-                        <span class="conversation-action-menu__item-icon conversation-action-menu__item-icon--symbol" aria-hidden="true">⌕</span>
-                        Поиск по сообщениям
-                      </button>
-                    }
-                    @if (canUseActiveChannelChat()) {
-                      <button class="conversation-action-menu__item" type="button" (click)="closeConversationActionMenu(); openChatFilesModal()">
-                        <img class="conversation-action-menu__item-icon" src="/assets/Uploaded_sheet_files.svg" alt="" />
-                        Медиа чата
-                      </button>
-                    }
-                    @if (!isChatsMode()) {
-                      <button class="conversation-action-menu__item" type="button" (click)="closeConversationActionMenu(); openGroupMembersPanel()">
-                        <img class="conversation-action-menu__item-icon" src="/assets/Group_fill.svg" alt="" />
-                        Пользователи
-                      </button>
-                    }
-                    @if (!isChatsMode() && canManageActiveGroup()) {
-                      <button class="conversation-action-menu__item" type="button" (click)="closeConversationActionMenu(); openAddGroupMemberModal()">
-                        <img class="conversation-action-menu__item-icon" src="/assets/User_fill_add.svg" alt="" />
-                        Добавить участника
-                      </button>
-                    }
-                    @if (isPlatformsMode() && canOpenPlatformSettings()) {
-                      <button class="conversation-action-menu__item" type="button" (click)="openPlatformSettingsModal()">
-                        <span class="conversation-action-menu__item-icon conversation-action-menu__item-icon--symbol" aria-hidden="true">⚙</span>
-                        Настройки площадки
-                      </button>
-                    }
-                    @if (isChatsMode() && activeDirectPeer(); as directPeer) {
-                      <button class="conversation-action-menu__item conversation-action-menu__item--danger" type="button" [disabled]="isFriendManagementPending(directPeer.user_id)" (click)="removeActiveFriend()">
-                        <img class="conversation-action-menu__item-icon" src="/assets/Trash.svg" alt="" />
-                        Убрать из друзей
-                      </button>
-                      <button class="conversation-action-menu__item conversation-action-menu__item--danger" type="button" [disabled]="isFriendManagementPending(directPeer.user_id)" (click)="blockActiveFriend()">
-                        <span class="conversation-action-menu__item-icon conversation-action-menu__item-icon--symbol" aria-hidden="true">⛔</span>
-                        Заблокировать
-                      </button>
-                    }
-                    @if (isGroupsMode() && activeGroupConversation(); as groupConversation) {
-                      <button class="conversation-action-menu__item" type="button" [disabled]="isServerMembershipActionPending(groupConversation.id)" (click)="leaveActiveGroup()">
-                        <img class="conversation-action-menu__item-icon" src="/assets/Log out.svg" alt="" />
-                        Выйти из группы
-                      </button>
-                      <button class="conversation-action-menu__item conversation-action-menu__item--danger" type="button" [disabled]="isServerMembershipActionPending(groupConversation.id)" (click)="blockActiveGroup()">
-                        <span class="conversation-action-menu__item-icon conversation-action-menu__item-icon--symbol" aria-hidden="true">⛔</span>
-                        Заблокировать группу
-                      </button>
-                    }
-                    @if (isPlatformsMode() && activeServer(); as platform) {
-                      <button class="conversation-action-menu__item" type="button" [disabled]="isServerMembershipActionPending(platform.id)" (click)="leaveActivePlatform()">
-                        <img class="conversation-action-menu__item-icon" src="/assets/Log out.svg" alt="" />
-                        Выйти с площадки
-                      </button>
-                      <button class="conversation-action-menu__item conversation-action-menu__item--danger" type="button" [disabled]="isServerMembershipActionPending(platform.id)" (click)="blockActivePlatform()">
-                        <span class="conversation-action-menu__item-icon conversation-action-menu__item-icon--symbol" aria-hidden="true">⛔</span>
-                        Заблокировать площадку
-                      </button>
-                    }
-                  </div>
-                }
-              </div>
-            </div>
-
-            <input
-              #serverIconInput
-              hidden
-              accept="image/png,image/jpeg"
-              type="file"
-              (change)="onServerIconSelection($event)"
-            />
-          </section>
-
-          <div class="workspace-content" [class.workspace-content--platform]="isPlatformsMode()">
+        <div class="section-search"><app-ui-icon name="search" />
+          <input type="search" [ngModel]="sidebarQuery()" (ngModelChange)="sidebarQuery.set($event)" (keydown.escape)="sidebarQuery.set('')" [placeholder]="isPlatformsMode() ? 'Найти канал' : isGroupsMode() ? 'Найти группу' : 'Найти друга'" [attr.aria-label]="'Поиск в разделе «' + sectionTitle() + '»'" />
+        </div>
+        <div class="conversation-sidebar__list">
+          @if (!isPlatformsMode()) {
+            <app-conversation-list [entries]="conversationLinks()" [selected]="selectedServerId()" [emptyLabel]="sidebarQuery() ? 'Ничего не найдено' : isGroupsMode() ? 'Создайте группу, чтобы общаться вместе' : 'Добавьте друга, чтобы начать общение'" (open)="openWorkspaceTarget($event)" />
+          } @else {
             @if (isPlatformsMode()) {
-              <aside class="platform-channel-rail" [class.platform-channel-rail--mobile-open]="mobilePanel() === 'channels'">
+              <aside class="platform-channel-rail">
                 <div class="platform-channel-section" [class.platform-channel-section--collapsed]="isPlatformChannelSectionCollapsed('text')">
                   <div class="platform-channel-section__head">
                     <button
@@ -1283,7 +831,7 @@
                   </div>
                   @if (!isPlatformChannelSectionCollapsed('text')) {
                     <div class="platform-channel-list">
-                    @for (channel of textChannels(); track channel.id) {
+                    @for (channel of sidebarTextChannels(); track channel.id) {
                       <div
                         class="platform-channel-entry platform-channel-entry--managed"
                         [class.platform-channel-entry--active]="selectedChannelId() === channel.id"
@@ -1335,7 +883,7 @@
                   </div>
                   @if (!isPlatformChannelSectionCollapsed('voice')) {
                     <div class="platform-channel-list">
-                    @for (channel of voiceChannels(); track channel.id) {
+                    @for (channel of sidebarVoiceChannels(); track channel.id) {
                       <div
                         class="platform-channel-entry platform-channel-entry--voice platform-channel-entry--managed"
                         [class.platform-channel-entry--active]="selectedChannelId() === channel.id"
@@ -1564,6 +1112,170 @@
               </aside>
             }
 
+
+            @if (!platformSpaces().length) {<div class="sidebar-empty">Создайте площадку для своего сообщества</div>}
+          }
+        </div>
+        <button class="section-create" type="button" (click)="openSectionCreate()"><app-ui-icon name="plus" />{{ sectionCreateLabel() }}</button>
+      </aside>
+
+      <main class="messenger-workspace">
+        @if (workspaceOverlayVisible()) {
+          <div class="workspace-overlay">
+            <div class="workspace-overlay__loader"></div>
+            <span>{{ workspaceOverlayLabel() }}</span>
+          </div>
+        }
+
+        @if (activeServer()) {
+          @if (conversationActionMenuOpen()) {
+            <button
+              class="floating-menu-backdrop"
+              type="button"
+              aria-label="Закрыть меню действий"
+              (click)="closeConversationActionMenu()"
+            ></button>
+          }
+          <section class="conversation-head conversation-head--managed">
+            <button class="workspace-back" type="button" aria-label="Назад к списку" (click)="toggleMobilePanel('servers')"><app-ui-icon name="back" /></button>
+            <div class="conversation-head__identity conversation-head__identity--managed">
+              <button
+                class="conversation-head__avatar"
+                [class.conversation-head__avatar--group]="!isChatsMode()"
+                [class.conversation-head__avatar--editable]="!isChatsMode() && canEditActiveServerIcon()"
+                type="button"
+                [disabled]="!(!isChatsMode() && canEditActiveServerIcon()) || serverIconSaving()"
+                [attr.title]="!isChatsMode() && canEditActiveServerIcon() ? 'Загрузить иконку пространства' : null"
+                [attr.aria-label]="!isChatsMode() && canEditActiveServerIcon() ? 'Загрузить иконку пространства' : null"
+                (click)="!isChatsMode() && canEditActiveServerIcon() ? openServerIconPicker() : null"
+              >
+                @if (activeSpaceIconUrl(); as iconUrl) {
+                  <img [src]="iconUrl" [alt]="activeServer()?.name ?? ''" loading="lazy" />
+                } @else {
+                  <span>{{ displayNickInitials(activeServer()?.name ?? 'KVA') }}</span>
+                }
+              </button>
+
+              <div class="conversation-head__summary">
+                <strong>{{ isPlatformsMode() && activeChannel() ? activeChannel()?.name : activeServer()?.name }}</strong>
+                <small class="channel-context">{{ isPlatformsMode() ? activeServer()?.name : isGroupsMode() ? 'Групповая беседа' : activeDirectPeer()?.is_online ? 'В сети' : 'Личная переписка' }}</small>
+              </div>
+
+              <div class="conversation-head__menu">
+                <div class="workspace-tools">
+                  @if (isChatsMode() && activeDirectPeer()) {<button class="workspace-call" type="button" aria-label="Позвонить" title="Позвонить" (click)="openActiveDirectPeerCall()"><app-ui-icon name="phone" /></button>}
+                  <button class="workspace-search" type="button" aria-label="Поиск сообщений" title="Поиск в беседе" (click)="toggleMessageSearchPanel()"><app-ui-icon name="search" /></button>
+                  <button type="button" aria-label="Файлы беседы" title="Файлы беседы" (click)="openChatFilesModal()"><app-ui-icon name="files" /></button>
+                  @if (!isChatsMode()) {<button type="button" aria-label="Участники беседы" title="Участники беседы" (click)="openGroupMembersPanel()"><app-ui-icon name="groups" /></button>}
+                </div>
+                <button
+                  class="secondary-button conversation-head__action conversation-head__action--icon conversation-head__settings-toggle"
+                  [class.conversation-head__settings-toggle--active]="conversationActionMenuOpen()"
+                  type="button"
+                  [attr.aria-label]="'Действия ' + (isChatsMode() ? 'друга' : activeManagedSpaceLabel())"
+                  [attr.title]="'Действия ' + (isChatsMode() ? 'друга' : activeManagedSpaceLabel())"
+                  (click)="toggleConversationActionMenu()"
+                >
+                  <app-ui-icon name="more" />
+                  @if (isPlatformsMode() && activePlatformVoiceRequestCount() > 0) {
+                    <span class="conversation-head__action-badge">{{ activePlatformVoiceRequestCount() > 99 ? '99+' : activePlatformVoiceRequestCount() }}</span>
+                  }
+                </button>
+
+                @if (conversationActionMenuOpen()) {
+                  <div class="conversation-action-menu conversation-action-menu--managed">
+                    @if (isChatsMode() && activeDirectPeer()) {
+                      <button class="conversation-action-menu__item" type="button" (click)="closeConversationActionMenu(); openActiveDirectPeerCall()">
+                        <img class="conversation-action-menu__item-icon" src="/assets/Phone_connect.svg" alt="" />
+                        Позвонить
+                      </button>
+                    }
+                    @if (activeConversation()) {
+                      <button
+                        class="conversation-action-menu__item"
+                        type="button"
+                        [disabled]="isActiveConversationPushPending()"
+                        (click)="closeConversationActionMenu(); toggleActiveConversationPush()"
+                      >
+                        <img class="conversation-action-menu__item-icon" [src]="activeConversationPushIcon()" alt="" />
+                        {{ activeConversationPushActionLabel() }}
+                      </button>
+                    }
+                    @if (canUseActiveChannelChat()) {
+                      <button class="conversation-action-menu__item" type="button" (click)="closeConversationActionMenu(); toggleMessageSearchPanel()">
+                        <span class="conversation-action-menu__item-icon conversation-action-menu__item-icon--symbol" aria-hidden="true">⌕</span>
+                        Поиск по сообщениям
+                      </button>
+                    }
+                    @if (canUseActiveChannelChat()) {
+                      <button class="conversation-action-menu__item" type="button" (click)="closeConversationActionMenu(); openChatFilesModal()">
+                        <img class="conversation-action-menu__item-icon" src="/assets/Uploaded_sheet_files.svg" alt="" />
+                        Медиа чата
+                      </button>
+                    }
+                    @if (!isChatsMode()) {
+                      <button class="conversation-action-menu__item" type="button" (click)="closeConversationActionMenu(); openGroupMembersPanel()">
+                        <img class="conversation-action-menu__item-icon" src="/assets/Group_fill.svg" alt="" />
+                        Пользователи
+                      </button>
+                    }
+                    @if (!isChatsMode() && canManageActiveGroup()) {
+                      <button class="conversation-action-menu__item" type="button" (click)="closeConversationActionMenu(); openAddGroupMemberModal()">
+                        <img class="conversation-action-menu__item-icon" src="/assets/User_fill_add.svg" alt="" />
+                        Добавить участника
+                      </button>
+                    }
+                    @if (isPlatformsMode() && canOpenPlatformSettings()) {
+                      <button class="conversation-action-menu__item" type="button" (click)="openPlatformSettingsModal()">
+                        <span class="conversation-action-menu__item-icon conversation-action-menu__item-icon--symbol" aria-hidden="true">⚙</span>
+                        Настройки площадки
+                      </button>
+                    }
+                    @if (isChatsMode() && activeDirectPeer(); as directPeer) {
+                      <button class="conversation-action-menu__item conversation-action-menu__item--danger" type="button" [disabled]="isFriendManagementPending(directPeer.user_id)" (click)="removeActiveFriend()">
+                        <img class="conversation-action-menu__item-icon" src="/assets/Trash.svg" alt="" />
+                        Убрать из друзей
+                      </button>
+                      <button class="conversation-action-menu__item conversation-action-menu__item--danger" type="button" [disabled]="isFriendManagementPending(directPeer.user_id)" (click)="blockActiveFriend()">
+                        <span class="conversation-action-menu__item-icon conversation-action-menu__item-icon--symbol" aria-hidden="true">⛔</span>
+                        Заблокировать
+                      </button>
+                    }
+                    @if (isGroupsMode() && activeGroupConversation(); as groupConversation) {
+                      <button class="conversation-action-menu__item" type="button" [disabled]="isServerMembershipActionPending(groupConversation.id)" (click)="leaveActiveGroup()">
+                        <img class="conversation-action-menu__item-icon" src="/assets/Log out.svg" alt="" />
+                        Выйти из группы
+                      </button>
+                      <button class="conversation-action-menu__item conversation-action-menu__item--danger" type="button" [disabled]="isServerMembershipActionPending(groupConversation.id)" (click)="blockActiveGroup()">
+                        <span class="conversation-action-menu__item-icon conversation-action-menu__item-icon--symbol" aria-hidden="true">⛔</span>
+                        Заблокировать группу
+                      </button>
+                    }
+                    @if (isPlatformsMode() && activeServer(); as platform) {
+                      <button class="conversation-action-menu__item" type="button" [disabled]="isServerMembershipActionPending(platform.id)" (click)="leaveActivePlatform()">
+                        <img class="conversation-action-menu__item-icon" src="/assets/Log out.svg" alt="" />
+                        Выйти с площадки
+                      </button>
+                      <button class="conversation-action-menu__item conversation-action-menu__item--danger" type="button" [disabled]="isServerMembershipActionPending(platform.id)" (click)="blockActivePlatform()">
+                        <span class="conversation-action-menu__item-icon conversation-action-menu__item-icon--symbol" aria-hidden="true">⛔</span>
+                        Заблокировать площадку
+                      </button>
+                    }
+                  </div>
+                }
+              </div>
+            </div>
+
+            <input
+              #serverIconInput
+              hidden
+              accept="image/png,image/jpeg"
+              type="file"
+              (change)="onServerIconSelection($event)"
+            />
+          </section>
+
+          <div class="workspace-content" [class.workspace-content--platform]="isPlatformsMode()">
             <div class="workspace-main-pane">
               @if (isGroupsMode()) {
                 <section
@@ -2358,7 +2070,7 @@
         title="Открыть меню"
         (click)="toggleMobileFooterMenu()"
       >
-        <img class="conversation-sidebar__menu-art" src="/assets/burger_menu.png" alt="" /><span>Меню</span>
+        <app-ui-icon name="menu" /><span>Меню</span>
       </button>
       <button
         class="conversation-sidebar__tab mobile-mode-footer__button"
@@ -2369,7 +2081,7 @@
         title="Друзья"
         (click)="openMobileWorkspaceMode('chats')"
       >
-        <img src="/assets/User_Profile.svg" alt="" /><span>Чаты</span>
+        <app-ui-icon name="friends" /><span>Друзья</span>
       </button>
       <button
         class="conversation-sidebar__tab mobile-mode-footer__button"
@@ -2380,7 +2092,7 @@
         title="Группы"
         (click)="openMobileWorkspaceMode('groups')"
       >
-        <img src="/assets/Group_fill.svg" alt="" /><span>Группы</span>
+        <app-ui-icon name="groups" /><span>Группы</span>
       </button>
       <button
         class="conversation-sidebar__tab mobile-mode-footer__button"
@@ -2391,7 +2103,7 @@
         title="Площадка"
         (click)="openMobileWorkspaceMode('platforms')"
       >
-        <img src="/assets/place.svg" alt="" /><span>Площадки</span>
+        <app-ui-icon name="platforms" /><span>Площадки</span>
       </button>
       <button
         class="secondary-button conversation-sidebar__icon-button mobile-mode-footer__action mobile-mode-footer__action--notifications"
@@ -2401,10 +2113,7 @@
         title="Уведомления"
         (click)="toggleMobileFooterNotifications()"
       >
-        <img
-          [src]="friendRequestBadgeVisible() ? '/assets/Bell_pin_fill.svg' : '/assets/Bell_fill.svg'"
-          alt=""
-        /><span>События</span>
+        <app-ui-icon name="bell" /><span>События</span>
       </button>
     </nav>
   </div>
@@ -4132,7 +3841,7 @@
                           aria-label="Настроить канал"
                           (click)="openPlatformVoiceChannelSettings(channel)"
                         >
-                          <span class="conversation-head__action-symbol" aria-hidden="true">⚙</span>
+                          <app-ui-icon name="more" />
                         </button>
                       }
                       @if (canDeleteWorkspaceChannel(channel)) {
