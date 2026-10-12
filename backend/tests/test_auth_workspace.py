@@ -192,6 +192,15 @@ def connect_app_events_websocket(client: TestClient, token: str, server_id: str 
         yield websocket
 
 
+def receive_app_event(websocket, event_type, matches=lambda event: True):
+    # The transactional outbox and presence sweeper legitimately interleave events.
+    for _ in range(50):
+        event = websocket.receive_json()
+        if event["type"] == event_type and matches(event):
+            return event
+    raise AssertionError(f"Expected {event_type} within 50 events")
+
+
 def test_admin_login_returns_access_token() -> None:
     with TestClient(app) as client:
         token = login_admin_user(client)
@@ -470,7 +479,7 @@ def test_app_events_websocket_reports_ready_and_ping() -> None:
 
         with connect_app_events_websocket(client, token) as websocket:
             websocket.send_json({"type": "ping"})
-            pong_event = websocket.receive_json()
+            pong_event = receive_app_event(websocket, "pong")
 
     assert pong_event == {"type": "pong"}
 
@@ -493,10 +502,7 @@ def test_app_events_websocket_pushes_new_message_to_connected_clients() -> None:
                 )
 
                 assert send_message_response.status_code == 201
-                pushed_event = websocket.receive_json()
-                # Presence updates may interleave with message delivery.
-                while pushed_event["type"] == "presence_updated":
-                    pushed_event = websocket.receive_json()
+                pushed_event = receive_app_event(websocket, "message_created", lambda event: event["message"]["id"] == send_message_response.json()["id"])
         finally:
             delete_user(payload["email"])
 
@@ -531,7 +537,7 @@ def test_app_events_websocket_pushes_message_reaction_updates() -> None:
                 )
 
                 assert reaction_response.status_code == 200
-                pushed_event = websocket.receive_json()
+                pushed_event = receive_app_event(websocket, "message_reactions_updated", lambda event: event["snapshot"]["message_id"] == message_id)
         finally:
             delete_user(payload["email"])
 
@@ -1295,7 +1301,7 @@ def test_message_read_state_updates_message_and_pushes_event() -> None:
                     json={"last_message_id": message["id"]},
                 )
                 assert mark_read_response.status_code == 200
-                read_event = websocket.receive_json()
+                read_event = receive_app_event(websocket, "message_read_updated", lambda event: event["state"]["last_read_message_id"] == message["id"])
 
             list_response = client.get(
                 f"/api/channels/{channel['id']}/messages?limit=10",
