@@ -1,4 +1,9 @@
 import { synchronizeMessages } from './core/services/message-sync';
+import { WorkspaceRailComponent } from './workspace/workspace-rail.component';
+import { ConversationListComponent } from './workspace/conversation-list.component';
+import { QuickSwitchComponent, QuickLink } from './workspace/quick-switch.component';
+import { WorkspaceMemoryService } from './core/services/workspace-memory.service';
+import { isMessageContinuation } from './core/services/message-layout';
 import { HttpErrorResponse } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
 import { Component, DestroyRef, ElementRef, ViewChild, computed, effect, inject, signal } from '@angular/core';
@@ -94,7 +99,7 @@ type VoiceAccessRole = 'owner' | 'resident' | 'guest' | 'stranger';
 type VoiceWorkspaceTab = 'chat' | 'channel';
 type ConversationCreateTab = 'direct' | 'group';
 type PushFeedbackTone = 'success' | 'warning' | 'error';
-type MessageFocusKind = 'unread' | 'mention' | 'search';
+type MessageFocusKind = 'unread' | 'mention' | 'search' | 'restore';
 type ChatMediaTab = 'gallery' | 'files';
 type AttachmentActionSurface = 'message' | 'chat';
 type MessageUploadOutcome = 'idle' | 'uploading' | 'cancelled' | 'failed';
@@ -607,11 +612,134 @@ const DEFAULT_SERVER_ICON_ASSET_BY_NAME: Record<string, string> = {
 @Component({
   providers: [AuthFormStore],
     selector: 'app-root',
-    imports: [CommonModule, FormsModule, MediaStreamSrcDirective],
+    imports: [CommonModule, FormsModule, MediaStreamSrcDirective, WorkspaceRailComponent, ConversationListComponent, QuickSwitchComponent],
     templateUrl: './app.component.html',
-    styleUrl: './app.component.scss'
+    styleUrls: ['./app.component.scss', './app-layout.scss']
 })
 export class AppComponent {
+  private readonly workspaceMemory = inject(WorkspaceMemoryService);
+  readonly quickSwitchOpen = signal(false);
+  readonly showJumpToLatest = signal(false);
+  private quickSwitchReturnFocus: HTMLElement | null = null;
+  private workspaceLoadId = 0;
+  private messageLoadId = 0;
+  private homeSpaceId: string | null = null;
+  private readonly workspaceKeydown = (event: KeyboardEvent) => {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k' && this.session()) {
+      event.preventDefault();
+      this.quickSwitchOpen() ? this.closeQuickSwitch() : this.openQuickSwitch();
+    }
+  };
+  private readonly saveWorkspacePosition = () => this.rememberMessagePosition();
+  private readonly workspacePopState = () => {
+    const target = this.readWorkspaceUrl();
+    if (target && this.session()) this.openWorkspaceTarget(target.spaceId, target.channelId);
+    else if (this.session()) this.openHome();
+  };
+  readonly railSpaces = computed(() => this.platformSpaces().map(space => ({
+    id: space.id, name: space.name,
+    icon: this.resolveSpaceIconUrl(space.id, space.icon_asset, space.icon_updated_at),
+    unread: this.platformUnreadCount(space),
+  })));
+  readonly conversationLinks = computed(() => this.conversations().map(conversation => ({
+    id: conversation.id, name: conversation.title, subtitle: this.conversationMetaLabel(conversation),
+    icon: this.conversationIconUrl(conversation), group: conversation.kind === 'group_chat',
+    unread: this.conversationUnreadCount(conversation), mentions: this.conversationMentionUnreadCount(conversation),
+  })));
+  readonly quickLinks = computed<QuickLink[]>(() => {
+    const query = this.globalSearchQuery().trim().toLocaleLowerCase('ru');
+    const links: QuickLink[] = [
+      ...this.conversations().map(c => ({id: c.id, label: c.title, detail: c.kind === 'direct' ? 'Личная беседа' : 'Группа', spaceId: c.id})),
+      ...this.platformSpaces().map(s => ({id: s.id, label: s.name, detail: 'Площадка', spaceId: s.id})),
+      ...this.channels().map(c => ({id: c.id, label: c.name, detail: this.activeServer()?.name ?? 'Канал', spaceId: this.selectedServerId()!, channelId: c.id})),
+      ...this.globalSearchChannelResults().map(c => ({id: c.channel_id, label: c.name, detail: c.server_name, spaceId: c.server_id, channelId: c.channel_id})),
+      ...this.conversationDirectory().filter(user => user.user_id !== this.currentUser()?.id && !this.conversations().some(c => c.kind === 'direct' && c.members.some(m => m.user_id === user.user_id)))
+        .map(user => ({id: user.user_id, label: user.nick, detail: `Пользователь · ${this.formatPublicUserId(user.public_id)}`, spaceId: '', userPublicId: user.public_id})),
+    ];
+    return links.filter((link, index) => links.findIndex(other => other.id === link.id) === index
+      && (!query || (link.label + ' ' + link.detail).toLocaleLowerCase('ru').includes(query))).slice(0, 30);
+  });
+
+  openQuickSwitch(): void {
+    this.quickSwitchReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    this.clearGlobalSearch();
+    this.quickSwitchOpen.set(true);
+  }
+  closeQuickSwitch(): void {
+    this.quickSwitchOpen.set(false);
+    this.clearGlobalSearch();
+    this.quickSwitchReturnFocus?.focus();
+  }
+  openQuickLink(link: QuickLink): void {
+    this.closeQuickSwitch();
+    if (link.userPublicId) {
+      this.openCreateConversationModal('direct');
+      this.createConversationForm.directUserId = String(link.userPublicId);
+      return;
+    }
+    this.openWorkspaceTarget(link.spaceId, link.channelId);
+  }
+  openHome(): void {
+    const current = this.conversations().find(c => c.id === this.selectedServerId())
+      ?? this.conversations().find(c => c.id === this.homeSpaceId) ?? this.conversations()[0];
+    if (current) this.openWorkspaceTarget(current.id);
+    else this.selectWorkspaceMode('chats');
+  }
+  openWorkspaceTarget(spaceId: string, channelId?: string): void {
+    const conversation = this.conversations().find(c => c.id === spaceId);
+    if (!conversation && !this.platformSpaces().some(s => s.id === spaceId)) return;
+    if (conversation) this.homeSpaceId = conversation.id;
+    this.applyWorkspaceMode(conversation ? conversation.kind === 'direct' ? 'chats' : 'groups' : 'platforms');
+    const savedChannel = channelId ?? this.workspaceMemory.lastChannel(spaceId);
+    if (savedChannel) this.pendingSearchNavigation.set({serverId: spaceId, channelId: savedChannel});
+    if (this.selectedServerId() === spaceId && savedChannel) {
+      const channel = this.channels().find(c => c.id === savedChannel);
+      if (channel) {
+        this.pendingSearchNavigation.set(null);
+        void this.selectChannel(channel, {connectVoice: false});
+        return;
+      }
+    }
+    this.selectServer(spaceId);
+  }
+  private readWorkspaceUrl(): {spaceId: string; channelId: string} | undefined {
+    const match = /^\/channels\/([a-zA-Z0-9-]+)\/([a-zA-Z0-9-]+)\/?$/.exec(window.location.pathname);
+    return match ? {spaceId: match[1], channelId: match[2]} : undefined;
+  }
+  private rememberChannelVisit(channelId: string): void {
+    const spaceId = this.selectedServerId();
+    if (!spaceId) return;
+    this.workspaceMemory.visit(spaceId, channelId);
+    this.messageDraft.set(this.workspaceMemory.channel(channelId).draft ?? '');
+    this.pendingFiles.set([]);
+    this.selectedReplyMessage.set(null);
+    this.clearComposerMentionState();
+    this.scheduleMessageTextareaResize();
+    const url = `/channels/${spaceId}/${channelId}`;
+    if (window.location.pathname !== url) {
+      if (window.location.pathname === '/') window.history.replaceState({}, '', url);
+      else window.history.pushState({}, '', url);
+    }
+  }
+  private rememberMessagePosition(): void {
+    const channelId = this.selectedChannelId();
+    const list = this.messageListRef?.nativeElement;
+    if (!channelId || !list || this.messagesLoading()) return;
+    const top = list.getBoundingClientRect().top;
+    const row = Array.from(list.querySelectorAll<HTMLElement>('[data-message-id]')).find(row => row.getBoundingClientRect().bottom > top);
+    const atBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 80;
+    this.workspaceMemory.remember(channelId, {anchor: atBottom ? undefined : row?.dataset['messageId'], offset: row ? row.getBoundingClientRect().top - top : 0});
+  }
+  isCompactMessage(message: WorkspaceMessage, index: number): boolean {
+    return !this.shouldShowUnreadDivider(message) && isMessageContinuation(message, this.messages()[index - 1]);
+  }
+  jumpToLatest(): void {
+    const channelId = this.selectedChannelId(), token = this.session()?.access_token;
+    if (channelId && token) {
+      this.workspaceMemory.remember(channelId, {anchor: undefined, offset: 0});
+      this.loadMessagesForChannel(token, channelId);
+    }
+  }
   private readonly systemApi = inject(SystemApiService);
   private readonly authForm = inject(AuthFormStore);
   private readonly workspaceApi = inject(WorkspaceApiService);
@@ -845,7 +973,7 @@ export class AppComponent {
   readonly deletingChannelId = signal<string | null>(null);
   readonly authMode = this.authForm.mode;
   readonly directCallScreenExpanded = signal(false);
-  readonly callWindowMode = signal<CallWindowMode>('expanded');
+  readonly callWindowMode = signal<CallWindowMode>('minimized');
   readonly callDockVolumeOpen = signal(false);
   readonly activeVoiceCallSnapshot = signal<VoiceCallSnapshot | null>(null);
   readonly fullscreenMedia = signal<FullscreenMediaState | null>(null);
@@ -1501,7 +1629,8 @@ export class AppComponent {
 
     return this.platformVoiceChannelPendingRequestCount(surface.channelId);
   });
-  readonly activeCallCanOpenSettings = computed(() => this.activeCallSurface()?.kind === 'platform' && this.canOpenPlatformSettings());
+  readonly activeCallCanOpenSettings = computed(() => this.activeCallSurface()?.kind === 'platform'
+    && this.activeVoiceCallSnapshot()?.serverId === this.selectedServerId() && this.canOpenPlatformSettings());
   readonly isIncomingDirectCall = computed(() => {
     const surface = this.activeCallSurface();
     return surface?.kind === 'direct' && this.directCallState() === 'incoming';
@@ -2182,6 +2311,9 @@ export class AppComponent {
   constructor() {
     if (typeof window !== 'undefined') {
       window.addEventListener('keydown', this.handleCallWindowKeydown);
+      window.addEventListener('keydown', this.workspaceKeydown);
+      window.addEventListener('popstate', this.workspacePopState);
+      window.addEventListener('pagehide', this.saveWorkspacePosition);
     }
     if (typeof document !== 'undefined') {
       document.addEventListener('fullscreenchange', this.handleDocumentFullscreenChange);
@@ -2190,6 +2322,9 @@ export class AppComponent {
     this.destroyRef.onDestroy(() => {
       if (typeof window !== 'undefined') {
         window.removeEventListener('keydown', this.handleCallWindowKeydown);
+        window.removeEventListener('keydown', this.workspaceKeydown);
+        window.removeEventListener('popstate', this.workspacePopState);
+        window.removeEventListener('pagehide', this.saveWorkspacePosition);
       }
       if (typeof document !== 'undefined') {
         document.removeEventListener('fullscreenchange', this.handleDocumentFullscreenChange);
@@ -2229,7 +2364,7 @@ export class AppComponent {
 
       if (surfaceId !== this.lastActiveCallSurfaceId) {
         this.lastActiveCallSurfaceId = surfaceId;
-        this.callWindowMode.set('expanded');
+        this.callWindowMode.set('minimized');
         this.callDockVolumeOpen.set(false);
       }
     });
@@ -2243,7 +2378,7 @@ export class AppComponent {
       }
 
       const visibleChannel = this.channels().find((channel) => channel.id === activeChannelId) ?? null;
-      if (visibleChannel) {
+      if (visibleChannel && visibleChannel.server_id === this.selectedServerId()) {
         this.activeVoiceCallSnapshot.set(this.buildVoiceCallSnapshot(visibleChannel));
       }
     });
@@ -2878,8 +3013,10 @@ export class AppComponent {
               completed = true;
               const message = event.message;
               this.pendingMessageIds.delete(channelId);
+              const unchangedDraft = (this.workspaceMemory.channel(channelId).draft ?? '').trim() === payload.content.trim();
+              if (unchangedDraft) this.workspaceMemory.remember(channelId, {draft: ''});
               if (this.selectedChannelId() !== channelId) { return; }
-              this.messageDraft.set('');
+              if (unchangedDraft) this.messageDraft.set('');
               this.pendingFiles.set([]);
               this.selectedReplyMessage.set(null);
               this.clearComposerMentionState();
@@ -5005,7 +5142,7 @@ export class AppComponent {
     this.pendingCallSwitch.set(null);
     await this.stopCallByDescriptor(pendingSwitch.current);
     await pendingSwitch.action();
-    this.callWindowMode.set('expanded');
+    this.callWindowMode.set('minimized');
   }
 
   private guardCallStart(target: CallSwitchDescriptor, action: () => void | Promise<void>): boolean {
@@ -5120,7 +5257,7 @@ export class AppComponent {
 
   private startDirectCall(peer: DirectCallPeer): void {
     this.directCall.openCall(peer);
-    this.callWindowMode.set('expanded');
+    this.callWindowMode.set('minimized');
     this.closeMemberVolume();
   }
 
@@ -5248,7 +5385,7 @@ export class AppComponent {
   openActiveCallSettings(event?: Event): void {
     event?.stopPropagation();
     const surface = this.activeCallSurface();
-    if (surface?.kind !== 'platform' || !surface.channelId || !this.canOpenPlatformSettings()) {
+    if (surface?.kind !== 'platform' || !surface.channelId || !this.activeCallCanOpenSettings()) {
       return;
     }
 
@@ -5342,7 +5479,7 @@ export class AppComponent {
     if (peer) {
       const action = () => {
         this.directCall.acceptIncoming();
-        this.callWindowMode.set('expanded');
+        this.callWindowMode.set('minimized');
       };
 
       if (!this.guardCallStart(this.directCallDescriptor(peer, 'Входящий звонок'), action)) {
@@ -5354,7 +5491,7 @@ export class AppComponent {
     }
 
     this.directCall.acceptIncoming();
-    this.callWindowMode.set('expanded');
+    this.callWindowMode.set('minimized');
   }
 
   rejectDirectCall(): void {
@@ -5880,6 +6017,8 @@ export class AppComponent {
 
   onMessageDraftChange(value: string): void {
     this.messageDraft.set(value);
+    const channelId = this.selectedChannelId();
+    if (channelId) this.workspaceMemory.remember(channelId, {draft: value});
     this.scheduleMessageTextareaResize();
     this.scheduleComposerMentionSync();
     this.schedulePresenceHeartbeat();
@@ -5978,6 +6117,7 @@ export class AppComponent {
       return;
     }
 
+    this.showJumpToLatest.set(element.scrollHeight - element.scrollTop - element.clientHeight > 120);
     if (element.scrollTop > 120) {
       const isNearBottom = element.scrollHeight - element.scrollTop - element.clientHeight <= 80;
       if (isNearBottom) {
@@ -6063,7 +6203,7 @@ export class AppComponent {
     const nextDraft = `${before}${mentionText}${shouldAppendSpace ? ' ' : ''}${after}`;
     const nextCaretPosition = before.length + mentionText.length + (shouldAppendSpace ? 1 : 0);
 
-    this.messageDraft.set(nextDraft);
+    this.onMessageDraftChange(nextDraft);
     this.clearComposerMentionState();
     this.scheduleMessageTextareaResize();
 
@@ -6229,14 +6369,7 @@ export class AppComponent {
     if (!connectedVoiceChannel) {
       return;
     }
-
-    this.closeMobilePanel();
-    if (this.activeGroupConversation()) {
-      this.selectedChannelId.set(this.activeGroupTextChannel()?.id ?? connectedVoiceChannel.id);
-    } else {
-      this.selectedChannelId.set(connectedVoiceChannel.id);
-    }
-    this.voiceWorkspaceTab.set(this.defaultVoiceWorkspaceTab());
+    this.openWorkspaceTarget(connectedVoiceChannel.server_id, connectedVoiceChannel.id);
   }
 
   selectVoiceWorkspaceTab(tab: VoiceWorkspaceTab): void {
@@ -6513,17 +6646,6 @@ export class AppComponent {
       return;
     }
 
-    const nextServer = this.currentSpaceList().find((server) => server.id === serverId) ?? null;
-    const currentServer = this.activeServer();
-    if (this.hasVoiceConnection() && currentServer && nextServer) {
-      this.pendingServerSwitch.set({
-        serverId,
-        fromServerName: currentServer.name,
-        toServerName: nextServer.name
-      });
-      return;
-    }
-
     this.performServerSelection(serverId);
   }
 
@@ -6550,22 +6672,13 @@ export class AppComponent {
     }
 
     this.schedulePresenceHeartbeat(true);
-    if (this.isCompactVoiceWorkspaceViewport()) {
-      this.closeMobilePanel();
-    } else {
-      this.closeMobilePanel();
-    }
+    this.closeMobilePanel();
     this.stopMemberPolling();
     this.stopVoicePresencePolling();
     this.stopMessageAutoRefreshPolling();
     this.closePendingVoiceJoin();
     this.closeBlockedVoiceJoinNotice();
     this.closeGroupMembersPanel();
-    if (this.hasVoiceConnection()) {
-      this.voiceRoom.leave();
-    }
-
-    this.resetTextChannelState();
     this.loadServerWorkspace(token, serverId);
   }
 
@@ -6576,9 +6689,11 @@ export class AppComponent {
     this.closeMobilePanel();
     this.closeChatFilesModal();
     if (selectedChannelChanged) {
+      this.rememberMessagePosition();
       this.resetMessageSearchState();
     }
     this.selectedChannelId.set(channel.id);
+    if (selectedChannelChanged) this.rememberChannelVisit(channel.id);
     this.workspaceError.set(null);
     this.messageError.set(null);
 
@@ -7727,6 +7842,7 @@ export class AppComponent {
         ? normalizedPreferredSelectedChannelId
         : null)
       ?? preferredGroupTextChannelId
+      ?? channels.find(channel => channel.type === 'text')?.id
       ?? (connectedVoiceChannelId && channels.some((channel) => channel.id === connectedVoiceChannelId)
         ? connectedVoiceChannelId
         : null)
@@ -7735,6 +7851,7 @@ export class AppComponent {
 
     const selectedChannelChanged = nextSelectedChannelId !== this.selectedChannelId();
     this.selectedChannelId.set(nextSelectedChannelId);
+    if (selectedChannelChanged && nextSelectedChannelId) this.rememberChannelVisit(nextSelectedChannelId);
     this.filterVoicePresenceToVisibleChannels(channels);
 
     const pendingSearchNavigation = this.pendingSearchNavigation();
@@ -8317,6 +8434,7 @@ export class AppComponent {
       .subscribe({
         next: ({ me, servers, conversations }) => {
           this.currentUser.set(me);
+          this.workspaceMemory.useUser(me.id);
           if (options.startAuthenticatedServices) {
             this.startAuthenticatedServices(token);
           }
@@ -8347,6 +8465,11 @@ export class AppComponent {
             return;
           }
 
+          const remembered = this.readWorkspaceUrl() ?? this.workspaceMemory.last();
+          if (!this.selectedServerId() && remembered && [...this.conversationSpaces(), ...this.platformSpaces()].some(s => s.id === remembered.spaceId)) {
+            this.openWorkspaceTarget(remembered.spaceId, remembered.channelId);
+            return;
+          }
           const selectedServerId = this.selectedServerId();
           const previousMode = this.workspaceMode();
           const preferredMode = previousMode === 'groups'
@@ -8408,6 +8531,8 @@ export class AppComponent {
   }
 
   private loadServerWorkspace(token: string, serverId: string): void {
+    const requestId = ++this.workspaceLoadId;
+    this.rememberMessagePosition();
     const pendingNavigation = this.pendingMessageNavigation();
     const pendingSearchNavigation = this.pendingSearchNavigation();
     const previousSelectedChannelId =
@@ -8427,6 +8552,7 @@ export class AppComponent {
     this.selectedServerId.set(serverId);
     this.appEvents.setActiveServer(serverId);
     this.selectedChannelId.set(null);
+    this.channels.set([]);
     this.platformExpandedVoiceChannelId.set(null);
     this.platformTextChannelsCollapsed.set(false);
     this.platformVoiceChannelsCollapsed.set(false);
@@ -8449,6 +8575,7 @@ export class AppComponent {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: ({ channels, members, voicePresence }) => {
+          if (requestId !== this.workspaceLoadId || this.selectedServerId() !== serverId || this.session()?.access_token !== token) return;
           this.applyChannelsSnapshot(channels, token, previousSelectedChannelId);
           this.applyMembersSnapshot(members);
           this.applyVoicePresenceSnapshot(voicePresence);
@@ -8456,6 +8583,7 @@ export class AppComponent {
           this.workspaceLoading.set(false);
         },
         error: (error) => {
+          if (requestId !== this.workspaceLoadId || this.selectedServerId() !== serverId || this.session()?.access_token !== token) return;
           if ((error instanceof HttpErrorResponse && error.status === 401)) {
             this.expireSession(error);
             return;
@@ -8515,7 +8643,7 @@ export class AppComponent {
     if (this.isPlatformsMode()) {
       this.platformExpandedVoiceChannelId.set(channel.id);
     }
-    this.callWindowMode.set('expanded');
+    this.callWindowMode.set('minimized');
     this.pendingVoiceJoin.set(null);
     this.stopVoiceJoinRequestPolling();
     if (this.currentUser()?.is_admin || this.canManageActiveGroup() || channel.voice_access_role === 'owner') {
@@ -8528,7 +8656,7 @@ export class AppComponent {
   }
 
   private isCompactVoiceWorkspaceViewport(): boolean {
-    return typeof window !== 'undefined' && window.matchMedia('(max-width: 920px)').matches;
+    return typeof window !== 'undefined' && window.matchMedia('(max-width: 980px)').matches;
   }
 
   private buildInitialChannelLoadOptions(
@@ -8550,6 +8678,9 @@ export class AppComponent {
         ),
       };
     }
+
+    const saved = this.workspaceMemory.channel(channel.id);
+    if (saved.anchor) return {focusMessageId: saved.anchor, focusKind: 'restore'};
 
     const focusMessageId =
       this.channelMentionUnreadCount(channel) > 0 && channel.first_mention_unread_message_id
@@ -8579,6 +8710,7 @@ export class AppComponent {
     before?: string | null,
     options: { focusMessageId?: string | null; limit?: number; focusKind?: MessageFocusKind } = {},
   ): void {
+    const requestId = ++this.messageLoadId;
     const isLoadingMore = Boolean(before);
     const listElement = this.messageListRef?.nativeElement;
     const previousScrollHeight = listElement?.scrollHeight ?? 0;
@@ -8607,7 +8739,7 @@ export class AppComponent {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (page) => {
-          if (this.selectedChannelId() !== channelId) {
+          if (requestId !== this.messageLoadId || this.selectedChannelId() !== channelId || this.session()?.access_token !== token) {
             return;
           }
 
@@ -8634,7 +8766,14 @@ export class AppComponent {
           } else {
             const focusMessageId = options.focusMessageId ?? null;
             if (focusMessageId && page.items.some((message) => message.id === focusMessageId)) {
-              this.scrollMessageIntoView(focusMessageId);
+              if (options.focusKind === 'restore') {
+                requestAnimationFrame(() => {
+                  if (requestId !== this.messageLoadId || this.selectedChannelId() !== channelId || this.session()?.access_token !== token) return;
+                  const list = this.messageListRef?.nativeElement;
+                  const row = list?.querySelector<HTMLElement>(`[data-message-id="${focusMessageId}"]`);
+                  if (list && row) list.scrollTop += row.getBoundingClientRect().top - list.getBoundingClientRect().top - (this.workspaceMemory.channel(channelId).offset ?? 0);
+                });
+              } else this.scrollMessageIntoView(focusMessageId);
             } else {
               this.scrollMessagesToBottom();
             }
@@ -8645,6 +8784,12 @@ export class AppComponent {
           }
         },
         error: (error) => {
+          if (requestId !== this.messageLoadId || this.selectedChannelId() !== channelId || this.session()?.access_token !== token) return;
+          if (options.focusKind === 'restore' && error instanceof HttpErrorResponse && error.status === 404) {
+            this.workspaceMemory.remember(channelId, {anchor: undefined});
+            this.loadMessagesForChannel(token, channelId);
+            return;
+          }
           this.messagesLoading.set(false);
           this.messagesLoadingMore.set(false);
           this.messageError.set(this.extractErrorMessage(error, 'Не удалось загрузить сообщения'));
@@ -9225,6 +9370,7 @@ export class AppComponent {
       }
 
       element.scrollTop = element.scrollHeight;
+      this.showJumpToLatest.set(false);
     });
   }
 
@@ -10198,7 +10344,7 @@ export class AppComponent {
   }
 
   shouldShowUnreadDivider(message: WorkspaceMessage): boolean {
-    return this.openedUnreadAnchorMessageId() === message.id;
+    return this.openedMessageFocusKind() !== 'restore' && this.openedUnreadAnchorMessageId() === message.id;
   }
 
   unreadDividerLabel(): string {

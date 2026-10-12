@@ -784,9 +784,15 @@
       <button class="mobile-backdrop" type="button" aria-label="Закрыть список" (click)="closeMobilePanel()"></button>
     }
 
-    <div class="messenger-layout">
+    @if (quickSwitchOpen()) {
+      <app-quick-switch [query]="globalSearchQuery()" [links]="quickLinks()" (search)="updateGlobalSearchQuery($event)" (open)="openQuickLink($event)" (close)="closeQuickSwitch()" />
+    }
+    <div class="messenger-layout" [class.messenger-layout--platform]="isPlatformsMode()">
+      <app-workspace-rail [spaces]="railSpaces()" [selected]="selectedServerId()" [homeActive]="!isPlatformsMode()" [initials]="displayNickInitials(currentUser()?.nick ?? 'Я')" (menu)="toggleSideMenu()" (home)="openHome()" (search)="openQuickSwitch()" (selectSpace)="openWorkspaceTarget($event)" (create)="openCreatePlatformShortcut()" (profile)="openProfileEditor()" (notifications)="openFriendRequestsModal()" />
       <aside class="conversation-sidebar" [class.conversation-sidebar--mobile-open]="mobilePanel() === 'servers'">
         <div class="conversation-sidebar__tabs">
+          <strong class="sidebar-heading">{{ isPlatformsMode() ? 'Площадки' : 'Сообщения' }}</strong>
+          <button class="sidebar-new-chat" type="button" title="Начать беседу" aria-label="Начать беседу" (click)="openCreateConversationModal('direct')">+</button>
           <div class="conversation-sidebar__tabs-actions">
             <button
               class="icon-button conversation-sidebar__menu"
@@ -852,7 +858,7 @@
             <input
               type="text"
               [ngModel]="globalSearchQuery()"
-              placeholder="Поиск по друзьям, группам, площадкам и каналам"
+              placeholder="Поиск бесед и каналов"
               aria-label="Глобальный поиск"
               (ngModelChange)="updateGlobalSearchQuery($event)"
               (keydown.escape)="clearGlobalSearch()"
@@ -1050,88 +1056,8 @@
             @if (!globalSearchLoading() && !globalSearchHasResults() && !globalSearchError()) {
               <div class="sidebar-empty">Ничего не найдено</div>
             }
-          } @else if (isChatsMode()) {
-            @if (personalChatEntries().length) {
-              @for (space of personalChatEntries(); track space.id) {
-                @if (activeConversation()?.id === space.id ? activeConversation() : directConversationById(space.id); as conversation) {
-                  <button
-                    class="sidebar-entry"
-                    [class.sidebar-entry--active]="space.id === selectedServerId()"
-                    [class.sidebar-entry--unread]="conversationUnreadCount(conversation) > 0 || conversationMentionUnreadCount(conversation) > 0"
-                    [class.sidebar-entry--mention]="conversationMentionUnreadCount(conversation) > 0"
-                    type="button"
-                    (click)="selectServer(space.id)"
-                  >
-                    <div class="sidebar-entry__avatar">
-                      @if (conversationIconUrl(conversation); as iconUrl) {
-                        <img [src]="iconUrl" [alt]="conversation.title" loading="lazy" />
-                      } @else {
-                        <span>{{ displayNickInitials(conversation.title) }}</span>
-                      }
-                    </div>
-                    <div class="sidebar-entry__copy">
-                      <div class="sidebar-entry__headline">
-                        <strong>{{ conversation.title }}</strong>
-                        @if (conversationMentionUnreadCount(conversation) > 0 || conversationUnreadCount(conversation) > 0) {
-                          <div class="sidebar-entry__meta">
-                            @if (conversationMentionUnreadCount(conversation) > 0) {
-                              <span class="sidebar-entry__unread-badge sidebar-entry__unread-badge--mention">&#64;{{ conversationMentionUnreadBadgeLabel(conversation) }}</span>
-                            }
-                            @if (conversationUnreadCount(conversation) > 0) {
-                              <span class="sidebar-entry__unread-badge">{{ conversationUnreadBadgeLabel(conversation) }}</span>
-                            }
-                          </div>
-                        }
-                      </div>
-                      <small>{{ conversationMetaLabel(conversation) }}</small>
-                    </div>
-                  </button>
-                }
-              }
-            } @else {
-              <div class="sidebar-empty">Друзей пока нет</div>
-            }
-          } @else if (isGroupsMode()) {
-            @if (groupChatEntries().length) {
-              @for (space of groupChatEntries(); track space.id) {
-                @if (activeConversation()?.id === space.id ? activeConversation() : groupConversationById(space.id); as conversation) {
-                  <button
-                    class="sidebar-entry"
-                    [class.sidebar-entry--active]="space.id === selectedServerId()"
-                    [class.sidebar-entry--unread]="conversationUnreadCount(conversation) > 0 || conversationMentionUnreadCount(conversation) > 0"
-                    [class.sidebar-entry--mention]="conversationMentionUnreadCount(conversation) > 0"
-                    type="button"
-                    (click)="selectServer(space.id)"
-                  >
-                    <div class="sidebar-entry__avatar sidebar-entry__avatar--group">
-                      @if (conversationIconUrl(conversation); as iconUrl) {
-                        <img [src]="iconUrl" [alt]="conversation.title" loading="lazy" />
-                      } @else {
-                        <span>{{ displayNickInitials(conversation.title) }}</span>
-                      }
-                    </div>
-                    <div class="sidebar-entry__copy">
-                      <div class="sidebar-entry__headline">
-                        <strong>{{ conversation.title }}</strong>
-                        @if (conversationMentionUnreadCount(conversation) > 0 || conversationUnreadCount(conversation) > 0) {
-                          <div class="sidebar-entry__meta">
-                            @if (conversationMentionUnreadCount(conversation) > 0) {
-                              <span class="sidebar-entry__unread-badge sidebar-entry__unread-badge--mention">&#64;{{ conversationMentionUnreadBadgeLabel(conversation) }}</span>
-                            }
-                            @if (conversationUnreadCount(conversation) > 0) {
-                              <span class="sidebar-entry__unread-badge">{{ conversationUnreadBadgeLabel(conversation) }}</span>
-                            }
-                          </div>
-                        }
-                      </div>
-                      <small>{{ conversationMetaLabel(conversation) }}</small>
-                    </div>
-                  </button>
-                }
-              }
-            } @else {
-              <div class="sidebar-empty">Групп пока нет</div>
-            }
+          } @else if (!isPlatformsMode()) {
+            <app-conversation-list [entries]="conversationLinks()" [selected]="selectedServerId()" (open)="openWorkspaceTarget($event)" />
           } @else {
             @if (platformEntries().length) {
               @for (space of platformEntries(); track space.id) {
@@ -1193,6 +1119,7 @@
             ></button>
           }
           <section class="conversation-head conversation-head--managed">
+            <button class="workspace-back" type="button" aria-label="Назад к списку" (click)="toggleMobilePanel(isPlatformsMode() ? 'channels' : 'servers')">‹</button>
             <div class="conversation-head__identity conversation-head__identity--managed">
               <button
                 class="conversation-head__avatar"
@@ -1214,9 +1141,17 @@
               <div class="conversation-head__summary">
                 <span class="conversation-head__kind">{{ activeSpaceKindLabel() }}</span>
                 <strong>{{ activeServer()?.name }}</strong>
+                @if (isPlatformsMode() && activeChannel()) { <small class="channel-context"># {{ activeChannel()?.name }}</small> }
               </div>
 
               <div class="conversation-head__menu">
+                <div class="workspace-tools">
+                  @if (isPlatformsMode()) { <button class="mobile-channels-toggle" type="button" aria-label="Каналы площадки" (click)="toggleMobilePanel('channels')">#</button> }
+                  <button type="button" aria-label="Быстрый переход" title="Быстрый переход (Ctrl+K)" (click)="openQuickSwitch()">⌕</button>
+                  <button type="button" aria-label="Поиск сообщений" title="Поиск в этой беседе" (click)="toggleMessageSearchPanel()">Поиск</button>
+                  <button type="button" aria-label="Файлы беседы" title="Файлы беседы" (click)="openChatFilesModal()">Файлы</button>
+                  @if (!isChatsMode()) { <button type="button" aria-label="Участники беседы" title="Участники" (click)="openGroupMembersPanel()">Участники</button> }
+                </div>
                 <button
                   class="secondary-button conversation-head__action conversation-head__action--icon conversation-head__settings-toggle"
                   [class.conversation-head__settings-toggle--active]="conversationActionMenuOpen()"
@@ -1326,7 +1261,7 @@
 
           <div class="workspace-content" [class.workspace-content--platform]="isPlatformsMode()">
             @if (isPlatformsMode()) {
-              <aside class="platform-channel-rail">
+              <aside class="platform-channel-rail" [class.platform-channel-rail--mobile-open]="mobilePanel() === 'channels'">
                 <div class="platform-channel-section" [class.platform-channel-section--collapsed]="isPlatformChannelSectionCollapsed('text')">
                   <div class="platform-channel-section__head">
                     <button
@@ -1928,7 +1863,7 @@
                   }
 
                   @if (messages().length) {
-                    @for (message of messages(); track message.id) {
+                    @for (message of messages(); track message.id; let messageIndex = $index) {
                       @if (shouldShowUnreadDivider(message)) {
                         <div class="message-divider message-divider--unread">
                           <span class="message-divider__line"></span>
@@ -1938,6 +1873,8 @@
                       }
                       <article
                         class="message-card"
+                        tabindex="0"
+                        [class.message-card--continuation]="isCompactMessage(message, messageIndex)"
                         [attr.data-message-id]="message.id"
                         [class.message-card--self]="message.author.id === currentUser()?.id"
                         [class.message-card--mention]="messageMentionsCurrentUser(message)"
@@ -1957,7 +1894,6 @@
                           <div class="message-card__meta">
                             <div class="message-card__author">
                               <strong>{{ displayNick(message.author.nick) }}</strong>
-                              <span>ID: {{ formatPublicUserId(message.author.public_id) }}</span>
                               @if (messageMentionsCurrentUser(message)) {
                                 <span class="message-card__mention-badge">&#64; вас</span>
                               }
@@ -2174,7 +2110,7 @@
                                 <span class="reaction-chip__count">{{ reaction.count }}</span>
                               </button>
                             }
-                            <button
+                            <span class="message-hover-actions"><button
                               class="reaction-picker-toggle"
                               type="button"
                               [class.reaction-picker-toggle--active]="openedMessageReactionPickerId() === message.id"
@@ -2191,6 +2127,7 @@
                             >
                               Ответить
                             </button>
+                            </span>
                           </div>
                           @if (openedMessageReactionPickerId() === message.id) {
                             <div class="reaction-picker">
@@ -2233,6 +2170,7 @@
               }
             </div>
 
+            @if (showJumpToLatest()) { <button class="jump-to-latest" type="button" (click)="jumpToLatest()">↓ К последним сообщениям</button> }
             <section class="composer">
               @if (canUseActiveChannelChat()) {
                 <input #attachmentInput hidden type="file" multiple (change)="onAttachmentSelection($event)" />
@@ -2420,7 +2358,7 @@
         title="Открыть меню"
         (click)="toggleMobileFooterMenu()"
       >
-        <img class="conversation-sidebar__menu-art" src="/assets/burger_menu.png" alt="" />
+        <img class="conversation-sidebar__menu-art" src="/assets/burger_menu.png" alt="" /><span>Меню</span>
       </button>
       <button
         class="conversation-sidebar__tab mobile-mode-footer__button"
@@ -2431,7 +2369,7 @@
         title="Друзья"
         (click)="openMobileWorkspaceMode('chats')"
       >
-        <img src="/assets/User_Profile.svg" alt="" />
+        <img src="/assets/User_Profile.svg" alt="" /><span>Чаты</span>
       </button>
       <button
         class="conversation-sidebar__tab mobile-mode-footer__button"
@@ -2442,7 +2380,7 @@
         title="Группы"
         (click)="openMobileWorkspaceMode('groups')"
       >
-        <img src="/assets/Group_fill.svg" alt="" />
+        <img src="/assets/Group_fill.svg" alt="" /><span>Группы</span>
       </button>
       <button
         class="conversation-sidebar__tab mobile-mode-footer__button"
@@ -2453,7 +2391,7 @@
         title="Площадка"
         (click)="openMobileWorkspaceMode('platforms')"
       >
-        <img src="/assets/place.svg" alt="" />
+        <img src="/assets/place.svg" alt="" /><span>Площадки</span>
       </button>
       <button
         class="secondary-button conversation-sidebar__icon-button mobile-mode-footer__action mobile-mode-footer__action--notifications"
@@ -2466,7 +2404,7 @@
         <img
           [src]="friendRequestBadgeVisible() ? '/assets/Bell_pin_fill.svg' : '/assets/Bell_fill.svg'"
           alt=""
-        />
+        /><span>События</span>
       </button>
     </nav>
   </div>
