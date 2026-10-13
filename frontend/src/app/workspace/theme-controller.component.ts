@@ -22,7 +22,7 @@ export class ThemeControllerComponent implements OnDestroy {
   try{const theme=await firstValueFrom(this.http.get<ThemeState>(API_BASE_URL+'/api/inventory/theme',{headers:{Authorization:'Bearer '+token}}));
    if(version!==this.version||theme.id===this.applied)return;
    this.clear();if(!theme.id)return;
-   const root=document.documentElement;root.dataset['uiTheme']=theme.id;root.style.colorScheme=theme.scheme;
+   const root=document.documentElement;root.dataset['uiTheme']=theme.id;root.dataset['uiScheme']=theme.scheme;root.style.colorScheme=theme.scheme;
    for(const [key,value] of Object.entries(theme.palette)){
     if(!/^[a-z-]+$/.test(key)||!/^#[0-9a-f]{6}$/i.test(value))continue;
     root.style.setProperty('--palette-'+key,value);
@@ -31,6 +31,6 @@ export class ThemeControllerComponent implements OnDestroy {
    this.applied=theme.id;
   }catch{/* Keep the last verified theme during a temporary connection failure. */}
  }
- private clear(){const root=document.documentElement;for(const key of this.keys){root.style.removeProperty('--palette-'+key);root.style.removeProperty('--rgb-'+key);}this.keys=[];delete root.dataset['uiTheme'];root.style.removeProperty('color-scheme');this.applied=null;}
+ private clear(){const root=document.documentElement;for(const key of this.keys){root.style.removeProperty('--palette-'+key);root.style.removeProperty('--rgb-'+key);}this.keys=[];delete root.dataset['uiTheme'];delete root.dataset['uiScheme'];root.style.removeProperty('color-scheme');this.applied=null;}
  ngOnDestroy(){++this.version;this.clear();}
 }

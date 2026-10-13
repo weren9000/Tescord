@@ -54,8 +54,11 @@ body {
 
 :root[data-ui-theme] {background:var(--palette-canvas);color:var(--palette-text);}
 :root[data-ui-theme] button.primary, :root[data-ui-theme] .primary-button {color:#fff;}
-:root[data-ui-theme='theme-light'] app-section-navigation .brand img {
-  mix-blend-mode: normal;
-  filter: brightness(.3);
+:root[data-ui-scheme='light'] app-section-navigation .brand img {
+  // Invert the original black matte to white; multiply removes it on light surfaces.
+  // Hue rotation retains the cyan brand accents without changing the source logo.
+  mix-blend-mode: multiply;
+  filter: contrast(1.5) invert(1) hue-rotate(180deg);
+  opacity: .85;
 }
-:root[data-ui-theme='theme-light'] .composer__submit img {filter: brightness(.35);}
+:root[data-ui-scheme='light'] .composer__submit img {filter: brightness(.35);}
