@@ -58,6 +58,9 @@ async def update_current_user_profile(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> UpdateCurrentUserProfileResponse:
+    if avatar is not None and not current_user.is_avatar_admin:
+        await avatar.close()
+        raise HTTPException(403, 'Загрузка аватарок доступна только администратору аватарок')
     if sum((avatar is not None, remove_avatar, avatar_preset is not None)) > 1:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

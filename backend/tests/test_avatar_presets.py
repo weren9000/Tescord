@@ -38,6 +38,12 @@ def test_selection_upload_and_removal_restore_saved_preset(account):
     assert selected['avatar_updated_at'] is not None
     url = f"/api/users/{selected['id']}/avatar"
     assert client.get(url).content == client.get('/api/avatar-presets/owl').content
+    from uuid import UUID
+    from app.db.session import SessionLocal
+    from app.db.models import User
+    with SessionLocal() as db:
+        db.get(User, UUID(selected['id'])).is_avatar_admin = True
+        db.commit()
     uploaded = client.put('/api/me/profile', headers=headers, files={'avatar': ('test.png', TEST_PNG_BYTES, 'image/png')})
     assert uploaded.status_code == 200
     assert uploaded.json()['has_uploaded_avatar']

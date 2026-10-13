@@ -1900,7 +1900,7 @@
           <button
             class="profile-editor__avatar"
             type="button"
-            [disabled]="profileSaving()"
+            [disabled]="profileSaving() || !currentUser()?.is_avatar_admin"
             (click)="openProfileAvatarPicker('editor')"
           >
             @if (effectiveProfileAvatarUrl(); as avatarUrl) {
@@ -1910,9 +1910,9 @@
             }
           </button>
           <div class="profile-editor__controls">
-            <button class="secondary-button" type="button" [disabled]="profileSaving()" (click)="openProfileAvatarPicker('editor')">
+            @if(currentUser()?.is_avatar_admin){<button class="secondary-button" type="button" [disabled]="profileSaving()" (click)="openProfileAvatarPicker('editor')">
               Загрузить аватарку
-            </button>
+            </button>}
             <button
               class="secondary-button"
               type="button"
@@ -1921,7 +1921,7 @@
             >
               Удалить своё фото
             </button>
-            <small>PNG или JPG, квадрат 1:1, максимум 300×300.</small>
+@if(currentUser()?.is_avatar_admin){            <small>PNG или JPG, квадрат 1:1, максимум 300×300.</small>}
           </div>
         </div>
 

@@ -23,23 +23,33 @@ def test_basics_personal_privacy_and_validation(accounts):
     assert (data['selected'],data['scale'],data['dim'])==('space',150,55)
     assert c.get('/api/wallpapers',headers=bob).json()['selected'] is None
     assert select_wallpaper(c,alice,'unknown').status_code==400
-    assert select_wallpaper(c,alice,'personal').status_code==400
+    assert select_wallpaper(c,alice,'personal').status_code==403
     assert select_wallpaper(c,alice,'space',dim=99).status_code==422
-    assert c.post('/api/wallpapers/personal',headers=alice,files={'image':('bad.svg',b'<svg/>')}).status_code==400
-    wide=BytesIO();Image.new('RGB',(800,400),'red').save(wide,format='PNG')
-    result=c.post('/api/wallpapers/personal',headers=alice,files={'image':('wide.png',wide.getvalue())})
-    assert result.status_code==200,result.text
-    key=result.json()['personal'];path='/api/wallpapers/personal/'+key
-    assert c.get(path,headers=bob).status_code==404
-    assert c.get(path).status_code==401
-    assert Image.open(BytesIO(c.get(path,headers=alice).content)).size==(800,400)
-    assert select_wallpaper(c,alice,'personal').status_code==200
-    second=c.post('/api/wallpapers/personal',headers=alice,files={'image':('new.png',picture())}).json()['personal']
-    assert second!=key and c.get(path,headers=alice).status_code==404
-    from app.api.routes.wallpapers import personal_path
-    assert not personal_path(key).exists()
-    personal_path(second).unlink(missing_ok=True)
+    assert c.post('/api/wallpapers/personal',headers=alice,files={'image':('image.png',picture())}).status_code==403
+    assert c.post('/api/wallpapers/personal',headers=admin,files={'image':('image.png',picture())}).status_code==403
     assert select_wallpaper(c,alice,None).json()['selected'] is None
+    from uuid import UUID
+    from app.db.session import SessionLocal
+    from app.db.models import User
+    with SessionLocal() as db:
+        user=db.get(User,UUID(users[1][1]['id']))
+        user.chat_wallpaper='personal'
+        user.personal_wallpaper=str(uuid4())
+        db.commit()
+    data=c.get('/api/wallpapers',headers=alice).json()
+    assert data['selected'] is None and data['personal'] is None
+
+
+def test_avatar_upload_admin_only(accounts):
+    c,users=accounts
+    admin,_,_=users[0];alice,_,_=users[1]
+    payload={'avatar':('avatar.png',picture(),'image/png')}
+    before=c.get('/api/me',headers=alice).json()
+    assert c.put('/api/me/profile',headers=alice,files=payload).status_code==403
+    after=c.get('/api/me',headers=alice).json()
+    assert before['avatar_updated_at']==after['avatar_updated_at']
+    assert c.put('/api/me/profile',headers=alice,data={'avatar_preset':'cat'}).status_code==200
+    assert c.put('/api/me/profile',headers=admin,files=payload).status_code==200
 
 
 def test_wallpaper_item_ownership_gift_and_revoke(accounts):

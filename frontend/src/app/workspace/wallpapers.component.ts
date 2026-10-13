@@ -51,12 +51,6 @@ export class WallpapersComponent implements OnDestroy {
  style(id=this.selected,scale=this.scale,dim=this.dim):WallpaperStyle{
   const url=this.url(id);return {image:url?`linear-gradient(rgba(12,16,26,${dim/100}),rgba(12,16,26,${dim/100})),url("${url}")`:'none',size:`auto, ${640*scale/100}px auto`};
  }
- async upload(event:Event){
-  const input=event.target as HTMLInputElement,file=input.files?.[0];if(!file||this.busy())return;
-  if(file.size>10*1024*1024){this.error.set('Изображение должно быть не больше 10 МБ');input.value='';return;}
-  this.busy.set(true);this.error.set('');const body=new FormData();body.append('image',file);
-  try{await this.request('/personal','POST',body);await this.load();this.selected='personal';}catch(e){this.fail(e);}finally{this.busy.set(false);input.value='';}
- }
  async save(){if(this.busy())return;this.busy.set(true);this.error.set('');
   try{await this.request('','PUT',{selected:this.selected,scale:+this.scale,dim:+this.dim});await this.load();this.close.emit();}catch(e){this.fail(e);}finally{this.busy.set(false);}
  }

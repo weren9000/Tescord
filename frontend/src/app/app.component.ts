@@ -3626,6 +3626,7 @@ export class AppComponent {
       this.openProfileEditor();
       return;
     }
+    if (!this.currentUser()?.is_avatar_admin) return;
     this.profileAvatarSelectionMode = mode;
     this.profileError.set(null);
     this.profileNotice.set(null);
@@ -3633,6 +3634,7 @@ export class AppComponent {
   }
 
   async onProfileAvatarSelection(event: Event): Promise<void> {
+    if (!this.currentUser()?.is_avatar_admin) return;
     const input = event.target as HTMLInputElement | null;
     const selectedFile = input?.files?.[0] ?? null;
     if (input) {

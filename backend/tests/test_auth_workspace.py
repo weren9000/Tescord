@@ -244,11 +244,17 @@ def test_current_user_endpoint_returns_admin_user() -> None:
     assert payload["is_admin"] is True
 
 
-def test_user_can_update_avatar() -> None:
+def test_avatar_admin_can_update_avatar() -> None:
     with TestClient(app) as client:
         token, payload = register_regular_user(client)
 
         try:
+            from sqlalchemy import select
+            from app.db.models import User
+            from app.db.session import SessionLocal
+            with SessionLocal() as db:
+                db.scalar(select(User).where(User.email == payload['email'])).is_avatar_admin = True
+                db.commit()
             update_response = client.put(
                 "/api/me/profile",
                 headers={"Authorization": f"Bearer {token}"},
