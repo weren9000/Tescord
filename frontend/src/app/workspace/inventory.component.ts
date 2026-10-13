@@ -41,6 +41,26 @@ export class InventoryComponent {
  readonly error = signal('');
  readonly success = signal('');
  readonly tab = signal('avatar');
+ readonly adminTab = signal<'grant' | 'issued'>('grant');
+ readonly menu = signal<Item | null>(null);
+ readonly detail = signal<Item | null>(null);
+ readonly eventsOpen = signal(false);
+ readonly unreadCount = signal(0);
+ menuX=0; menuY=0;
+ private menuTrigger: HTMLElement | null = null;
+ queryChanged() {++this.searchVersion;this.recipient.set(null);this.people.set([]);this.searched.set(false);}
+ toggleMenu(item: Item, event: MouseEvent) {
+  event.stopPropagation();
+  if(this.menu()?.id===item.id){this.menu.set(null);return;}
+  const rect=(event.currentTarget as HTMLElement).getBoundingClientRect();
+  this.menuTrigger=event.currentTarget as HTMLElement;
+  this.menuX=Math.max(12,Math.min(rect.left,window.innerWidth-192));
+  this.menuY=Math.max(12,Math.min(rect.bottom+6,window.innerHeight-160));
+  this.menu.set(item);
+  setTimeout(()=>this.element.nativeElement.querySelector<HTMLButtonElement>('.item-menu button')?.focus());
+ }
+ closePanel() {if(this.busy())return;if(this.pending())this.pending.set(null);else{this.giftItem.set(null);this.detail.set(null);this.eventsOpen.set(false);}}
+ async clearRecipient() {this.recipient.set(null);this.query='';this.people.set([]);this.searched.set(false);this.offset=0;if(this.mode()==='admin')await this.page(0);}
  query = '';
  selectedCatalog = 'cyber-oni';
  offset = 0;
@@ -49,6 +69,13 @@ export class InventoryComponent {
  readonly labels: Record<string, string> = {grant:'Выдача',gift:'Подарок',revoke:'Отзыв',equip:'Использование',unequip:'Снятие'};
 
  constructor() {
+  effect(onCleanup=>{
+   const selector=this.pending()?'.confirm':(this.giftItem()||this.detail()||this.eventsOpen())?'.subpanel':null;
+   if(!selector)return;
+   const previous=document.activeElement as HTMLElement | null;
+   const timer=setTimeout(()=>this.element.nativeElement.querySelector<HTMLElement>(selector+' button')?.focus());
+   onCleanup(()=>{clearTimeout(timer);if(previous?.isConnected)previous.focus();else this.menuTrigger?.focus();});
+  });
   effect((onCleanup) => {
    const token = this.token();
    const mode = this.mode();
@@ -56,6 +83,7 @@ export class InventoryComponent {
    const focusTimer=mode ? setTimeout(()=>this.element.nativeElement.querySelector<HTMLButtonElement>('header button')?.focus()) : undefined;
    onCleanup(()=>{clearTimeout(focusTimer);if(mode)previousFocus?.focus();});
    this.pending.set(null); this.giftItem.set(null); this.recipient.set(null);
+   this.menu.set(null);this.detail.set(null);this.eventsOpen.set(false);this.adminTab.set('grant');
    this.history.set(null); this.people.set([]); this.searched.set(false); this.query=''; this.offset=0;
    this.error.set(''); this.success.set('');
    if (!token) return;
@@ -78,6 +106,7 @@ export class InventoryComponent {
   if(this.equipmentSnapshot!==null && snapshot!==this.equipmentSnapshot)this.changed.emit();
   this.equipmentSnapshot=snapshot;
   this.items.set(data.items);this.notices.set(data.notifications);this.unread.emit(data.unread);
+  this.unreadCount.set(data.unread);
  }
  avatar(p: Person) { return `${API_BASE_URL}/api/users/${p.id}/avatar?v=${encodeURIComponent(p.avatar_updated_at ?? 'default')}`; }
  private request<T>(path: string, method='GET', body?: unknown, token=this.token()) {
@@ -113,9 +142,10 @@ export class InventoryComponent {
   this.recipient.set(person);this.people.set([]);this.offset=0;
   if(this.mode()==='admin')try{await this.loadIssued();}catch(e){this.fail(e);}
  }
- startGift(item: Item) {this.giftItem.set(item);this.recipient.set(null);this.people.set([]);this.query='';this.history.set(null);}
+ startGift(item: Item) {this.menu.set(null);this.giftItem.set(item);this.recipient.set(null);this.people.set([]);this.searched.set(false);this.query='';this.history.set(null);}
  confirm(action: string, item: Item | null) {
   if(this.busy())return;
+  this.menu.set(null);
   const recipient=action==='revoke'?item?.owner ?? null:this.recipient();
   if((action==='grant'||action==='gift')&&!recipient)return;
   this.pending.set({action,item,recipient,request_id:crypto.randomUUID(),catalog_id:this.selectedCatalog});this.error.set('');this.success.set('');
@@ -130,13 +160,13 @@ export class InventoryComponent {
   }catch(e){this.fail(e);}finally{this.busy.set(false);}
  }
  async equip(item: Item) {this.confirm(item.equipped?'unequip':'equip',item);await this.perform();}
- async showHistory(item: Item) {try{this.history.set(await this.request<Event[]>(`/items/${item.id}/history`));}catch(e){this.fail(e);}}
+ async showHistory(item: Item) {this.menu.set(null);this.detail.set(item);this.history.set(null);try{this.history.set(await this.request<Event[]>(`/items/${item.id}/history`));}catch(e){this.fail(e);}}
  async markRead() {try{await this.request('/read','POST',{});await this.reload();}catch(e){this.fail(e);}}
  dismiss() {if(!this.busy())this.close.emit();}
  keydown(event: KeyboardEvent) {
-  if(event.key==='Escape'){event.stopPropagation();if(!this.busy()){if(this.pending())this.pending.set(null);else this.dismiss();}}
+  if(event.key==='Escape'){event.stopPropagation();if(!this.busy()){if(this.menu()){this.menu.set(null);this.menuTrigger?.focus();}else if(this.pending()||this.giftItem()||this.detail()||this.eventsOpen())this.closePanel();else this.dismiss();}}
   if(event.key!=='Tab')return;
-  const root=this.element.nativeElement.querySelector(this.pending()?'.confirm':'.inventory');
+  const root=this.element.nativeElement.querySelector(this.menu()?'.item-menu':this.pending()?'.confirm':(this.giftItem()||this.detail()||this.eventsOpen())?'.subpanel':'.inventory');
   const nodes=Array.from(root?.querySelectorAll<HTMLElement>('button:not(:disabled),input,select')??[]).filter(e=>e.offsetParent!==null);
   const first=nodes[0],last=nodes[nodes.length-1];
   if(event.shiftKey && (document.activeElement===first || !root?.contains(document.activeElement))){event.preventDefault();last?.focus();}

@@ -1,49 +1,43 @@
+
 @if(mode()) {
- <div class="inventory-backdrop" (click)="dismiss()">
-  <section class="inventory" role="dialog" aria-modal="true" aria-labelledby="inventory-title" (click)="$event.stopPropagation()" (keydown)="keydown($event)">
-   <header><div><small>КОЛЛЕКЦИЯ КВАЧАТ</small><h2 id="inventory-title">{{mode()==='admin'?'Админ-Аватарок':'Инвентарь'}}</h2></div><button type="button" aria-label="Закрыть инвентарь" [disabled]="busy()" (click)="dismiss()">×</button></header>
-   <div class="body">
-    @if(error()){<p role="alert" class="error">{{error()}}</p>}
-    @if(success()){<p role="status">{{success()}}</p>}
-    @if(loading()){<p role="status">Загрузка…</p>}
-    @if(mode()==='admin') {
-     <p>Каждая выдача создаёт отдельный экземпляр. Повторная выдача добавит ещё один предмет.</p>
-     <label>Предмет<select [(ngModel)]="selectedCatalog">@for(c of catalog();track c.id){<option [value]="c.id">{{c.name}}</option>}</select></label>
-     <img class="catalog-preview" [src]="image(selectedCatalog)" alt="Выбранный предмет" />
+<div class="inventory-backdrop" (click)="menu() ? menu.set(null) : dismiss()">
+ <section class="inventory" role="dialog" aria-modal="true" aria-labelledby="inventory-title" (click)="$event.stopPropagation();menu.set(null)" (keydown)="keydown($event)">
+  <header><h2 id="inventory-title">{{mode()==='admin'?'Админ-Аватарок':'Инвентарь'}}</h2><div class="header-actions">@if(mode()==='inventory'){<button (click)="eventsOpen.set(true)">@if(unreadCount()){<span class="count">{{unreadCount()}}</span>} События</button>}<button aria-label="Закрыть инвентарь" [disabled]="busy()" (click)="dismiss()">×</button></div></header>
+  <div class="body" [attr.inert]="pending()||giftItem()||detail()||eventsOpen() ? '' : null">
+   @if(error()){<p role="alert" class="error">{{error()}}</p>}@if(success()){<p class="notice" role="status">{{success()}}</p>}
+   @if(mode()==='inventory') {
+    <nav><button [class.active]="tab()==='avatar'" (click)="tab.set('avatar')">Аватары</button><button [class.active]="tab()==='frame'" (click)="tab.set('frame')">Рамки</button></nav>
+    <div class="grid">@for(item of items();track item.id){@if(item.kind===tab()){
+     <div class="tile" [class.equipped]="item.equipped" [attr.title]="item.name+(item.equipped?' · Используется':'')"><img [src]="image(item.catalog_id)" [alt]="item.name"/>@if(item.equipped){<span class="check" aria-label="Используется">✓</span>}<button class="dots" [attr.aria-label]="'Действия: '+item.name" [attr.aria-expanded]="menu()?.id===item.id" [disabled]="busy()" (click)="toggleMenu(item,$event)">⋯</button></div>
+    }}</div>
+    @if(!items().length&&tab()==='avatar'&&!loading()){<div class="empty">Пока нет предметов<small>Здесь появятся выданные и подаренные аватары.</small></div>}
+    @if(tab()==='frame'){<div class="empty">Рамок пока нет<small>Они появятся здесь после получения.</small></div>}
+   } @else {
+    <nav><button [class.active]="adminTab()==='grant'" (click)="adminTab.set('grant');clearRecipient()">Выдать</button><button [class.active]="adminTab()==='issued'" (click)="adminTab.set('issued');clearRecipient()">Выдано</button></nav>
+    @if(adminTab()==='grant') {
+     <p class="hint">Выберите предмет и получателя</p><div class="catalog">@for(c of catalog();track c.id){<button class="catalog-item" [class.selected]="selectedCatalog===c.id" [attr.aria-pressed]="selectedCatalog===c.id" (click)="selectedCatalog=c.id"><img [src]="image(c.id)" alt=""/><span>{{c.name}}</span></button>}</div>
+     <div class="grant-target"><ng-container *ngTemplateOutlet="recipientSearch"/><button class="primary" [disabled]="!recipient()||busy()" (click)="confirm('grant',null)">Выдать предмет</button></div>
     } @else {
-     <nav aria-label="Тип предметов"><button [class.active]="tab()==='avatar'" (click)="tab.set('avatar')">Аватары</button><button [class.active]="tab()==='frame'" (click)="tab.set('frame')">Рамки</button></nav>
-     <p>Предмет можно использовать или подарить. Обычные аватары остаются в профиле.</p>
-     <div class="grid">
-      @for(item of items();track item.id){@if(item.kind===tab()){
-       <article><img [src]="image(item.catalog_id)" [alt]="item.name" /><strong>{{item.name}}</strong><small>№ {{item.id.slice(0,8)}}</small>
-        @if(item.equipped){<span class="badge">Используется</span>}
-        <button [disabled]="busy()" (click)="equip(item)">{{item.equipped?'Снять':'Использовать'}}</button>
-        <button [disabled]="busy()" (click)="startGift(item)">Подарить</button><button (click)="showHistory(item)">История</button>
-       </article>
-      }}
-     </div>
-     @if(!items().length){<p class="empty">Пока нет предметов. Они появятся после выдачи или получения подарка.</p>}
-     @if(tab()==='frame'){<p class="empty">Здесь будут ваши рамки. Первая коллекция рамок ещё не добавлена.</p>}
-    }
-    @if(mode()==='admin'||giftItem()) {
-     <section class="recipient">
-      <h3>{{giftItem()?'Подарить «'+giftItem()!.name+'»':'Кому выдать'}}</h3>
-      <form (ngSubmit)="search()"><label>Ник или точный email<input name="recipient" [(ngModel)]="query" autocomplete="off" maxlength="320" /></label><button type="submit">Найти</button></form>
-      @for(person of people();track person.id){<button class="person" (click)="choose(person)"><img [src]="avatar(person)" alt=""/><span>{{person.nick}}<small>ID {{person.public_id}}</small></span></button>}
-      @if(searched()&&!people().length&&!recipient()){<p>Пользователь не найден. Проверьте ник или укажите полный email.</p>}
-      @if(recipient();as person){<div class="person"><img [src]="avatar(person)" alt=""/><span>{{person.nick}}<small>ID {{person.public_id}}</small></span></div><button class="primary" [disabled]="busy()" (click)="confirm(giftItem()?'gift':'grant',giftItem())">{{giftItem()?'Подарить':'Выдать экземпляр'}}</button>}
-      @if(giftItem()){<button (click)="giftItem.set(null)">Отмена подарка</button>}
-     </section>
-    }
-    @if(mode()==='admin') {
-     <h3>{{recipient()?'Предметы выбранного пользователя':'Последние выданные предметы'}}</h3>
-     @for(item of issued();track item.id){<div class="issued"><img [src]="image(item.catalog_id)" alt=""/><div><strong>{{item.name}}</strong><small>№ {{item.id.slice(0,8)}} · {{item.owner?.nick ?? 'Аккаунт удалён'}} · ID {{item.owner?.public_id}}</small></div><button (click)="showHistory(item)">История</button>@if(!item.revoked){<button [disabled]="busy()" (click)="confirm('revoke',item)">Отозвать</button>}@else{<small>Отозван</small>}</div>}
+     <ng-container *ngTemplateOutlet="recipientSearch"/>
+     <div class="issued-list">@for(item of issued();track item.id){<div class="issued"><img [src]="image(item.catalog_id)" alt=""/><div><strong>{{item.name}}</strong><small>{{item.owner?.nick ?? 'Аккаунт удалён'}} · № {{item.id.slice(0,8)}}</small></div>@if(item.revoked){<small>Отозван</small>}<button class="row-dots" [attr.aria-label]="'Действия: '+item.name" (click)="toggleMenu(item,$event)">⋯</button></div>}@empty{<p class="hint">Выданных предметов нет.</p>}</div>
      <div class="pagination"><button [disabled]="offset===0||loading()" (click)="page(-50)">Назад</button><button [disabled]="issued().length<50||loading()" (click)="page(50)">Далее</button></div>
     }
-    @if(history();as events){<section><h3>История предмета</h3><button (click)="history.set(null)">Скрыть историю</button>@for(event of events;track $index){<p>{{labels[event.action]}} · {{event.actor?.nick ?? 'Удалённый аккаунт'}} → {{event.recipient?.nick ?? 'Удалённый аккаунт'}}<small>{{event.created_at | date:'dd.MM.yyyy HH:mm'}}</small></p>}</section>}
-    @if(mode()==='inventory'&&notices().length){<section><h3>События инвентаря</h3><button (click)="markRead()">Отметить прочитанными</button>@for(n of notices();track n.id){<p [class.unread]="n.unread">{{labels[n.action]}}: {{n.name}} · {{n.actor?.nick ?? 'Удалённый аккаунт'}}<small>{{n.created_at | date:'dd.MM.yyyy HH:mm'}}</small></p>}</section>}
-   </div>
-   @if(pending();as op){<div class="confirm" role="alertdialog" aria-label="Подтверждение действия"><h3>{{labels[op.action]}}</h3>@if(error()){<p role="alert" class="error">{{error()}}</p>}<p>{{op.item?.name ?? 'Кибер-Они'}} · {{op.recipient?.nick}} · ID {{op.recipient?.public_id}}</p>@if(op.action==='gift'){<p>Предмет перейдёт получателю и исчезнет из вашего инвентаря. Если он используется, он будет снят.</p>}@if(op.action==='revoke'){<p>Экземпляр будет отозван у текущего владельца и снят, если используется.</p>}@if(op.action==='grant'){<p>Будет создан новый экземпляр, даже если у получателя уже есть такой предмет.</p>}<button [disabled]="busy()" (click)="pending.set(null)">Отмена</button><button class="primary" [disabled]="busy()" (click)="perform()">{{busy()?'Выполняем…':'Подтвердить'}}</button></div>}
-  </section>
- </div>
+   }
+   @if(loading()){<p role="status">Загрузка…</p>}
+  </div>
+  @if(menu();as item){<div class="item-menu" role="group" aria-label="Действия с предметом" [style.left.px]="menuX" [style.top.px]="menuY">@if(mode()==='inventory'){<button [disabled]="busy()" (click)="equip(item)">{{item.equipped?'Снять':'Использовать'}}</button><button (click)="startGift(item)">Подарить</button>}<button (click)="showHistory(item)">О предмете</button>@if(mode()==='admin'&&!item.revoked){<button class="error" [disabled]="busy()" (click)="confirm('revoke',item)">Отозвать</button>}</div>}
+  @if(giftItem()||detail()||eventsOpen()) {
+   <div class="panel-shade"><section class="subpanel" role="dialog" aria-modal="true" [attr.aria-label]="giftItem()?'Подарить предмет':detail()?'О предмете':'События инвентаря'">
+    <header><h3>{{giftItem()?'Подарить предмет':detail()?'О предмете':'События инвентаря'}}</h3><button [disabled]="busy()" aria-label="Назад в инвентарь" (click)="closePanel()">×</button></header><div class="panel-body">
+    @if(error()){<p role="alert" class="error">{{error()}}</p>}
+    @if(giftItem();as item){<div class="item-summary"><img [src]="image(item.catalog_id)" alt=""/><strong>{{item.name}}</strong></div><ng-container *ngTemplateOutlet="recipientSearch"/><button class="primary full" [disabled]="!recipient()||busy()" (click)="confirm('gift',item)">Продолжить</button>}
+    @if(detail();as item){<div class="item-summary"><img [src]="image(item.catalog_id)" alt=""/><div><strong>{{item.name}}</strong><small>Экземпляр № {{item.id.slice(0,8)}}</small><small>{{item.owner?.nick}}</small></div></div><h4>История</h4>@if(history()===null){<p>Загрузка…</p>}@for(e of history();track $index){<div class="event"><strong>{{labels[e.action]}}</strong><p>{{e.actor?.nick ?? 'Удалённый аккаунт'}} → {{e.recipient?.nick ?? 'Удалённый аккаунт'}}</p><small>{{e.created_at | date:'dd.MM.yyyy HH:mm'}}</small></div>}}
+    @if(eventsOpen()){<button (click)="markRead()">Отметить прочитанными</button>@for(n of notices();track n.id){<div class="event" [class.unread]="n.unread"><strong>{{labels[n.action]}} · {{n.name}}</strong><p>{{n.actor?.nick ?? 'Удалённый аккаунт'}}</p><small>{{n.created_at | date:'dd.MM.yyyy HH:mm'}}</small></div>}@empty{<p>Событий пока нет.</p>}}
+    </div>
+   </section></div>
+  }
+  @if(pending();as op){<div class="panel-shade confirmation"><section class="confirm" role="alertdialog" aria-label="Подтверждение действия"><h3>{{labels[op.action]}}</h3>@if(error()){<p role="alert" class="error">{{error()}}</p>}<div class="item-summary"><img [src]="image(op.item?.catalog_id ?? selectedCatalog)" alt=""/><strong>{{op.item?.name ?? 'Кибер-Они'}}</strong></div>@if(op.recipient;as person){<div class="person"><img [src]="avatar(person)" alt=""/><div><strong>{{person.nick}}</strong><small>ID {{person.public_id}}</small></div></div>}@if(op.action==='gift'){<p>Предмет перейдёт получателю и исчезнет из вашего инвентаря. Если он используется, он будет снят.</p>}@if(op.action==='revoke'){<p>Предмет будет отозван у этого владельца и снят, если используется.</p>}@if(op.action==='grant'){<p>Выдаётся новый экземпляр, даже если у получателя уже есть такой предмет.</p>}<div class="confirm-actions"><button [disabled]="busy()" (click)="pending.set(null)">Отмена</button><button class="primary" [disabled]="busy()" (click)="perform()">{{busy()?'Выполняем…':'Подтвердить'}}</button></div></section></div>}
+ </section>
+</div>
 }
+<ng-template #recipientSearch><div class="recipient"><form (ngSubmit)="search()"><label>{{adminTab()==='issued'&&!giftItem()?'Поиск владельца':'Получатель'}}<input name="recipient" aria-label="Ник или точный email" placeholder="Ник или точный email" [(ngModel)]="query" (ngModelChange)="queryChanged()" autocomplete="off" maxlength="320"/></label><button type="submit">Найти</button></form>@for(person of people();track person.id){<button class="person result" (click)="choose(person)"><img [src]="avatar(person)" alt=""/><span>{{person.nick}}<small>ID {{person.public_id}}</small></span></button>}@if(searched()&&!people().length&&!recipient()){<p class="hint">Пользователь не найден.</p>}@if(recipient();as person){<div class="person selected-person"><img [src]="avatar(person)" alt=""/><div><strong>{{person.nick}}</strong><small>ID {{person.public_id}}</small></div><button aria-label="Сбросить получателя" (click)="clearRecipient()">×</button></div>}</div></ng-template>
