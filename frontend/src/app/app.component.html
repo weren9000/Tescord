@@ -669,7 +669,7 @@
       <app-quick-switch [query]="globalSearchQuery()" [links]="quickLinks()" (search)="updateGlobalSearchQuery($event)" (open)="openQuickLink($event)" (close)="closeQuickSwitch()" />
     }
     <div class="messenger-layout" [class.messenger-layout--platform]="isPlatformsMode()">
-      <app-section-navigation [selected]="workspaceMode()" [initials]="displayNickInitials(currentUser()?.nick ?? 'Я')" [hasNotifications]="friendRequestBadgeVisible()" (selectSection)="selectWorkspaceMode($event)" (menu)="toggleSideMenu()" (search)="openQuickSwitch()" (profile)="openProfileEditor()" (notifications)="openFriendRequestsModal()" />
+      <app-section-navigation [avatarUrl]="currentUserAvatarUrl()" [selected]="workspaceMode()" [initials]="displayNickInitials(currentUser()?.nick ?? 'Я')" [hasNotifications]="friendRequestBadgeVisible()" (selectSection)="selectWorkspaceMode($event)" (menu)="toggleSideMenu()" (search)="openQuickSwitch()" (profile)="openProfileEditor()" (notifications)="openFriendRequestsModal()" />
       <aside class="conversation-sidebar" [class.conversation-sidebar--mobile-open]="mobilePanel() === 'servers'">
         @if (!isPlatformsMode() || !platformSpaces().length) {
           <div class="section-heading">
@@ -1882,7 +1882,7 @@
 }
 
 @if (profileEditorOpen()) {
-  <div class="modal-backdrop" (click)="closeProfileEditor()">
+  <div class="modal-backdrop profile-editor-backdrop" (click)="closeProfileEditor()">
     <section class="modal modal--compact" (click)="$event.stopPropagation()">
       <div class="modal__header">
         <div>
@@ -1913,14 +1913,27 @@
             <button
               class="secondary-button"
               type="button"
-              [disabled]="profileSaving() || (!currentUserAvatarUrl() && !profileAvatarFile())"
+              [disabled]="profileSaving() || (!currentUser()?.has_uploaded_avatar && !profileAvatarFile())"
               (click)="resetProfileAvatar()"
             >
-              Сбросить
+              Удалить своё фото
             </button>
             <small>PNG или JPG, квадрат 1:1, максимум 300×300.</small>
           </div>
         </div>
+
+        <fieldset class="avatar-presets" [disabled]="profileSaving()">
+          <legend>Или выберите готовый аватар</legend>
+          <div class="avatar-presets__grid">
+            @for (preset of avatarPresets; track preset.id) {
+              <button type="button" [attr.aria-label]="preset.label" [attr.aria-pressed]="isProfileAvatarPresetSelected(preset.id)" [class.avatar-presets__selected]="isProfileAvatarPresetSelected(preset.id)" (click)="selectProfileAvatarPreset(preset.id)">
+                <img [src]="avatarPresetUrl(preset.id)" alt="" width="64" height="64" loading="lazy" />
+                <span>{{ preset.label }}</span>
+              </button>
+            }
+          </div>
+          <p>Аватар виден всем участникам. Выбор применится после сохранения.</p>
+        </fieldset>
 
         <div class="profile-editor__summary">
           <p><span>Ник:</span> {{ currentUser()?.nick ?? 'Не указан' }}</p>

@@ -5,6 +5,7 @@ from urllib.parse import quote
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile, status
+from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -13,6 +14,7 @@ from app.db.models import ServerMember, User
 from app.db.session import get_db
 from app.schemas.users import CurrentUserResponse, UpdateCurrentUserProfileResponse
 from app.services.app_events import publish_members_updated_from_sync, publish_voice_presence_updated_from_sync
+from app.services.avatar_presets import AVATAR_PRESETS, AVATAR_DIRECTORY
 
 router = APIRouter(tags=["users"])
 
@@ -44,21 +46,27 @@ def read_current_user(current_user: User = Depends(get_current_user)) -> Current
 async def update_current_user_profile(
     avatar: UploadFile | None = File(default=None),
     remove_avatar: bool = Form(default=False),
+    avatar_preset: str | None = Form(default=None),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> UpdateCurrentUserProfileResponse:
-    if avatar is not None and remove_avatar:
+    if sum((avatar is not None, remove_avatar, avatar_preset is not None)) > 1:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Нельзя одновременно загрузить и удалить аватарку",
+            detail="Выберите одно действие: загрузка, удаление или готовый аватар",
         )
 
-    if remove_avatar:
+    if avatar_preset is not None and avatar_preset not in AVATAR_PRESETS:
+        raise HTTPException(status_code=400, detail="Неизвестный аватар")
+
+    if remove_avatar or avatar_preset is not None:
         current_user.avatar_filename = None
         current_user.avatar_mime_type = None
         current_user.avatar_size_bytes = None
         current_user.avatar_content = None
-        current_user.avatar_updated_at = None
+        current_user.avatar_updated_at = datetime.now(timezone.utc)
+        if avatar_preset is not None:
+            current_user.avatar_preset = avatar_preset
 
     if avatar is not None:
         try:
@@ -92,8 +100,10 @@ async def update_current_user_profile(
 @router.get("/users/{user_id}/avatar")
 def read_user_avatar(user_id: UUID, db: Session = Depends(get_db)) -> Response:
     user = db.get(User, user_id)
-    if user is None or user.avatar_content is None or user.avatar_mime_type is None:
+    if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Аватарка не найдена")
+    if user.avatar_content is None or user.avatar_mime_type is None:
+        return read_avatar_preset(user.avatar_preset)
 
     filename = user.avatar_filename or "avatar"
     return Response(
@@ -104,3 +114,11 @@ def read_user_avatar(user_id: UUID, db: Session = Depends(get_db)) -> Response:
             "Content-Disposition": f"inline; filename*=UTF-8''{quote(filename)}",
         },
     )
+
+
+@router.get("/avatar-presets/{preset}")
+def read_avatar_preset(preset: str) -> Response:
+    if preset not in AVATAR_PRESETS:
+        raise HTTPException(status_code=404, detail="Аватар не найден")
+    return FileResponse(AVATAR_DIRECTORY / f'{preset}.webp', media_type='image/webp',
+                        headers={'Cache-Control': 'public, max-age=300'})

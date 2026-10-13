@@ -1,0 +1,12 @@
+@use '../palette';
+.profile-editor-backdrop { z-index: 200; }
+.avatar-presets { min-width: 0; margin: 20px 0 0; padding: 0; border: 0; }
+.avatar-presets legend { padding: 0; margin-bottom: 12px; color: palette.$secondary; font-size: 13px; }
+.avatar-presets__grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+.avatar-presets__grid button { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; padding: 6px; border: 2px solid transparent; border-radius: 12px; background: transparent; color: palette.$muted; cursor: pointer; font: inherit; font-size: 10px; }
+.avatar-presets__grid img { display: block; width: 100%; height: auto; aspect-ratio: 1; border-radius: 50%; object-fit: cover; }
+.avatar-presets__grid button:hover { background: palette.$hover; }
+.avatar-presets__grid .avatar-presets__selected { border-color: palette.$primary; background: rgba(palette.$primary, .12); color: palette.$text; }
+.avatar-presets__grid button:focus-visible { outline: 2px solid palette.$primary-text; outline-offset: 2px; }
+.avatar-presets p { margin: 12px 0 0; color: palette.$muted; font-size: 12px; line-height: 1.5; }
+@media(max-width:400px) { .avatar-presets__grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }

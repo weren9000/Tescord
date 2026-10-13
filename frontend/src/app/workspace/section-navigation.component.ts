@@ -19,7 +19,7 @@ export type WorkspaceSection = 'chats' | 'groups' | 'platforms';
         <button type="button" title="Быстрый переход (Ctrl+K)" aria-label="Быстрый переход" (click)="search.emit()"><app-ui-icon name="search"/><span>Поиск</span></button>
         <button type="button" aria-label="Меню приложения" (click)="menu.emit()"><app-ui-icon name="menu"/><span>Меню</span></button>
         <button class="notification" type="button" aria-label="Уведомления" (click)="notifications.emit()"><app-ui-icon name="bell"/>@if (hasNotifications()) {<i></i>}<span>События</span></button>
-        <button class="profile" type="button" aria-label="Мой профиль" (click)="profile.emit()"><b>{{ initials() }}</b><span>Профиль</span></button>
+        <button class="profile" type="button" aria-label="Мой профиль" (click)="profile.emit()">@if(avatarUrl()){<img class="profile-avatar" [src]="avatarUrl()" alt="" width="30" height="30" />}@else{<b>{{ initials() }}</b>}<span>Профиль</span></button>
       </div>
     </nav>`,
   styles: [`
@@ -32,6 +32,7 @@ export type WorkspaceSection = 'chats' | 'groups' | 'platforms';
     button:focus-visible{outline:2px solid var(--palette-cyan);outline-offset:2px}.utilities button{min-height:58px;font-size:10px}.profile b{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--palette-raised);color:var(--palette-cyan);font-size:11px}.notification i{position:absolute;top:8px;right:20px;width:6px;height:6px;border-radius:50%;background:var(--palette-cyan)}
     button.active{background:var(--palette-selected);border-color:transparent;color:var(--palette-primary-text)}button.active:before{background:var(--palette-primary)}
     .profile b{color:var(--palette-secondary);background:var(--palette-hover)}
+    .profile-avatar{width:30px;height:30px;object-fit:cover;border-radius:50%}
     .brand img{display:block;width:70px;height:35px;object-fit:contain;mix-blend-mode:lighten}
     @media(max-width:980px){:host{display:none}}
   `],
@@ -39,6 +40,7 @@ export type WorkspaceSection = 'chats' | 'groups' | 'platforms';
 export class SectionNavigationComponent {
   readonly selected = input<WorkspaceSection>('chats');
   readonly initials = input('Я');
+  readonly avatarUrl = input<string | null>(null);
   readonly hasNotifications = input(false);
   readonly selectSection = output<WorkspaceSection>();
   readonly search = output<void>();

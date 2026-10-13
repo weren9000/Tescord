@@ -12,6 +12,8 @@ class CurrentUserResponse(BaseModel):
     email: str
     nick: str
     avatar_updated_at: datetime | None
+    avatar_preset: str
+    has_uploaded_avatar: bool
     is_admin: bool
     created_at: datetime
 
@@ -23,6 +25,8 @@ class CurrentUserResponse(BaseModel):
             email=getattr(user, "email"),
             nick=getattr(user, "username"),
             avatar_updated_at=getattr(user, "avatar_updated_at"),
+            avatar_preset=getattr(user, "avatar_preset"),
+            has_uploaded_avatar=getattr(user, "avatar_filename") is not None,
             is_admin=getattr(user, "is_admin"),
             created_at=getattr(user, "created_at"),
         )

@@ -236,6 +236,7 @@ interface TextHighlightChunk {
 }
 
 interface ProfileUpdateTrigger {
+  avatarPreset?: string | null;
   token: string;
   avatarFile: File | null;
   removeAvatar: boolean;
@@ -620,7 +621,7 @@ const DEFAULT_SERVER_ICON_ASSET_BY_NAME: Record<string, string> = {
     selector: 'app-root',
     imports: [CommonModule, FormsModule, MediaStreamSrcDirective, SectionNavigationComponent, UiIconComponent, ConversationListComponent, QuickSwitchComponent, PlatformSwitcherComponent, InviteManagerComponent],
     templateUrl: './app.component.html',
-    styleUrls: ['./app.component.scss', './app-layout.scss', './call-workspace.scss', './platform-workspace.scss', './invite-entry.scss', './palette-theme.scss', './auth-workspace.scss']
+    styleUrls: ['./app.component.scss', './app-layout.scss', './call-workspace.scss', './platform-workspace.scss', './invite-entry.scss', './palette-theme.scss', './auth-workspace.scss', './avatar-presets.scss']
 })
 export class AppComponent {
   private readonly invitesApi = inject(InvitesApiService);
@@ -1141,6 +1142,14 @@ export class AppComponent {
   readonly profileAvatarFile = signal<File | null>(null);
   readonly profileAvatarPreviewUrl = signal<string | null>(null);
   readonly profileAvatarRemove = signal(false);
+  readonly profileAvatarPreset = signal<string | null>(null);
+  readonly avatarPresets = [
+    { id: 'frog', label: 'Лягушка' }, { id: 'cat', label: 'Кот' },
+    { id: 'dog', label: 'Собака' }, { id: 'fox', label: 'Лиса' },
+    { id: 'bear', label: 'Медведь' }, { id: 'wolf', label: 'Волк' },
+    { id: 'panda', label: 'Панда' }, { id: 'rabbit', label: 'Заяц' },
+    { id: 'raccoon', label: 'Енот' }, { id: 'owl', label: 'Сова' },
+  ];
   readonly ownerVoiceRequests = signal<VoiceJoinRequestSummary[]>([]);
   readonly activeOwnerRequestId = signal<string | null>(null);
   readonly ownerVoiceRequestModalOpen = signal(false);
@@ -1931,7 +1940,11 @@ export class AppComponent {
   readonly currentUserAvatarUrl = computed(() =>
     this.buildUserAvatarUrl(this.currentUser()?.id ?? null, this.currentUser()?.avatar_updated_at ?? null)
   );
-  readonly effectiveProfileAvatarUrl = computed(() => this.profileAvatarPreviewUrl() ?? this.currentUserAvatarUrl());
+  readonly effectiveProfileAvatarUrl = computed(() => {
+    if (this.profileAvatarPreset()) return this.avatarPresetUrl(this.profileAvatarPreset()!);
+    if (this.profileAvatarRemove()) return this.avatarPresetUrl(this.currentUser()?.avatar_preset ?? 'frog');
+    return this.profileAvatarPreviewUrl() ?? this.currentUserAvatarUrl();
+  });
   readonly canSubmitProfile = computed(() => {
     const currentUser = this.currentUser();
     if (!currentUser || this.profileSaving()) {
@@ -1940,6 +1953,7 @@ export class AppComponent {
 
     return (
       this.profileAvatarFile() !== null
+      || this.profileAvatarPreset() !== null
       || this.profileAvatarRemove()
     );
   });
@@ -3332,10 +3346,11 @@ export class AppComponent {
   private bindProfilePipeline(): void {
     this.profileUpdateTrigger$
       .pipe(
-        exhaustMap(({ token, avatarFile, removeAvatar, successMessage, closeEditor }) =>
+        exhaustMap(({ token, avatarFile, removeAvatar, avatarPreset, successMessage, closeEditor }) =>
           this.workspaceApi.updateCurrentUserProfile(token, {
             avatarFile,
-            removeAvatar
+            removeAvatar,
+            avatarPreset,
           }).pipe(
             tap((updatedUser) => {
               this.applyCurrentUserProfile(updatedUser);
@@ -3345,6 +3360,7 @@ export class AppComponent {
                 this.profileEditorOpen.set(false);
               }
               this.clearPendingProfileAvatar();
+              this.profileAvatarRemove.set(false);
             }),
             catchError((error) => {
               if (!closeEditor) {
@@ -3587,6 +3603,10 @@ export class AppComponent {
   }
 
   openProfileAvatarPicker(mode: 'instant' | 'editor' = 'instant'): void {
+    if (mode === 'instant') {
+      this.openProfileEditor();
+      return;
+    }
     this.profileAvatarSelectionMode = mode;
     this.profileError.set(null);
     this.profileNotice.set(null);
@@ -3607,6 +3627,7 @@ export class AppComponent {
     try {
       const preparedFile = await this.prepareProfileAvatarFile(selectedFile);
       if (this.profileAvatarSelectionMode === 'editor') {
+        this.profileAvatarPreset.set(null);
         this.profileAvatarFile.set(preparedFile);
         this.profileAvatarRemove.set(false);
         this.setProfileAvatarPreview(preparedFile);
@@ -3638,12 +3659,31 @@ export class AppComponent {
   }
 
   resetProfileAvatar(): void {
-    if (!this.currentUserAvatarUrl() && !this.profileAvatarFile()) {
+    if (!this.currentUser()?.has_uploaded_avatar && !this.profileAvatarFile()) {
       return;
     }
 
     this.profileAvatarRemove.set(true);
     this.clearPendingProfileAvatar();
+  }
+
+  avatarPresetUrl(id: string): string {
+    return `${API_BASE_URL}/api/avatar-presets/${encodeURIComponent(id)}`;
+  }
+
+  selectProfileAvatarPreset(id: string): void {
+    if (this.profileSaving()) return;
+    this.clearPendingProfileAvatar();
+    this.profileAvatarRemove.set(false);
+    this.profileAvatarPreset.set(id);
+    this.profileError.set(null);
+  }
+
+  isProfileAvatarPresetSelected(id: string): boolean {
+    if (this.profileAvatarFile()) return false;
+    if (this.profileAvatarPreset()) return this.profileAvatarPreset() === id;
+    return (!this.currentUser()?.has_uploaded_avatar || this.profileAvatarRemove())
+      && this.currentUser()?.avatar_preset === id;
   }
 
   submitProfileChanges(): void {
@@ -3664,6 +3704,7 @@ export class AppComponent {
     this.profileUpdateTrigger$.next({
       token,
       avatarFile: this.profileAvatarFile(),
+      avatarPreset: this.profileAvatarPreset(),
       removeAvatar: this.profileAvatarRemove(),
       successMessage: 'Профиль обновлен',
       closeEditor: true
@@ -9609,11 +9650,11 @@ export class AppComponent {
   }
 
   private buildUserAvatarUrl(userId: string | null, avatarUpdatedAt: string | null): string | null {
-    if (!userId || !avatarUpdatedAt) {
+    if (!userId) {
       return null;
     }
 
-    return `${API_BASE_URL}/api/users/${encodeURIComponent(userId)}/avatar?v=${encodeURIComponent(avatarUpdatedAt)}`;
+    return `${API_BASE_URL}/api/users/${encodeURIComponent(userId)}/avatar?v=${encodeURIComponent(avatarUpdatedAt ?? 'default')}`;
   }
 
   private patchMessagesFromMemberSnapshot(members: WorkspaceMember[]): void {
@@ -9795,6 +9836,7 @@ export class AppComponent {
   }
 
   private clearPendingProfileAvatar(): void {
+    this.profileAvatarPreset.set(null);
     this.profileAvatarFile.set(null);
     this.profileAvatarPreviewUrl.set(null);
     this.revokeProfileAvatarPreviewObjectUrl();

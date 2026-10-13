@@ -6,6 +6,7 @@ from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Index, Integer, LargeBinary, String, Text, Uuid, UniqueConstraint, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, deferred, mapped_column, relationship
+from app.services.avatar_presets import random_avatar_preset
 
 
 class Base(DeclarativeBase):
@@ -95,6 +96,7 @@ class User(TimestampMixin, Base):
     username: Mapped[str] = mapped_column(String(32), unique=True, nullable=False)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     avatar_filename: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    avatar_preset: Mapped[str] = mapped_column(String(32), nullable=False, default=random_avatar_preset, server_default="frog")
     avatar_mime_type: Mapped[str | None] = mapped_column(String(128), nullable=True)
     avatar_size_bytes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     avatar_content: Mapped[bytes | None] = deferred(mapped_column(LargeBinary, nullable=True))

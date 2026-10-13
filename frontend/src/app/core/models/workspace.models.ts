@@ -1,4 +1,6 @@
 export interface CurrentUserResponse {
+  avatar_preset?: string;
+  has_uploaded_avatar?: boolean;
   id: string;
   public_id: number;
   email: string;
