@@ -126,6 +126,7 @@ const VOICE_RECONNECT_BASE_MS = 1000;
 const VOICE_RECONNECT_MAX_MS = 10000;
 const MIN_MICROPHONE_GAIN_PERCENT = 10;
 const MIN_OUTPUT_VOLUME_PERCENT = 10;
+const MIN_PARTICIPANT_VOLUME_PERCENT = 0;
 const MAX_MICROPHONE_GAIN_PERCENT = 200;
 const MAX_OUTPUT_VOLUME_PERCENT = 100;
 const OWNER_MUTED_NOTICE = 'Микрофон заблокирован владельцем канала';
@@ -174,7 +175,7 @@ function loadVoiceSettings(): VoiceSettings {
       (accumulator, [userId, volume]) => {
         accumulator[userId] = clamp(
           typeof volume === 'number' ? volume : DEFAULT_VOICE_SETTINGS.masterVolume,
-          MIN_OUTPUT_VOLUME_PERCENT,
+          MIN_PARTICIPANT_VOLUME_PERCENT,
           MAX_OUTPUT_VOLUME_PERCENT,
         );
         return accumulator;
@@ -661,7 +662,7 @@ export class VoiceRoomService {
   }
 
   updateParticipantVolume(userId: string, value: number): void {
-    const nextVolume = clamp(value, MIN_OUTPUT_VOLUME_PERCENT, MAX_OUTPUT_VOLUME_PERCENT);
+    const nextVolume = clamp(value, MIN_PARTICIPANT_VOLUME_PERCENT, MAX_OUTPUT_VOLUME_PERCENT);
     const participantVolumes = {
       ...this.settings().participantVolumes,
       [userId]: nextVolume,
@@ -674,7 +675,7 @@ export class VoiceRoomService {
   }
 
   getParticipantVolume(userId: string): number {
-    return clamp(this.settings().participantVolumes[userId] ?? 100, MIN_OUTPUT_VOLUME_PERCENT, MAX_OUTPUT_VOLUME_PERCENT);
+    return clamp(this.settings().participantVolumes[userId] ?? 100, MIN_PARTICIPANT_VOLUME_PERCENT, MAX_OUTPUT_VOLUME_PERCENT);
   }
 
   private async reconnectIfNeeded(): Promise<void> {
@@ -1206,7 +1207,7 @@ export class VoiceRoomService {
       patch.masterVolume = DEFAULT_VOICE_SETTINGS.masterVolume;
     }
 
-    if (participantVolume !== undefined && participantVolume < MIN_OUTPUT_VOLUME_PERCENT) {
+    if (participantVolume !== undefined && participantVolume < MIN_PARTICIPANT_VOLUME_PERCENT) {
       patch.participantVolumes = {
         ...settings.participantVolumes,
         [userId]: DEFAULT_VOICE_SETTINGS.masterVolume,
@@ -1303,7 +1304,7 @@ export class VoiceRoomService {
     }
 
     const effectiveGain = this.getRemoteParticipantGain(userId);
-    remoteAudioOutput.audioElement.muted = this.outputMuted();
+    remoteAudioOutput.audioElement.muted = this.outputMuted() || this.getParticipantVolume(userId) === 0;
     remoteAudioOutput.audioElement.volume = clamp(effectiveGain, 0, 1);
   }
 

@@ -426,14 +426,14 @@
                                 <input
                                   class="group-voice-roster__volume"
                                   type="range"
-                                  min="10"
+                                  min="0"
                                   max="100"
                                   step="1"
                                   [value]="groupVoiceParticipantVolume(participant)"
                                   [attr.aria-label]="'Громкость ' + displayNick(participant.nick)"
                                   (input)="setGroupVoiceParticipantVolume(participant, $any($event.target).value)"
                                 />
-                                <small>{{ groupVoiceParticipantVolume(participant) }}%</small>
+                                <small [attr.title]="groupVoiceParticipantVolume(participant) === 0 ? 'Заглушён для вас' : null">{{ groupVoiceParticipantVolume(participant) }}%</small>
                               </div>
                             }
                           </div>
@@ -1083,14 +1083,14 @@
                                       <input
                                         class="group-voice-roster__volume"
                                         type="range"
-                                        min="10"
+                                        min="0"
                                         max="100"
                                         step="1"
                                         [value]="groupVoiceParticipantVolume(participant)"
                                         [attr.aria-label]="'Громкость ' + displayNick(participant.nick)"
                                         (input)="setGroupVoiceParticipantVolume(participant, $any($event.target).value)"
                                       />
-                                      <small>{{ groupVoiceParticipantVolume(participant) }}%</small>
+                                      <small [attr.title]="groupVoiceParticipantVolume(participant) === 0 ? 'Заглушён для вас' : null">{{ groupVoiceParticipantVolume(participant) }}%</small>
                                     </div>
                                   }
                                 </div>
@@ -3744,7 +3744,7 @@
             <div class="range-field__control">
               <input
                 type="range"
-                min="10"
+                min="0"
                 max="100"
                 step="1"
                 [ngModel]="selectedMemberVolume()"
@@ -3755,6 +3755,9 @@
             </div>
           </label>
 
+          @if (selectedMemberVolume() === 0) {
+            <p class="modal-note" role="status">Заглушён для вас. Увеличьте громкость, чтобы снова слышать участника.</p>
+          }
           @if (member.voiceParticipant?.speaking) {
             <p class="modal-note modal-note--live">Участник сейчас говорит.</p>
           }

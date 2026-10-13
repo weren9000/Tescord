@@ -4,6 +4,55 @@ import { DirectCallService } from './direct-call.service';
 import { VoiceRoomService } from './voice-room.service';
 
 describe('Call audio output', () => {
+  let savedSettings: string | null;
+  beforeEach(() => {
+    savedSettings = localStorage.getItem('tescord.voice.settings');
+    localStorage.removeItem('tescord.voice.settings');
+  });
+  afterEach(() => {
+    if (savedSettings === null) localStorage.removeItem('tescord.voice.settings');
+    else localStorage.setItem('tescord.voice.settings', savedSettings);
+  });
+
+  it('preserves personal silence through new tracks and reload, without silencing another participant', () => {
+    TestBed.configureTestingModule({providers: [{provide: WorkspaceApiService, useValue: {}}]});
+    let call = TestBed.inject(VoiceRoomService);
+    const first = new Audio(), other = new Audio();
+    let internals = call as any;
+    internals.remoteAudioOutputs.set('silent', {audioElement: first});
+    internals.remoteAudioOutputs.set('other', {audioElement: other});
+    call.updateParticipantVolume('other', 70);
+    call.updateParticipantVolume('silent', 0);
+    expect(first.volume).toBe(0);
+    expect(first.muted).toBeTrue();
+    expect(other.volume).toBeCloseTo(.7);
+    expect(other.muted).toBeFalse();
+    expect(call.localMuted()).toBeFalse();
+    call.toggleOutputMuted();
+    call.toggleOutputMuted();
+    expect(first.muted).toBeTrue();
+    expect(other.volume).toBeCloseTo(.7);
+    call.leave();
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({providers: [{provide: WorkspaceApiService, useValue: {}}]});
+    call = TestBed.inject(VoiceRoomService);
+    internals = call as any;
+    expect(call.getParticipantVolume('silent')).toBe(0);
+    internals.ensureAudiblePlaybackSettings('silent');
+    const replacement = new Audio();
+    internals.remoteAudioOutputs.set('silent', {audioElement: replacement});
+    internals.applyVolumesForUser('silent');
+    expect(replacement.volume).toBe(0);
+    expect(replacement.muted).toBeTrue();
+    for (const value of [1, 5, 9, 100]) {
+      call.updateParticipantVolume('silent', value);
+      expect(replacement.volume).toBeCloseTo(value / 100);
+      expect(replacement.muted).toBeFalse();
+    }
+    call.updateMasterVolume(0);
+    expect(call.settings().masterVolume).toBe(10);
+    call.leave();
+  });
   it('silences direct-call playback and restores the selected volume without muting the microphone', () => {
     const call = new DirectCallService();
     const audio = new Audio();
