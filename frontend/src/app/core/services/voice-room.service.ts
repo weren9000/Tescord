@@ -255,6 +255,12 @@ export class VoiceRoomService {
   readonly activeChannelId = signal<string | null>(null);
   readonly participants = signal<VoiceParticipant[]>([]);
   readonly localMuted = signal(false);
+  readonly outputMuted = signal(false);
+
+  toggleOutputMuted(): void {
+    this.outputMuted.update(value => !value);
+    this.applyAllRemoteVolumes();
+  }
   readonly localVideoStream = signal<MediaStream | null>(null);
   readonly localScreenShareStream = signal<MediaStream | null>(null);
   readonly remoteVideoStreams = signal<Record<string, MediaStream | null>>({});
@@ -341,6 +347,7 @@ export class VoiceRoomService {
   }
 
   leave(): void {
+    this.outputMuted.set(false);
     void this.cleanupCurrentSession(true);
     this.state.set('idle');
     this.error.set(null);
@@ -1296,10 +1303,12 @@ export class VoiceRoomService {
     }
 
     const effectiveGain = this.getRemoteParticipantGain(userId);
+    remoteAudioOutput.audioElement.muted = this.outputMuted();
     remoteAudioOutput.audioElement.volume = clamp(effectiveGain, 0, 1);
   }
 
   private getRemoteParticipantGain(userId: string): number {
+    if (this.outputMuted()) return 0;
     const effectiveGain = (this.settings().masterVolume / 100) * (this.getParticipantVolume(userId) / 100);
     return clamp(effectiveGain, 0, 1);
   }

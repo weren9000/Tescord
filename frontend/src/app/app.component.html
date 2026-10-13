@@ -139,153 +139,33 @@
     }
 
     @if (activeCallSurface(); as call) {
-      <section
-        class="call-dock"
-        [class.call-dock--expanded]="callWindowMode() === 'expanded'"
-        [class.call-dock--minimized]="callWindowMode() === 'minimized'"
-        (click)="expandCallWindow($event)"
-      >
-        <button class="call-dock__main" type="button" (click)="expandCallWindow($event)">
-          <span class="call-dock__pulse" aria-hidden="true"></span>
-          <span class="call-dock__copy">
-            @if (call.kind !== 'direct') {
-              <span class="call-dock__eyebrow">{{ activeCallKindLabel(call.kind) }}</span>
-            }
-            <strong>{{ call.title }}</strong>
-            @if (call.kind !== 'direct') {
-              <small>{{ call.subtitle }} · {{ callDockParticipantLabel() }}</small>
-            } @else if (call.subtitle) {
-              <small>{{ call.subtitle }}</small>
-            }
-          </span>
-        </button>
-        <div class="call-dock__controls" (click)="$event.stopPropagation()">
-          @if (shouldShowDockControls()) {
+      @if (!callWindowExpanded()) {
+        <section class="call-tray" aria-label="Текущий звонок" [class.call-tray--incoming]="isIncomingDirectCall()">
+          <button class="call-tray__identity" type="button" aria-label="Развернуть звонок" (click)="expandCallWindow($event)">
+            <span class="call-tray__status" [class.call-tray__status--ready]="activeCallMediaControlsVisible()"></span>
+            <span class="call-tray__copy"><strong>{{ call.title }}</strong><small>{{ call.kind === 'direct' ? callDockParticipantLabel() : call.subtitle + ' · ' + callDockParticipantLabel() }}</small></span>
+            @if (activeCallScreenSharing()) {<span class="call-tray__media" role="img" aria-label="Вы показываете экран" title="Вы показываете экран"><app-ui-icon name="screen" /></span>}
+            @else if (activeCallCameraEnabled()) {<span class="call-tray__media" role="img" aria-label="Камера включена" title="Камера включена"><app-ui-icon name="camera" /></span>}
+            <app-ui-icon name="expand" />
+          </button>
+          <div class="call-tray__controls">
             @if (isIncomingDirectCall()) {
-              <button class="call-control-button call-control-button--accept" type="button" title="Ответить" aria-label="Ответить" (click)="acceptDirectCall()">
-                <img src="/assets/Phone_connect.svg" alt="" />
-              </button>
-              <button class="call-control-button call-control-button--danger" type="button" title="Отклонить" aria-label="Отклонить" (click)="rejectDirectCall()">
-                <img src="/assets/Phone outgoing.svg" alt="" />
-              </button>
+              <button class="call-tray__answer" type="button" (click)="acceptDirectCall()"><app-ui-icon name="phone" />Ответить</button>
+              <button class="call-control-button call-control-button--danger" type="button" aria-label="Отклонить звонок" title="Отклонить звонок" (click)="rejectDirectCall()"><app-ui-icon name="hangup" /></button>
             } @else {
-              @if (shouldShowDockSettings()) {
-                <button class="call-control-button call-dock__settings-control" type="button" title="Настройки канала" aria-label="Настройки канала" (click)="openActiveCallSettings($event)">
-                  ⚙
-                </button>
-              }
-              <button
-                class="call-control-button"
-                [class.call-control-button--active]="activeCallMuted()"
-                type="button"
-                [attr.title]="activeCallMuteLabel()"
-                [attr.aria-label]="activeCallMuteLabel()"
-                (click)="toggleActiveCallMute($event)"
-              >
-                <img [src]="activeCallMuted() ? '/assets/mic_off.svg' : '/assets/mic.svg'" alt="" />
-              </button>
-              @if (shouldShowDockMediaControls()) {
-                <button
-                  class="call-control-button call-dock__media-control"
-                  [class.call-control-button--active]="activeCallCameraEnabled()"
-                  type="button"
-                  title="Камера"
-                  aria-label="Камера"
-                  [disabled]="!activeCallCanUseCamera()"
-                  (click)="toggleActiveCallCamera($event)"
-                >
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <rect x="3" y="7" width="11" height="10" rx="2"></rect>
-                    <path d="M14 10.5l5-3v9l-5-3"></path>
-                  </svg>
-                </button>
-                <button
-                  class="call-control-button call-dock__media-control"
-                  [class.call-control-button--active]="activeCallScreenSharing()"
-                  type="button"
-                  [attr.title]="activeCallScreenSharing() ? 'Остановить показ экрана' : 'Показать экран'"
-                  [attr.aria-label]="activeCallScreenSharing() ? 'Остановить показ экрана' : 'Показать экран'"
-                  [disabled]="!activeCallCanShareScreen()"
-                  (click)="toggleActiveCallScreenShare($event)"
-                >
-                  @if (activeCallScreenSharing()) {
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <rect x="3" y="5" width="18" height="12" rx="2"></rect>
-                      <path d="M9 19h6"></path>
-                      <path d="M8 8l8 6"></path>
-                      <path d="M16 8l-8 6"></path>
-                    </svg>
-                  } @else {
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <rect x="3" y="5" width="18" height="12" rx="2"></rect>
-                      <path d="M9 19h6"></path>
-                      <path d="M12 9v6"></path>
-                      <path d="M9 12h6"></path>
-                    </svg>
-                  }
-                </button>
-              }
-              <div class="call-dock__volume-wrap">
-                <label class="call-volume-control call-volume-control--dock">
-                  <span>Громкость</span>
-                  <input
-                    type="range"
-                    [min]="activeCallVolumeMin()"
-                    [max]="activeCallVolumeMax()"
-                    step="1"
-                    [value]="activeCallVolume()"
-                    (input)="changeActiveCallVolume($any($event.target).value)"
-                  />
-                </label>
-                <button class="call-control-button call-dock__volume-button" type="button" title="Громкость" aria-label="Громкость" (click)="toggleCallDockVolume($event)">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M4 9v6h4l5 4V5L8 9H4z"></path>
-                    <path d="M16 9.5a4 4 0 0 1 0 5"></path>
-                  </svg>
-                </button>
-                @if (callDockVolumeOpen()) {
-                  <div class="call-dock__volume-popover" (click)="$event.stopPropagation()">
-                    <label class="call-volume-control call-volume-control--popover">
-                      <span>Громкость</span>
-                      <input
-                        type="range"
-                        [min]="activeCallVolumeMin()"
-                        [max]="activeCallVolumeMax()"
-                        step="1"
-                        [value]="activeCallVolume()"
-                        (input)="changeActiveCallVolume($any($event.target).value)"
-                      />
-                    </label>
-                  </div>
-                }
-              </div>
-              <button
-                class="call-control-button call-control-button--danger"
-                type="button"
-                title="Завершить звонок"
-                aria-label="Завершить звонок"
-                (click)="endActiveCall($event)"
-              >
-                <img src="/assets/Phone outgoing.svg" alt="" />
-              </button>
+              <button class="call-control-button" [class.call-control-button--muted]="activeCallMuted()" [attr.aria-pressed]="activeCallMuted()" [disabled]="call.kind !== 'direct' && voiceOwnerMuted()" type="button" [attr.aria-label]="activeCallMuteLabel()" [attr.title]="activeCallMuteLabel()" (click)="toggleActiveCallMute($event)"><app-ui-icon [name]="activeCallMuted() ? 'micOff' : 'mic'" /></button>
+              <button class="call-control-button call-tray__sound" [class.call-control-button--muted]="activeCallOutputMuted()" [attr.aria-pressed]="activeCallOutputMuted()" type="button" [attr.aria-label]="activeCallOutputMuted() ? 'Включить звук звонка' : 'Выключить звук звонка'" [attr.title]="activeCallOutputMuted() ? 'Включить звук звонка' : 'Выключить звук звонка'" (click)="toggleActiveCallOutput()"><app-ui-icon [name]="activeCallOutputMuted() ? 'soundOff' : 'sound'" /></button>
+              <button class="call-control-button call-tray__more" type="button" aria-label="Управление звонком" title="Управление звонком" (click)="expandCallWindow($event)"><app-ui-icon name="more" /></button>
+              <button class="call-control-button call-control-button--danger" type="button" aria-label="Завершить звонок" title="Завершить звонок" (click)="endActiveCall($event)"><app-ui-icon name="hangup" /></button>
             }
-          }
-          @if (callWindowMode() === 'expanded') {
-            <button class="call-control-button" type="button" title="Свернуть звонок" aria-label="Свернуть звонок" (click)="minimizeCallWindow($event)">
-              <span aria-hidden="true">−</span>
-            </button>
-          } @else {
-            <button class="call-control-button" type="button" title="Развернуть звонок" aria-label="Развернуть звонок" (click)="expandCallWindow($event)">
-              <span aria-hidden="true">↗</span>
-            </button>
-          }
-        </div>
-      </section>
+          </div>
+        </section>
+      }
 
       @if (callWindowExpanded()) {
         <section class="call-window-layer">
           <div
-            class="call-window"
+            class="call-window" role="region" aria-label="Окно звонка"
             [class.call-window--direct]="call.kind === 'direct'"
             [class.call-window--voice]="call.kind !== 'direct'"
           >
@@ -294,17 +174,14 @@
                 <h2>{{ call.title }}</h2>
                 @if (call.kind !== 'direct') {
                   <p>{{ call.subtitle }} · {{ callDockParticipantLabel() }}</p>
-                } @else if (call.subtitle) {
-                  <p>{{ call.subtitle }}</p>
+                } @else {
+                  <p>{{ callDockParticipantLabel() }}</p>
                 }
               </div>
-              @if (shouldShowWindowSettings()) {
-                <div class="call-window__header-actions">
-                  <button class="call-control-button" type="button" title="Настройки канала" aria-label="Настройки канала" (click)="openActiveCallSettings($event)">
-                    ⚙
-                  </button>
-                </div>
-              }
+              <div class="call-window__header-actions">
+                @if (shouldShowWindowSettings()) {<button class="call-control-button" type="button" title="Управление каналом" aria-label="Управление каналом" (click)="openActiveCallSettings($event)"><app-ui-icon name="groups" /></button>}
+                <button class="call-control-button" type="button" title="Свернуть звонок" aria-label="Свернуть звонок" (click)="minimizeCallWindow($event)"><app-ui-icon name="minimize" /></button>
+              </div>
             </header>
 
             @if (call.kind === 'direct' && directCallPeer(); as peer) {
@@ -312,7 +189,7 @@
                 @if (directCallError()) {
                   <p class="call-window__notice call-window__notice--error">{{ directCallError() }}</p>
                 }
-                @if (directCallNotice()) {
+                @if (directCallNotice() && directCallNotice() !== directCallSurfaceStatusLabel()) {
                   <p class="call-window__notice">{{ directCallNotice() }}</p>
                 }
 
@@ -388,6 +265,8 @@
                           <span>{{ displayNickInitials(peer.nick) }}</span>
                         }
                       </div>
+                      <strong>{{ displayNick(peer.nick) }}</strong>
+                      <small>{{ call.subtitle }}</small>
                     </div>
                   }
                 </div>
@@ -554,75 +433,37 @@
               </div>
             }
 
-            @if (shouldShowWindowControls()) {
+            <div class="call-window__bottom">
+              @if (callAudioSettingsOpen() && !isIncomingDirectCall()) {
+                <section class="call-audio-settings" aria-label="Настройки звука звонка">
+                  <div class="call-audio-settings__heading"><strong>Звук звонка</strong><button type="button" aria-label="Закрыть настройки звука" (click)="callAudioSettingsOpen.set(false)">×</button></div>
+                  <label class="call-audio-settings__volume"><span>Громкость <b>{{ activeCallVolume() }}%</b></span><input type="range" aria-label="Громкость звонка" [min]="activeCallVolumeMin()" max="100" [value]="activeCallVolume()" (input)="changeActiveCallVolume($any($event.target).value)" /></label>
+                  @if (activeCallOutputMuted()) {<p>Звук выключен. Выбранная громкость сохранится после включения.</p>}
+                  @if (call.kind !== 'direct') {
+                    <label>Микрофон<select aria-label="Микрофон звонка" [ngModel]="voiceSettings().inputDeviceId ?? ''" (ngModelChange)="changeInputDevice($event)"><option value="">По умолчанию</option>@for (device of inputDevices(); track device.deviceId) {<option [value]="device.deviceId">{{ device.label }}</option>}</select></label>
+                    <label>Устройство вывода<select aria-label="Устройство вывода звонка" [disabled]="!outputDeviceSupported()" [ngModel]="voiceSettings().outputDeviceId ?? ''" (ngModelChange)="changeOutputDevice($event)"><option value="">По умолчанию</option>@for (device of outputDevices(); track device.deviceId) {<option [value]="device.deviceId">{{ device.label }}</option>}</select></label>
+                    @if (!outputDeviceSupported()) {<p>В этом браузере устройство вывода выбирается в настройках системы.</p>}
+                    @if (settingsNotice()) {<p role="status">{{ settingsNotice() }}</p>}
+                  } @else {<p>Микрофон для личного звонка выбирается в разрешениях браузера. Устройство вывода — в настройках системы.</p>}
+                </section>
+              }
               <footer class="call-window__controls">
-                <button
-                  class="call-control-button"
-                  [class.call-control-button--active]="activeCallMuted()"
-                  type="button"
-                  [attr.title]="activeCallMuteLabel()"
-                  [attr.aria-label]="activeCallMuteLabel()"
-                  (click)="toggleActiveCallMute($event)"
-                >
-                  <img [src]="activeCallMuted() ? '/assets/mic_off.svg' : '/assets/mic.svg'" alt="" />
-                </button>
-                @if (shouldShowWindowMediaControls()) {
-                  <button
-                    class="call-control-button"
-                    [class.call-control-button--active]="activeCallCameraEnabled()"
-                    type="button"
-                    title="Камера"
-                    aria-label="Камера"
-                    [disabled]="!activeCallCanUseCamera()"
-                    (click)="toggleActiveCallCamera($event)"
-                  >
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <rect x="3" y="7" width="11" height="10" rx="2"></rect>
-                      <path d="M14 10.5l5-3v9l-5-3"></path>
-                    </svg>
-                  </button>
-                  <button
-                    class="call-control-button"
-                    [class.call-control-button--active]="activeCallScreenSharing()"
-                    type="button"
-                    [attr.title]="activeCallScreenSharing() ? 'Остановить показ экрана' : 'Показать экран'"
-                    [attr.aria-label]="activeCallScreenSharing() ? 'Остановить показ экрана' : 'Показать экран'"
-                    [disabled]="!activeCallCanShareScreen()"
-                    (click)="toggleActiveCallScreenShare($event)"
-                  >
-                    @if (activeCallScreenSharing()) {
-                      <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <rect x="3" y="5" width="18" height="12" rx="2"></rect>
-                        <path d="M9 19h6"></path>
-                        <path d="M8 8l8 6"></path>
-                        <path d="M16 8l-8 6"></path>
-                      </svg>
-                    } @else {
-                      <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <rect x="3" y="5" width="18" height="12" rx="2"></rect>
-                        <path d="M9 19h6"></path>
-                        <path d="M12 9v6"></path>
-                        <path d="M9 12h6"></path>
-                      </svg>
-                    }
-                  </button>
+                @if (isIncomingDirectCall()) {
+                  <button class="call-tray__answer" type="button" (click)="acceptDirectCall()"><app-ui-icon name="phone" />Ответить</button>
+                  <button class="call-control-button call-control-button--danger" type="button" aria-label="Отклонить звонок" title="Отклонить звонок" (click)="rejectDirectCall()"><app-ui-icon name="hangup" /></button>
+                } @else {
+                  <button class="call-control-button" type="button" [class.call-control-button--muted]="activeCallMuted()" [attr.aria-pressed]="activeCallMuted()" [disabled]="call.kind !== 'direct' && voiceOwnerMuted()" [attr.title]="activeCallMuteLabel()" [attr.aria-label]="activeCallMuteLabel()" (click)="toggleActiveCallMute($event)"><app-ui-icon [name]="activeCallMuted() ? 'micOff' : 'mic'" /></button>
+                  <button class="call-control-button" type="button" [class.call-control-button--muted]="activeCallOutputMuted()" [attr.aria-pressed]="activeCallOutputMuted()" [attr.title]="activeCallOutputMuted() ? 'Включить звук звонка' : 'Выключить звук звонка'" [attr.aria-label]="activeCallOutputMuted() ? 'Включить звук звонка' : 'Выключить звук звонка'" (click)="toggleActiveCallOutput()"><app-ui-icon [name]="activeCallOutputMuted() ? 'soundOff' : 'sound'" /></button>
+                  @if (shouldShowWindowMediaControls()) {
+                    <button class="call-control-button" type="button" [class.call-control-button--active]="activeCallCameraEnabled()" [attr.aria-pressed]="activeCallCameraEnabled()" [disabled]="!activeCallCanUseCamera()" [attr.title]="activeCallCameraEnabled() ? 'Выключить камеру' : 'Включить камеру'" [attr.aria-label]="activeCallCameraEnabled() ? 'Выключить камеру' : 'Включить камеру'" (click)="toggleActiveCallCamera($event)"><app-ui-icon name="camera" /></button>
+                    <button class="call-control-button" type="button" [class.call-control-button--active]="activeCallScreenSharing()" [attr.aria-pressed]="activeCallScreenSharing()" [disabled]="!activeCallCanShareScreen()" [attr.title]="activeCallScreenSharing() ? 'Остановить показ экрана' : 'Показать экран'" [attr.aria-label]="activeCallScreenSharing() ? 'Остановить показ экрана' : 'Показать экран'" (click)="toggleActiveCallScreenShare($event)"><app-ui-icon name="screen" /></button>
+                  }
+                  <button class="call-control-button" type="button" [class.call-control-button--active]="callAudioSettingsOpen()" [attr.aria-expanded]="callAudioSettingsOpen()" title="Настройки звука" aria-label="Настройки звука" (click)="toggleCallAudioSettings()"><app-ui-icon name="more" /></button>
+                  <span class="call-controls-divider"></span>
+                  <button class="call-control-button call-control-button--danger" type="button" title="Завершить звонок" aria-label="Завершить звонок" (click)="endActiveCall($event)"><app-ui-icon name="hangup" /></button>
                 }
-                <label class="call-volume-control call-volume-control--window">
-                  <span>Громкость</span>
-                  <input
-                    type="range"
-                    [min]="activeCallVolumeMin()"
-                    [max]="activeCallVolumeMax()"
-                    step="1"
-                    [value]="activeCallVolume()"
-                    (input)="changeActiveCallVolume($any($event.target).value)"
-                  />
-                </label>
-                <button class="call-control-button call-control-button--danger" type="button" title="Завершить звонок" aria-label="Завершить звонок" (click)="endActiveCall($event)">
-                  <img src="/assets/Phone outgoing.svg" alt="" />
-                </button>
               </footer>
-            }
+            </div>
           </div>
         </section>
       }
@@ -1344,7 +1185,7 @@
                             </svg>
                           </button>
                         }
-                        <button class="secondary-button group-voice-card__action" type="button" (click)="toggleActiveGroupVoice()">
+                        <button class="secondary-button group-voice-card__action" type="button" [attr.aria-label]="connectedVoiceChannelId() === groupVoiceChannel.id ? 'Покинуть групповой звонок' : 'Присоединиться к групповому звонку'" [attr.title]="connectedVoiceChannelId() === groupVoiceChannel.id ? 'Покинуть групповой звонок' : 'Присоединиться к групповому звонку'" (click)="toggleActiveGroupVoice()">
                           <img [src]="connectedVoiceChannelId() === groupVoiceChannel.id ? '/assets/Phone outgoing.svg' : '/assets/Phone_connect.svg'" alt="" />
                         </button>
                       </div>

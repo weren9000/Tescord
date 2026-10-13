@@ -615,7 +615,7 @@ const DEFAULT_SERVER_ICON_ASSET_BY_NAME: Record<string, string> = {
     selector: 'app-root',
     imports: [CommonModule, FormsModule, MediaStreamSrcDirective, SectionNavigationComponent, UiIconComponent, ConversationListComponent, QuickSwitchComponent],
     templateUrl: './app.component.html',
-    styleUrls: ['./app.component.scss', './app-layout.scss']
+    styleUrls: ['./app.component.scss', './app-layout.scss', './call-workspace.scss']
 })
 export class AppComponent {
   private readonly workspaceMemory = inject(WorkspaceMemoryService);
@@ -855,6 +855,10 @@ export class AppComponent {
     }
 
     event.preventDefault();
+    if (this.callAudioSettingsOpen()) {
+      this.callAudioSettingsOpen.set(false);
+      return;
+    }
     this.minimizeCallWindow();
   };
   private readonly handleDocumentFullscreenChange = (): void => {
@@ -986,6 +990,19 @@ export class AppComponent {
   readonly directCallScreenExpanded = signal(false);
   readonly callWindowMode = signal<CallWindowMode>('minimized');
   readonly callDockVolumeOpen = signal(false);
+  readonly callAudioSettingsOpen = signal(false);
+  readonly activeCallOutputMuted = computed(() => this.activeCallSurface()?.kind === 'direct'
+    ? this.directCall.outputMuted() : this.voiceRoom.outputMuted());
+
+  toggleActiveCallOutput(): void {
+    if (this.activeCallSurface()?.kind === 'direct') this.directCall.toggleOutputMuted();
+    else this.voiceRoom.toggleOutputMuted();
+  }
+
+  toggleCallAudioSettings(): void {
+    this.callAudioSettingsOpen.update(open => !open);
+    if (this.callAudioSettingsOpen()) this.refreshVoiceDevices();
+  }
   readonly activeVoiceCallSnapshot = signal<VoiceCallSnapshot | null>(null);
   readonly fullscreenMedia = signal<FullscreenMediaState | null>(null);
   readonly fullscreenMediaControlsVisible = signal(true);
@@ -2366,6 +2383,7 @@ export class AppComponent {
     effect(() => {
       const surfaceId = this.activeCallSurface()?.id ?? null;
       if (!surfaceId) {
+        this.callAudioSettingsOpen.set(false);
         this.lastActiveCallSurfaceId = null;
         this.directCallScreenExpanded.set(false);
         this.callDockVolumeOpen.set(false);
@@ -3598,6 +3616,7 @@ export class AppComponent {
   }
 
   toggleSideMenu(): void {
+    if (this.callWindowExpanded()) this.minimizeCallWindow();
     this.closeQuickCreateMenu();
     this.sideMenuOpen.set(!this.sideMenuOpen());
   }
@@ -4281,6 +4300,7 @@ export class AppComponent {
   }
 
   openMobileWorkspaceMode(mode: WorkspaceMode): void {
+    if (this.callWindowExpanded()) this.minimizeCallWindow();
     if (!this.isCompactVoiceWorkspaceViewport()) {
       this.selectWorkspaceMode(mode);
       return;
@@ -4300,6 +4320,7 @@ export class AppComponent {
   }
 
   toggleMobileFooterMenu(): void {
+    if (this.callWindowExpanded()) this.minimizeCallWindow();
     if (!this.isCompactVoiceWorkspaceViewport()) {
       this.toggleSideMenu();
       return;
@@ -4313,6 +4334,7 @@ export class AppComponent {
   }
 
   toggleMobileFooterNotifications(): void {
+    if (this.callWindowExpanded()) this.minimizeCallWindow();
     if (!this.isCompactVoiceWorkspaceViewport()) {
       if (this.friendRequestsModalOpen()) {
         this.closeFriendRequestsModal();
@@ -5278,6 +5300,7 @@ export class AppComponent {
   }
 
   minimizeCallWindow(event?: Event): void {
+    this.callAudioSettingsOpen.set(false);
     event?.stopPropagation();
     if (!this.activeCallSurface()) {
       return;
@@ -5405,6 +5428,7 @@ export class AppComponent {
       return;
     }
 
+    this.minimizeCallWindow();
     this.openPlatformSettingsModal();
     this.platformVoiceSettingsChannelId.set(surface.channelId);
     const token = this.session()?.access_token;
@@ -5415,7 +5439,8 @@ export class AppComponent {
 
   directCallSurfaceStatusLabel(): string {
     const state = this.directCallState();
-    if (state === 'connected' || state === 'idle') {
+    if (state === 'connected') return 'Связь установлена';
+    if (state === 'idle') {
       return '';
     }
 

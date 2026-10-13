@@ -121,6 +121,12 @@ export class DirectCallService {
   readonly remoteScreenStream = signal<MediaStream | null>(null);
   readonly localMuted = signal(false);
   readonly remoteVolume = signal(100);
+  readonly outputMuted = signal(false);
+
+  toggleOutputMuted(): void {
+    this.outputMuted.update(value => !value);
+    this.applyRemoteVolume();
+  }
   readonly canCall = computed(() => this.connected() && this.state() === 'idle');
   readonly cameraSupported = computed(() => typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia);
   readonly screenShareSupported = computed(
@@ -841,6 +847,7 @@ export class DirectCallService {
     this.remoteScreenExpected = false;
     this.localMuted.set(false);
     this.remoteVolume.set(100);
+    this.outputMuted.set(false);
     this.stopLocalStream();
     this.teardownPeerConnection();
     this.teardownRemoteAudio();
@@ -876,7 +883,8 @@ export class DirectCallService {
       return;
     }
 
-    this.remoteAudioElement.volume = Math.max(0, Math.min(1, this.remoteVolume() / 100));
+    this.remoteAudioElement.muted = this.outputMuted();
+    this.remoteAudioElement.volume = this.outputMuted() ? 0 : Math.max(0, Math.min(1, this.remoteVolume() / 100));
   }
 
   private teardownPeerConnection(): void {

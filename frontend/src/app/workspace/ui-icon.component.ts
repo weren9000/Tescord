@@ -1,6 +1,15 @@
 import { Component, input } from '@angular/core';
 
 const paths: Record<string, string> = {
+  mic: 'M9 5a3 3 0 0 1 6 0v7a3 3 0 0 1-6 0zM5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8',
+  micOff: 'M3 3l18 18M9 5a3 3 0 0 1 6 0v6M9 9v3a3 3 0 0 0 5 2M5 10v2a7 7 0 0 0 12 5M19 10v2M12 19v3M8 22h8',
+  sound: 'M4 10v5h4l5 4V6l-5 4zM17 8a7 7 0 0 1 0 9M16 11a3 3 0 0 1 0 3',
+  soundOff: 'M4 10v5h4l5 4V6l-5 4zM17 10l5 5M22 10l-5 5',
+  camera: 'M4 6h11a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1zM16 10l5-3v10l-5-3',
+  screen: 'M4 3h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM12 17v4M8 21h8M12 13V7M9 10l3-3 3 3',
+  hangup: 'M3 12c5-5 13-5 18 0v5h-5v-4a12 12 0 0 0-8 0v4H3z',
+  minimize: 'M5 16h14',
+  expand: 'M14 4h6v6M20 4l-8 8M10 20H4v-6M4 20l8-8',
   friends: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M17 8h5M19.5 5.5v5',
   groups: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75',
   platforms: 'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z',
