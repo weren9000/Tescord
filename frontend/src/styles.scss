@@ -1,11 +1,30 @@
+@use 'palette';
+
+:root {
+  color-scheme: dark;
+  @each $name, $color in (
+    canvas: palette.$canvas, primary: palette.$primary, 'cyan': palette.$cyan,
+    text: palette.$text, surface: palette.$surface, raised: palette.$raised,
+    hover: palette.$hover, border: palette.$border, subtle: palette.$subtle,
+    muted: palette.$muted, secondary: palette.$secondary,
+    primary-text: palette.$primary-text, selected: palette.$selected,
+    danger: palette.$danger, danger-surface: palette.$danger-surface,
+    danger-text: palette.$danger-text, warning: palette.$warning, shadow: palette.$shadow
+  ) {
+    --palette-#{$name}: #{$color};
+  }
+}
+
+::selection { background: palette.$primary; color: palette.$text; }
+
 html,
 body {
   margin: 0;
   min-height: 100%;
-  background: #0d1016;
+  background: palette.$canvas;
 }
 
 body {
-  color: #f4f7fb;
+  color: palette.$text;
   font-family: "Inter", "Segoe UI Variable", "Segoe UI", Arial, sans-serif;
 }
