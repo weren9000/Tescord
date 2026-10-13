@@ -139,3 +139,46 @@ button:focus-visible, article:focus-visible, input:focus-visible, textarea:focus
  .mobile-mode-footer button { color: var(--palette-secondary); }
  .mobile-mode-footer .mobile-mode-footer__button--active { color: var(--palette-cyan); }
 }
+
+// Phone density; keep tablet and desktop sizing unchanged.
+@media (max-width: 640px) {
+  .messenger-layout { padding-bottom: calc(62px + env(safe-area-inset-bottom)); }
+  .conversation-sidebar--mobile-open { bottom: calc(62px + env(safe-area-inset-bottom)); }
+  .conversation-head, .conversation-head--managed { min-height: 52px; padding: 4px 6px; gap: 4px; }
+  .conversation-head__identity--managed { grid-template-columns: 30px minmax(0, 1fr) auto; gap: 6px; }
+  .conversation-head__avatar, .conversation-head--managed .conversation-head__avatar { width: 30px; height: 30px; }
+  .conversation-head__summary { gap: 2px; }
+  .conversation-head__summary strong { font-size: 14px; }
+  .channel-context { font-size: 11px; }
+  .conversation-head__menu, .workspace-tools { gap: 2px; }
+  .conversation-stream { padding: 6px; gap: 6px; }
+  .message-list { padding: 4px 0; scroll-padding-block: 8px; }
+  .message-card { grid-template-columns: 32px minmax(0, 1fr); gap: 6px; margin-top: 6px; padding: 6px; }
+  .message-card__avatar { width: 32px; height: 32px; min-width: 32px; flex-basis: 32px; }
+  .message-card__body { gap: 2px; }
+  .message-card__meta { gap: 6px; }
+  .message-card__author strong { font-size: 13px; }
+  .message-card__meta time, .message-card__read-receipt { font-size: 11px; }
+  .message-card__text { font-size: 14px; line-height: 1.45; }
+  .message-card--continuation { margin-top: 0; padding-block: 1px; }
+  .message-card--continuation .message-card__meta { width: 38px; }
+  .message-divider { margin: 4px 0; gap: 6px; }
+  .message-divider__label { font-size: 10px; }
+  .message-attachments, .composer__files { gap: 6px; }
+  .message-attachments .attachment-card, .composer__files .attachment-card { flex: 0 0 auto; width: min(240px, 100%); max-width: 100%; padding: 6px; }
+  .attachment-card__preview img { height: 140px; max-height: 25dvh; object-fit: contain; }
+  .attachment-card__body, .attachment-card__copy { gap: 3px; }
+  .attachment-card__copy strong { font-size: 12px; }
+  .attachment-card__copy small, .attachment-card__state { font-size: 11px; }
+  .composer__surface { padding: 4px; gap: 6px; }
+  .composer textarea { font-size: 16px; }
+  .group-voice-card { padding: 4px 8px; gap: 6px; }
+  .group-voice-card__copy { gap: 2px; }
+  .group-voice-card__copy strong { font-size: 13px; }
+  .group-voice-card__copy small { font-size: 11px; }
+  .group-voice-card__actions { gap: 2px; }
+  .group-voice-card__action { width: 44px; min-height: 44px; padding: 0; }
+  .mobile-mode-footer { min-height: 52px; padding: 3px; gap: 3px; left: 6px; right: 6px; bottom: calc(4px + env(safe-area-inset-bottom)); }
+  .mobile-mode-footer button { min-height: 44px; gap: 2px; font-size: 10px; }
+  .mobile-mode-footer button img, .mobile-mode-footer app-ui-icon { width: 18px; height: 18px; }
+}
