@@ -247,6 +247,11 @@ def change(item_id: UUID, action: str, body: Action, user: User = Depends(get_cu
             owner.avatar_size_bytes = None
     else:
         item.equipped = False
+    if item.kind == 'wallpaper' and action in ('gift', 'revoke'):
+        from app.db.models import Server, ServerMember
+        selection = 'item:' + str(item.id)
+        db.execute(update(Server).where(Server.chat_wallpaper == selection).values(chat_wallpaper=None))
+        db.execute(update(ServerMember).where(ServerMember.chat_wallpaper == selection).values(chat_wallpaper=None, wallpaper_override=False))
     if changed_profile and owner: owner.avatar_updated_at = datetime.now(timezone.utc)
     db.add(InventoryEvent(request_id=body.request_id, item_id=item.id, actor_id=user.id,
                           recipient_id=recipient_id, action=action))

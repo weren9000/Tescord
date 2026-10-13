@@ -1,13 +1,23 @@
 @if(open()){
  <div class="shade" (click)="dismiss()"><section role="dialog" aria-modal="true" aria-labelledby="wallpaper-title" (click)="$event.stopPropagation()" (keydown)="keydown($event)">
-  <header><div><h2 id="wallpaper-title">Обои чата</h2><small>Для всех ваших чатов · видны только вам</small></div><button class="close" aria-label="Закрыть обои" [disabled]="busy()" (click)="dismiss()">×</button></header>
+  <header><div><h2 id="wallpaper-title">Обои</h2><small>{{data()?.context?.name || 'Мои обои'}} @if(data()?.context){ · Сейчас: {{sourceLabel()}} }</small></div><button class="close" aria-label="Закрыть обои" [disabled]="busy()" (click)="dismiss()">×</button></header>
   @if(error()){<p role="alert" class="error">{{error()}}</p>}
   @if(data();as state){
    <div class="content"><div class="preview" [style.background-image]="style().image" [style.background-size]="style().size"><div class="bubble">Привет! Как тебе новые обои?</div><div class="bubble own">Отлично смотрятся ✨</div><div class="composer">Написать сообщение…</div></div>
-    <div class="settings"><h3>Базовые</h3><div class="choices"><button [class.active]="selected===null" [attr.aria-pressed]="selected===null" [disabled]="busy()" (click)="selected=null"><span class="thumb blank">∅</span>Без обоев</button>@for(preset of state.presets;track preset.id){<button [class.active]="selected===preset.id" [attr.aria-pressed]="selected===preset.id" [disabled]="busy()" (click)="selected=preset.id"><img class="thumb" [src]="url(preset.id)" alt="" loading="lazy"/>{{preset.name}}</button>}</div>
+    <div class="settings">
+     <label>Что изменить<select [ngModel]="target" (ngModelChange)="selectTarget($event)" [disabled]="busy()">
+      @if(state.context){<option value="personal">Только для меня в этой беседе</option>}
+      @if(state.context?.can_manage){<option value="shared">Обои {{state.context?.kind==='group_chat'?'группы':'площадки'}} для всех</option>}
+      <option value="profile">Мои обои для собеседников</option>
+     </select></label>
+     @if(target==='profile'){<p class="hint">Эти обои увидят собеседники в переписке с вами, если не выбрали личную замену.</p>}
+     @if(target==='shared'){<p class="hint">Общий фон этой {{state.context?.kind==='group_chat'?'группы':'площадки'}}. Личные настройки участников сохранятся.</p>}
+     @if(target==='personal'){<label class="inherit"><input type="checkbox" [(ngModel)]="inherit" [disabled]="busy()"/>{{inheritedLabel()}} — использовать по умолчанию</label><p class="hint">Снимите флажок, чтобы выбрать свой фон или «Без обоев». Изменение будет видно только вам.</p>}
+     <fieldset [disabled]="busy()||(target==='personal'&&inherit)"><h3>Базовые</h3><div class="choices"><button [class.active]="selected===null" [attr.aria-pressed]="selected===null" [disabled]="busy()" (click)="selected=null"><span class="thumb blank">∅</span>Без обоев</button>@for(preset of state.presets;track preset.id){<button [class.active]="selected===preset.id" [attr.aria-pressed]="selected===preset.id" [disabled]="busy()" (click)="selected=preset.id"><img class="thumb" [src]="url(preset.id)" alt="" loading="lazy"/>{{preset.name}}</button>}</div>
      @if(state.items.length){<h3>Из инвентаря</h3><div class="choices">@for(item of state.items;track item.id){<button [class.active]="selected===item.id" [attr.aria-pressed]="selected===item.id" [disabled]="busy()" (click)="selected=item.id"><img class="thumb" [src]="url(item.id)" alt="" loading="lazy"/>{{item.name}}</button>}</div>}
      <label>Масштаб · {{scale}}%<input type="range" min="50" max="200" step="5" [(ngModel)]="scale" [disabled]="busy()||!selected"/></label>
      <label>Затемнение · {{dim}}%<input type="range" min="0" max="85" [(ngModel)]="dim" [disabled]="busy()||!selected"/></label>
+     </fieldset>
     </div></div><footer><button [disabled]="busy()" (click)="dismiss()">Отмена</button><button class="primary" [disabled]="busy()" (click)="save()">{{busy()?'Сохраняем…':'Применить'}}</button></footer>
   }@else{<p role="status">Загрузка…</p>}
  </section></div>
