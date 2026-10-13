@@ -21,7 +21,7 @@ export type WorkspaceSection = 'chats' | 'groups' | 'platforms';
         <button type="button" title="Быстрый переход (Ctrl+K)" aria-label="Быстрый переход" (click)="search.emit()"><app-ui-icon name="search"/><span>Поиск</span></button>
         <button type="button" aria-label="Меню приложения" (click)="menu.emit()"><app-ui-icon name="menu"/><span>Меню</span></button>
         <button class="notification" type="button" aria-label="Уведомления" (click)="notifications.emit()"><app-ui-icon name="bell"/>@if (hasNotifications()) {<i></i>}<span>События</span></button>
-        <button class="profile" type="button" aria-label="Мой профиль" (click)="profile.emit()">@if(avatarUrl()){<img class="profile-avatar" [src]="avatarUrl()" alt="" width="30" height="30" />}@else{<b>{{ initials() }}</b>}<span>Профиль</span></button>
+        <button class="profile" type="button" aria-label="Мой профиль" (click)="profile.emit()">@if(avatarUrl()){<img class="profile-avatar" [src]="avatarUrl()" alt="" width="44" height="44" />}@else{<b>{{ initials() }}</b>}<span>Профиль</span></button>
       </div>
     </nav>`,
   styles: [`
@@ -31,13 +31,14 @@ export type WorkspaceSection = 'chats' | 'groups' | 'platforms';
     .sections,.utilities{display:flex;flex-direction:column;gap:8px}.utilities{margin-top:auto;gap:4px}
     button{position:relative;width:100%;min-height:66px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;border:1px solid transparent;border-radius:12px;background:transparent;color:inherit;font:500 11px system-ui;cursor:pointer}
     button:hover{background:color-mix(in srgb, var(--palette-text) 2.35%, transparent);color:var(--palette-text)}button.active{background:color-mix(in srgb, var(--palette-cyan) 7.06%, transparent);border-color:color-mix(in srgb, var(--palette-cyan) 14.90%, transparent);color:var(--palette-cyan)}button.active:before{content:'';position:absolute;left:-11px;top:20px;width:3px;height:26px;border-radius:3px;background:var(--palette-cyan)}
-    button:focus-visible{outline:2px solid var(--palette-cyan);outline-offset:2px}.utilities button{min-height:58px;font-size:10px}.profile b{display:grid;place-items:center;width:30px;height:30px;border-radius:22%;background:var(--palette-raised);color:var(--palette-cyan);font-size:11px}.notification i{position:absolute;top:8px;right:20px;width:6px;height:6px;border-radius:50%;background:var(--palette-cyan)}
+    button:focus-visible{outline:2px solid var(--palette-cyan);outline-offset:2px}.utilities button{min-height:58px;font-size:10px}.profile b{display:grid;place-items:center;width:44px;height:44px;border-radius:22%;background:var(--palette-raised);color:var(--palette-cyan);font-size:15px}.notification i{position:absolute;top:8px;right:20px;width:6px;height:6px;border-radius:50%;background:var(--palette-cyan)}
     button.active{background:var(--palette-selected);border-color:transparent;color:var(--palette-primary-text)}button.active:before{background:var(--palette-primary)}
     .profile b{color:var(--palette-secondary);background:var(--palette-hover)}
-    .profile-avatar{width:30px;height:30px;object-fit:cover;border-radius:22%}
+    .profile-avatar{width:44px;height:44px;object-fit:cover;border-radius:22%}
     .brand img{display:block;width:70px;height:35px;object-fit:contain;mix-blend-mode:lighten}
     nav{overflow-y:auto}.brand,.sections,.utilities{flex-shrink:0}
     @media(max-height:850px){nav{gap:14px;padding:14px 10px}.sections{gap:4px}.sections button{min-height:54px;gap:5px}.utilities button{min-height:46px;gap:4px}}
+    .utilities .profile{min-height:68px;gap:6px;flex-shrink:0}
     @media(max-width:980px){:host{display:none}}
   `],
 })

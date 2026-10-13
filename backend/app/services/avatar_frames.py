@@ -36,8 +36,8 @@ def frame_svg(catalog_id: str, avatar: bytes | None = None, mime: str = 'image/w
     inner = ''
     if avatar is not None:
         uri = data_uri(avatar, mime)
-        inner = ('<defs><clipPath id="avatar"><rect x="51" y="51" width="410" height="410" rx="74"/></clipPath></defs>'
-                 f'<image x="51" y="51" width="410" height="410" preserveAspectRatio="xMidYMid slice" '
+        inner = ('<defs><clipPath id="avatar"><rect x="43" y="43" width="426" height="426" rx="82"/></clipPath></defs>'
+                 f'<image x="43" y="43" width="426" height="426" preserveAspectRatio="xMidYMid slice" '
                  f'clip-path="url(#avatar)" href="{uri}"/>')
     layer = frame_layer(catalog_id)
     if not motion:

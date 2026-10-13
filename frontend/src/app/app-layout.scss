@@ -26,10 +26,10 @@
 .workspace-tools .mobile-channels-toggle { display: none; }
 .conversation-stream { position: relative; min-height: 0; }
 .message-list { gap: 0; padding: 16px 20px; scroll-padding-block: 20px; }
-.message-card { position: relative; gap: 10px; padding: 8px 8px 3px; margin-top: 10px; border: 0; border-radius: 6px; background: transparent; grid-template-columns: 36px minmax(0, 1fr); }
+.message-card { position: relative; gap: 10px; padding: 8px 8px 3px; margin-top: 10px; border: 0; border-radius: 6px; background: transparent; grid-template-columns: 40px minmax(0, 1fr); }
 .message-card:hover, .message-card:focus-within { background: rgba(palette.$text, 0.0157); }
 .message-card--mention { background: rgba(palette.$cyan, 0.0627); box-shadow: inset 2px 0 palette.$cyan; }
-.message-card__avatar { width: 36px; height: 36px; min-width: 36px; border-radius: 22%; }
+.message-card__avatar { width: 40px; height: 40px; min-width: 40px; border-radius: 22%; }
 .message-card__body { gap: 3px; }
 .message-card__meta { justify-content: flex-start; gap: 10px; }
 .message-card__author strong { font-size: 14px; }
@@ -81,8 +81,8 @@ button:focus-visible, article:focus-visible, input:focus-visible, textarea:focus
   .conversation-sidebar__mode-tabs { display: flex; }
   .conversation-sidebar__tabs-actions, .sidebar-new-chat { display: none; }
   .message-list { padding: 12px 6px; }
-  .message-card { padding-right: 6px; gap: 8px; grid-template-columns: 30px minmax(0, 1fr); }
-  .message-card__avatar { width: 30px; height: 30px; min-width: 30px; }
+  .message-card { padding-right: 6px; gap: 8px; grid-template-columns: 40px minmax(0, 1fr); }
+  .message-card__avatar { width: 40px; height: 40px; min-width: 40px; }
   .message-card__text { font-size: 15px; }
   .message-hover-actions { top: 0; right: 4px; }
   .message-hover-actions button { min-height: 36px; }

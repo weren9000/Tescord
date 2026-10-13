@@ -23,7 +23,7 @@
 .space-people { padding: 2px 6px 6px 29px; }
 .space-person { display: flex; align-items: center; gap: 8px; width: 100%; padding: 5px; border: 0; border-radius: 6px; background: transparent; color: palette.$muted; font: inherit; text-align: left; cursor: pointer; }
 .space-person:hover { background: rgba(palette.$text, 0.0314); color: palette.$text; }
-.space-person__avatar { display: grid; place-items: center; width: 24px; height: 24px; flex: 0 0 24px; border-radius: 22%; background: palette.$hover; font-size: 9px; color: palette.$secondary; }
+.space-person__avatar { display: grid; place-items: center; width: 44px; height: 44px; flex: 0 0 44px; border-radius: 22%; background: palette.$hover; font-size: 9px; color: palette.$secondary; }
 .space-person__avatar img { width: 100%; height: 100%; border-radius: inherit; object-fit: cover; }
 .space-person--speaking .space-person__avatar { box-shadow: 0 0 0 2px palette.$cyan; }
 .space-person__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
