@@ -3888,6 +3888,7 @@
 }
 
 @if(session(); as auth) {
+ <app-theme-controller [token]="auth.access_token" [revision]="wallpaperRevision()" />
  <app-wallpapers [token]="auth.access_token" [open]="wallpaperOpen()" [revision]="wallpaperRevision()" (close)="wallpaperOpen.set(false)" (applied)="wallpaperStyle.set($event)" />
  <app-inventory [token]="auth.access_token" [mode]="inventoryMode()" [isAdmin]="!!currentUser()?.is_avatar_admin" (close)="inventoryMode.set(null)" (changed)="refreshInventoryProfile()" (unread)="inventoryUnread.set($event)" />
 }

@@ -1,56 +1,56 @@
 @use '../palette';
 
 :host {
-  --canvas: #{palette.$canvas};
-  --canvas-raised: #{palette.$surface};
-  --surface: #{palette.$surface};
-  --surface-strong: #{palette.$raised};
-  --text: #{palette.$text};
-  --muted: #{palette.$muted};
-  --muted-strong: #{palette.$secondary};
-  --accent: #{palette.$primary};
-  --accent-cool: #{palette.$cyan};
-  --voice: #{palette.$cyan};
-  --voice-speaking: #{palette.$cyan};
-  --voice-open: #{palette.$cyan};
+  --canvas: var(--palette-canvas);
+  --canvas-raised: var(--palette-surface);
+  --surface: var(--palette-surface);
+  --surface-strong: var(--palette-raised);
+  --text: var(--palette-text);
+  --muted: var(--palette-muted);
+  --muted-strong: var(--palette-secondary);
+  --accent: var(--palette-primary);
+  --accent-cool: var(--palette-cyan);
+  --voice: var(--palette-cyan);
+  --voice-speaking: var(--palette-cyan);
+  --voice-open: var(--palette-cyan);
 }
 
-.messenger-shell { background: palette.$canvas; }
-.messenger-workspace, .conversation-stream { background: palette.$canvas; }
-.auth-tab--active { background: rgba(palette.$primary, .2); border-color: rgba(palette.$primary, .3); color: palette.$text; }
-.auth-shell { background: palette.$canvas; }
-.auth-brand { background: palette.$surface; }
+.messenger-shell { background: var(--palette-canvas); }
+.messenger-workspace, .conversation-stream { background: var(--palette-canvas); }
+.auth-tab--active { background: rgb(var(--rgb-primary) / .2); border-color: rgb(var(--rgb-primary) / .3); color: var(--palette-text); }
+.auth-shell { background: var(--palette-canvas); }
+.auth-brand { background: var(--palette-surface); }
 .primary-button, .space-voice-preview button, .call-tray__answer {
-  background: palette.$primary; border-color: palette.$primary; color: palette.$text;
+  background: var(--palette-primary); border-color: var(--palette-primary); color: var(--palette-text);
 }
 .primary-button:hover:not(:disabled), .space-voice-preview button:hover:not(:disabled), .call-tray__answer:hover {
-  background: palette.$primary-hover; border-color: palette.$primary-hover; color: palette.$text;
+  background: var(--palette-primary-hover); border-color: var(--palette-primary-hover); color: var(--palette-text);
 }
-.section-create { background: transparent; border-color: palette.$border; color: palette.$secondary; }
-.section-create:hover { background: palette.$hover; color: palette.$text; }
+.section-create { background: transparent; border-color: var(--palette-border); color: var(--palette-secondary); }
+.section-create:hover { background: var(--palette-hover); color: var(--palette-text); }
 .space-channel--selected, .conversation-sidebar .platform-channel-entry--active {
-  background: rgba(palette.$primary, .1); color: palette.$text;
+  background: rgb(var(--rgb-primary) / .1); color: var(--palette-text);
 }
-.space-channel--selected > app-ui-icon { color: palette.$primary-text; }
-.space-channel--connected > app-ui-icon { color: palette.$cyan; }
-.mobile-mode-footer .mobile-mode-footer__button--active { background: rgba(palette.$primary, .16); color: palette.$primary-text; }
-.mobile-mode-footer .mobile-mode-footer__button--active span { color: palette.$primary-text !important; }
-input[type='range'] { accent-color: palette.$primary-text; }
+.space-channel--selected > app-ui-icon { color: var(--palette-primary-text); }
+.space-channel--connected > app-ui-icon { color: var(--palette-cyan); }
+.mobile-mode-footer .mobile-mode-footer__button--active { background: rgb(var(--rgb-primary) / .16); color: var(--palette-primary-text); }
+.mobile-mode-footer .mobile-mode-footer__button--active span { color: var(--palette-primary-text) !important; }
+input[type='range'] { accent-color: var(--palette-primary-text); }
 
 // Quiet surfaces keep messages prominent; color identifies actions and status.
-.conversation-sidebar { background: palette.$surface; }
-.conversation-head, .composer { background: palette.$surface; }
-.section-heading button { color: palette.$secondary; }
-.call-window, .modal, .conversation-action-menu { background: palette.$raised; }
-.call-window__header, .call-window__bottom { background: palette.$raised; }
-.call-window__roster, .group-voice-roster { background: palette.$surface; }
+.conversation-sidebar { background: var(--palette-surface); }
+.conversation-head, .composer { background: var(--palette-surface); }
+.section-heading button { color: var(--palette-secondary); }
+.call-window, .modal, .conversation-action-menu { background: var(--palette-raised); }
+.call-window__header, .call-window__bottom { background: var(--palette-raised); }
+.call-window__roster, .group-voice-roster { background: var(--palette-surface); }
 .group-voice-roster__member { background: transparent; }
-.group-voice-roster__member:hover { background: rgba(palette.$text, .025); }
-.call-tray { border-color: palette.$border; }
+.group-voice-roster__member:hover { background: rgb(var(--rgb-text) / .025); }
+.call-tray { border-color: var(--palette-border); }
 .call-tray__status--ready { box-shadow: none; }
-.call-control-button--active { color: palette.$primary-text; background: rgba(palette.$primary, .1); border-color: rgba(palette.$primary, .2); }
-.call-window__controls .call-control-button:not(.call-control-button--active):not(.call-control-button--muted):not(.call-control-button--danger) { background: transparent; border-color: palette.$border; }
-.call-audio-settings input, .group-voice-roster__volume { accent-color: palette.$primary-text; }
-.message-card--mention { background: rgba(palette.$primary, .06); box-shadow: inset 2px 0 rgba(palette.$primary-text, .6); }
-.group-voice-panel { background: palette.$surface; }
-.secondary-button:hover:not(:disabled), .icon-button:hover:not(:disabled), .conversation-head__action:hover:not(:disabled) { background: palette.$hover; border-color: palette.$border; color: palette.$text; }
+.call-control-button--active { color: var(--palette-primary-text); background: rgb(var(--rgb-primary) / .1); border-color: rgb(var(--rgb-primary) / .2); }
+.call-window__controls .call-control-button:not(.call-control-button--active):not(.call-control-button--muted):not(.call-control-button--danger) { background: transparent; border-color: var(--palette-border); }
+.call-audio-settings input, .group-voice-roster__volume { accent-color: var(--palette-primary-text); }
+.message-card--mention { background: rgb(var(--rgb-primary) / .06); box-shadow: inset 2px 0 rgb(var(--rgb-primary-text) / .6); }
+.group-voice-panel { background: var(--palette-surface); }
+.secondary-button:hover:not(:disabled), .icon-button:hover:not(:disabled), .conversation-head__action:hover:not(:disabled) { background: var(--palette-hover); border-color: var(--palette-border); color: var(--palette-text); }

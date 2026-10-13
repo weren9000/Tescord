@@ -3,18 +3,20 @@
 <div class="inventory-backdrop" (click)="menu() ? menu.set(null) : dismiss()">
  <section class="inventory" role="dialog" aria-modal="true" aria-labelledby="inventory-title" (click)="$event.stopPropagation();menu.set(null)" (keydown)="keydown($event)">
   <header><h2 id="inventory-title">{{mode()==='admin'?'Админ-Аватарок':'Инвентарь'}}</h2><div class="header-actions">@if(mode()==='inventory'){<button (click)="eventsOpen.set(true)">@if(unreadCount()){<span class="count">{{unreadCount()}}</span>} События</button>}<button aria-label="Закрыть инвентарь" [disabled]="busy()" (click)="dismiss()">×</button></div></header>
-  <div class="body" [attr.inert]="pending()||giftItem()||detail()||eventsOpen()||uploadOpen()||editing() ? '' : null">
+  <div class="body" [attr.inert]="pending()||giftItem()||themePreview()||detail()||eventsOpen()||uploadOpen()||editing() ? '' : null">
    @if(error()){<p role="alert" class="error">{{error()}}</p>}@if(success()){<p class="notice" role="status">{{success()}}</p>}
    <nav aria-label="Типы предметов">
     <button [class.active]="(mode()==='admin'?adminTab():tab())==='avatar'" [disabled]="busy()" (click)="switchTab('avatar')">Аватарки</button>
     <button [class.active]="(mode()==='admin'?adminTab():tab())==='frame'" [disabled]="busy()" (click)="switchTab('frame')">Рамки</button>
     <button [class.active]="(mode()==='admin'?adminTab():tab())==='wallpaper'" [disabled]="busy()" (click)="switchTab('wallpaper')">Обои</button>
+    <button [class.active]="(mode()==='admin'?adminTab():tab())==='theme'" [disabled]="busy()" (click)="switchTab('theme')">Темы</button>
     @if(mode()==='admin'){<button [class.active]="adminTab()==='issued'" [disabled]="busy()" (click)="switchTab('issued')">Выдано</button>}
    </nav>
    <div class="catalog-tools"><form (ngSubmit)="filterChanged()"><input aria-label="Поиск предметов" [placeholder]="adminTab()==='issued'&&mode()==='admin'?'Предмет, владелец или email':'Название предмета'" name="filter" [(ngModel)]="filter" maxlength="80"/><button type="submit" [disabled]="busy()">Найти</button></form>
-    @if(mode()==='admin'&&adminTab()!=='issued'){<button class="primary" (click)="openUpload()">Добавить предмет</button>}
-    @if(mode()==='admin'&&adminTab()==='issued'){<select aria-label="Тип выданных предметов" [(ngModel)]="issuedKind" (ngModelChange)="filterChanged()"><option value="">Все типы</option><option value="avatar">Аватарки</option><option value="frame">Рамки</option><option value="wallpaper">Обои</option></select>}
+    @if(mode()==='admin'&&adminTab()!=='issued'&&adminTab()!=='theme'){<button class="primary" (click)="openUpload()">Добавить предмет</button>}
+    @if(mode()==='admin'&&adminTab()==='issued'){<select aria-label="Тип выданных предметов" [(ngModel)]="issuedKind" (ngModelChange)="filterChanged()"><option value="">Все типы</option><option value="avatar">Аватарки</option><option value="frame">Рамки</option><option value="wallpaper">Обои</option><option value="theme">Темы</option></select>}
    </div>
+   @if(mode()==='inventory'&&tab()==='theme'){<p>Темы меняют оформление интерфейса только для вас. <button [disabled]="busy()" (click)="resetTheme()">Базовая тема</button></p>}
    @if(mode()==='inventory') {
     <div class="grid">@for(item of items();track item.id){
      <div class="tile" [class.wallpaper-tile]="item.kind==='wallpaper'" [class.equipped]="item.equipped" [attr.title]="item.name+(item.equipped?' · Используется':'')"><img [src]="image(item.catalog_id)" [alt]="item.name"/>@if(item.equipped){<span class="check" aria-label="Используется">✓</span>}<button class="dots" [attr.aria-label]="'Действия: '+item.name" [attr.aria-expanded]="menu()?.id===item.id" [disabled]="busy()" (click)="toggleMenu(item,$event)">⋯</button></div>
@@ -29,7 +31,7 @@
    @if(mode()==='admin'&&adminTab()!=='issued'&&selectedEntry();as selected){<div class="grant-target"><div class="selection-summary"><img [src]="image(selected.id)" alt=""/><strong>{{selected.name}}</strong></div><ng-container *ngTemplateOutlet="recipientSearch"/><button class="primary" [disabled]="!recipient()||busy()||selected.hidden" (click)="confirm('grant',null)">Выдать предмет</button></div>}
    @if(loading()){<p role="status">Загрузка…</p>}
   </div>
-  @if(menu();as item){<div class="item-menu" role="group" aria-label="Действия с предметом" [style.left.px]="menuX" [style.top.px]="menuY">@if(mode()==='inventory'){<button [disabled]="busy()" (click)="equip(item)">{{item.equipped?'Снять':'Использовать'}}</button><button (click)="startGift(item)">Подарить</button>}<button (click)="showHistory(item)">О предмете</button>@if(mode()==='admin'&&!item.revoked){<button class="error" [disabled]="busy()" (click)="confirm('revoke',item)">Отозвать</button>}</div>}
+  @if(menu();as item){<div class="item-menu" role="group" aria-label="Действия с предметом" [style.left.px]="menuX" [style.top.px]="menuY">@if(mode()==='inventory'){@if(item.kind==='theme'){<button (click)="menu.set(null);themePreview.set(item)">Предпросмотр</button>}<button [disabled]="busy()" (click)="equip(item)">{{item.equipped?'Снять':'Использовать'}}</button><button (click)="startGift(item)">Подарить</button>}<button (click)="showHistory(item)">О предмете</button>@if(mode()==='admin'&&!item.revoked){<button class="error" [disabled]="busy()" (click)="confirm('revoke',item)">Отозвать</button>}</div>}
   @if(giftItem()||detail()||eventsOpen()) {
    <div class="panel-shade"><section class="subpanel" role="dialog" aria-modal="true" [attr.aria-label]="giftItem()?'Подарить предмет':detail()?'О предмете':'События инвентаря'">
     <header><h3>{{giftItem()?'Подарить предмет':detail()?'О предмете':'События инвентаря'}}</h3><button [disabled]="busy()" aria-label="Назад в инвентарь" (click)="closePanel()">×</button></header><div class="panel-body">
@@ -40,6 +42,7 @@
     </div>
    </section></div>
   }
+  @if(themePreview();as item){<div class="panel-shade"><section class="subpanel" role="dialog" aria-modal="true" aria-label="Предпросмотр темы"><header><h3>{{item.name}}</h3><button aria-label="Закрыть предпросмотр" [disabled]="busy()" (click)="closePanel()">×</button></header><div class="panel-body">@if(error()){<p class="error" role="alert">{{error()}}</p>}<img class="theme-preview" [src]="image(item.catalog_id)" [alt]="item.name"/><p>Цвета чатов, меню и окон. Ваши обои сохранятся.</p><button class="primary full" [disabled]="busy()" (click)="equip(item)">{{item.equipped?'Вернуться к базовой':'Использовать тему'}}</button></div></section></div>}
   @if(uploadOpen()){
    <div class="panel-shade"><section class="subpanel upload-panel" role="dialog" aria-modal="true" aria-label="Добавить предмет"><header><h3>Добавить {{uploadKind==='wallpaper'?'обои':uploadKind==='frame'?'рамку':'аватарку'}}</h3><button aria-label="Закрыть загрузку" [disabled]="busy()" (click)="closePanel()">×</button></header><form class="panel-body upload-form" (ngSubmit)="saveUpload()">
     @if(error()){<p class="error" role="alert">{{error()}}</p>}

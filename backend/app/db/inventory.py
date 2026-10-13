@@ -14,7 +14,7 @@ class InventoryCatalog(Base):
     hidden: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default='false')
     created_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('users.id', ondelete='SET NULL'))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    __table_args__ = (CheckConstraint("kind IN ('avatar', 'frame', 'wallpaper')", name='ck_catalog_kind'),
+    __table_args__ = (CheckConstraint("kind IN ('avatar', 'frame', 'wallpaper', 'theme')", name='ck_catalog_kind'),
                      Index('ix_catalog_kind_created', 'kind', 'created_at', 'id'))
 
 

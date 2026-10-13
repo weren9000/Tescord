@@ -42,7 +42,7 @@ export class InventoryComponent implements OnDestroy {
  readonly error = signal('');
  readonly success = signal('');
  readonly tab = signal('avatar');
- readonly adminTab = signal<'avatar' | 'frame' | 'wallpaper' | 'issued'>('avatar');
+ readonly adminTab = signal<'avatar' | 'frame' | 'wallpaper' | 'theme' | 'issued'>('avatar');
  readonly uploadOpen = signal(false);
  readonly editing = signal<Catalog | null>(null);
  readonly total = signal(0);
@@ -57,7 +57,7 @@ export class InventoryComponent implements OnDestroy {
  get previewHeight(){return this.imageHeight/Math.min(this.imageWidth,this.imageHeight)*this.zoom*100;}
  pageNumbers(){const start=Math.max(1,Math.min(this.currentPage()-2,this.pageCount()-4));return Array.from({length:Math.min(5,this.pageCount())},(_,i)=>start+i);}
  selectedEntry(){return this.catalog().find(c=>c.id===this.selectedCatalog);}
- async switchTab(value: string){if(this.busy())return;++this.searchVersion;this.menu.set(null);this.error.set('');this.success.set('');this.filter='';this.issuedKind='';this.currentPage.set(1);this.recipient.set(null);this.people.set([]);this.query='';this.searched.set(false);this.selectedCatalog='';if(this.mode()==='admin')this.adminTab.set(value as 'avatar'|'frame'|'wallpaper'|'issued');else this.tab.set(value);await this.reload();}
+ async switchTab(value: string){if(this.busy())return;++this.searchVersion;this.menu.set(null);this.error.set('');this.success.set('');this.filter='';this.issuedKind='';this.currentPage.set(1);this.recipient.set(null);this.people.set([]);this.query='';this.searched.set(false);this.selectedCatalog='';if(this.mode()==='admin')this.adminTab.set(value as 'avatar'|'frame'|'wallpaper'|'theme'|'issued');else this.tab.set(value);await this.reload();}
  async filterChanged(){this.currentPage.set(1);this.selectedCatalog='';await this.reload();}
  async goPage(value: number){this.currentPage.set(value);this.menu.set(null);this.selectedCatalog='';await this.reload();}
  openUpload(){this.resetUpload();this.uploadKind=this.adminTab()==='issued'?'avatar':this.adminTab();this.uploadOpen.set(true);this.error.set('');}
@@ -79,6 +79,8 @@ export class InventoryComponent implements OnDestroy {
  async saveCatalog(hidden?: boolean){const entry=this.editing();if(!entry||this.busy())return;this.busy.set(true);this.error.set('');try{await this.request('/catalog/'+entry.id,'PATCH',{name:this.editName.trim(),...(hidden===undefined?{}:{hidden})});this.editing.set(null);await this.reload();this.success.set('Каталог обновлён. Полученные предметы сохранены.');}catch(e){this.fail(e);}finally{this.busy.set(false);}}
  readonly menu = signal<Item | null>(null);
  readonly detail = signal<Item | null>(null);
+ readonly themePreview = signal<Item | null>(null);
+ async resetTheme(){if(this.busy())return;this.busy.set(true);try{await this.request('/theme/reset','POST',{request_id:crypto.randomUUID()});this.changed.emit();await this.reload();this.success.set('Базовая тема включена');}catch(e){this.fail(e);}finally{this.busy.set(false);}}
  readonly eventsOpen = signal(false);
  readonly unreadCount = signal(0);
  menuX=0; menuY=0;
@@ -94,7 +96,7 @@ export class InventoryComponent implements OnDestroy {
   this.menu.set(item);
   setTimeout(()=>this.element.nativeElement.querySelector<HTMLButtonElement>('.item-menu button')?.focus());
  }
- closePanel() {if(this.busy())return;if(this.pending())this.pending.set(null);else{this.giftItem.set(null);this.detail.set(null);this.eventsOpen.set(false);this.uploadOpen.set(false);this.editing.set(null);this.resetUpload();}}
+ closePanel() {if(this.busy())return;if(this.pending())this.pending.set(null);else{this.giftItem.set(null);this.detail.set(null);this.themePreview.set(null);this.eventsOpen.set(false);this.uploadOpen.set(false);this.editing.set(null);this.resetUpload();}}
  async clearRecipient() {this.recipient.set(null);this.query='';this.people.set([]);this.searched.set(false);}
  query = '';
  selectedCatalog = '';
@@ -105,7 +107,7 @@ export class InventoryComponent implements OnDestroy {
 
  constructor() {
   effect(onCleanup=>{
-   const selector=this.pending()?'.confirm':(this.giftItem()||this.detail()||this.eventsOpen()||this.uploadOpen()||this.editing())?'.subpanel':null;
+   const selector=this.pending()?'.confirm':(this.giftItem()||this.themePreview()||this.detail()||this.eventsOpen()||this.uploadOpen()||this.editing())?'.subpanel':null;
    if(!selector)return;
    const previous=document.activeElement as HTMLElement | null;
    const timer=setTimeout(()=>this.element.nativeElement.querySelector<HTMLElement>(selector+' button')?.focus());
@@ -118,7 +120,7 @@ export class InventoryComponent implements OnDestroy {
    const focusTimer=mode ? setTimeout(()=>this.element.nativeElement.querySelector<HTMLButtonElement>('header button')?.focus()) : undefined;
    onCleanup(()=>{clearTimeout(focusTimer);if(mode)previousFocus?.focus();});
    this.pending.set(null); this.giftItem.set(null); this.recipient.set(null);
-   this.menu.set(null);this.detail.set(null);this.eventsOpen.set(false);this.adminTab.set('avatar');this.tab.set('avatar');this.uploadOpen.set(false);this.editing.set(null);this.resetUpload();
+   this.menu.set(null);this.detail.set(null);this.themePreview.set(null);this.eventsOpen.set(false);this.adminTab.set('avatar');this.tab.set('avatar');this.uploadOpen.set(false);this.editing.set(null);this.resetUpload();
    this.history.set(null); this.people.set([]); this.searched.set(false); this.query='';this.filter='';this.currentPage.set(1);++this.loadVersion;
    this.error.set(''); this.success.set('');
    if (!token) return;
@@ -184,7 +186,7 @@ export class InventoryComponent implements OnDestroy {
   try {
    await this.request(op.action==='grant'?'/grant':`/items/${op.item!.id}/${op.action}`, 'POST',
      {request_id:op.request_id,recipient_id:['gift','grant','revoke'].includes(op.action) ? op.recipient?.id ?? null : null,...(op.action==='grant'?{catalog_id:op.catalog_id}:{})});
-   this.pending.set(null);this.giftItem.set(null);this.success.set('Готово. Инвентарь обновлён.');this.changed.emit();await this.reload();
+   this.pending.set(null);this.giftItem.set(null);this.themePreview.set(null);this.success.set('Готово. Инвентарь обновлён.');this.changed.emit();await this.reload();
   }catch(e){this.fail(e);}finally{this.busy.set(false);}
  }
  async equip(item: Item) {this.confirm(item.equipped?'unequip':'equip',item);await this.perform();}
@@ -192,9 +194,9 @@ export class InventoryComponent implements OnDestroy {
  async markRead() {try{await this.request('/read','POST',{});await this.reload();}catch(e){this.fail(e);}}
  dismiss() {if(!this.busy())this.close.emit();}
  keydown(event: KeyboardEvent) {
-  if(event.key==='Escape'){event.stopPropagation();if(!this.busy()){if(this.menu()){this.menu.set(null);this.menuTrigger?.focus();}else if(this.pending()||this.giftItem()||this.detail()||this.eventsOpen()||this.uploadOpen()||this.editing())this.closePanel();else this.dismiss();}}
+  if(event.key==='Escape'){event.stopPropagation();if(!this.busy()){if(this.menu()){this.menu.set(null);this.menuTrigger?.focus();}else if(this.pending()||this.giftItem()||this.themePreview()||this.detail()||this.eventsOpen()||this.uploadOpen()||this.editing())this.closePanel();else this.dismiss();}}
   if(event.key!=='Tab')return;
-  const root=this.element.nativeElement.querySelector(this.menu()?'.item-menu':this.pending()?'.confirm':(this.giftItem()||this.detail()||this.eventsOpen()||this.uploadOpen()||this.editing())?'.subpanel':'.inventory');
+  const root=this.element.nativeElement.querySelector(this.menu()?'.item-menu':this.pending()?'.confirm':(this.giftItem()||this.themePreview()||this.detail()||this.eventsOpen()||this.uploadOpen()||this.editing())?'.subpanel':'.inventory');
   const nodes=Array.from(root?.querySelectorAll<HTMLElement>('button:not(:disabled),input,select')??[]).filter(e=>e.offsetParent!==null);
   const first=nodes[0],last=nodes[nodes.length-1];
   if(event.shiftKey && (document.activeElement===first || !root?.contains(document.activeElement))){event.preventDefault();last?.focus();}

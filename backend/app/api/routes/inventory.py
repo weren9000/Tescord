@@ -36,7 +36,7 @@ def item_data(db, item):
 
 
 @router.get('')
-def inventory(page: int = Query(1, ge=1), kind: Literal['avatar', 'frame', 'wallpaper'] | None = None,
+def inventory(page: int = Query(1, ge=1), kind: Literal['avatar', 'frame', 'wallpaper', 'theme'] | None = None,
               q: str = Query('', max_length=80), user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     query = select(InventoryItem).join(InventoryCatalog, InventoryCatalog.id == InventoryItem.catalog_id).where(
         InventoryItem.owner_id == user.id, InventoryItem.revoked.is_(False))
@@ -91,7 +91,7 @@ def entry_data(entry):
 
 
 @router.get('/catalog')
-def catalog(page: int = Query(1, ge=1), kind: Literal['avatar', 'frame', 'wallpaper'] | None = None,
+def catalog(page: int = Query(1, ge=1), kind: Literal['avatar', 'frame', 'wallpaper', 'theme'] | None = None,
             q: str = Query('', max_length=80), user: User = Depends(admin), db: Session = Depends(get_db)):
     query = select(InventoryCatalog)
     if kind: query = query.where(InventoryCatalog.kind == kind)
@@ -148,6 +148,9 @@ async def upload_catalog(name: str = Form(max_length=80), kind: Literal['avatar'
 @router.get('/assets/{catalog_id}')
 def asset(catalog_id: str, motion: bool = True, db: Session = Depends(get_db)):
     if not db.get(InventoryCatalog, catalog_id): raise HTTPException(404, 'Предмет не найден')
+    from app.services.themes import THEMES, theme_svg
+    if catalog_id in THEMES:
+        return Response(theme_svg(catalog_id), media_type='image/svg+xml', headers={'X-Content-Type-Options':'nosniff'})
     if catalog_id == 'frame-neon':
         return Response(frame_svg(catalog_id, motion=motion), media_type='image/svg+xml',
                         headers={'Cache-Control': 'public, max-age=300', 'X-Content-Type-Options': 'nosniff'})
@@ -157,7 +160,7 @@ def asset(catalog_id: str, motion: bool = True, db: Session = Depends(get_db)):
 
 @router.get('/issued')
 def issued(owner_id: UUID | None = None, page: int = Query(1, ge=1),
-           kind: Literal['avatar', 'frame', 'wallpaper'] | None = None, q: str = Query('', max_length=80),
+           kind: Literal['avatar', 'frame', 'wallpaper', 'theme'] | None = None, q: str = Query('', max_length=80),
            user: User = Depends(admin), db: Session = Depends(get_db)):
     query = select(InventoryItem).join(InventoryCatalog, InventoryCatalog.id == InventoryItem.catalog_id).outerjoin(User, User.id == InventoryItem.owner_id)
     if owner_id: query = query.where(InventoryItem.owner_id == owner_id)
@@ -217,7 +220,7 @@ def change(item_id: UUID, action: str, body: Action, user: User = Depends(get_cu
     if action != 'revoke' and item.owner_id != user.id: raise HTTPException(403, 'Предмет вам не принадлежит')
     owner = db.get(User, item.owner_id) if item.owner_id else None
     recipient_id = item.owner_id
-    changed_profile = item.kind != 'wallpaper' and (item.equipped or action == 'equip')
+    changed_profile = item.kind in ('avatar', 'frame') and (item.equipped or action == 'equip')
     if item.kind == 'wallpaper' and owner and (item.equipped or action == 'equip'):
         owner.chat_wallpaper = 'item' if action == 'equip' else None
     if action == 'gift':
@@ -257,3 +260,22 @@ def history(item_id: UUID, user: User = Depends(get_current_user), db: Session =
     if not item or (not user.is_avatar_admin and item.owner_id != user.id): raise HTTPException(404, 'Предмет недоступен')
     events = db.scalars(select(InventoryEvent).where(InventoryEvent.item_id == item_id).order_by(InventoryEvent.created_at.desc()).limit(100))
     return [{'action': e.action, 'actor': person(db, e.actor_id), 'recipient': person(db, e.recipient_id), 'created_at': e.created_at} for e in events]
+
+
+@router.get('/theme')
+def active_theme(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    from app.services.themes import THEMES
+    item=db.scalar(select(InventoryItem).where(InventoryItem.owner_id==user.id,
+        InventoryItem.kind=='theme',InventoryItem.equipped.is_(True),InventoryItem.revoked.is_(False)))
+    if not item or item.catalog_id not in THEMES:
+        return {'id':None,'item_id':None,'scheme':'dark','palette':{}}
+    return {'id':item.catalog_id,'item_id':str(item.id),**THEMES[item.catalog_id]}
+
+
+@router.post('/theme/reset')
+def reset_theme(body: Action, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    lock_inventory(db)
+    item=db.scalar(select(InventoryItem).where(InventoryItem.owner_id==user.id,
+        InventoryItem.kind=='theme',InventoryItem.equipped.is_(True),InventoryItem.revoked.is_(False)))
+    if item: return change(item.id, 'unequip', body, user, db)
+    return {'ok':True}

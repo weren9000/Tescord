@@ -21,3 +21,13 @@ Personal wallpaper uploads and selection are disabled: `POST /api/wallpapers/per
 Administrators upload wallpaper items through the catalog, using existing grant, gift, history and revoke endpoints. Wallpaper images preserve aspect ratio, are limited to 2048 pixels per side and converted to WebP.
 
 The chat menu opens the wallpaper picker with a preview, scale and dimming controls. The background covers the message area, with readable message surfaces. Clients refresh the account preference after inventory changes and periodically when the picker is closed. Deploy both applications together and include both upload directories in backups.
+
+## Transferable interface themes
+
+Migration `20261013_0030` introduces `kind=theme` and five built-in catalog entries: `theme-light`, `theme-dark`, `theme-space`, `theme-cyberpunk`, `theme-viking`. No items are automatically granted. The original base theme is free and always available. Theme definitions and SVG thumbnails are curated in `app/services/themes.py`; arbitrary theme uploads are not accepted.
+
+Themes use the existing grant/equip/unequip/gift/revoke operations and history. At most one non-revoked theme instance can be equipped per owner. A gift or revoke unequips it; the previous owner falls back to the base theme and the recipient must explicitly equip the gift. Theme changes do not affect avatars or wallpaper selection.
+
+Authenticated `GET /api/inventory/theme` resolves the current theme from owned, equipped inventory instances, returning its ID, item ID, color scheme and semantic palette. Without an equipped theme it returns a null ID and empty palette. `POST /api/inventory/theme/reset` with a request UUID unequips the current theme without deleting the item. Theme thumbnails are public display assets and confer no ownership.
+
+The frontend applies semantic CSS variables to the document, refreshes after inventory actions, every ten seconds and when the tab becomes visible. It clears the theme on logout/account changes and ignores stale responses. Temporary network errors retain the last verified appearance. Inventory and admin tabs include themes; the inventory provides a thumbnail preview and a base-theme reset. Database and frontend/backend changes must deploy together; downgrade with owned themes requires the pre-deployment backup.
