@@ -161,8 +161,8 @@
       @if (!callWindowExpanded()) {
         <section class="call-tray" aria-label="Текущий звонок" [class.call-tray--incoming]="isIncomingDirectCall()">
           <button class="call-tray__identity" type="button" aria-label="Развернуть звонок" (click)="expandCallWindow($event)">
-            <span class="call-tray__status" [class.call-tray__status--ready]="activeCallMediaControlsVisible()"></span>
-            <span class="call-tray__copy"><strong>{{ call.title }}</strong><small>{{ call.kind === 'direct' ? callDockParticipantLabel() : call.subtitle + ' · ' + callDockParticipantLabel() }}</small></span>
+            <span class="call-tray__status" [class.call-tray__status--ready]="activeCallMediaControlsVisible() && !activeCallWarning()"></span>
+            <span class="call-tray__copy"><strong>{{ call.title }}</strong><small [attr.title]="activeCallWarning()" [attr.role]="activeCallWarning() ? 'status' : null">{{ activeCallWarning() ? (call.kind !== 'direct' && voiceState() === 'connecting' ? voiceCallStateLabel() : activeCallWarning()) : (call.kind === 'direct' ? callDockParticipantLabel() : call.subtitle + ' · ' + callDockParticipantLabel()) }}</small></span>
             @if (activeCallScreenSharing()) {<span class="call-tray__media" role="img" aria-label="Вы показываете экран" title="Вы показываете экран"><app-ui-icon name="screen" /></span>}
             @else if (activeCallCameraEnabled()) {<span class="call-tray__media" role="img" aria-label="Камера включена" title="Камера включена"><app-ui-icon name="camera" /></span>}
             <app-ui-icon name="expand" />
@@ -174,7 +174,7 @@
             } @else {
               <button class="call-control-button" [class.call-control-button--muted]="activeCallMuted()" [attr.aria-pressed]="activeCallMuted()" [disabled]="call.kind !== 'direct' && voiceOwnerMuted()" type="button" [attr.aria-label]="activeCallMuteLabel()" [attr.title]="activeCallMuteLabel()" (click)="toggleActiveCallMute($event)"><app-ui-icon [name]="activeCallMuted() ? 'micOff' : 'mic'" /></button>
               <button class="call-control-button call-tray__sound" [class.call-control-button--muted]="activeCallOutputMuted()" [attr.aria-pressed]="activeCallOutputMuted()" type="button" [attr.aria-label]="activeCallOutputMuted() ? 'Включить звук звонка' : 'Выключить звук звонка'" [attr.title]="activeCallOutputMuted() ? 'Включить звук звонка' : 'Выключить звук звонка'" (click)="toggleActiveCallOutput()"><app-ui-icon [name]="activeCallOutputMuted() ? 'soundOff' : 'sound'" /></button>
-              <button class="call-control-button call-tray__more" type="button" aria-label="Управление звонком" title="Управление звонком" (click)="expandCallWindow($event)"><app-ui-icon name="more" /></button>
+              <button class="call-control-button call-tray__more" type="button" aria-label="Настройки звука" title="Настройки звука" (click)="openCallAudioSettings()"><app-ui-icon name="more" /></button>
               <button class="call-control-button call-control-button--danger" type="button" aria-label="Завершить звонок" title="Завершить звонок" (click)="endActiveCall($event)"><app-ui-icon name="hangup" /></button>
             }
           </div>
@@ -292,8 +292,11 @@
               </div>
             } @else {
               <div class="call-window__body call-window__body--voice">
+                @if (voiceError(); as error) {
+                  <p class="call-window__notice call-window__notice--error" role="alert">{{ error }}</p>
+                }
                 @if (settingsNotice(); as notice) {
-                  <p class="call-window__notice">{{ notice }}</p>
+                  <p class="call-window__notice" role="status">{{ notice }}</p>
                 }
                 <div class="call-window__stage call-window__stage--voice">
                   @if (activeCallVoiceVideoScene(); as scene) {
@@ -434,7 +437,9 @@
                                   (input)="setGroupVoiceParticipantVolume(participant, $any($event.target).value)"
                                 />
                                 <small [attr.title]="groupVoiceParticipantVolume(participant) === 0 ? 'Заглушён для вас' : null">{{ groupVoiceParticipantVolume(participant) }}%</small>
+                                <button class="participant-mute" type="button" [attr.aria-pressed]="groupVoiceParticipantVolume(participant) === 0" [attr.aria-label]="(groupVoiceParticipantVolume(participant) === 0 ? 'Включить для себя: ' : 'Заглушить для себя: ') + displayNick(participant.nick)" [attr.title]="groupVoiceParticipantVolume(participant) === 0 ? 'Вернуть прежнюю громкость' : 'Заглушить для себя'" (click)="toggleParticipantLocalMute(participant.user_id)"><app-ui-icon [name]="groupVoiceParticipantVolume(participant) === 0 ? 'soundOff' : 'sound'" /></button>
                               </div>
+                              <small>{{ groupVoiceStateIconAlt(participant) }}</small>
                             }
                           </div>
                           <span class="group-voice-roster__state-shell" [attr.title]="groupVoiceStateIconAlt(participant)">
@@ -459,6 +464,7 @@
                   <label class="call-audio-settings__volume"><span>Громкость <b>{{ activeCallVolume() }}%</b></span><input type="range" aria-label="Громкость звонка" [min]="activeCallVolumeMin()" max="100" [value]="activeCallVolume()" (input)="changeActiveCallVolume($any($event.target).value)" /></label>
                   @if (activeCallOutputMuted()) {<p>Звук выключен. Выбранная громкость сохранится после включения.</p>}
                   @if (call.kind !== 'direct') {
+                    @if (devicesLoading()) {<p role="status">Обновляем список устройств…</p>}
                     <label>Микрофон<select aria-label="Микрофон звонка" [ngModel]="voiceSettings().inputDeviceId ?? ''" (ngModelChange)="changeInputDevice($event)"><option value="">По умолчанию</option>@for (device of inputDevices(); track device.deviceId) {<option [value]="device.deviceId">{{ device.label }}</option>}</select></label>
                     <label>Устройство вывода<select aria-label="Устройство вывода звонка" [disabled]="!outputDeviceSupported()" [ngModel]="voiceSettings().outputDeviceId ?? ''" (ngModelChange)="changeOutputDevice($event)"><option value="">По умолчанию</option>@for (device of outputDevices(); track device.deviceId) {<option [value]="device.deviceId">{{ device.label }}</option>}</select></label>
                     @if (!outputDeviceSupported()) {<p>В этом браузере устройство вывода выбирается в настройках системы.</p>}
@@ -1091,6 +1097,7 @@
                                         (input)="setGroupVoiceParticipantVolume(participant, $any($event.target).value)"
                                       />
                                       <small [attr.title]="groupVoiceParticipantVolume(participant) === 0 ? 'Заглушён для вас' : null">{{ groupVoiceParticipantVolume(participant) }}%</small>
+                                      <button class="participant-mute" type="button" [attr.aria-pressed]="groupVoiceParticipantVolume(participant) === 0" [attr.aria-label]="(groupVoiceParticipantVolume(participant) === 0 ? 'Включить для себя: ' : 'Заглушить для себя: ') + displayNick(participant.nick)" [attr.title]="groupVoiceParticipantVolume(participant) === 0 ? 'Вернуть прежнюю громкость' : 'Заглушить для себя'" (click)="toggleParticipantLocalMute(participant.user_id)"><app-ui-icon [name]="groupVoiceParticipantVolume(participant) === 0 ? 'soundOff' : 'sound'" /></button>
                                     </div>
                                   }
                                 </div>
@@ -3757,6 +3764,14 @@
 
           @if (selectedMemberVolume() === 0) {
             <p class="modal-note" role="status">Заглушён для вас. Увеличьте громкость, чтобы снова слышать участника.</p>
+          }
+          @if (member.userId !== currentUser()?.id) {
+            <button class="secondary-button" type="button" [attr.aria-pressed]="selectedMemberVolume() === 0" (click)="toggleParticipantLocalMute(member.userId)">
+              {{ selectedMemberVolume() === 0 ? 'Вернуть прежнюю громкость' : 'Заглушить для себя' }}
+            </button>
+          }
+          @if (member.voiceParticipant; as participant) {
+            <p class="modal-note">{{ groupVoiceStateIconAlt(participant) }}</p>
           }
           @if (member.voiceParticipant?.speaking) {
             <p class="modal-note modal-note--live">Участник сейчас говорит.</p>

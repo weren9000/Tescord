@@ -45,6 +45,7 @@ export interface VoiceSettings {
   microphoneGain: number;
   masterVolume: number;
   participantVolumes: Record<string, number>;
+  participantRestoreVolumes: Record<string, number>;
 }
 
 type VoiceConnectionState = 'idle' | 'connecting' | 'connected' | 'error';
@@ -153,6 +154,7 @@ const DEFAULT_VOICE_SETTINGS: VoiceSettings = {
   microphoneGain: 100,
   masterVolume: 100,
   participantVolumes: {},
+  participantRestoreVolumes: {},
 };
 
 function clamp(value: number, min: number, max: number): number {
@@ -198,6 +200,11 @@ function loadVoiceSettings(): VoiceSettings {
         MAX_OUTPUT_VOLUME_PERCENT,
       ),
       participantVolumes,
+      participantRestoreVolumes: Object.fromEntries(
+        Object.entries(parsed.participantRestoreVolumes ?? {}).filter(
+          ([, volume]) => Number.isFinite(volume) && volume > 0 && volume <= 100,
+        ),
+      ),
     };
   } catch {
     return DEFAULT_VOICE_SETTINGS;
@@ -253,6 +260,8 @@ export class VoiceRoomService {
   readonly state = signal<VoiceConnectionState>('idle');
   readonly error = signal<string | null>(null);
   readonly settingsNotice = signal<string | null>(null);
+  readonly reconnecting = computed(() => this.state() === 'connecting' &&
+    [CONTROL_RECONNECT_NOTICE, MEDIA_RECONNECT_NOTICE, RECONNECT_RETRY_NOTICE].includes(this.settingsNotice() ?? ''));
   readonly activeChannelId = signal<string | null>(null);
   readonly participants = signal<VoiceParticipant[]>([]);
   readonly localMuted = signal(false);
@@ -662,7 +671,9 @@ export class VoiceRoomService {
   }
 
   updateParticipantVolume(userId: string, value: number): void {
+    if (!Number.isFinite(value)) return;
     const nextVolume = clamp(value, MIN_PARTICIPANT_VOLUME_PERCENT, MAX_OUTPUT_VOLUME_PERCENT);
+    const previousVolume = this.getParticipantVolume(userId);
     const participantVolumes = {
       ...this.settings().participantVolumes,
       [userId]: nextVolume,
@@ -670,12 +681,22 @@ export class VoiceRoomService {
 
     this.updateSettings({
       participantVolumes,
+      participantRestoreVolumes: {
+        ...this.settings().participantRestoreVolumes,
+        [userId]: nextVolume > 0 ? nextVolume : previousVolume > 0
+          ? previousVolume : this.settings().participantRestoreVolumes[userId] ?? 100,
+      },
     });
     this.applyVolumesForUser(userId);
   }
 
   getParticipantVolume(userId: string): number {
     return clamp(this.settings().participantVolumes[userId] ?? 100, MIN_PARTICIPANT_VOLUME_PERCENT, MAX_OUTPUT_VOLUME_PERCENT);
+  }
+
+  toggleParticipantMuted(userId: string): void {
+    this.updateParticipantVolume(userId, this.getParticipantVolume(userId) === 0
+      ? this.settings().participantRestoreVolumes[userId] ?? 100 : 0);
   }
 
   private async reconnectIfNeeded(): Promise<void> {

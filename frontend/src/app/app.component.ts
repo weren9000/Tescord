@@ -1069,6 +1069,14 @@ export class AppComponent {
     this.callAudioSettingsOpen.update(open => !open);
     if (this.callAudioSettingsOpen()) this.refreshVoiceDevices();
   }
+  openCallAudioSettings(): void {
+    this.callWindowMode.set('expanded');
+    this.callAudioSettingsOpen.set(true);
+    this.refreshVoiceDevices();
+  }
+  readonly activeCallWarning = computed(() => this.activeCallSurface()?.kind === 'direct'
+    ? this.directCallError()
+    : this.voiceError() || this.settingsNotice());
   readonly activeVoiceCallSnapshot = signal<VoiceCallSnapshot | null>(null);
   readonly fullscreenMedia = signal<FullscreenMediaState | null>(null);
   readonly fullscreenMediaControlsVisible = signal(true);
@@ -5516,7 +5524,7 @@ export class AppComponent {
   voiceCallStateLabel(): string {
     switch (this.voiceState()) {
       case 'connecting':
-        return 'Подключаем';
+        return this.voiceRoom.reconnecting() ? 'Восстанавливаем связь…' : 'Подключаем…';
       case 'error':
         return this.voiceError() ?? 'Нет связи';
       case 'connected':
@@ -6846,6 +6854,10 @@ export class AppComponent {
     return this.voiceRoom.getParticipantVolume(participant.user_id);
   }
 
+  toggleParticipantLocalMute(userId: string): void {
+    if (userId !== this.currentUser()?.id) this.voiceRoom.toggleParticipantMuted(userId);
+  }
+
   setGroupVoiceParticipantVolume(participant: VoiceParticipant, value: number | string): void {
     if (participant.is_self) {
       return;
@@ -6890,6 +6902,10 @@ export class AppComponent {
   }
 
   groupVoiceStateIconAlt(participant: VoiceParticipant): string {
+    if (!participant.is_self && this.isGroupVoiceParticipantLocallyMuted(participant)) {
+      return 'Заглушён для вас';
+    }
+    if (participant.owner_muted) return 'Микрофон заблокирован владельцем';
     if (this.isGroupVoiceParticipantGloballyMuted(participant)) {
       return participant.is_self ? 'Ваш микрофон заглушен' : 'Пользователь заглушил свой микрофон';
     }

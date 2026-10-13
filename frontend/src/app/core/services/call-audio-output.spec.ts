@@ -53,6 +53,31 @@ describe('Call audio output', () => {
     expect(call.settings().masterVolume).toBe(10);
     call.leave();
   });
+  it('restores the last audible personal volume after mute, reload and repeated zero updates', () => {
+    TestBed.configureTestingModule({providers: [{provide: WorkspaceApiService, useValue: {}}]});
+    let call = TestBed.inject(VoiceRoomService);
+    call.updateParticipantVolume('one', 37);
+    call.toggleParticipantMuted('one');
+    call.updateParticipantVolume('one', 0);
+    expect(call.getParticipantVolume('one')).toBe(0);
+    call.leave();
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({providers: [{provide: WorkspaceApiService, useValue: {}}]});
+    call = TestBed.inject(VoiceRoomService);
+    call.toggleParticipantMuted('one');
+    expect(call.getParticipantVolume('one')).toBe(37);
+    call.updateParticipantVolume('one', 9);
+    call.updateParticipantVolume('one', 0);
+    call.toggleOutputMuted();
+    call.toggleParticipantMuted('one');
+    expect(call.getParticipantVolume('one')).toBe(9);
+    expect(call.outputMuted()).toBeTrue();
+    call.toggleParticipantMuted('unknown');
+    call.toggleParticipantMuted('unknown');
+    expect(call.getParticipantVolume('unknown')).toBe(100);
+    call.leave();
+  });
+
   it('silences direct-call playback and restores the selected volume without muting the microphone', () => {
     const call = new DirectCallService();
     const audio = new Audio();
