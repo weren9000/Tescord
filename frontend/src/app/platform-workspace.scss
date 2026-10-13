@@ -61,3 +61,23 @@
 
   .space-channel-icon { width: 24px; }
 }
+
+.space-filters { display:flex; flex-wrap:wrap; gap:4px; padding:0 2px 12px; }
+.space-filters button, .space-filter-empty button { border:1px solid var(--palette-border); border-radius:7px; padding:6px 8px; min-height:32px; color:var(--palette-muted); background:transparent; font:inherit; font-size:11px; cursor:pointer; }
+.space-filters button[aria-pressed='true'] { background:var(--palette-selected); border-color:var(--palette-primary); color:var(--palette-text); }
+.space-filters span { margin-left:3px; font-variant-numeric:tabular-nums; }
+.space-filter-empty { padding:8px; color:var(--palette-muted); font-size:13px; line-height:1.5; }
+.space-section[hidden] { display:none; }
+.space-channel--selected { box-shadow:inset 3px 0 var(--palette-primary); }
+.space-channel--connected { border-color:var(--palette-cyan); }
+.space-people { margin:0 4px 6px 18px; padding:2px 0 2px 8px; border-left:1px solid var(--palette-border); }
+.space-people .space-person__avatar { width:28px; height:28px; flex-basis:28px; }
+.space-person { gap:6px; }
+.space-person__status { flex-shrink:0; font-size:10px; color:var(--palette-subtle); }
+.space-person--speaking .space-person__status { color:var(--palette-cyan); }
+.space-filters button:focus-visible, .space-filter-empty button:focus-visible {outline:2px solid var(--palette-primary);outline-offset:2px;}
+@media(max-width:980px) {
+ .space-filters button { min-height:40px; }
+ .space-person { min-height:44px; }
+ .space-channel { font-size:13px; }
+}

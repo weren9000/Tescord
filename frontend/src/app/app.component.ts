@@ -717,6 +717,17 @@ export class AppComponent {
     else if (this.session()) this.openHome();
   };
   readonly sidebarQuery = signal('');
+  readonly platformChannelFilter = signal<'all'|'unread'|'active'>('all');
+  readonly platformUnreadChannels = computed(() => this.channels().filter(c => this.channelUnreadCount(c)>0 || this.channelMentionUnreadCount(c)>0).length);
+  readonly platformActiveRooms = computed(() => this.voiceChannels().filter(c => this.platformVoiceParticipants(c.id).length>0).length);
+  private matchesPlatformChannel(channel: WorkspaceChannel): boolean {
+    const query=this.sidebarQuery().trim().toLocaleLowerCase('ru');
+    if (!`${channel.name} ${channel.topic ?? ''}`.toLocaleLowerCase('ru').includes(query)) return false;
+    const filter=this.platformChannelFilter();
+    return filter==='all' || (filter==='unread' && (this.channelUnreadCount(channel)>0 || this.channelMentionUnreadCount(channel)>0))
+      || (filter==='active' && channel.type==='voice' && this.platformVoiceParticipants(channel.id).length>0);
+  }
+  resetPlatformChannelFilters(): void { this.platformChannelFilter.set('all');this.sidebarQuery.set(''); }
   readonly expandedPlatformRosters = signal(new Set<string>());
   togglePlatformRoster(channelId: string): void {
     this.expandedPlatformRosters.update(current => {
@@ -732,6 +743,7 @@ export class AppComponent {
     unread: this.platformUnreadCount(space), mentions: this.platformMentionUnreadCount(space),
   })));
   selectPlatformFromPicker(id: string): void {
+    this.platformChannelFilter.set('all');
     this.sidebarQuery.set('');
     this.openWorkspaceTarget(id);
     if (this.isCompactVoiceWorkspaceViewport()) this.mobilePanel.set('servers');
@@ -743,8 +755,8 @@ export class AppComponent {
   readonly sectionTitle = computed(() => this.isChatsMode() ? 'Друзья' : this.isGroupsMode() ? 'Группы' : 'Площадки');
   readonly sectionDescription = computed(() => this.isChatsMode() ? 'Личные беседы и звонки' : this.isGroupsMode() ? 'Общение в своём кругу' : 'Сообщества и каналы');
   readonly sectionCreateLabel = computed(() => this.isChatsMode() ? 'Добавить друга' : this.isGroupsMode() ? 'Создать группу' : 'Создать площадку');
-  readonly sidebarTextChannels = computed(() => this.textChannels().filter(c => c.name.toLocaleLowerCase('ru').includes(this.sidebarQuery().trim().toLocaleLowerCase('ru'))));
-  readonly sidebarVoiceChannels = computed(() => this.voiceChannels().filter(c => c.name.toLocaleLowerCase('ru').includes(this.sidebarQuery().trim().toLocaleLowerCase('ru'))));
+  readonly sidebarTextChannels = computed(() => this.textChannels().filter(c => this.matchesPlatformChannel(c)));
+  readonly sidebarVoiceChannels = computed(() => this.voiceChannels().filter(c => this.matchesPlatformChannel(c)));
   openSectionCreate(): void {
     if (this.isPlatformsMode()) this.openCreatePlatformShortcut();
     else if (this.isGroupsMode()) this.openCreateGroupShortcut();
@@ -4855,6 +4867,7 @@ export class AppComponent {
   }
 
   isPlatformChannelSectionCollapsed(section: 'text' | 'voice'): boolean {
+    if (this.platformChannelFilter() !== 'all' || this.sidebarQuery().trim()) return false;
     return section === 'text' ? this.platformTextChannelsCollapsed() : this.platformVoiceChannelsCollapsed();
   }
 
