@@ -155,7 +155,8 @@ def asset(catalog_id: str, motion: bool = True, db: Session = Depends(get_db)):
         return Response(frame_svg(catalog_id, motion=motion), media_type='image/svg+xml',
                         headers={'Cache-Control': 'public, max-age=300', 'X-Content-Type-Options': 'nosniff'})
     # Display is public; ownership is enforced when equipping, granting or gifting.
-    return FileResponse(asset_path(catalog_id), media_type='image/webp')
+    path = asset_path(catalog_id)
+    return FileResponse(path, media_type='image/png' if path.suffix == '.png' else 'image/webp')
 
 
 @router.get('/issued')

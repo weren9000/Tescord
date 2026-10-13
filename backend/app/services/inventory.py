@@ -1,6 +1,7 @@
 from pathlib import Path
 from sqlalchemy import text
 from sqlalchemy.orm import Session
+from app.services.collectible_wallpapers import WALLPAPERS
 
 CATALOG = {'cyber-oni': {'name': 'Кибер-Они', 'kind': 'avatar'}}
 COLLECTIBLE_AVATARS = {
@@ -19,6 +20,7 @@ FRAME_NAMES = {
 }
 CATALOG.update({f'frame-{key}': {'name': name, 'kind': 'frame'} for key, name in FRAME_NAMES.items()})
 ASSETS = Path(__file__).resolve().parents[1] / 'assets' / 'collectibles'
+CATALOG.update({key: {'name': name, 'kind': 'wallpaper'} for key, name in WALLPAPERS.items()})
 
 
 def catalog_data(db, catalog_id):
@@ -30,6 +32,8 @@ def catalog_data(db, catalog_id):
 def asset_path(catalog_id):
     from app.services.attachment_storage import _uploads_root
     from uuid import UUID
+    if catalog_id in WALLPAPERS:
+        return ASSETS / (catalog_id + '.png')
     if catalog_id in CATALOG:
         return ASSETS / (catalog_id + '.webp')
     # All custom asset identifiers are server-generated UUIDs.

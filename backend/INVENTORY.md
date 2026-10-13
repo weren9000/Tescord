@@ -33,3 +33,14 @@ Authenticated `GET /api/inventory/theme` resolves the current theme from owned, 
 The frontend applies semantic CSS variables to the document, refreshes after inventory actions, every ten seconds and when the tab becomes visible. It clears the theme on logout/account changes and ignores stale responses. Temporary network errors retain the last verified appearance. Inventory and admin tabs include themes; the inventory provides a thumbnail preview and a base-theme reset. Database and frontend/backend changes must deploy together; downgrade with owned themes requires the pre-deployment backup.
 
 Migration `20261013_0031` adds five more catalog themes without granting any instances: Sakura (`theme-sakura`), Emerald (`theme-emerald`), Ocean (`theme-ocean`), Amber (`theme-amber`) and Lavender (`theme-lavender`). Sakura and Lavender use the light color scheme. The frontend exposes `data-ui-scheme` alongside the selected theme ID so light-scheme logo treatment also applies to these themes; the existing logo is rendered with a dark wordmark and cyan accents using CSS filtering and blending.
+
+## Коллекционные обои — 20261014_0032
+
+Добавлены 20 обоев из пользовательских вложений: мятные зверята, игровой мир,
+лес, фэнтези, космос, магия, рыцари, викинги, пираты, алхимия, тактическая арена,
+варианты колдовства и киберпанка, ферма и эльфийские узоры.
+Идентификаторы и названия: `app/services/collectible_wallpapers.py`.
+Исходные PNG сохранены без изменений в `app/assets/collectibles/wallpaper-*.png`.
+Миграция создаёт только записи каталога типа `wallpaper`, без автоматической выдачи.
+Они доступны администратору аватарок для выдачи; получатель может применить или
+подарить предмет. В бесплатные базовые обои эти изображения не включены.

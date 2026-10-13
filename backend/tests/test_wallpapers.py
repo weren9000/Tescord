@@ -9,6 +9,40 @@ def select_wallpaper(c, headers, selected, **kwargs):
     return c.put('/api/wallpapers',headers=headers,json={'selected':selected,**kwargs})
 
 
+def test_collectible_wallpaper_catalog_and_ownership(accounts):
+    from app.services.collectible_wallpapers import WALLPAPERS
+    c,users=accounts
+    admin,_,_=users[0];alice,a,_=users[1];bob,b,_=users[2]
+    entries=[]
+    page=1
+    while True:
+        result=c.get(f'/api/inventory/catalog?kind=wallpaper&page={page}',headers=admin).json()
+        entries.extend(result['items'])
+        if page>=result['pages']: break
+        page+=1
+    assert set(WALLPAPERS)<=set(entry['id'] for entry in entries)
+    presets=c.get('/api/wallpapers',headers=alice).json()['presets']
+    assert not set(WALLPAPERS)&{preset['id'] for preset in presets}
+    for key in WALLPAPERS:
+        asset=c.get('/api/inventory/assets/'+key)
+        assert asset.status_code==200
+        assert asset.headers['content-type']=='image/png'
+        assert Image.open(BytesIO(asset.content)).size==(1254,1254)
+        assert select_wallpaper(c,alice,key).status_code==400
+    key=next(iter(WALLPAPERS))
+    payload={'catalog_id':key,'recipient_id':a['id'],'request_id':str(uuid4())}
+    assert c.post('/api/inventory/grant',headers=alice,json=payload).status_code==403
+    result=c.post('/api/inventory/grant',headers=admin,json=payload)
+    assert result.status_code==200,result.text
+    item=result.json()['item_id']
+    assert select_wallpaper(c,alice,'item:'+item).status_code==200
+    assert select_wallpaper(c,bob,'item:'+item).status_code==403
+    assert act(c,alice,item,'gift',recipient_id=b['id']).status_code==200
+    assert c.get('/api/wallpapers',headers=alice).json()['selected'] is None
+    assert select_wallpaper(c,alice,'item:'+item).status_code==403
+    assert select_wallpaper(c,bob,'item:'+item).status_code==200
+
+
 def test_basics_personal_privacy_and_validation(accounts):
     c,users=accounts
     admin,_,_=users[0];alice,_,_=users[1];bob,_,_=users[2]
