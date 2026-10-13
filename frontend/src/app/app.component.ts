@@ -1,4 +1,7 @@
 import { ThemeControllerComponent } from './workspace/theme-controller.component';
+import { DesktopPreferencesService } from './workspace/desktop-preferences.service';
+import { DesktopPreferencesComponent } from './workspace/desktop-preferences.component';
+import { SidebarResizeDirective } from './workspace/sidebar-resize.directive';
 import { MessageGestureDirective } from './workspace/message-gesture.directive';
 import { MessageActionsComponent } from './workspace/message-actions.component';
 import { WallpapersComponent, WallpaperStyle } from './workspace/wallpapers.component';
@@ -624,12 +627,31 @@ const DEFAULT_SERVER_ICON_ASSET_BY_NAME: Record<string, string> = {
 @Component({
   providers: [AuthFormStore],
     selector: 'app-root',
-    imports: [CommonModule, FormsModule, MediaStreamSrcDirective, SectionNavigationComponent, UiIconComponent, ConversationListComponent, QuickSwitchComponent, PlatformSwitcherComponent, InviteManagerComponent, InventoryComponent, WallpapersComponent, ThemeControllerComponent, MessageGestureDirective, MessageActionsComponent],
+    imports: [CommonModule, FormsModule, MediaStreamSrcDirective, SectionNavigationComponent, UiIconComponent, ConversationListComponent, QuickSwitchComponent, PlatformSwitcherComponent, InviteManagerComponent, InventoryComponent, WallpapersComponent, ThemeControllerComponent, MessageGestureDirective, MessageActionsComponent, DesktopPreferencesComponent, SidebarResizeDirective],
     templateUrl: './app.component.html',
     styleUrls: ['./app.component.scss', './app-layout.scss', './call-workspace.scss', './platform-workspace.scss', './invite-entry.scss', './palette-theme.scss', './auth-workspace.scss', './avatar-presets.scss']
 })
 export class AppComponent {
   private readonly invitesApi = inject(InvitesApiService);
+  readonly desktopPreferences = inject(DesktopPreferencesService);
+  readonly pinPending = signal<string[]>([]);
+  readonly pinError = signal<string | null>(null);
+  toggleConversationPin(id: string): void {
+    const token = this.session()?.access_token;
+    const conversation = this.conversations().find(c => c.id === id);
+    if (!token || !conversation || this.pinPending().includes(id)) return;
+    this.pinError.set(null);
+    this.pinPending.update(ids => [...ids, id]);
+    this.workspaceApi.setConversationPin(token, id, !conversation.pinned)
+      .pipe(takeUntilDestroyed(this.destroyRef), finalize(() => this.pinPending.update(ids => ids.filter(value => value !== id))))
+      .subscribe({
+        next: result => {
+          if (this.session()?.access_token !== token) return;
+          this.conversations.update(items => items.map(c => c.id === id ? {...c, pinned: result.pinned} : c));
+        },
+        error: () => { if (this.session()?.access_token === token) this.pinError.set('Не удалось изменить закрепление. Попробуйте ещё раз.'); },
+      });
+  }
   readonly inviteManagerSpace = signal<{id: string; name: string} | null>(null);
   readonly pendingInviteCode = signal(/^\/invite\/([^/]+)\/?$/.exec(window.location.pathname)?.[1] ?? null);
   readonly invitePreview = signal<InvitePreview | null>(null);
@@ -764,8 +786,10 @@ export class AppComponent {
   }
   readonly conversationLinks = computed(() => this.conversations()
     .filter(c => c.kind === (this.isGroupsMode() ? 'group_chat' : 'direct') && c.title.toLocaleLowerCase('ru').includes(this.sidebarQuery().trim().toLocaleLowerCase('ru')))
+    .sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned))
     .map(conversation => ({
     id: conversation.id, name: conversation.title, subtitle: this.conversationMetaLabel(conversation),
+    pinned: !!conversation.pinned,
     icon: this.conversationIconUrl(conversation), group: conversation.kind === 'group_chat',
     online: conversation.kind === 'direct' ? this.conversationPeer(conversation)?.is_online : undefined,
     unread: this.conversationUnreadCount(conversation), mentions: this.conversationMentionUnreadCount(conversation),
@@ -6786,6 +6810,8 @@ export class AppComponent {
     this.lastPresenceHeartbeatAt = 0;
     this.session.set(null);
     this.currentUser.set(null);
+    this.pinError.set(null);
+    this.pinPending.set([]);
     this.workspaceMode.set('chats');
     this.servers.set([]);
     this.conversations.set([]);

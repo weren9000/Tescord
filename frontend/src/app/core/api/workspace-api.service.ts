@@ -96,6 +96,12 @@ export class WorkspaceApiService {
     });
   }
 
+  setConversationPin(token: string, id: string, pinned: boolean): Observable<{pinned: boolean}> {
+    return this.http.put<{pinned: boolean}>(`${API_BASE_URL}/api/conversations/${id}/pin`, {pinned}, {
+      headers: this.buildAuthHeaders(token)
+    });
+  }
+
   getAttentionInbox(token: string): Observable<AttentionInbox> {
     return this.http.get<AttentionInbox>(`${API_BASE_URL}/api/attention/inbox`, {
       headers: this.buildAuthHeaders(token)

@@ -670,9 +670,14 @@
     @if (quickSwitchOpen()) {
       <app-quick-switch [query]="globalSearchQuery()" [links]="quickLinks()" (search)="updateGlobalSearchQuery($event)" (open)="openQuickLink($event)" (close)="closeQuickSwitch()" />
     }
-    <div class="messenger-layout" [class.messenger-layout--platform]="isPlatformsMode()">
+    <div class="messenger-layout" [class.messenger-layout--platform]="isPlatformsMode()" [attr.data-density]="desktopPreferences.value().density" [class.messenger-layout--sidebar-collapsed]="desktopPreferences.value().collapsed" [style.--sidebar-width]="desktopPreferences.value().width + 'px'" [style.--message-text-size]="desktopPreferences.value().textSize + 'px'">
       <app-section-navigation [isAvatarAdmin]="!!currentUser()?.is_avatar_admin" [inventoryUnread]="inventoryUnread()" (inventory)="inventoryMode.set($event)" [avatarUrl]="currentUserAvatarUrl()" [selected]="workspaceMode()" [initials]="displayNickInitials(currentUser()?.nick ?? 'Я')" [hasNotifications]="friendRequestBadgeVisible()" (selectSection)="selectWorkspaceMode($event)" (menu)="toggleSideMenu()" (search)="openQuickSwitch()" (profile)="openProfileEditor()" (notifications)="openFriendRequestsModal()" />
       <aside class="conversation-sidebar" [class.conversation-sidebar--mobile-open]="mobilePanel() === 'servers'">
+        <div class="desktop-sidebar-toolbar">
+          <app-desktop-preferences />
+          <button type="button" [attr.aria-expanded]="!desktopPreferences.value().collapsed" [attr.aria-label]="desktopPreferences.value().collapsed ? 'Развернуть список бесед' : 'Свернуть список бесед'" [attr.title]="desktopPreferences.value().collapsed ? 'Развернуть список бесед' : 'Свернуть список бесед'" (click)="desktopPreferences.update({collapsed: !desktopPreferences.value().collapsed})"><app-ui-icon name="menu" /></button>
+        </div>
+        <div class="sidebar-resizer" appSidebarResize title="Перетащите для изменения ширины. Двойной щелчок — сброс." ></div>
         @if (!isPlatformsMode() || !platformSpaces().length) {
           <div class="section-heading">
             <div><h1>{{ sectionTitle() }}</h1><p>{{ sectionDescription() }}</p></div>
@@ -687,7 +692,8 @@
         </div>
         <div class="conversation-sidebar__list">
           @if (!isPlatformsMode()) {
-            <app-conversation-list [entries]="conversationLinks()" [selected]="selectedServerId()" [emptyLabel]="sidebarQuery() ? 'Ничего не найдено' : isGroupsMode() ? 'Создайте группу, чтобы общаться вместе' : 'Добавьте друга, чтобы начать общение'" (open)="openWorkspaceTarget($event)" />
+            @if (pinError()) { <p class="pin-error" role="alert">{{pinError()}}</p> }
+            <app-conversation-list [entries]="conversationLinks()" [pending]="pinPending()" (pin)="toggleConversationPin($event)" [selected]="selectedServerId()" [emptyLabel]="sidebarQuery() ? 'Ничего не найдено' : isGroupsMode() ? 'Создайте группу, чтобы общаться вместе' : 'Добавьте друга, чтобы начать общение'" (open)="openWorkspaceTarget($event)" />
           } @else {
             @if (activeServer()) {
               <div class="space-filters" role="group" aria-label="Фильтр каналов">
@@ -846,7 +852,10 @@
                         Позвонить
                       </button>
                     }
-                    @if (activeConversation()) {
+                    @if (activeConversation(); as conversation) {
+                      <button class="conversation-action-menu__item" type="button" [disabled]="pinPending().includes(conversation.id)" (click)="closeConversationActionMenu(); toggleConversationPin(conversation.id)">
+                        {{ conversation.pinned ? 'Открепить беседу' : 'Закрепить беседу' }}
+                      </button>
                       <button
                         class="conversation-action-menu__item"
                         type="button"

@@ -1,5 +1,41 @@
 @use '../palette';
 
+.desktop-sidebar-toolbar, .sidebar-resizer { display: none; }
+.pin-error { color: var(--palette-danger); font-size: 13px; padding: 8px; }
+@media (min-width: 981px) {
+  .messenger-shell .messenger-layout { grid-template-columns: 92px var(--sidebar-width, 280px) minmax(0, 1fr); }
+  .messenger-layout .conversation-sidebar { position: relative; min-width: 0; overflow: visible; }
+  .desktop-sidebar-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 8px; min-height: 40px; flex-shrink: 0; }
+  .desktop-sidebar-toolbar > button { display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 6px; color: var(--text); background: transparent; cursor: pointer; }
+  .desktop-sidebar-toolbar > button:hover { background: var(--palette-hover); }
+  .sidebar-resizer { display: block; position: absolute; right: -4px; top: 48px; bottom: 0; width: 8px; cursor: col-resize; touch-action: none; z-index: 10; }
+  .sidebar-resizer:hover, .sidebar-resizer:focus-visible { background: rgb(var(--rgb-primary) / .25); }
+  .messenger-shell .messenger-layout--sidebar-collapsed { grid-template-columns: 92px 44px minmax(0, 1fr); }
+  .messenger-layout--sidebar-collapsed .conversation-sidebar > :not(.desktop-sidebar-toolbar),
+  .messenger-layout--sidebar-collapsed app-desktop-preferences { display: none; }
+  .messenger-layout--sidebar-collapsed .desktop-sidebar-toolbar { padding: 8px 6px; }
+  .messenger-layout .message-card__text { font-size: var(--message-text-size, 15px); }
+  .messenger-layout[data-density='compact'] {
+    --conversation-height: 48px; --conversation-padding: 6px; --conversation-avatar: 34px;
+    .section-heading { padding: 12px 14px; }
+    .conversation-head { min-height: 54px; padding: 6px 14px; }
+    .message-card { grid-template-columns: 34px minmax(0, 1fr); gap: 8px; margin-top: 6px; padding-top: 4px; padding-bottom: 4px; }
+    .message-card__avatar { width: 34px; height: 34px; min-width: 34px; }
+    .message-card--continuation .message-card__meta { width: 34px; }
+    .platform-channel-entry__main { padding-top: 6px; padding-bottom: 6px; }
+  }
+  .messenger-layout[data-density='spacious'] {
+    --conversation-height: 76px; --conversation-padding: 16px; --conversation-avatar: 48px;
+    .section-heading { padding: 28px 20px; }
+    .conversation-head { min-height: 76px; padding: 16px 22px; }
+    .message-card { grid-template-columns: 48px minmax(0, 1fr); gap: 14px; margin-top: 16px; padding-top: 10px; padding-bottom: 10px; }
+    .message-card__avatar { width: 48px; height: 48px; min-width: 48px; }
+    .platform-channel-entry__main { padding-top: 14px; padding-bottom: 14px; }
+  }
+  .messenger-layout[data-density] .message-card--continuation { margin-top: 0; padding-top: 1px; padding-bottom: 1px; }
+  .messenger-layout[data-density] .message-card--continuation .message-card__avatar { height: 1px; }
+}
+
 /* Workspace navigation and conversation density. */
 .messenger-shell { height: 100dvh; min-height: 0; }
 .messenger-layout { grid-template-columns: 92px 280px minmax(0, 1fr); gap: 0; padding: 0; }

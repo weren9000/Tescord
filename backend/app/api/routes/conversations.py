@@ -20,6 +20,7 @@ from app.db.models import (
 )
 from app.db.session import get_db
 from app.schemas.conversations import (
+    ConversationPinRequest,
     ConversationDirectoryUserSummary,
     ConversationMemberPreview,
     ConversationSummary,
@@ -27,6 +28,7 @@ from app.schemas.conversations import (
     CreateGroupConversationRequest,
 )
 from app.services.app_events import publish_servers_changed_from_sync
+from app.services.app_events import publish_servers_changed_for_users_from_sync
 from app.services.direct_conversations import conversation_slug, ensure_direct_conversation, load_direct_conversation
 from app.services.group_chat_defaults import ensure_group_chat_defaults
 from app.services.server_icons import normalize_server_icon_asset
@@ -158,6 +160,7 @@ def _build_conversation_summary(
     unread_state = (unread_states_by_channel_id or {}).get(primary_channel.id)
     members = sorted(server.members, key=lambda member: ((member.user_id != current_user_id), member.user.username.casefold()))
     return ConversationSummary(
+        pinned=membership.conversation_pinned,
         id=server.id,
         kind=server.kind.value,
         title=title,
@@ -229,6 +232,26 @@ def _has_accepted_friend_request(left_user_id: UUID, right_user_id: UUID, db: Se
         ).scalar_one_or_none()
         is not None
     )
+
+
+@router.put("/{conversation_id}/pin", response_model=ConversationPinRequest)
+def set_conversation_pin(
+    conversation_id: UUID,
+    payload: ConversationPinRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> ConversationPinRequest:
+    membership = db.scalar(select(ServerMember).join(Server).where(
+        ServerMember.server_id == conversation_id,
+        ServerMember.user_id == current_user.id,
+        Server.kind.in_((ServerKind.DIRECT, ServerKind.GROUP_CHAT)),
+    ))
+    if membership is None:
+        raise HTTPException(404, "Беседа не найдена")
+    membership.conversation_pinned = payload.pinned
+    db.commit()
+    publish_servers_changed_for_users_from_sync([current_user.id], reason="conversation_pin_changed")
+    return payload
 
 
 @router.get("", response_model=list[ConversationSummary])

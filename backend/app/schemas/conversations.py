@@ -17,6 +17,7 @@ class ConversationMemberPreview(BaseModel):
 
 
 class ConversationSummary(BaseModel):
+    pinned: bool = False
     id: UUID
     kind: str
     title: str
@@ -40,6 +41,10 @@ class ConversationDirectoryUserSummary(BaseModel):
     nick: str
     avatar_updated_at: datetime | None
     is_online: bool
+
+
+class ConversationPinRequest(BaseModel):
+    pinned: bool
 
 
 class CreateDirectConversationRequest(BaseModel):
