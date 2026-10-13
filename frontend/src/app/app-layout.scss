@@ -182,3 +182,14 @@ button:focus-visible, article:focus-visible, input:focus-visible, textarea:focus
   .mobile-mode-footer button { min-height: 44px; gap: 2px; font-size: 10px; }
   .mobile-mode-footer button img, .mobile-mode-footer app-ui-icon { width: 18px; height: 18px; }
 }
+
+@media (pointer: coarse) {
+  .message-card[appMessageGesture] { -webkit-touch-callout: none; }
+  .message-card--swipe-ready { outline: 2px solid var(--palette-primary); outline-offset: -2px; }
+  .message-card[appMessageGesture]::after {
+    content: '?'; position: absolute; right: 8px; top: 6px;
+    width: 28px; height: 28px; display: grid; place-items: center;
+    border-radius: 50%; background: var(--palette-primary); color: var(--palette-text);
+    opacity: var(--reply-progress, 0); pointer-events: none;
+  }
+}

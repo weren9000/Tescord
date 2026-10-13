@@ -1,4 +1,6 @@
 import { ThemeControllerComponent } from './workspace/theme-controller.component';
+import { MessageGestureDirective } from './workspace/message-gesture.directive';
+import { MessageActionsComponent } from './workspace/message-actions.component';
 import { WallpapersComponent, WallpaperStyle } from './workspace/wallpapers.component';
 import { synchronizeMessages } from './core/services/message-sync';
 import { InventoryComponent } from './workspace/inventory.component';
@@ -622,7 +624,7 @@ const DEFAULT_SERVER_ICON_ASSET_BY_NAME: Record<string, string> = {
 @Component({
   providers: [AuthFormStore],
     selector: 'app-root',
-    imports: [CommonModule, FormsModule, MediaStreamSrcDirective, SectionNavigationComponent, UiIconComponent, ConversationListComponent, QuickSwitchComponent, PlatformSwitcherComponent, InviteManagerComponent, InventoryComponent, WallpapersComponent, ThemeControllerComponent],
+    imports: [CommonModule, FormsModule, MediaStreamSrcDirective, SectionNavigationComponent, UiIconComponent, ConversationListComponent, QuickSwitchComponent, PlatformSwitcherComponent, InviteManagerComponent, InventoryComponent, WallpapersComponent, ThemeControllerComponent, MessageGestureDirective, MessageActionsComponent],
     templateUrl: './app.component.html',
     styleUrls: ['./app.component.scss', './app-layout.scss', './call-workspace.scss', './platform-workspace.scss', './invite-entry.scss', './palette-theme.scss', './auth-workspace.scss', './avatar-presets.scss']
 })
@@ -679,6 +681,36 @@ export class AppComponent {
     }
   };
   private readonly saveWorkspacePosition = () => this.rememberMessagePosition();
+  private positionSaveTimer?: ReturnType<typeof setTimeout>;
+  private readonly saveHiddenPosition = () => {
+    if (document.visibilityState === 'hidden') this.rememberMessagePosition();
+  };
+  readonly messageActionsTarget = signal<WorkspaceMessage | null>(null);
+  private messageActionsFocus: HTMLElement | null = null;
+  openMessageActions(message: WorkspaceMessage, event?: Event): void {
+    event?.preventDefault();
+    this.messageActionsFocus = this.messageListRef?.nativeElement.querySelector<HTMLElement>(`[data-message-id="${message.id}"]`) ?? null;
+    this.messageActionsTarget.set(message);
+  }
+  closeMessageActions(): void {
+    this.messageActionsTarget.set(null);
+    const focus = this.messageActionsFocus;
+    this.messageActionsFocus = null;
+    requestAnimationFrame(() => { if (focus?.isConnected) focus.focus({preventScroll:true}); });
+  }
+  chooseMessageAction(action: 'reply'|'reaction'): void {
+    const message = this.messageActionsTarget();
+    this.closeMessageActions();
+    if (!message || !this.messages().some(item => item.id === message.id)) return;
+    // Run after the modal restores focus, so the composer/picker gets final focus.
+    requestAnimationFrame(() => {
+      if (action === 'reply') this.startReplyToMessage(message);
+      else {
+        this.toggleMessageReactionPicker(message.id);
+        requestAnimationFrame(() => this.messageListRef?.nativeElement.querySelector<HTMLElement>(`[data-message-id="${message.id}"] .reaction-picker button`)?.focus());
+      }
+    });
+  }
   private readonly workspacePopState = () => {
     const target = this.readWorkspaceUrl();
     if (target && this.session()) this.openWorkspaceTarget(target.spaceId, target.channelId);
@@ -787,6 +819,7 @@ export class AppComponent {
     return match ? {spaceId: match[1], channelId: match[2]} : undefined;
   }
   private rememberChannelVisit(channelId: string): void {
+    this.messageActionsTarget.set(null);
     if (this.pendingInviteCode()) return;
     const spaceId = this.selectedServerId();
     if (!spaceId) return;
@@ -803,9 +836,10 @@ export class AppComponent {
     }
   }
   private rememberMessagePosition(): void {
+    clearTimeout(this.positionSaveTimer);
     const channelId = this.selectedChannelId();
     const list = this.messageListRef?.nativeElement;
-    if (!channelId || !list || this.messagesLoading()) return;
+    if (!channelId || !list || this.messagesLoading() || this.messagesLoadingMore()) return;
     const top = list.getBoundingClientRect().top;
     const row = Array.from(list.querySelectorAll<HTMLElement>('[data-message-id]')).find(row => row.getBoundingClientRect().bottom > top);
     const atBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 80;
@@ -2453,9 +2487,11 @@ export class AppComponent {
     }
     if (typeof document !== 'undefined') {
       document.addEventListener('fullscreenchange', this.handleDocumentFullscreenChange);
+      document.addEventListener('visibilitychange', this.saveHiddenPosition);
     }
 
     this.destroyRef.onDestroy(() => {
+      clearTimeout(this.positionSaveTimer);
       if (typeof window !== 'undefined') {
         window.removeEventListener('keydown', this.handleCallWindowKeydown);
         window.removeEventListener('keydown', this.workspaceKeydown);
@@ -2464,6 +2500,7 @@ export class AppComponent {
       }
       if (typeof document !== 'undefined') {
         document.removeEventListener('fullscreenchange', this.handleDocumentFullscreenChange);
+        document.removeEventListener('visibilitychange', this.saveHiddenPosition);
       }
       this.appEvents.stop();
       this.directCall.stop();
@@ -6291,6 +6328,8 @@ export class AppComponent {
   }
 
   onMessageListScroll(): void {
+    clearTimeout(this.positionSaveTimer);
+    this.positionSaveTimer = setTimeout(() => this.rememberMessagePosition(), 300);
     const element = this.messageListRef?.nativeElement;
     if (!element) {
       return;
@@ -9371,6 +9410,9 @@ export class AppComponent {
   }
 
   private resetTextChannelState(): void {
+    clearTimeout(this.positionSaveTimer);
+    this.messageActionsTarget.set(null);
+    this.messageActionsFocus = null;
     const selectedChannelId = this.selectedChannelId();
     if (selectedChannelId) {
       this.lastMarkedReadMessageIdByChannel.delete(selectedChannelId);
