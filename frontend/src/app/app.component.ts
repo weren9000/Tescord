@@ -3,6 +3,7 @@ import { SectionNavigationComponent } from './workspace/section-navigation.compo
 import { UiIconComponent } from './workspace/ui-icon.component';
 import { ConversationListComponent } from './workspace/conversation-list.component';
 import { QuickSwitchComponent, QuickLink } from './workspace/quick-switch.component';
+import { PlatformSwitcherComponent } from './workspace/platform-switcher.component';
 import { WorkspaceMemoryService } from './core/services/workspace-memory.service';
 import { isMessageContinuation } from './core/services/message-layout';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -613,9 +614,9 @@ const DEFAULT_SERVER_ICON_ASSET_BY_NAME: Record<string, string> = {
 @Component({
   providers: [AuthFormStore],
     selector: 'app-root',
-    imports: [CommonModule, FormsModule, MediaStreamSrcDirective, SectionNavigationComponent, UiIconComponent, ConversationListComponent, QuickSwitchComponent],
+    imports: [CommonModule, FormsModule, MediaStreamSrcDirective, SectionNavigationComponent, UiIconComponent, ConversationListComponent, QuickSwitchComponent, PlatformSwitcherComponent],
     templateUrl: './app.component.html',
-    styleUrls: ['./app.component.scss', './app-layout.scss', './call-workspace.scss']
+    styleUrls: ['./app.component.scss', './app-layout.scss', './call-workspace.scss', './platform-workspace.scss']
 })
 export class AppComponent {
   private readonly workspaceMemory = inject(WorkspaceMemoryService);
@@ -638,6 +639,20 @@ export class AppComponent {
     else if (this.session()) this.openHome();
   };
   readonly sidebarQuery = signal('');
+  private readonly platformSectionState = new Map<string, {text: boolean; voice: boolean}>();
+  readonly platformChoices = computed(() => this.platformSpaces().map(space => ({
+    id: space.id, name: space.name, description: space.description,
+    icon: this.resolveSpaceIconUrl(space.id, space.icon_asset, space.icon_updated_at),
+    unread: this.platformUnreadCount(space), mentions: this.platformMentionUnreadCount(space),
+  })));
+  selectPlatformFromPicker(id: string): void {
+    this.sidebarQuery.set('');
+    this.openWorkspaceTarget(id);
+    if (this.isCompactVoiceWorkspaceViewport()) this.mobilePanel.set('servers');
+  }
+  previewPlatformVoiceChannel(channel: WorkspaceChannel): void {
+    void this.selectChannel(channel, {connectVoice: false});
+  }
   private readonly sectionSelection: Partial<Record<WorkspaceMode, string>> = {};
   readonly sectionTitle = computed(() => this.isChatsMode() ? 'Друзья' : this.isGroupsMode() ? 'Группы' : 'Площадки');
   readonly sectionDescription = computed(() => this.isChatsMode() ? 'Личные беседы и звонки' : this.isGroupsMode() ? 'Общение в своём кругу' : 'Сообщества и каналы');
@@ -4685,14 +4700,13 @@ export class AppComponent {
   togglePlatformChannelSection(section: 'text' | 'voice'): void {
     if (section === 'text') {
       this.platformTextChannelsCollapsed.update((collapsed) => !collapsed);
-      return;
+    } else {
+      this.platformVoiceChannelsCollapsed.update((collapsed) => !collapsed);
     }
-
-    const nextCollapsed = !this.platformVoiceChannelsCollapsed();
-    this.platformVoiceChannelsCollapsed.set(nextCollapsed);
-    if (nextCollapsed) {
-      this.platformExpandedVoiceChannelId.set(null);
-    }
+    const id = this.selectedServerId();
+    if (id) this.platformSectionState.set(id, {
+      text: this.platformTextChannelsCollapsed(), voice: this.platformVoiceChannelsCollapsed(),
+    });
   }
 
   togglePlatformVoiceChannelExpanded(channel: WorkspaceChannel): void {
@@ -8595,8 +8609,8 @@ export class AppComponent {
     this.selectedChannelId.set(null);
     this.channels.set([]);
     this.platformExpandedVoiceChannelId.set(null);
-    this.platformTextChannelsCollapsed.set(false);
-    this.platformVoiceChannelsCollapsed.set(false);
+    this.platformTextChannelsCollapsed.set(this.platformSectionState.get(serverId)?.text ?? false);
+    this.platformVoiceChannelsCollapsed.set(this.platformSectionState.get(serverId)?.voice ?? false);
     this.closeConversationActionMenu();
     this.closeGroupOwnershipModal();
     this.closePlatformSettingsModal();

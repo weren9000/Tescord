@@ -1,6 +1,8 @@
 import { Component, input } from '@angular/core';
 
 const paths: Record<string, string> = {
+  hash: 'M5 9h15M4 15h15M11 3L7 21M17 3l-4 18',
+  check: 'M5 12l4 4L19 6',
   mic: 'M9 5a3 3 0 0 1 6 0v7a3 3 0 0 1-6 0zM5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8',
   micOff: 'M3 3l18 18M9 5a3 3 0 0 1 6 0v6M9 9v3a3 3 0 0 0 5 2M5 10v2a7 7 0 0 0 12 5M19 10v2M12 19v3M8 22h8',
   sound: 'M4 10v5h4l5 4V6l-5 4zM17 8a7 7 0 0 1 0 9M16 11a3 3 0 0 1 0 3',

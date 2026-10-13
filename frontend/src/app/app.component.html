@@ -636,11 +636,7 @@
           <button type="button" [attr.aria-label]="sectionCreateLabel()" [attr.title]="sectionCreateLabel()" (click)="openSectionCreate()"><app-ui-icon name="plus" /></button>
         </div>
         @if (isPlatformsMode() && platformSpaces().length) {
-          <label class="platform-picker"><span>Текущая площадка</span>
-            <select aria-label="Выбрать площадку" [ngModel]="selectedServerId()" (ngModelChange)="openWorkspaceTarget($event)">
-              @for (space of platformSpaces(); track space.id) {<option [value]="space.id">{{ space.name }}</option>}
-            </select>
-          </label>
+          <app-platform-switcher [spaces]="platformChoices()" [selected]="selectedServerId()" (select)="selectPlatformFromPicker($event)" (create)="openCreatePlatformShortcut()" />
         }
         <div class="section-search"><app-ui-icon name="search" />
           <input type="search" [ngModel]="sidebarQuery()" (ngModelChange)="sidebarQuery.set($event)" (keydown.escape)="sidebarQuery.set('')" [placeholder]="isPlatformsMode() ? 'Найти канал' : isGroupsMode() ? 'Найти группу' : 'Найти друга'" [attr.aria-label]="'Поиск в разделе «' + sectionTitle() + '»'" />
@@ -649,315 +645,63 @@
           @if (!isPlatformsMode()) {
             <app-conversation-list [entries]="conversationLinks()" [selected]="selectedServerId()" [emptyLabel]="sidebarQuery() ? 'Ничего не найдено' : isGroupsMode() ? 'Создайте группу, чтобы общаться вместе' : 'Добавьте друга, чтобы начать общение'" (open)="openWorkspaceTarget($event)" />
           } @else {
-            @if (isPlatformsMode()) {
-              <aside class="platform-channel-rail">
-                <div class="platform-channel-section" [class.platform-channel-section--collapsed]="isPlatformChannelSectionCollapsed('text')">
-                  <div class="platform-channel-section__head">
-                    <button
-                      class="platform-channel-section__toggle"
-                      type="button"
-                      [attr.aria-expanded]="!isPlatformChannelSectionCollapsed('text')"
-                      aria-label="Переключить текстовые каналы"
-                      (click)="togglePlatformChannelSection('text')"
-                    >
-                      <span class="platform-channel-section__caret" aria-hidden="true">{{ isPlatformChannelSectionCollapsed('text') ? '▸' : '▾' }}</span>
-                      <strong>Текстовые каналы</strong>
-                      <small>{{ textChannels().length }}</small>
-                    </button>
-                    @if (canManageActiveGroup()) {
-                      <button class="secondary-button platform-channel-section__add" type="button" (click)="openCreateChannelModal('text')">
-                        + Текстовый
-                      </button>
-                    }
+            @if (activeServer()) {
+              <nav class="space-channels" aria-label="Каналы площадки">
+                <section class="space-section">
+                  <div class="space-section__head">
+                    <button class="space-section__toggle" type="button" [attr.aria-expanded]="!isPlatformChannelSectionCollapsed('text') || !!sidebarQuery().trim()" (click)="togglePlatformChannelSection('text')"><app-ui-icon name="down" />ТЕКСТОВЫЕ КАНАЛЫ<small>{{ textChannels().length }}</small></button>
+                    @if (canManageActiveGroup()) {<button class="space-section__add" type="button" aria-label="Создать текстовый канал" title="Создать текстовый канал" (click)="openCreateChannelModal('text')"><app-ui-icon name="plus" /></button>}
                   </div>
-                  @if (!isPlatformChannelSectionCollapsed('text')) {
-                    <div class="platform-channel-list">
+                  @if (!isPlatformChannelSectionCollapsed('text') || sidebarQuery().trim()) {
                     @for (channel of sidebarTextChannels(); track channel.id) {
-                      <div
-                        class="platform-channel-entry platform-channel-entry--managed"
-                        [class.platform-channel-entry--active]="selectedChannelId() === channel.id"
-                      >
-                        <button
-                          class="platform-channel-entry__main"
-                          type="button"
-                          (click)="selectChannel(channel)"
-                        >
-                          <div class="platform-channel-entry__copy">
-                            <div class="platform-channel-entry__headline">
-                              <strong># {{ channel.name }}</strong>
-                              @if (channelMentionUnreadCount(channel) > 0) {
-                                <span class="platform-channel-entry__unread-badge platform-channel-entry__unread-badge--mention">&#64;{{ channelMentionUnreadBadgeLabel(channel) }}</span>
-                              }
-                              @if (channelUnreadCount(channel) > 0) {
-                                <span class="platform-channel-entry__unread-badge">{{ channelUnreadBadgeLabel(channel) }}</span>
-                              }
-                            </div>
-                            <small>{{ platformChannelMetaLabel(channel) }}</small>
-                          </div>
-                        </button>
-                      </div>
-                    } @empty {
-                      <div class="rail-empty">Текстовых каналов пока нет</div>
-                    }
-                    </div>
-                  }
-                </div>
-
-                <div class="platform-channel-section" [class.platform-channel-section--collapsed]="isPlatformChannelSectionCollapsed('voice')">
-                  <div class="platform-channel-section__head">
-                    <button
-                      class="platform-channel-section__toggle"
-                      type="button"
-                      [attr.aria-expanded]="!isPlatformChannelSectionCollapsed('voice')"
-                      aria-label="Переключить голосовые каналы"
-                      (click)="togglePlatformChannelSection('voice')"
-                    >
-                      <span class="platform-channel-section__caret" aria-hidden="true">{{ isPlatformChannelSectionCollapsed('voice') ? '▸' : '▾' }}</span>
-                      <strong>Голосовые каналы</strong>
-                      <small>{{ voiceChannels().length }}</small>
-                    </button>
-                    @if (canManageActiveGroup()) {
-                      <button class="secondary-button platform-channel-section__add" type="button" (click)="openCreateChannelModal('voice')">
-                        + Голосовой
+                      <button class="space-channel" type="button" [class.space-channel--selected]="selectedChannelId() === channel.id" [class.space-channel--unread]="channelUnreadCount(channel) > 0" [attr.aria-current]="selectedChannelId() === channel.id ? 'page' : null" [attr.title]="channel.topic || channel.name" (click)="selectChannel(channel)">
+                        <app-ui-icon name="hash" /><span class="space-channel__name">{{ channel.name }}</span>
+                        @if (channelMentionUnreadCount(channel) > 0) {<span class="space-badge space-badge--mention" [attr.aria-label]="'Упоминаний: ' + channelMentionUnreadCount(channel)">&#64;{{ channelMentionUnreadBadgeLabel(channel) }}</span>}
+                        @else if (channelUnreadCount(channel) > 0) {<span class="space-badge" [attr.aria-label]="'Непрочитанных: ' + channelUnreadCount(channel)">{{ channelUnreadBadgeLabel(channel) }}</span>}
                       </button>
-                    }
-                  </div>
-                  @if (!isPlatformChannelSectionCollapsed('voice')) {
-                    <div class="platform-channel-list">
-                    @for (channel of sidebarVoiceChannels(); track channel.id) {
-                      <div
-                        class="platform-channel-entry platform-channel-entry--voice platform-channel-entry--managed"
-                        [class.platform-channel-entry--active]="selectedChannelId() === channel.id"
-                        [class.platform-channel-entry--expanded]="isPlatformVoiceChannelExpanded(channel.id)"
-                        [class.platform-channel-entry--connected]="connectedVoiceChannelId() === channel.id"
-                      >
-                        <div class="platform-channel-entry__row">
-                          <button
-                            class="platform-channel-entry__main"
-                            type="button"
-                            [attr.aria-expanded]="isPlatformVoiceChannelExpanded(channel.id)"
-                            [attr.aria-label]="isPlatformVoiceChannelExpanded(channel.id) ? 'Скрыть участников канала' : 'Показать участников канала'"
-                            (click)="togglePlatformVoiceChannelExpanded(channel)"
-                          >
-                            <div class="platform-channel-entry__copy">
-                              <div class="platform-channel-entry__headline">
-                                <strong>{{ channel.name }}</strong>
-                                @if (channelMentionUnreadCount(channel) > 0) {
-                                  <span class="platform-channel-entry__unread-badge platform-channel-entry__unread-badge--mention">&#64;{{ channelMentionUnreadBadgeLabel(channel) }}</span>
-                                }
-                                @if (channelUnreadCount(channel) > 0) {
-                                  <span class="platform-channel-entry__unread-badge">{{ channelUnreadBadgeLabel(channel) }}</span>
-                                }
-                              </div>
-                              <small>{{ platformChannelMetaLabel(channel) }}</small>
-                            </div>
-                          </button>
-                          <div class="platform-channel-entry__actions">
-                            <button
-                              class="secondary-button platform-channel-entry__voice-action"
-                              [class.platform-channel-entry__voice-action--active]="connectedVoiceChannelId() === channel.id && voiceCameraEnabled()"
-                              type="button"
-                              aria-label="Камера"
-                              title="Камера"
-                              [disabled]="!canTogglePlatformVoiceCamera(channel.id)"
-                              (click)="togglePlatformVoiceCamera(channel, $event)"
-                            >
-                              <svg viewBox="0 0 24 24" aria-hidden="true">
-                                <rect x="3" y="7" width="11" height="10" rx="2"></rect>
-                                <path d="M14 10.5l5-3v9l-5-3"></path>
-                              </svg>
-                            </button>
-                            @if (connectedVoiceChannelId() === channel.id && voiceScreenSharing()) {
-                              <button
-                                class="secondary-button platform-channel-entry__voice-action platform-channel-entry__voice-action--active"
-                                type="button"
-                                aria-label="Остановить показ экрана"
-                                title="Остановить показ экрана"
-                                [disabled]="!canTogglePlatformVoiceScreenShare(channel.id)"
-                                (click)="togglePlatformVoiceScreenShare(channel, $event)"
-                              >
-                                <svg viewBox="0 0 24 24" aria-hidden="true">
-                                  <rect x="3" y="5" width="18" height="12" rx="2"></rect>
-                                  <path d="M9 19h6"></path>
-                                  <path d="M8 8l8 6"></path>
-                                  <path d="M16 8l-8 6"></path>
-                                </svg>
-                              </button>
-                            } @else {
-                              <button
-                                class="secondary-button platform-channel-entry__voice-action"
-                                type="button"
-                                aria-label="Показать экран"
-                                title="Показать экран"
-                                [disabled]="!canTogglePlatformVoiceScreenShare(channel.id)"
-                                (click)="togglePlatformVoiceScreenShare(channel, $event)"
-                              >
-                                <svg viewBox="0 0 24 24" aria-hidden="true">
-                                  <rect x="3" y="5" width="18" height="12" rx="2"></rect>
-                                  <path d="M9 19h6"></path>
-                                  <path d="M12 9v6"></path>
-                                  <path d="M9 12h6"></path>
-                                </svg>
-                              </button>
-                            }
-                            <button
-                              class="secondary-button platform-channel-entry__voice-action"
-                              type="button"
-                              [attr.aria-label]="connectedVoiceChannelId() === channel.id ? 'Покинуть голосовой канал' : 'Подключиться к голосовому каналу'"
-                              [attr.title]="connectedVoiceChannelId() === channel.id ? 'Покинуть голосовой канал' : 'Подключиться к голосовому каналу'"
-                              (click)="togglePlatformVoiceChannel(channel, $event)"
-                            >
-                              <img [src]="connectedVoiceChannelId() === channel.id ? '/assets/Phone outgoing.svg' : '/assets/Phone_connect.svg'" alt="" />
-                            </button>
-                          </div>
-                        </div>
-                        @if (isPlatformVoiceChannelExpanded(channel.id)) {
-                          <div class="platform-channel-entry__roster">
-                            @if (connectedVoiceChannelId() === channel.id && voiceVideoSceneForChannel(channel.id); as scene) {
-                              <div class="group-voice-video-layout group-voice-video-layout--compact" [class.group-voice-video-layout--presentation]="scene.mode === 'presentation'">
-                                @if (scene.stageTile; as stageTile) {
-                                  <div class="group-voice-video-stage">
-                                    <div class="group-voice-video-stage__media">
-                                      <video
-                                        class="group-voice-video-stage__video"
-                                        [class.group-voice-video-stage__video--screen]="stageTile.source === 'screen-share'"
-                                        autoplay
-                                        playsinline
-                                        [appMediaStreamSrc]="stageTile.stream"
-                                        [appMediaStreamMuted]="stageTile.isSelf"
-                                      ></video>
-                                      <span class="group-voice-video-tile__badge">{{ voiceVideoTileSourceLabel(stageTile) }}</span>
-                                    </div>
-                                    <div class="group-voice-video-stage__meta">
-                                      <strong>{{ displayNick(stageTile.nick) }}</strong>
-                                      <small>{{ voiceVideoTileStatusLabel(stageTile) }}</small>
-                                    </div>
-                                  </div>
-                                }
-                                @if (scene.gridTiles.length) {
-                                  <div [ngClass]="['group-voice-video-grid', 'group-voice-video-grid--compact', scene.gridClass]">
-                                    @for (tile of scene.gridTiles; track tile.id) {
-                                      <div class="group-voice-video-tile" [class.group-voice-video-tile--speaking]="tile.speaking">
-                                        <div class="group-voice-video-tile__media">
-                                          <video
-                                            class="group-voice-video-tile__video"
-                                            [class.group-voice-video-tile__video--screen]="tile.source === 'screen-share'"
-                                            autoplay
-                                            playsinline
-                                            [appMediaStreamSrc]="tile.stream"
-                                            [appMediaStreamMuted]="tile.isSelf"
-                                          ></video>
-                                          <span class="group-voice-video-tile__badge">{{ voiceVideoTileSourceLabel(tile) }}</span>
-                                        </div>
-                                        <div class="group-voice-video-tile__meta">
-                                          <strong>{{ displayNick(tile.nick) }}</strong>
-                                          <small>{{ voiceVideoTileStatusLabel(tile) }}</small>
-                                        </div>
-                                      </div>
-                                    }
-                                    @for (placeholderId of scene.placeholderIds; track placeholderId) {
-                                      <div class="group-voice-video-tile group-voice-video-tile--placeholder" aria-hidden="true"></div>
-                                    }
-                                  </div>
-                                }
-                                @if (scene.secondaryTiles.length) {
-                                  <div class="group-voice-video-grid group-voice-video-grid--compact group-voice-video-grid--preview">
-                                    @for (tile of scene.secondaryTiles; track tile.id) {
-                                      <div class="group-voice-video-tile" [class.group-voice-video-tile--speaking]="tile.speaking">
-                                        <div class="group-voice-video-tile__media">
-                                          <video
-                                            class="group-voice-video-tile__video"
-                                            [class.group-voice-video-tile__video--screen]="tile.source === 'screen-share'"
-                                            autoplay
-                                            playsinline
-                                            [appMediaStreamSrc]="tile.stream"
-                                            [appMediaStreamMuted]="tile.isSelf"
-                                          ></video>
-                                          <span class="group-voice-video-tile__badge">{{ voiceVideoTileSourceLabel(tile) }}</span>
-                                        </div>
-                                        <div class="group-voice-video-tile__meta">
-                                          <strong>{{ displayNick(tile.nick) }}</strong>
-                                          <small>{{ voiceVideoTileStatusLabel(tile) }}</small>
-                                        </div>
-                                      </div>
-                                    }
-                                  </div>
-                                }
-                              </div>
-                            }
-                            <div class="group-voice-roster group-voice-roster--compact">
-                              @if (platformVoiceParticipants(channel.id).length) {
-                                @for (participant of platformVoiceParticipants(channel.id); track participant.id) {
-                                  <div class="group-voice-roster__member group-voice-roster__member--compact">
-                                    <div class="group-voice-roster__avatar group-voice-roster__avatar--compact">
-                                      @if (userAvatarUrl(participant.user_id, participant.avatar_updated_at); as avatarUrl) {
-                                        <img [src]="avatarUrl" [alt]="displayNick(participant.nick)" loading="lazy" />
-                                      } @else {
-                                        <span>{{ displayNickInitials(participant.nick) }}</span>
-                                      }
-                                    </div>
-                                    <div class="group-voice-roster__copy group-voice-roster__copy--compact">
-                                      <strong>{{ displayNick(participant.nick) }}</strong>
-                                      @if (!participant.is_self) {
-                                        <div class="group-voice-roster__controls group-voice-roster__controls--compact">
-                                          <input
-                                            class="group-voice-roster__volume group-voice-roster__volume--compact"
-                                            type="range"
-                                            min="10"
-                                            max="100"
-                                            step="1"
-                                            [value]="platformVoiceParticipantVolume(participant)"
-                                            [attr.aria-label]="'Громкость ' + displayNick(participant.nick)"
-                                            (input)="setPlatformVoiceParticipantVolume(participant, $any($event.target).value)"
-                                          />
-                                          <small class="group-voice-roster__volume-value group-voice-roster__volume-value--compact">{{ platformVoiceParticipantVolume(participant) }}%</small>
-                                        </div>
-                                      }
-                                    </div>
-                                    @if (participant.is_self) {
-                                      <button
-                                        class="group-voice-roster__state-button group-voice-roster__state-button--compact"
-                                        type="button"
-                                        [attr.title]="groupVoiceStateActionLabel(participant)"
-                                        [attr.aria-label]="groupVoiceStateActionLabel(participant)"
-                                        (click)="togglePlatformVoiceParticipantMute(participant, channel.id)"
-                                      >
-                                        <img
-                                          class="group-voice-roster__state group-voice-roster__state--compact"
-                                          [src]="groupVoiceStateIconPath(participant)"
-                                          [alt]="groupVoiceStateIconAlt(participant)"
-                                        />
-                                      </button>
-                                    } @else {
-                                      <span class="group-voice-roster__state-shell group-voice-roster__state-shell--compact" [attr.title]="groupVoiceStateIconAlt(participant)">
-                                        <img
-                                          class="group-voice-roster__state group-voice-roster__state--compact"
-                                          [src]="groupVoiceStateIconPath(participant)"
-                                          [alt]="groupVoiceStateIconAlt(participant)"
-                                        />
-                                      </span>
-                                    }
-                                  </div>
-                                }
-                              }
-                            </div>
-                          </div>
-                        }
-                      </div>
-                    } @empty {
-                      <div class="rail-empty">Голосовых каналов пока нет</div>
-                    }
-                    </div>
+                    } @empty {<p class="space-section__empty">{{ sidebarQuery().trim() ? 'Каналы не найдены' : 'Текстовых каналов пока нет' }}</p>}
                   }
-                </div>
-              </aside>
+                </section>
+                <section class="space-section">
+                  <div class="space-section__head">
+                    <button class="space-section__toggle" type="button" [attr.aria-expanded]="!isPlatformChannelSectionCollapsed('voice') || !!sidebarQuery().trim()" (click)="togglePlatformChannelSection('voice')"><app-ui-icon name="down" />ГОЛОСОВЫЕ КОМНАТЫ<small>{{ voiceChannels().length }}</small></button>
+                    @if (canManageActiveGroup()) {<button class="space-section__add" type="button" aria-label="Создать голосовую комнату" title="Создать голосовую комнату" (click)="openCreateChannelModal('voice')"><app-ui-icon name="plus" /></button>}
+                  </div>
+                  @if (!isPlatformChannelSectionCollapsed('voice') || sidebarQuery().trim()) {
+                    @for (channel of sidebarVoiceChannels(); track channel.id) {
+                      <button class="space-channel" type="button" [class.space-channel--selected]="selectedChannelId() === channel.id" [class.space-channel--connected]="connectedVoiceChannelId() === channel.id" [attr.aria-current]="selectedChannelId() === channel.id ? 'page' : null" [attr.title]="channel.topic || channel.name" (click)="previewPlatformVoiceChannel(channel)">
+                        <app-ui-icon name="sound" /><span class="space-channel__name">{{ channel.name }}</span>
+                        @if (connectedVoiceChannelId() === channel.id) {<app-ui-icon name="check" aria-label="Вы подключены" />}
+                        <span class="space-channel__count" [attr.aria-label]="'Участников в комнате: ' + platformVoiceParticipants(channel.id).length">{{ platformVoiceParticipants(channel.id).length }}</span>
+                      </button>
+                      @if (platformVoiceParticipants(channel.id).length) {
+                        <div class="space-people">
+                          @for (participant of platformVoiceParticipants(channel.id); track participant.user_id) {
+                            <button class="space-person" type="button" [class.space-person--speaking]="participant.speaking" [attr.title]="displayNick(participant.nick)" (click)="openVoiceParticipantControls(participant.user_id, channel.id)">
+                              <span class="space-person__avatar">@if (userAvatarUrl(participant.user_id, participant.avatar_updated_at); as avatar) {<img [src]="avatar" alt="" />} @else { {{ displayNickInitials(participant.nick) }} }</span>
+                              <span class="space-person__name">{{ displayNick(participant.nick) }}</span>
+                              @if (participant.muted || participant.owner_muted) {<app-ui-icon name="micOff" aria-label="Микрофон выключен" />}
+                            </button>
+                          }
+                        </div>
+                      }
+                    } @empty {<p class="space-section__empty">{{ sidebarQuery().trim() ? 'Комнаты не найдены' : 'Голосовых комнат пока нет' }}</p>}
+                  }
+                </section>
+              </nav>
             }
-
 
             @if (!platformSpaces().length) {<div class="sidebar-empty">Создайте площадку для своего сообщества</div>}
           }
         </div>
-        <button class="section-create" type="button" (click)="openSectionCreate()"><app-ui-icon name="plus" />{{ sectionCreateLabel() }}</button>
+        @if (isPlatformsMode() && activeServer()) {
+          <div class="space-footer">
+            <button type="button" (click)="openGroupMembersPanel()"><app-ui-icon name="groups" />Участники · {{ members().length }}</button>
+            @if (canOpenPlatformSettings()) {<button type="button" aria-label="Настройки площадки" title="Настройки площадки" (click)="openPlatformSettingsModal()"><app-ui-icon name="more" /></button>}
+          </div>
+        } @else {
+          <button class="section-create" type="button" (click)="openSectionCreate()"><app-ui-icon name="plus" />{{ sectionCreateLabel() }}</button>
+        }
       </aside>
 
       <main class="messenger-workspace">
@@ -980,6 +724,9 @@
           <section class="conversation-head conversation-head--managed">
             <button class="workspace-back" type="button" aria-label="Назад к списку" (click)="toggleMobilePanel('servers')"><app-ui-icon name="back" /></button>
             <div class="conversation-head__identity conversation-head__identity--managed">
+              @if (isPlatformsMode()) {
+                <span class="space-channel-icon"><app-ui-icon [name]="activeChannel()?.type === 'voice' ? 'sound' : 'hash'" /></span>
+              } @else {
               <button
                 class="conversation-head__avatar"
                 [class.conversation-head__avatar--group]="!isChatsMode()"
@@ -996,10 +743,10 @@
                   <span>{{ displayNickInitials(activeServer()?.name ?? 'KVA') }}</span>
                 }
               </button>
-
+              }
               <div class="conversation-head__summary">
                 <strong>{{ isPlatformsMode() && activeChannel() ? activeChannel()?.name : activeServer()?.name }}</strong>
-                <small class="channel-context">{{ isPlatformsMode() ? activeServer()?.name : isGroupsMode() ? 'Групповая беседа' : activeDirectPeer()?.is_online ? 'В сети' : 'Личная переписка' }}</small>
+                <small class="channel-context" [attr.title]="isPlatformsMode() ? activeChannel()?.topic : null">{{ isPlatformsMode() ? activeChannel()?.topic || activeServer()?.name : isGroupsMode() ? 'Групповая беседа' : activeDirectPeer()?.is_online ? 'В сети' : 'Личная переписка' }}</small>
               </div>
 
               <div class="conversation-head__menu">
@@ -1118,6 +865,22 @@
 
           <div class="workspace-content" [class.workspace-content--platform]="isPlatformsMode()">
             <div class="workspace-main-pane">
+              @if (isPlatformsMode() && activeChannel()?.type === 'voice') {
+                @if (activeChannel(); as channel) {
+                  <section class="space-voice-preview" aria-label="Голосовая комната">
+                    <span class="space-voice-preview__icon"><app-ui-icon name="sound" /></span>
+                    <div class="space-voice-preview__copy">
+                      <h2>{{ connectedVoiceChannelId() === channel.id ? 'Вы в голосовой комнате' : channel.name }}</h2>
+                      <p>{{ platformVoiceParticipants(channel.id).length ? 'Сейчас в комнате: ' + platformVoiceParticipants(channel.id).length : 'В комнате пока никого нет' }} · {{ connectedVoiceChannelId() === channel.id ? 'Звонок продолжается при переходе в другие каналы' : 'Подключитесь, когда будете готовы' }}</p>
+                    </div>
+                    @if (connectedVoiceChannelId() === channel.id) {
+                      <button type="button" (click)="expandCallWindow()"><app-ui-icon name="expand" />Открыть звонок</button>
+                    } @else {
+                      <button type="button" [disabled]="voiceState() === 'connecting'" (click)="togglePlatformVoiceChannel(channel, $event)"><app-ui-icon name="phone" />{{ voiceState() === 'connecting' ? 'Подключение…' : channel.voice_access_role === 'stranger' || channel.voice_access_role === 'guest' ? 'Запросить доступ' : 'Присоединиться' }}</button>
+                    }
+                  </section>
+                }
+              }
               @if (isGroupsMode()) {
                 <section
                   class="group-overview"
@@ -3521,6 +3284,9 @@
               </div>
 
               <div class="platform-settings-actions">
+                @if (canEditActiveServerIcon()) {
+                  <button class="secondary-button platform-settings-action-button" type="button" [disabled]="serverIconSaving()" (click)="openServerIconPicker()">Изменить иконку</button>
+                }
                 @if (canManageActiveGroup()) {
                   <button class="secondary-button platform-settings-action-button" type="button" (click)="openPlatformSettingsAddMember()">
                     Участник
