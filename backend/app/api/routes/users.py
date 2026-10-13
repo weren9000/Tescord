@@ -16,6 +16,7 @@ from app.schemas.users import CurrentUserResponse, UpdateCurrentUserProfileRespo
 from app.services.app_events import publish_members_updated_from_sync, publish_voice_presence_updated_from_sync
 from app.services.avatar_presets import AVATAR_PRESETS, AVATAR_DIRECTORY
 from app.services.inventory import lock_inventory, ASSETS
+from app.services.avatar_frames import frame_svg
 from app.db.inventory import InventoryItem
 from sqlalchemy import update
 
@@ -111,12 +112,23 @@ async def update_current_user_profile(
 
 
 @router.get("/users/{user_id}/avatar")
-def read_user_avatar(user_id: UUID, db: Session = Depends(get_db)) -> Response:
+def read_user_avatar(user_id: UUID, motion: bool = True, db: Session = Depends(get_db)) -> Response:
     user = db.get(User, user_id)
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Аватарка не найдена")
     equipped = db.scalar(select(InventoryItem).where(InventoryItem.owner_id == user.id,
         InventoryItem.kind == 'avatar', InventoryItem.equipped.is_(True), InventoryItem.revoked.is_(False)))
+    frame = db.scalar(select(InventoryItem).where(InventoryItem.owner_id == user.id,
+        InventoryItem.kind == 'frame', InventoryItem.equipped.is_(True), InventoryItem.revoked.is_(False)))
+    if frame:
+        if equipped:
+            content, mime = (ASSETS / (equipped.catalog_id+'.webp')).read_bytes(), 'image/webp'
+        elif user.avatar_content is not None and user.avatar_mime_type is not None:
+            content, mime = user.avatar_content, user.avatar_mime_type
+        else:
+            content, mime = (AVATAR_DIRECTORY / (user.avatar_preset+'.webp')).read_bytes(), 'image/webp'
+        return Response(frame_svg(frame.catalog_id, content, mime, motion=motion), media_type='image/svg+xml',
+                        headers={'Cache-Control': 'no-cache', 'X-Content-Type-Options': 'nosniff'})
     if equipped:
         return FileResponse(ASSETS / (equipped.catalog_id+'.webp'), media_type='image/webp',
                             headers={'Cache-Control': 'no-cache'})

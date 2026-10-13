@@ -63,6 +63,8 @@ export class InventoryComponent {
  async clearRecipient() {this.recipient.set(null);this.query='';this.people.set([]);this.searched.set(false);this.offset=0;if(this.mode()==='admin')await this.page(0);}
  query = '';
  selectedCatalog = 'cyber-oni';
+ catalogName(id: string) { return this.catalog().find(c=>c.id===id)?.name ?? id; }
+ hasKind(kind: string) { return this.items().some(i=>i.kind===kind); }
  offset = 0;
  private searchVersion = 0;
  private equipmentSnapshot: string | null = null;
@@ -100,7 +102,7 @@ export class InventoryComponent {
    onCleanup(()=>{cancelled=true;clearInterval(timer);clearTimeout(focusTimer);if(mode)previousFocus?.focus();});
   });
  }
- image(id: string) { return `${API_BASE_URL}/api/inventory/assets/${encodeURIComponent(id)}`; }
+ image(id: string) { return `${API_BASE_URL}/api/inventory/assets/${encodeURIComponent(id)}?motion=${!window.matchMedia('(prefers-reduced-motion: reduce)').matches}`; }
  private accept(data: Collection) {
   const snapshot=data.items.filter(i=>i.equipped).map(i=>i.id).sort().join(',');
   if(this.equipmentSnapshot!==null && snapshot!==this.equipmentSnapshot)this.changed.emit();
@@ -108,7 +110,7 @@ export class InventoryComponent {
   this.items.set(data.items);this.notices.set(data.notifications);this.unread.emit(data.unread);
   this.unreadCount.set(data.unread);
  }
- avatar(p: Person) { return `${API_BASE_URL}/api/users/${p.id}/avatar?v=${encodeURIComponent(p.avatar_updated_at ?? 'default')}`; }
+ avatar(p: Person) { return `${API_BASE_URL}/api/users/${p.id}/avatar?v=${encodeURIComponent(p.avatar_updated_at ?? 'default')}&motion=${!window.matchMedia('(prefers-reduced-motion: reduce)').matches}`; }
  private request<T>(path: string, method='GET', body?: unknown, token=this.token()) {
   return firstValueFrom(this.http.request<T>(method, `${API_BASE_URL}/api/inventory${path}`, {body,headers:{Authorization:`Bearer ${token}`}}));
  }

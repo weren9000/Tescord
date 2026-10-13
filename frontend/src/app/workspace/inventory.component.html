@@ -10,8 +10,8 @@
     <div class="grid">@for(item of items();track item.id){@if(item.kind===tab()){
      <div class="tile" [class.equipped]="item.equipped" [attr.title]="item.name+(item.equipped?' · Используется':'')"><img [src]="image(item.catalog_id)" [alt]="item.name"/>@if(item.equipped){<span class="check" aria-label="Используется">✓</span>}<button class="dots" [attr.aria-label]="'Действия: '+item.name" [attr.aria-expanded]="menu()?.id===item.id" [disabled]="busy()" (click)="toggleMenu(item,$event)">⋯</button></div>
     }}</div>
-    @if(!items().length&&tab()==='avatar'&&!loading()){<div class="empty">Пока нет предметов<small>Здесь появятся выданные и подаренные аватары.</small></div>}
-    @if(tab()==='frame'){<div class="empty">Рамок пока нет<small>Они появятся здесь после получения.</small></div>}
+    @if(!hasKind('avatar')&&tab()==='avatar'&&!loading()){<div class="empty">Пока нет предметов<small>Здесь появятся выданные и подаренные аватары.</small></div>}
+    @if(tab()==='frame'&&!hasKind('frame')&&!loading()){<div class="empty">Рамок пока нет<small>Они появятся здесь после получения.</small></div>}
    } @else {
     <nav><button [class.active]="adminTab()==='grant'" (click)="adminTab.set('grant');clearRecipient()">Выдать</button><button [class.active]="adminTab()==='issued'" (click)="adminTab.set('issued');clearRecipient()">Выдано</button></nav>
     @if(adminTab()==='grant') {
@@ -36,7 +36,7 @@
     </div>
    </section></div>
   }
-  @if(pending();as op){<div class="panel-shade confirmation"><section class="confirm" role="alertdialog" aria-label="Подтверждение действия"><h3>{{labels[op.action]}}</h3>@if(error()){<p role="alert" class="error">{{error()}}</p>}<div class="item-summary"><img [src]="image(op.item?.catalog_id ?? selectedCatalog)" alt=""/><strong>{{op.item?.name ?? 'Кибер-Они'}}</strong></div>@if(op.recipient;as person){<div class="person"><img [src]="avatar(person)" alt=""/><div><strong>{{person.nick}}</strong><small>ID {{person.public_id}}</small></div></div>}@if(op.action==='gift'){<p>Предмет перейдёт получателю и исчезнет из вашего инвентаря. Если он используется, он будет снят.</p>}@if(op.action==='revoke'){<p>Предмет будет отозван у этого владельца и снят, если используется.</p>}@if(op.action==='grant'){<p>Выдаётся новый экземпляр, даже если у получателя уже есть такой предмет.</p>}<div class="confirm-actions"><button [disabled]="busy()" (click)="pending.set(null)">Отмена</button><button class="primary" [disabled]="busy()" (click)="perform()">{{busy()?'Выполняем…':'Подтвердить'}}</button></div></section></div>}
+  @if(pending();as op){<div class="panel-shade confirmation"><section class="confirm" role="alertdialog" aria-label="Подтверждение действия"><h3>{{labels[op.action]}}</h3>@if(error()){<p role="alert" class="error">{{error()}}</p>}<div class="item-summary"><img [src]="image(op.item?.catalog_id ?? selectedCatalog)" alt=""/><strong>{{op.item?.name ?? catalogName(op.catalog_id ?? selectedCatalog)}}</strong></div>@if(op.recipient;as person){<div class="person"><img [src]="avatar(person)" alt=""/><div><strong>{{person.nick}}</strong><small>ID {{person.public_id}}</small></div></div>}@if(op.action==='gift'){<p>Предмет перейдёт получателю и исчезнет из вашего инвентаря. Если он используется, он будет снят.</p>}@if(op.action==='revoke'){<p>Предмет будет отозван у этого владельца и снят, если используется.</p>}@if(op.action==='grant'){<p>Выдаётся новый экземпляр, даже если у получателя уже есть такой предмет.</p>}<div class="confirm-actions"><button [disabled]="busy()" (click)="pending.set(null)">Отмена</button><button class="primary" [disabled]="busy()" (click)="perform()">{{busy()?'Выполняем…':'Подтвердить'}}</button></div></section></div>}
  </section>
 </div>
 }

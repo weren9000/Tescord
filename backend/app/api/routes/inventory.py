@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from uuid import UUID
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy import select, or_, func, update
@@ -10,6 +10,7 @@ from app.db.models import User
 from app.db.inventory import InventoryItem, InventoryEvent
 from app.db.session import get_db
 from app.services.inventory import CATALOG, ASSETS, lock_inventory
+from app.services.avatar_frames import frame_svg
 from app.api.routes.users import _publish_profile_updates_for_user
 
 router = APIRouter(prefix='/inventory', tags=['inventory'])
@@ -71,8 +72,11 @@ def catalog(user: User = Depends(admin)):
 
 
 @router.get('/assets/{catalog_id}')
-def asset(catalog_id: str):
+def asset(catalog_id: str, motion: bool = True):
     if catalog_id not in CATALOG: raise HTTPException(404, 'Предмет не найден')
+    if catalog_id == 'frame-neon':
+        return Response(frame_svg(catalog_id, motion=motion), media_type='image/svg+xml',
+                        headers={'Cache-Control': 'public, max-age=300', 'X-Content-Type-Options': 'nosniff'})
     # Display is public; ownership is enforced when equipping, granting or gifting.
     return FileResponse(ASSETS / (catalog_id+'.webp'), media_type='image/webp')
 

@@ -9669,7 +9669,7 @@ export class AppComponent {
       return null;
     }
 
-    return `${API_BASE_URL}/api/users/${encodeURIComponent(userId)}/avatar?v=${encodeURIComponent(avatarUpdatedAt ?? 'default')}`;
+    return `${API_BASE_URL}/api/users/${encodeURIComponent(userId)}/avatar?v=${encodeURIComponent(avatarUpdatedAt ?? 'default')}&motion=${!window.matchMedia('(prefers-reduced-motion: reduce)').matches}`;
   }
 
   private patchMessagesFromMemberSnapshot(members: WorkspaceMember[]): void {

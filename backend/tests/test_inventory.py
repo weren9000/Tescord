@@ -109,3 +109,45 @@ def test_parallel_gifts_and_retry_do_not_duplicate(accounts):
     for _ in range(2):assert c.post(f'/api/inventory/items/{second}/gift',headers=alice,json=request).status_code==200
     history=c.get(f'/api/inventory/items/{second}/history',headers=admin).json()
     assert [e['action'] for e in history].count('gift')==1
+
+
+def test_frames_preserve_avatar_and_transfer_ownership(accounts):
+    from app.services.inventory import CATALOG
+    c, users = accounts
+    admin, _, _ = users[0]; alice, a, _ = users[1]; bob, b, _ = users[2]
+    frames = [key for key, value in CATALOG.items() if value['kind'] == 'frame']
+    assert len(frames) == 10
+    for key in frames:
+        assert c.get('/api/inventory/assets/'+key).status_code == 200
+    def frame(key):
+        response = c.post('/api/inventory/grant', headers=admin, json={
+            'catalog_id': key, 'recipient_id': a['id'], 'request_id': str(uuid4())})
+        assert response.status_code == 200
+        return response.json()['item_id']
+    avatar, _ = grant(c, admin, a)
+    assert act(c, alice, avatar, 'equip').status_code == 200
+    original = c.get('/api/users/'+a['id']+'/avatar').content
+    first = frame('frame-neon')
+    assert act(c, bob, first, 'equip').status_code == 403
+    assert act(c, alice, first, 'equip').status_code == 200
+    response = c.get('/api/users/'+a['id']+'/avatar')
+    assert response.headers['content-type'].startswith('image/svg+xml')
+    assert '@keyframes flow' in response.text
+    assert 'animation:flow' not in c.get('/api/users/'+a['id']+'/avatar?motion=false').text
+    assert sum(i['equipped'] for i in c.get('/api/inventory',headers=alice).json()['items']) == 2
+    second = frame('frame-sakura')
+    assert act(c, alice, second, 'equip').status_code == 200
+    items = c.get('/api/inventory',headers=alice).json()['items']
+    assert [i['id'] for i in items if i['kind']=='frame' and i['equipped']] == [second]
+    assert act(c, alice, second, 'gift', recipient_id=b['id']).status_code == 200
+    assert c.get('/api/users/'+a['id']+'/avatar').content == original
+    assert act(c, alice, second, 'equip').status_code == 403
+    assert act(c, bob, second, 'equip').status_code == 200
+    assert act(c, admin, second, 'revoke', recipient_id=b['id']).status_code == 200
+    assert not c.get('/api/users/'+b['id']+'/avatar').headers['content-type'].startswith('image/svg+xml')
+    assert act(c, alice, first, 'equip').status_code == 200
+    assert c.put('/api/me/profile',headers=alice,data={'avatar_preset':'cat'}).status_code == 200
+    items = c.get('/api/inventory',headers=alice).json()['items']
+    assert [i['id'] for i in items if i['equipped']] == [first]
+    assert act(c, alice, first, 'unequip').status_code == 200
+    assert c.get('/api/users/'+a['id']+'/avatar').content == c.get('/api/avatar-presets/cat').content
