@@ -10293,3 +10293,9 @@ select {
     transform: none;
   }
 }
+
+.message-list--wallpaper {
+ background-color:#111726;
+ .message-card {background:#1c2232f5;border-radius:12px;padding:10px 12px;margin-bottom:6px;}
+ .message-list__empty,.message-list__status {background:#1c2232f5;border-radius:10px;padding:12px;color:#e5eaf5;}
+}

@@ -20,6 +20,11 @@ def prepare_image(payload: bytes, kind: str, x: float, y: float, zoom: float) ->
     except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError, Image.DecompressionBombWarning):
         raise HTTPException(400, 'Не удалось прочитать изображение')
     w, h = picture.size
+    if kind == 'wallpaper':
+        picture.thumbnail((2048, 2048), Image.Resampling.LANCZOS)
+        output = BytesIO()
+        picture.convert('RGB').save(output, format='WEBP', quality=88)
+        return output.getvalue()
     if kind == 'frame':
         if w != h: raise HTTPException(400, 'Рамка должна быть квадратной')
         alpha = picture.getchannel('A')

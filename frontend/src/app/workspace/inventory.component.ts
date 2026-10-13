@@ -42,7 +42,7 @@ export class InventoryComponent implements OnDestroy {
  readonly error = signal('');
  readonly success = signal('');
  readonly tab = signal('avatar');
- readonly adminTab = signal<'avatar' | 'frame' | 'issued'>('avatar');
+ readonly adminTab = signal<'avatar' | 'frame' | 'wallpaper' | 'issued'>('avatar');
  readonly uploadOpen = signal(false);
  readonly editing = signal<Catalog | null>(null);
  readonly total = signal(0);
@@ -57,10 +57,10 @@ export class InventoryComponent implements OnDestroy {
  get previewHeight(){return this.imageHeight/Math.min(this.imageWidth,this.imageHeight)*this.zoom*100;}
  pageNumbers(){const start=Math.max(1,Math.min(this.currentPage()-2,this.pageCount()-4));return Array.from({length:Math.min(5,this.pageCount())},(_,i)=>start+i);}
  selectedEntry(){return this.catalog().find(c=>c.id===this.selectedCatalog);}
- async switchTab(value: string){if(this.busy())return;++this.searchVersion;this.menu.set(null);this.error.set('');this.success.set('');this.filter='';this.issuedKind='';this.currentPage.set(1);this.recipient.set(null);this.people.set([]);this.query='';this.searched.set(false);this.selectedCatalog='';if(this.mode()==='admin')this.adminTab.set(value as 'avatar'|'frame'|'issued');else this.tab.set(value);await this.reload();}
+ async switchTab(value: string){if(this.busy())return;++this.searchVersion;this.menu.set(null);this.error.set('');this.success.set('');this.filter='';this.issuedKind='';this.currentPage.set(1);this.recipient.set(null);this.people.set([]);this.query='';this.searched.set(false);this.selectedCatalog='';if(this.mode()==='admin')this.adminTab.set(value as 'avatar'|'frame'|'wallpaper'|'issued');else this.tab.set(value);await this.reload();}
  async filterChanged(){this.currentPage.set(1);this.selectedCatalog='';await this.reload();}
  async goPage(value: number){this.currentPage.set(value);this.menu.set(null);this.selectedCatalog='';await this.reload();}
- openUpload(){this.resetUpload();this.uploadKind=this.adminTab()==='frame'?'frame':'avatar';this.uploadOpen.set(true);this.error.set('');}
+ openUpload(){this.resetUpload();this.uploadKind=this.adminTab()==='issued'?'avatar':this.adminTab();this.uploadOpen.set(true);this.error.set('');}
  resetUpload(){++this.fileVersion;if(this.previewUrl)URL.revokeObjectURL(this.previewUrl);this.previewUrl='';this.uploadFile=null;this.uploadName='';this.cropX=50;this.cropY=50;this.zoom=1;}
  ngOnDestroy(){this.resetUpload();++this.loadVersion;}
  async fileChanged(event: globalThis.Event){

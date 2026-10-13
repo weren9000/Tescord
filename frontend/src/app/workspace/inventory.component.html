@@ -8,18 +8,19 @@
    <nav aria-label="Типы предметов">
     <button [class.active]="(mode()==='admin'?adminTab():tab())==='avatar'" [disabled]="busy()" (click)="switchTab('avatar')">Аватарки</button>
     <button [class.active]="(mode()==='admin'?adminTab():tab())==='frame'" [disabled]="busy()" (click)="switchTab('frame')">Рамки</button>
+    <button [class.active]="(mode()==='admin'?adminTab():tab())==='wallpaper'" [disabled]="busy()" (click)="switchTab('wallpaper')">Обои</button>
     @if(mode()==='admin'){<button [class.active]="adminTab()==='issued'" [disabled]="busy()" (click)="switchTab('issued')">Выдано</button>}
    </nav>
    <div class="catalog-tools"><form (ngSubmit)="filterChanged()"><input aria-label="Поиск предметов" [placeholder]="adminTab()==='issued'&&mode()==='admin'?'Предмет, владелец или email':'Название предмета'" name="filter" [(ngModel)]="filter" maxlength="80"/><button type="submit" [disabled]="busy()">Найти</button></form>
     @if(mode()==='admin'&&adminTab()!=='issued'){<button class="primary" (click)="openUpload()">Добавить предмет</button>}
-    @if(mode()==='admin'&&adminTab()==='issued'){<select aria-label="Тип выданных предметов" [(ngModel)]="issuedKind" (ngModelChange)="filterChanged()"><option value="">Все типы</option><option value="avatar">Аватарки</option><option value="frame">Рамки</option></select>}
+    @if(mode()==='admin'&&adminTab()==='issued'){<select aria-label="Тип выданных предметов" [(ngModel)]="issuedKind" (ngModelChange)="filterChanged()"><option value="">Все типы</option><option value="avatar">Аватарки</option><option value="frame">Рамки</option><option value="wallpaper">Обои</option></select>}
    </div>
    @if(mode()==='inventory') {
     <div class="grid">@for(item of items();track item.id){
-     <div class="tile" [class.equipped]="item.equipped" [attr.title]="item.name+(item.equipped?' · Используется':'')"><img [src]="image(item.catalog_id)" [alt]="item.name"/>@if(item.equipped){<span class="check" aria-label="Используется">✓</span>}<button class="dots" [attr.aria-label]="'Действия: '+item.name" [attr.aria-expanded]="menu()?.id===item.id" [disabled]="busy()" (click)="toggleMenu(item,$event)">⋯</button></div>
+     <div class="tile" [class.wallpaper-tile]="item.kind==='wallpaper'" [class.equipped]="item.equipped" [attr.title]="item.name+(item.equipped?' · Используется':'')"><img [src]="image(item.catalog_id)" [alt]="item.name"/>@if(item.equipped){<span class="check" aria-label="Используется">✓</span>}<button class="dots" [attr.aria-label]="'Действия: '+item.name" [attr.aria-expanded]="menu()?.id===item.id" [disabled]="busy()" (click)="toggleMenu(item,$event)">⋯</button></div>
     }</div>
    } @else if(adminTab()!=='issued') {
-    <div class="catalog">@for(c of catalog();track c.id){<div class="catalog-cell" [class.hidden-item]="c.hidden"><button class="catalog-item" [class.selected]="selectedCatalog===c.id" [attr.aria-pressed]="selectedCatalog===c.id" [disabled]="c.hidden||busy()" (click)="selectedCatalog=c.id"><img [src]="image(c.id)" alt=""/><span>{{c.name}}</span>@if(c.hidden){<small>Скрыт из выдачи</small>}</button><button class="catalog-dots" [attr.aria-label]="'Настройки: '+c.name" (click)="edit(c)">⋯</button></div>}</div>
+    <div class="catalog">@for(c of catalog();track c.id){<div class="catalog-cell" [class.hidden-item]="c.hidden"><button class="catalog-item" [class.wallpaper-tile]="c.kind==='wallpaper'" [class.selected]="selectedCatalog===c.id" [attr.aria-pressed]="selectedCatalog===c.id" [disabled]="c.hidden||busy()" (click)="selectedCatalog=c.id"><img [src]="image(c.id)" alt=""/><span>{{c.name}}</span>@if(c.hidden){<small>Скрыт из выдачи</small>}</button><button class="catalog-dots" [attr.aria-label]="'Настройки: '+c.name" (click)="edit(c)">⋯</button></div>}</div>
    } @else {
     <div class="issued-list">@for(item of issued();track item.id){<div class="issued"><img [src]="image(item.catalog_id)" alt=""/><div><strong>{{item.name}}</strong><small>{{item.owner?.nick ?? 'Аккаунт удалён'}} · № {{item.id.slice(0,8)}}</small></div>@if(item.revoked){<small>Отозван</small>}<button class="row-dots" [attr.aria-label]="'Действия: '+item.name" (click)="toggleMenu(item,$event)">⋯</button></div>}</div>
    }
@@ -40,7 +41,7 @@
    </section></div>
   }
   @if(uploadOpen()){
-   <div class="panel-shade"><section class="subpanel upload-panel" role="dialog" aria-modal="true" aria-label="Добавить предмет"><header><h3>Добавить {{uploadKind==='frame'?'рамку':'аватарку'}}</h3><button aria-label="Закрыть загрузку" [disabled]="busy()" (click)="closePanel()">×</button></header><form class="panel-body upload-form" (ngSubmit)="saveUpload()">
+   <div class="panel-shade"><section class="subpanel upload-panel" role="dialog" aria-modal="true" aria-label="Добавить предмет"><header><h3>Добавить {{uploadKind==='wallpaper'?'обои':uploadKind==='frame'?'рамку':'аватарку'}}</h3><button aria-label="Закрыть загрузку" [disabled]="busy()" (click)="closePanel()">×</button></header><form class="panel-body upload-form" (ngSubmit)="saveUpload()">
     @if(error()){<p class="error" role="alert">{{error()}}</p>}
     <label>Название<input name="uploadName" [(ngModel)]="uploadName" maxlength="80" required [disabled]="busy()"/></label>
     <label>Изображение<input type="file" accept="image/png,image/jpeg,image/webp" (change)="fileChanged($event)" [disabled]="busy()"/></label><small>PNG, JPG или WebP · до 10 МБ · 128–4096 px. Статичные изображения.</small>
@@ -49,6 +50,8 @@
       <div class="crop-preview"><img [src]="previewUrl" alt="Предпросмотр аватарки" [style.width.%]="previewWidth" [style.height.%]="previewHeight" [style.left.%]="-(previewWidth-100)*cropX/100" [style.top.%]="-(previewHeight-100)*cropY/100"/></div>
       <label>Масштаб<input type="range" name="zoom" [(ngModel)]="zoom" min="1" max="3" step="0.05" [disabled]="busy()"/></label><label>По горизонтали<input type="range" name="cropX" [(ngModel)]="cropX" min="0" max="100" [disabled]="busy()"/></label><label>По вертикали<input type="range" name="cropY" [(ngModel)]="cropY" min="0" max="100" [disabled]="busy()"/></label>
       <div class="size-previews">@for(size of [44,56,88];track size){<div><div class="crop-preview" [style.width.px]="size" [style.height.px]="size"><img [src]="previewUrl" alt="" [style.width.%]="previewWidth" [style.height.%]="previewHeight" [style.left.%]="-(previewWidth-100)*cropX/100" [style.top.%]="-(previewHeight-100)*cropY/100"/></div><small>{{size}} px</small></div>}</div>
+     }@else if(uploadKind==='wallpaper'){
+      <div class="wallpaper-sample" [style.background-image]="'url('+previewUrl+')'"><span>Так будут выглядеть обои в чате</span></div>
      }@else{
       <p>Квадратная рамка с прозрачным центром. Проверьте, что декор не перекрывает лицо.</p><div class="size-previews">@for(preset of ['cat','frog','wolf'];track preset){<div class="frame-preview"><img class="frame-base" [src]="presetImage(preset)" alt=""/><img class="frame-overlay" [src]="previewUrl" [alt]="'Примерка: '+preset"/></div>}</div>
      }

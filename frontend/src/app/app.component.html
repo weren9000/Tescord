@@ -847,6 +847,7 @@
                       </button>
                     }
                     @if (canUseActiveChannelChat()) {
+                      <button class="conversation-action-menu__item" type="button" (click)="closeConversationActionMenu(); wallpaperOpen.set(true)"><span class="conversation-action-menu__item-icon conversation-action-menu__item-icon--symbol" aria-hidden="true">▧</span>Обои чата</button>
                       <button class="conversation-action-menu__item" type="button" (click)="closeConversationActionMenu(); toggleMessageSearchPanel()">
                         <span class="conversation-action-menu__item-icon conversation-action-menu__item-icon--symbol" aria-hidden="true">⌕</span>
                         Поиск по сообщениям
@@ -1222,7 +1223,7 @@
                 }
               </div>
             }
-            <div class="message-list" #messageList (scroll)="onMessageListScroll()">
+            <div class="message-list" [class.message-list--wallpaper]="wallpaperStyle().image!=='none'" [style.background-image]="wallpaperStyle().image" [style.background-size]="wallpaperStyle().size" #messageList (scroll)="onMessageListScroll()">
               @if (canUseActiveChannelChat()) {
                 @if (!messagesLoading()) {
                   @if (messagesHasMore()) {
@@ -3887,5 +3888,6 @@
 }
 
 @if(session(); as auth) {
+ <app-wallpapers [token]="auth.access_token" [open]="wallpaperOpen()" [revision]="wallpaperRevision()" (close)="wallpaperOpen.set(false)" (applied)="wallpaperStyle.set($event)" />
  <app-inventory [token]="auth.access_token" [mode]="inventoryMode()" [isAdmin]="!!currentUser()?.is_avatar_admin" (close)="inventoryMode.set(null)" (changed)="refreshInventoryProfile()" (unread)="inventoryUnread.set($event)" />
 }

@@ -36,7 +36,7 @@ def item_data(db, item):
 
 
 @router.get('')
-def inventory(page: int = Query(1, ge=1), kind: Literal['avatar', 'frame'] | None = None,
+def inventory(page: int = Query(1, ge=1), kind: Literal['avatar', 'frame', 'wallpaper'] | None = None,
               q: str = Query('', max_length=80), user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     query = select(InventoryItem).join(InventoryCatalog, InventoryCatalog.id == InventoryItem.catalog_id).where(
         InventoryItem.owner_id == user.id, InventoryItem.revoked.is_(False))
@@ -91,7 +91,7 @@ def entry_data(entry):
 
 
 @router.get('/catalog')
-def catalog(page: int = Query(1, ge=1), kind: Literal['avatar', 'frame'] | None = None,
+def catalog(page: int = Query(1, ge=1), kind: Literal['avatar', 'frame', 'wallpaper'] | None = None,
             q: str = Query('', max_length=80), user: User = Depends(admin), db: Session = Depends(get_db)):
     query = select(InventoryCatalog)
     if kind: query = query.where(InventoryCatalog.kind == kind)
@@ -119,7 +119,7 @@ def update_catalog(catalog_id: str, body: CatalogUpdate, user: User = Depends(ad
 
 
 @router.post('/catalog')
-async def upload_catalog(name: str = Form(max_length=80), kind: Literal['avatar', 'frame'] = Form(),
+async def upload_catalog(name: str = Form(max_length=80), kind: Literal['avatar', 'frame', 'wallpaper'] = Form(),
                          image: UploadFile = File(), crop_x: float = Form(0.5, ge=0, le=1),
                          crop_y: float = Form(0.5, ge=0, le=1), zoom: float = Form(1, ge=1, le=3),
                          user: User = Depends(admin), db: Session = Depends(get_db)):
@@ -157,7 +157,7 @@ def asset(catalog_id: str, motion: bool = True, db: Session = Depends(get_db)):
 
 @router.get('/issued')
 def issued(owner_id: UUID | None = None, page: int = Query(1, ge=1),
-           kind: Literal['avatar', 'frame'] | None = None, q: str = Query('', max_length=80),
+           kind: Literal['avatar', 'frame', 'wallpaper'] | None = None, q: str = Query('', max_length=80),
            user: User = Depends(admin), db: Session = Depends(get_db)):
     query = select(InventoryItem).join(InventoryCatalog, InventoryCatalog.id == InventoryItem.catalog_id).outerjoin(User, User.id == InventoryItem.owner_id)
     if owner_id: query = query.where(InventoryItem.owner_id == owner_id)
@@ -217,7 +217,9 @@ def change(item_id: UUID, action: str, body: Action, user: User = Depends(get_cu
     if action != 'revoke' and item.owner_id != user.id: raise HTTPException(403, 'Предмет вам не принадлежит')
     owner = db.get(User, item.owner_id) if item.owner_id else None
     recipient_id = item.owner_id
-    changed_profile = item.equipped or action == 'equip'
+    changed_profile = item.kind != 'wallpaper' and (item.equipped or action == 'equip')
+    if item.kind == 'wallpaper' and owner and (item.equipped or action == 'equip'):
+        owner.chat_wallpaper = 'item' if action == 'equip' else None
     if action == 'gift':
         if not body.recipient_id or body.recipient_id == user.id: raise HTTPException(400, 'Выберите другого получателя')
         if not db.get(User, body.recipient_id): raise HTTPException(404, 'Получатель не найден')

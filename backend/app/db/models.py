@@ -91,6 +91,10 @@ class User(TimestampMixin, Base):
     __tablename__ = "users"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    chat_wallpaper: Mapped[str | None] = mapped_column(String(64))
+    personal_wallpaper: Mapped[str | None] = mapped_column(String(36))
+    wallpaper_scale: Mapped[int] = mapped_column(Integer, nullable=False, default=100, server_default='100')
+    wallpaper_dim: Mapped[int] = mapped_column(Integer, nullable=False, default=35, server_default='35')
     public_id: Mapped[int] = mapped_column(Integer, unique=True, nullable=False)
     email: Mapped[str] = mapped_column(String(320), unique=True, nullable=False)
     username: Mapped[str] = mapped_column(String(32), unique=True, nullable=False)
