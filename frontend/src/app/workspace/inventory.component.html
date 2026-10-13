@@ -3,26 +3,29 @@
 <div class="inventory-backdrop" (click)="menu() ? menu.set(null) : dismiss()">
  <section class="inventory" role="dialog" aria-modal="true" aria-labelledby="inventory-title" (click)="$event.stopPropagation();menu.set(null)" (keydown)="keydown($event)">
   <header><h2 id="inventory-title">{{mode()==='admin'?'Админ-Аватарок':'Инвентарь'}}</h2><div class="header-actions">@if(mode()==='inventory'){<button (click)="eventsOpen.set(true)">@if(unreadCount()){<span class="count">{{unreadCount()}}</span>} События</button>}<button aria-label="Закрыть инвентарь" [disabled]="busy()" (click)="dismiss()">×</button></div></header>
-  <div class="body" [attr.inert]="pending()||giftItem()||detail()||eventsOpen() ? '' : null">
+  <div class="body" [attr.inert]="pending()||giftItem()||detail()||eventsOpen()||uploadOpen()||editing() ? '' : null">
    @if(error()){<p role="alert" class="error">{{error()}}</p>}@if(success()){<p class="notice" role="status">{{success()}}</p>}
+   <nav aria-label="Типы предметов">
+    <button [class.active]="(mode()==='admin'?adminTab():tab())==='avatar'" [disabled]="busy()" (click)="switchTab('avatar')">Аватарки</button>
+    <button [class.active]="(mode()==='admin'?adminTab():tab())==='frame'" [disabled]="busy()" (click)="switchTab('frame')">Рамки</button>
+    @if(mode()==='admin'){<button [class.active]="adminTab()==='issued'" [disabled]="busy()" (click)="switchTab('issued')">Выдано</button>}
+   </nav>
+   <div class="catalog-tools"><form (ngSubmit)="filterChanged()"><input aria-label="Поиск предметов" [placeholder]="adminTab()==='issued'&&mode()==='admin'?'Предмет, владелец или email':'Название предмета'" name="filter" [(ngModel)]="filter" maxlength="80"/><button type="submit" [disabled]="busy()">Найти</button></form>
+    @if(mode()==='admin'&&adminTab()!=='issued'){<button class="primary" (click)="openUpload()">Добавить предмет</button>}
+    @if(mode()==='admin'&&adminTab()==='issued'){<select aria-label="Тип выданных предметов" [(ngModel)]="issuedKind" (ngModelChange)="filterChanged()"><option value="">Все типы</option><option value="avatar">Аватарки</option><option value="frame">Рамки</option></select>}
+   </div>
    @if(mode()==='inventory') {
-    <nav><button [class.active]="tab()==='avatar'" (click)="tab.set('avatar')">Аватары</button><button [class.active]="tab()==='frame'" (click)="tab.set('frame')">Рамки</button></nav>
-    <div class="grid">@for(item of items();track item.id){@if(item.kind===tab()){
+    <div class="grid">@for(item of items();track item.id){
      <div class="tile" [class.equipped]="item.equipped" [attr.title]="item.name+(item.equipped?' · Используется':'')"><img [src]="image(item.catalog_id)" [alt]="item.name"/>@if(item.equipped){<span class="check" aria-label="Используется">✓</span>}<button class="dots" [attr.aria-label]="'Действия: '+item.name" [attr.aria-expanded]="menu()?.id===item.id" [disabled]="busy()" (click)="toggleMenu(item,$event)">⋯</button></div>
-    }}</div>
-    @if(!hasKind('avatar')&&tab()==='avatar'&&!loading()){<div class="empty">Пока нет предметов<small>Здесь появятся выданные и подаренные аватары.</small></div>}
-    @if(tab()==='frame'&&!hasKind('frame')&&!loading()){<div class="empty">Рамок пока нет<small>Они появятся здесь после получения.</small></div>}
+    }</div>
+   } @else if(adminTab()!=='issued') {
+    <div class="catalog">@for(c of catalog();track c.id){<div class="catalog-cell" [class.hidden-item]="c.hidden"><button class="catalog-item" [class.selected]="selectedCatalog===c.id" [attr.aria-pressed]="selectedCatalog===c.id" [disabled]="c.hidden||busy()" (click)="selectedCatalog=c.id"><img [src]="image(c.id)" alt=""/><span>{{c.name}}</span>@if(c.hidden){<small>Скрыт из выдачи</small>}</button><button class="catalog-dots" [attr.aria-label]="'Настройки: '+c.name" (click)="edit(c)">⋯</button></div>}</div>
    } @else {
-    <nav><button [class.active]="adminTab()==='grant'" (click)="adminTab.set('grant');clearRecipient()">Выдать</button><button [class.active]="adminTab()==='issued'" (click)="adminTab.set('issued');clearRecipient()">Выдано</button></nav>
-    @if(adminTab()==='grant') {
-     <p class="hint">Выберите предмет и получателя</p><div class="catalog">@for(c of catalog();track c.id){<button class="catalog-item" [class.selected]="selectedCatalog===c.id" [attr.aria-pressed]="selectedCatalog===c.id" (click)="selectedCatalog=c.id"><img [src]="image(c.id)" alt=""/><span>{{c.name}}</span></button>}</div>
-     <div class="grant-target"><ng-container *ngTemplateOutlet="recipientSearch"/><button class="primary" [disabled]="!recipient()||busy()" (click)="confirm('grant',null)">Выдать предмет</button></div>
-    } @else {
-     <ng-container *ngTemplateOutlet="recipientSearch"/>
-     <div class="issued-list">@for(item of issued();track item.id){<div class="issued"><img [src]="image(item.catalog_id)" alt=""/><div><strong>{{item.name}}</strong><small>{{item.owner?.nick ?? 'Аккаунт удалён'}} · № {{item.id.slice(0,8)}}</small></div>@if(item.revoked){<small>Отозван</small>}<button class="row-dots" [attr.aria-label]="'Действия: '+item.name" (click)="toggleMenu(item,$event)">⋯</button></div>}@empty{<p class="hint">Выданных предметов нет.</p>}</div>
-     <div class="pagination"><button [disabled]="offset===0||loading()" (click)="page(-50)">Назад</button><button [disabled]="issued().length<50||loading()" (click)="page(50)">Далее</button></div>
-    }
+    <div class="issued-list">@for(item of issued();track item.id){<div class="issued"><img [src]="image(item.catalog_id)" alt=""/><div><strong>{{item.name}}</strong><small>{{item.owner?.nick ?? 'Аккаунт удалён'}} · № {{item.id.slice(0,8)}}</small></div>@if(item.revoked){<small>Отозван</small>}<button class="row-dots" [attr.aria-label]="'Действия: '+item.name" (click)="toggleMenu(item,$event)">⋯</button></div>}</div>
    }
+   @if(!total()&&!loading()){<div class="empty">{{filter?'Ничего не найдено':'Пока нет предметов'}}<small>{{mode()==='admin'?'Добавьте предмет или измените условия поиска.':'Здесь появятся выданные и подаренные предметы.'}}</small></div>}
+   <div class="pagination" aria-label="Страницы предметов"><small aria-live="polite">Всего: {{total()}}</small><button aria-label="Предыдущая страница" [disabled]="currentPage()===1||loading()||busy()" (click)="goPage(currentPage()-1)">‹</button>@for(n of pageNumbers();track n){<button [class.active]="currentPage()===n" [attr.aria-current]="currentPage()===n?'page':null" [attr.aria-label]="'Страница '+n" [disabled]="loading()||busy()" (click)="goPage(n)">{{n}}</button>}<button aria-label="Следующая страница" [disabled]="currentPage()===pageCount()||loading()||busy()" (click)="goPage(currentPage()+1)">›</button></div>
+   @if(mode()==='admin'&&adminTab()!=='issued'&&selectedEntry();as selected){<div class="grant-target"><div class="selection-summary"><img [src]="image(selected.id)" alt=""/><strong>{{selected.name}}</strong></div><ng-container *ngTemplateOutlet="recipientSearch"/><button class="primary" [disabled]="!recipient()||busy()||selected.hidden" (click)="confirm('grant',null)">Выдать предмет</button></div>}
    @if(loading()){<p role="status">Загрузка…</p>}
   </div>
   @if(menu();as item){<div class="item-menu" role="group" aria-label="Действия с предметом" [style.left.px]="menuX" [style.top.px]="menuY">@if(mode()==='inventory'){<button [disabled]="busy()" (click)="equip(item)">{{item.equipped?'Снять':'Использовать'}}</button><button (click)="startGift(item)">Подарить</button>}<button (click)="showHistory(item)">О предмете</button>@if(mode()==='admin'&&!item.revoked){<button class="error" [disabled]="busy()" (click)="confirm('revoke',item)">Отозвать</button>}</div>}
@@ -36,8 +39,26 @@
     </div>
    </section></div>
   }
+  @if(uploadOpen()){
+   <div class="panel-shade"><section class="subpanel upload-panel" role="dialog" aria-modal="true" aria-label="Добавить предмет"><header><h3>Добавить {{uploadKind==='frame'?'рамку':'аватарку'}}</h3><button aria-label="Закрыть загрузку" [disabled]="busy()" (click)="closePanel()">×</button></header><form class="panel-body upload-form" (ngSubmit)="saveUpload()">
+    @if(error()){<p class="error" role="alert">{{error()}}</p>}
+    <label>Название<input name="uploadName" [(ngModel)]="uploadName" maxlength="80" required [disabled]="busy()"/></label>
+    <label>Изображение<input type="file" accept="image/png,image/jpeg,image/webp" (change)="fileChanged($event)" [disabled]="busy()"/></label><small>PNG, JPG или WebP · до 10 МБ · 128–4096 px. Статичные изображения.</small>
+    @if(previewUrl){
+     @if(uploadKind==='avatar'){
+      <div class="crop-preview"><img [src]="previewUrl" alt="Предпросмотр аватарки" [style.width.%]="previewWidth" [style.height.%]="previewHeight" [style.left.%]="-(previewWidth-100)*cropX/100" [style.top.%]="-(previewHeight-100)*cropY/100"/></div>
+      <label>Масштаб<input type="range" name="zoom" [(ngModel)]="zoom" min="1" max="3" step="0.05" [disabled]="busy()"/></label><label>По горизонтали<input type="range" name="cropX" [(ngModel)]="cropX" min="0" max="100" [disabled]="busy()"/></label><label>По вертикали<input type="range" name="cropY" [(ngModel)]="cropY" min="0" max="100" [disabled]="busy()"/></label>
+      <div class="size-previews">@for(size of [44,56,88];track size){<div><div class="crop-preview" [style.width.px]="size" [style.height.px]="size"><img [src]="previewUrl" alt="" [style.width.%]="previewWidth" [style.height.%]="previewHeight" [style.left.%]="-(previewWidth-100)*cropX/100" [style.top.%]="-(previewHeight-100)*cropY/100"/></div><small>{{size}} px</small></div>}</div>
+     }@else{
+      <p>Квадратная рамка с прозрачным центром. Проверьте, что декор не перекрывает лицо.</p><div class="size-previews">@for(preset of ['cat','frog','wolf'];track preset){<div class="frame-preview"><img class="frame-base" [src]="presetImage(preset)" alt=""/><img class="frame-overlay" [src]="previewUrl" [alt]="'Примерка: '+preset"/></div>}</div>
+     }
+    }
+    <button type="submit" class="primary full" [disabled]="!uploadFile||!uploadName.trim()||busy()">{{busy()?'Сохраняем…':'Добавить в каталог'}}</button>
+   </form></section></div>
+  }
+  @if(editing();as entry){<div class="panel-shade"><section class="subpanel" role="dialog" aria-modal="true" aria-label="Настройки предмета"><header><h3>Настройки предмета</h3><button [disabled]="busy()" aria-label="Закрыть настройки предмета" (click)="closePanel()">×</button></header><div class="panel-body">@if(error()){<p class="error" role="alert">{{error()}}</p>}<div class="item-summary"><img [src]="image(entry.id)" alt=""/><strong>{{entry.name}}</strong></div><label>Название<input [(ngModel)]="editName" maxlength="80" [disabled]="busy()"/></label><button class="primary full" [disabled]="busy()||!editName.trim()" (click)="saveCatalog()">Сохранить название</button><p>Скрытие убирает предмет из будущих выдач. Уже полученные экземпляры можно использовать и дарить.</p><button class="full" [disabled]="busy()||!editName.trim()" (click)="saveCatalog(!entry.hidden)">{{entry.hidden?'Вернуть в выдачу':'Скрыть из выдачи'}}</button></div></section></div>}
   @if(pending();as op){<div class="panel-shade confirmation"><section class="confirm" role="alertdialog" aria-label="Подтверждение действия"><h3>{{labels[op.action]}}</h3>@if(error()){<p role="alert" class="error">{{error()}}</p>}<div class="item-summary"><img [src]="image(op.item?.catalog_id ?? selectedCatalog)" alt=""/><strong>{{op.item?.name ?? catalogName(op.catalog_id ?? selectedCatalog)}}</strong></div>@if(op.recipient;as person){<div class="person"><img [src]="avatar(person)" alt=""/><div><strong>{{person.nick}}</strong><small>ID {{person.public_id}}</small></div></div>}@if(op.action==='gift'){<p>Предмет перейдёт получателю и исчезнет из вашего инвентаря. Если он используется, он будет снят.</p>}@if(op.action==='revoke'){<p>Предмет будет отозван у этого владельца и снят, если используется.</p>}@if(op.action==='grant'){<p>Выдаётся новый экземпляр, даже если у получателя уже есть такой предмет.</p>}<div class="confirm-actions"><button [disabled]="busy()" (click)="pending.set(null)">Отмена</button><button class="primary" [disabled]="busy()" (click)="perform()">{{busy()?'Выполняем…':'Подтвердить'}}</button></div></section></div>}
  </section>
 </div>
 }
-<ng-template #recipientSearch><div class="recipient"><form (ngSubmit)="search()"><label>{{adminTab()==='issued'&&!giftItem()?'Поиск владельца':'Получатель'}}<input name="recipient" aria-label="Ник или точный email" placeholder="Ник или точный email" [(ngModel)]="query" (ngModelChange)="queryChanged()" autocomplete="off" maxlength="320"/></label><button type="submit">Найти</button></form>@for(person of people();track person.id){<button class="person result" (click)="choose(person)"><img [src]="avatar(person)" alt=""/><span>{{person.nick}}<small>ID {{person.public_id}}</small></span></button>}@if(searched()&&!people().length&&!recipient()){<p class="hint">Пользователь не найден.</p>}@if(recipient();as person){<div class="person selected-person"><img [src]="avatar(person)" alt=""/><div><strong>{{person.nick}}</strong><small>ID {{person.public_id}}</small></div><button aria-label="Сбросить получателя" (click)="clearRecipient()">×</button></div>}</div></ng-template>
+<ng-template #recipientSearch><div class="recipient"><form (ngSubmit)="search()"><label>Получатель<input name="recipient" aria-label="Ник или точный email" placeholder="Ник или точный email" [(ngModel)]="query" (ngModelChange)="queryChanged()" autocomplete="off" maxlength="320"/></label><button type="submit">Найти</button></form>@for(person of people();track person.id){<button class="person result" (click)="choose(person)"><img [src]="avatar(person)" alt=""/><span>{{person.nick}}<small>ID {{person.public_id}}</small></span></button>}@if(searched()&&!people().length&&!recipient()){<p class="hint">Пользователь не найден.</p>}@if(recipient();as person){<div class="person selected-person"><img [src]="avatar(person)" alt=""/><div><strong>{{person.nick}}</strong><small>ID {{person.public_id}}</small></div><button aria-label="Сбросить получателя" (click)="clearRecipient()">×</button></div>}</div></ng-template>

@@ -15,7 +15,7 @@ from app.db.session import get_db
 from app.schemas.users import CurrentUserResponse, UpdateCurrentUserProfileResponse
 from app.services.app_events import publish_members_updated_from_sync, publish_voice_presence_updated_from_sync
 from app.services.avatar_presets import AVATAR_PRESETS, AVATAR_DIRECTORY
-from app.services.inventory import lock_inventory, ASSETS
+from app.services.inventory import lock_inventory, asset_path
 from app.services.avatar_frames import frame_svg
 from app.db.inventory import InventoryItem
 from sqlalchemy import update
@@ -122,7 +122,7 @@ def read_user_avatar(user_id: UUID, motion: bool = True, db: Session = Depends(g
         InventoryItem.kind == 'frame', InventoryItem.equipped.is_(True), InventoryItem.revoked.is_(False)))
     if frame:
         if equipped:
-            content, mime = (ASSETS / (equipped.catalog_id+'.webp')).read_bytes(), 'image/webp'
+            content, mime = asset_path(equipped.catalog_id).read_bytes(), 'image/webp'
         elif user.avatar_content is not None and user.avatar_mime_type is not None:
             content, mime = user.avatar_content, user.avatar_mime_type
         else:
@@ -130,7 +130,7 @@ def read_user_avatar(user_id: UUID, motion: bool = True, db: Session = Depends(g
         return Response(frame_svg(frame.catalog_id, content, mime, motion=motion), media_type='image/svg+xml',
                         headers={'Cache-Control': 'no-cache', 'X-Content-Type-Options': 'nosniff'})
     if equipped:
-        return FileResponse(ASSETS / (equipped.catalog_id+'.webp'), media_type='image/webp',
+        return FileResponse(asset_path(equipped.catalog_id), media_type='image/webp',
                             headers={'Cache-Control': 'no-cache'})
     if user.avatar_content is None or user.avatar_mime_type is None:
         return read_avatar_preset(user.avatar_preset)

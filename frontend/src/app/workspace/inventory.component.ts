@@ -1,4 +1,4 @@
-import { Component, ElementRef, effect, inject, input, output, signal } from '@angular/core';
+import { Component, ElementRef, effect, inject, input, output, signal, untracked, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
@@ -9,15 +9,16 @@ interface Person { id: string; nick: string; public_id: number; avatar_updated_a
 interface Item { id: string; catalog_id: string; name: string; kind: string; equipped: boolean; revoked: boolean; owner: Person | null; }
 interface Notice { id: string; action: string; name: string; actor: Person | null; created_at: string; unread: boolean; }
 interface Event { action: string; actor: Person | null; recipient: Person | null; created_at: string; }
-interface Collection { items: Item[]; notifications: Notice[]; unread: number; }
-interface Catalog { id: string; name: string; kind: string; }
+interface Page<T> { items: T[]; total: number; page: number; pages: number; }
+interface Collection extends Page<Item> { notifications: Notice[]; unread: number; equipped_ids: string[]; }
+interface Catalog { id: string; name: string; kind: string; hidden: boolean; }
 interface Pending { action: string; item: Item | null; recipient: Person | null; request_id: string; catalog_id?: string; }
 
 @Component({
  selector: 'app-inventory', standalone: true, imports: [CommonModule, FormsModule],
  templateUrl: './inventory.component.html', styleUrl: './inventory.component.scss'
 })
-export class InventoryComponent {
+export class InventoryComponent implements OnDestroy {
  readonly token = input.required<string>();
  readonly mode = input<'inventory' | 'admin' | null>(null);
  readonly isAdmin = input(false);
@@ -41,7 +42,41 @@ export class InventoryComponent {
  readonly error = signal('');
  readonly success = signal('');
  readonly tab = signal('avatar');
- readonly adminTab = signal<'grant' | 'issued'>('grant');
+ readonly adminTab = signal<'avatar' | 'frame' | 'issued'>('avatar');
+ readonly uploadOpen = signal(false);
+ readonly editing = signal<Catalog | null>(null);
+ readonly total = signal(0);
+ readonly currentPage = signal(1);
+ readonly pageCount = signal(1);
+ filter = ''; issuedKind = ''; uploadName = ''; editName = '';
+ uploadKind = 'avatar'; uploadFile: File | null = null; previewUrl = '';
+ cropX=50; cropY=50; zoom=1; imageWidth=1; imageHeight=1;
+ private loadVersion=0;
+ private fileVersion=0;
+ get previewWidth(){return this.imageWidth/Math.min(this.imageWidth,this.imageHeight)*this.zoom*100;}
+ get previewHeight(){return this.imageHeight/Math.min(this.imageWidth,this.imageHeight)*this.zoom*100;}
+ pageNumbers(){const start=Math.max(1,Math.min(this.currentPage()-2,this.pageCount()-4));return Array.from({length:Math.min(5,this.pageCount())},(_,i)=>start+i);}
+ selectedEntry(){return this.catalog().find(c=>c.id===this.selectedCatalog);}
+ async switchTab(value: string){if(this.busy())return;++this.searchVersion;this.menu.set(null);this.error.set('');this.success.set('');this.filter='';this.issuedKind='';this.currentPage.set(1);this.recipient.set(null);this.people.set([]);this.query='';this.searched.set(false);this.selectedCatalog='';if(this.mode()==='admin')this.adminTab.set(value as 'avatar'|'frame'|'issued');else this.tab.set(value);await this.reload();}
+ async filterChanged(){this.currentPage.set(1);this.selectedCatalog='';await this.reload();}
+ async goPage(value: number){this.currentPage.set(value);this.menu.set(null);this.selectedCatalog='';await this.reload();}
+ openUpload(){this.resetUpload();this.uploadKind=this.adminTab()==='frame'?'frame':'avatar';this.uploadOpen.set(true);this.error.set('');}
+ resetUpload(){++this.fileVersion;if(this.previewUrl)URL.revokeObjectURL(this.previewUrl);this.previewUrl='';this.uploadFile=null;this.uploadName='';this.cropX=50;this.cropY=50;this.zoom=1;}
+ ngOnDestroy(){this.resetUpload();++this.loadVersion;}
+ async fileChanged(event: globalThis.Event){
+  const version=++this.fileVersion;this.error.set('');const file=(event.target as HTMLInputElement).files?.[0];this.uploadFile=null;if(this.previewUrl)URL.revokeObjectURL(this.previewUrl);this.previewUrl='';
+  if(!file)return;if(file.size>10*1024*1024){this.error.set('Изображение должно быть не больше 10 МБ');return;}
+  const url=URL.createObjectURL(file);const img=new Image();img.src=url;
+  try{await img.decode();if(!this.uploadOpen()||version!==this.fileVersion){URL.revokeObjectURL(url);return;}this.imageWidth=img.naturalWidth;this.imageHeight=img.naturalHeight;this.cropX=50;this.cropY=50;this.zoom=1;this.previewUrl=url;this.uploadFile=file;}
+  catch{URL.revokeObjectURL(url);if(version===this.fileVersion)this.error.set('Не удалось прочитать изображение');}
+ }
+ async saveUpload(){
+  if(!this.uploadFile||!this.uploadName.trim()||this.busy())return;
+  this.busy.set(true);this.error.set('');const body=new FormData();body.append('name',this.uploadName.trim());body.append('kind',this.uploadKind);body.append('image',this.uploadFile);body.append('crop_x',String(this.cropX/100));body.append('crop_y',String(this.cropY/100));body.append('zoom',String(this.zoom));
+  try{const entry=await this.request<Catalog>('/catalog','POST',body);this.uploadOpen.set(false);this.resetUpload();this.filter='';this.currentPage.set(1);await this.reload();this.selectedCatalog=entry.id;this.success.set('Предмет добавлен. Теперь его можно выдать.');}catch(e){this.fail(e);}finally{this.busy.set(false);}
+ }
+ edit(entry: Catalog){this.editing.set(entry);this.editName=entry.name;this.error.set('');}
+ async saveCatalog(hidden?: boolean){const entry=this.editing();if(!entry||this.busy())return;this.busy.set(true);this.error.set('');try{await this.request('/catalog/'+entry.id,'PATCH',{name:this.editName.trim(),...(hidden===undefined?{}:{hidden})});this.editing.set(null);await this.reload();this.success.set('Каталог обновлён. Полученные предметы сохранены.');}catch(e){this.fail(e);}finally{this.busy.set(false);}}
  readonly menu = signal<Item | null>(null);
  readonly detail = signal<Item | null>(null);
  readonly eventsOpen = signal(false);
@@ -59,20 +94,18 @@ export class InventoryComponent {
   this.menu.set(item);
   setTimeout(()=>this.element.nativeElement.querySelector<HTMLButtonElement>('.item-menu button')?.focus());
  }
- closePanel() {if(this.busy())return;if(this.pending())this.pending.set(null);else{this.giftItem.set(null);this.detail.set(null);this.eventsOpen.set(false);}}
- async clearRecipient() {this.recipient.set(null);this.query='';this.people.set([]);this.searched.set(false);this.offset=0;if(this.mode()==='admin')await this.page(0);}
+ closePanel() {if(this.busy())return;if(this.pending())this.pending.set(null);else{this.giftItem.set(null);this.detail.set(null);this.eventsOpen.set(false);this.uploadOpen.set(false);this.editing.set(null);this.resetUpload();}}
+ async clearRecipient() {this.recipient.set(null);this.query='';this.people.set([]);this.searched.set(false);}
  query = '';
- selectedCatalog = 'cyber-oni';
+ selectedCatalog = '';
  catalogName(id: string) { return this.catalog().find(c=>c.id===id)?.name ?? id; }
- hasKind(kind: string) { return this.items().some(i=>i.kind===kind); }
- offset = 0;
  private searchVersion = 0;
  private equipmentSnapshot: string | null = null;
  readonly labels: Record<string, string> = {grant:'Выдача',gift:'Подарок',revoke:'Отзыв',equip:'Использование',unequip:'Снятие'};
 
  constructor() {
   effect(onCleanup=>{
-   const selector=this.pending()?'.confirm':(this.giftItem()||this.detail()||this.eventsOpen())?'.subpanel':null;
+   const selector=this.pending()?'.confirm':(this.giftItem()||this.detail()||this.eventsOpen()||this.uploadOpen()||this.editing())?'.subpanel':null;
    if(!selector)return;
    const previous=document.activeElement as HTMLElement | null;
    const timer=setTimeout(()=>this.element.nativeElement.querySelector<HTMLElement>(selector+' button')?.focus());
@@ -85,54 +118,47 @@ export class InventoryComponent {
    const focusTimer=mode ? setTimeout(()=>this.element.nativeElement.querySelector<HTMLButtonElement>('header button')?.focus()) : undefined;
    onCleanup(()=>{clearTimeout(focusTimer);if(mode)previousFocus?.focus();});
    this.pending.set(null); this.giftItem.set(null); this.recipient.set(null);
-   this.menu.set(null);this.detail.set(null);this.eventsOpen.set(false);this.adminTab.set('grant');
-   this.history.set(null); this.people.set([]); this.searched.set(false); this.query=''; this.offset=0;
+   this.menu.set(null);this.detail.set(null);this.eventsOpen.set(false);this.adminTab.set('avatar');this.tab.set('avatar');this.uploadOpen.set(false);this.editing.set(null);this.resetUpload();
+   this.history.set(null); this.people.set([]); this.searched.set(false); this.query='';this.filter='';this.currentPage.set(1);++this.loadVersion;
    this.error.set(''); this.success.set('');
    if (!token) return;
-   let cancelled=false;
-   const poll = async () => {
-    try {
-     const data = await this.request<Collection>('', 'GET', undefined, token);
-     if(cancelled)return;
-     this.accept(data);
-    } catch { /* Keep last snapshot during a transient background connection failure. */ }
-   };
-   void this.reload();
-   const timer=setInterval(()=>void poll(),15000);
-   onCleanup(()=>{cancelled=true;clearInterval(timer);clearTimeout(focusTimer);if(mode)previousFocus?.focus();});
+   untracked(()=>void this.reload());
+   const timer=setInterval(()=>{if(!this.busy()&&!this.loading())void this.reload(true);},15000);
+   onCleanup(()=>{++this.loadVersion;clearInterval(timer);clearTimeout(focusTimer);if(mode)previousFocus?.focus();});
   });
  }
  image(id: string) { return `${API_BASE_URL}/api/inventory/assets/${encodeURIComponent(id)}?motion=${!window.matchMedia('(prefers-reduced-motion: reduce)').matches}`; }
+ presetImage(id: string){return `${API_BASE_URL}/api/avatar-presets/${id}`;}
  private accept(data: Collection) {
-  const snapshot=data.items.filter(i=>i.equipped).map(i=>i.id).sort().join(',');
+  const snapshot=data.equipped_ids.join(',');
   if(this.equipmentSnapshot!==null && snapshot!==this.equipmentSnapshot)this.changed.emit();
   this.equipmentSnapshot=snapshot;
-  this.items.set(data.items);this.notices.set(data.notifications);this.unread.emit(data.unread);
+  this.notices.set(data.notifications);this.unread.emit(data.unread);
   this.unreadCount.set(data.unread);
  }
  avatar(p: Person) { return `${API_BASE_URL}/api/users/${p.id}/avatar?v=${encodeURIComponent(p.avatar_updated_at ?? 'default')}&motion=${!window.matchMedia('(prefers-reduced-motion: reduce)').matches}`; }
  private request<T>(path: string, method='GET', body?: unknown, token=this.token()) {
   return firstValueFrom(this.http.request<T>(method, `${API_BASE_URL}/api/inventory${path}`, {body,headers:{Authorization:`Bearer ${token}`}}));
  }
- private fail(e: unknown) { this.error.set(e instanceof HttpErrorResponse ? (e.error?.detail ?? 'Не удалось выполнить действие. Попробуйте ещё раз.') : 'Не удалось выполнить действие.'); }
- async reload() {
-  this.loading.set(true);
+ private fail(e: unknown) { const detail=e instanceof HttpErrorResponse?e.error?.detail:null;this.error.set(typeof detail==='string'?detail:'Не удалось выполнить действие. Проверьте поля и попробуйте ещё раз.'); }
+ async reload(silent=false) {
+  const version=++this.loadVersion;if(!silent)this.loading.set(true);
+  const mode=this.mode(), tab=mode==='admin'?this.adminTab():this.tab();
+  const params=new URLSearchParams({page:String(this.currentPage()),q:this.filter});
+  if(tab!=='issued')params.set('kind',tab);else if(this.issuedKind)params.set('kind',this.issuedKind);
   try {
-   const data=await this.request<Collection>('');
+   const data=await this.request<Collection>(mode==='inventory'?'?'+params:'');
+   if(version!==this.loadVersion)return;
    this.accept(data);
-   if(this.mode()==='admin' && this.isAdmin()) {
-    this.catalog.set(await this.request<Catalog[]>('/catalog'));
-    await this.loadIssued();
+   if(mode==='admin' && this.isAdmin()) {
+    if(tab==='issued'){const result=await this.request<Page<Item>>('/issued?'+params);if(version!==this.loadVersion)return;this.issued.set(result.items);this.acceptPage(result);}
+    else{const result=await this.request<Page<Catalog>>('/catalog?'+params);if(version!==this.loadVersion)return;this.catalog.set(result.items);this.acceptPage(result);if(!result.items.some(i=>i.id===this.selectedCatalog&&!i.hidden))this.selectedCatalog='';}
+   }else if(mode==='inventory'){
+    this.items.set(data.items);this.acceptPage(data);
    }
-  } catch(e){this.fail(e);} finally{this.loading.set(false);}
+  } catch(e){if(version===this.loadVersion&&!silent)this.fail(e);} finally{if(version===this.loadVersion)this.loading.set(false);}
  }
- async loadIssued() {
-  this.issued.set(await this.request<Item[]>(`/issued?offset=${this.offset}${this.recipient() ? '&owner_id='+this.recipient()!.id : ''}`));
- }
- async page(delta: number) {
-  this.offset=Math.max(0,this.offset+delta);this.loading.set(true);
-  try{await this.loadIssued();}catch(e){this.fail(e);}finally{this.loading.set(false);}
- }
+ private acceptPage(data: Page<unknown>){this.total.set(data.total);this.currentPage.set(data.page);this.pageCount.set(data.pages);}
  async search() {
   const version=++this.searchVersion;
   this.recipient.set(null);this.error.set('');this.searched.set(false);
@@ -141,8 +167,7 @@ export class InventoryComponent {
   catch(e){this.fail(e);}
  }
  async choose(person: Person) {
-  this.recipient.set(person);this.people.set([]);this.offset=0;
-  if(this.mode()==='admin')try{await this.loadIssued();}catch(e){this.fail(e);}
+  this.recipient.set(person);this.people.set([]);
  }
  startGift(item: Item) {this.menu.set(null);this.giftItem.set(item);this.recipient.set(null);this.people.set([]);this.searched.set(false);this.query='';this.history.set(null);}
  confirm(action: string, item: Item | null) {
@@ -150,6 +175,7 @@ export class InventoryComponent {
   this.menu.set(null);
   const recipient=action==='revoke'?item?.owner ?? null:this.recipient();
   if((action==='grant'||action==='gift')&&!recipient)return;
+  if(action==='grant'&&(!this.selectedEntry()||this.selectedEntry()!.hidden))return;
   this.pending.set({action,item,recipient,request_id:crypto.randomUUID(),catalog_id:this.selectedCatalog});this.error.set('');this.success.set('');
  }
  async perform() {
@@ -166,9 +192,9 @@ export class InventoryComponent {
  async markRead() {try{await this.request('/read','POST',{});await this.reload();}catch(e){this.fail(e);}}
  dismiss() {if(!this.busy())this.close.emit();}
  keydown(event: KeyboardEvent) {
-  if(event.key==='Escape'){event.stopPropagation();if(!this.busy()){if(this.menu()){this.menu.set(null);this.menuTrigger?.focus();}else if(this.pending()||this.giftItem()||this.detail()||this.eventsOpen())this.closePanel();else this.dismiss();}}
+  if(event.key==='Escape'){event.stopPropagation();if(!this.busy()){if(this.menu()){this.menu.set(null);this.menuTrigger?.focus();}else if(this.pending()||this.giftItem()||this.detail()||this.eventsOpen()||this.uploadOpen()||this.editing())this.closePanel();else this.dismiss();}}
   if(event.key!=='Tab')return;
-  const root=this.element.nativeElement.querySelector(this.menu()?'.item-menu':this.pending()?'.confirm':(this.giftItem()||this.detail()||this.eventsOpen())?'.subpanel':'.inventory');
+  const root=this.element.nativeElement.querySelector(this.menu()?'.item-menu':this.pending()?'.confirm':(this.giftItem()||this.detail()||this.eventsOpen()||this.uploadOpen()||this.editing())?'.subpanel':'.inventory');
   const nodes=Array.from(root?.querySelectorAll<HTMLElement>('button:not(:disabled),input,select')??[]).filter(e=>e.offsetParent!==null);
   const first=nodes[0],last=nodes[nodes.length-1];
   if(event.shiftKey && (document.activeElement===first || !root?.contains(document.activeElement))){event.preventDefault();last?.focus();}

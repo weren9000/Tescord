@@ -1,15 +1,16 @@
 from datetime import datetime, timezone
-from uuid import UUID
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from uuid import UUID, uuid4
+from typing import Literal
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, UploadFile, File, Form
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy import select, or_, func, update
 from sqlalchemy.orm import Session
 from app.api.dependencies.auth import get_current_user
 from app.db.models import User
-from app.db.inventory import InventoryItem, InventoryEvent
+from app.db.inventory import InventoryItem, InventoryEvent, InventoryCatalog
 from app.db.session import get_db
-from app.services.inventory import CATALOG, ASSETS, lock_inventory
+from app.services.inventory import asset_path, catalog_data, lock_inventory
 from app.services.avatar_frames import frame_svg
 from app.api.routes.users import _publish_profile_updates_for_user
 
@@ -29,24 +30,31 @@ def person(db, user_id):
 
 
 def item_data(db, item):
-    return {'id': str(item.id), 'catalog_id': item.catalog_id, **CATALOG[item.catalog_id],
+    return {'id': str(item.id), 'catalog_id': item.catalog_id, **catalog_data(db, item.catalog_id),
             'equipped': item.equipped, 'revoked': item.revoked, 'created_at': item.created_at,
             'owner': person(db, item.owner_id)}
 
 
 @router.get('')
-def inventory(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    items = db.scalars(select(InventoryItem).where(InventoryItem.owner_id == user.id,
-                          InventoryItem.revoked.is_(False)).order_by(InventoryItem.created_at.desc())).all()
+def inventory(page: int = Query(1, ge=1), kind: Literal['avatar', 'frame'] | None = None,
+              q: str = Query('', max_length=80), user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    query = select(InventoryItem).join(InventoryCatalog, InventoryCatalog.id == InventoryItem.catalog_id).where(
+        InventoryItem.owner_id == user.id, InventoryItem.revoked.is_(False))
+    if kind: query = query.where(InventoryItem.kind == kind)
+    if q.strip(): query = query.where(InventoryCatalog.name.ilike(search_pattern(q), escape='\\'))
+    result = paginate(db, query, page, InventoryItem.created_at.desc(), InventoryItem.id)
     events = db.scalars(select(InventoryEvent).where(InventoryEvent.recipient_id == user.id,
                            InventoryEvent.action.in_(['grant', 'gift', 'revoke']))
                            .order_by(InventoryEvent.created_at.desc()).limit(50)).all()
     unread = db.scalar(select(func.count()).select_from(InventoryEvent).where(
         InventoryEvent.recipient_id == user.id, InventoryEvent.read_at.is_(None),
         InventoryEvent.action.in_(['grant', 'gift', 'revoke'])))
-    return {'items': [item_data(db, i) for i in items], 'unread': unread,
+    equipped = db.scalars(select(InventoryItem.id).where(InventoryItem.owner_id == user.id,
+        InventoryItem.equipped.is_(True), InventoryItem.revoked.is_(False))).all()
+    return {**result, 'items': [item_data(db, i) for i in result['items']], 'unread': unread,
+            'equipped_ids': sorted(str(i) for i in equipped),
             'notifications': [{'id': str(e.id), 'action': e.action, 'created_at': e.created_at,
-                               'name': CATALOG[db.get(InventoryItem, e.item_id).catalog_id]['name'],
+                               'name': catalog_data(db, db.get(InventoryItem, e.item_id).catalog_id)['name'],
                                'actor': person(db, e.actor_id), 'unread': e.read_at is None} for e in events]}
 
 
@@ -66,26 +74,98 @@ def users(q: str = Query(min_length=2, max_length=320), user: User = Depends(get
     return [person(db, u.id) for u in db.scalars(select(User).where(match).order_by(User.username).limit(20))]
 
 
+def search_pattern(value):
+    return '%' + value.strip().replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_') + '%'
+
+
+def paginate(db, query, page, *order):
+    total = db.scalar(select(func.count()).select_from(query.subquery()))
+    pages = max(1, (total + 19) // 20)
+    page = min(page, pages)
+    return {'items': db.scalars(query.order_by(*order).offset((page-1)*20).limit(20)).all(),
+            'total': total, 'page': page, 'pages': pages, 'page_size': 20}
+
+
+def entry_data(entry):
+    return {'id': entry.id, 'name': entry.name, 'kind': entry.kind, 'hidden': entry.hidden}
+
+
 @router.get('/catalog')
-def catalog(user: User = Depends(admin)):
-    return [{'id': k, **v} for k, v in CATALOG.items()]
+def catalog(page: int = Query(1, ge=1), kind: Literal['avatar', 'frame'] | None = None,
+            q: str = Query('', max_length=80), user: User = Depends(admin), db: Session = Depends(get_db)):
+    query = select(InventoryCatalog)
+    if kind: query = query.where(InventoryCatalog.kind == kind)
+    if q.strip(): query = query.where(InventoryCatalog.name.ilike(search_pattern(q), escape='\\'))
+    result = paginate(db, query, page, InventoryCatalog.created_at.desc(), InventoryCatalog.id)
+    return {**result, 'items': [entry_data(i) for i in result['items']]}
+
+
+class CatalogUpdate(BaseModel):
+    name: str | None = None
+    hidden: bool | None = None
+
+
+@router.patch('/catalog/{catalog_id}')
+def update_catalog(catalog_id: str, body: CatalogUpdate, user: User = Depends(admin), db: Session = Depends(get_db)):
+    lock_inventory(db)
+    entry = db.get(InventoryCatalog, catalog_id)
+    if not entry: raise HTTPException(404, 'Предмет не найден')
+    if body.name is not None:
+        if not 1 <= len(body.name.strip()) <= 80: raise HTTPException(400, 'Название: от 1 до 80 символов')
+        entry.name = body.name.strip()
+    if body.hidden is not None: entry.hidden = body.hidden
+    db.commit()
+    return entry_data(entry)
+
+
+@router.post('/catalog')
+async def upload_catalog(name: str = Form(max_length=80), kind: Literal['avatar', 'frame'] = Form(),
+                         image: UploadFile = File(), crop_x: float = Form(0.5, ge=0, le=1),
+                         crop_y: float = Form(0.5, ge=0, le=1), zoom: float = Form(1, ge=1, le=3),
+                         user: User = Depends(admin), db: Session = Depends(get_db)):
+    from app.services.collectible_uploads import prepare_image
+    from starlette.concurrency import run_in_threadpool
+    if not name.strip(): raise HTTPException(400, 'Введите название')
+    try:
+        payload = await image.read(10*1024*1024+1)
+    finally:
+        await image.close()
+    content = await run_in_threadpool(prepare_image, payload, kind, crop_x, crop_y, zoom)
+    entry = InventoryCatalog(id=str(uuid4()), name=name.strip(), kind=kind, builtin=False, hidden=False, created_by=user.id)
+    path = asset_path(entry.id)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        path.write_bytes(content)
+        db.add(entry)
+        db.commit()
+    except Exception:
+        db.rollback()
+        path.unlink(missing_ok=True)
+        raise
+    return entry_data(entry)
 
 
 @router.get('/assets/{catalog_id}')
-def asset(catalog_id: str, motion: bool = True):
-    if catalog_id not in CATALOG: raise HTTPException(404, 'Предмет не найден')
+def asset(catalog_id: str, motion: bool = True, db: Session = Depends(get_db)):
+    if not db.get(InventoryCatalog, catalog_id): raise HTTPException(404, 'Предмет не найден')
     if catalog_id == 'frame-neon':
         return Response(frame_svg(catalog_id, motion=motion), media_type='image/svg+xml',
                         headers={'Cache-Control': 'public, max-age=300', 'X-Content-Type-Options': 'nosniff'})
     # Display is public; ownership is enforced when equipping, granting or gifting.
-    return FileResponse(ASSETS / (catalog_id+'.webp'), media_type='image/webp')
+    return FileResponse(asset_path(catalog_id), media_type='image/webp')
 
 
 @router.get('/issued')
-def issued(owner_id: UUID | None = None, offset: int = Query(0, ge=0), user: User = Depends(admin), db: Session = Depends(get_db)):
-    query = select(InventoryItem)
+def issued(owner_id: UUID | None = None, page: int = Query(1, ge=1),
+           kind: Literal['avatar', 'frame'] | None = None, q: str = Query('', max_length=80),
+           user: User = Depends(admin), db: Session = Depends(get_db)):
+    query = select(InventoryItem).join(InventoryCatalog, InventoryCatalog.id == InventoryItem.catalog_id).outerjoin(User, User.id == InventoryItem.owner_id)
     if owner_id: query = query.where(InventoryItem.owner_id == owner_id)
-    return [item_data(db, i) for i in db.scalars(query.order_by(InventoryItem.created_at.desc()).offset(offset).limit(50))]
+    if kind: query = query.where(InventoryItem.kind == kind)
+    if q.strip(): query = query.where(or_(InventoryCatalog.name.ilike(search_pattern(q), escape='\\'),
+                                         User.username.ilike(search_pattern(q), escape='\\'), func.lower(User.email) == q.strip().lower()))
+    result = paginate(db, query, page, InventoryItem.created_at.desc(), InventoryItem.id)
+    return {**result, 'items': [item_data(db, i) for i in result['items']]}
 
 
 class Grant(BaseModel):
@@ -110,9 +190,10 @@ def grant(body: Grant, user: User = Depends(admin), db: Session = Depends(get_db
         item = db.get(InventoryItem, previous.item_id)
         if item.catalog_id != body.catalog_id: raise HTTPException(409, 'Ключ операции уже использован')
         return {'ok': True, 'item_id': str(item.id)}
-    if body.catalog_id not in CATALOG: raise HTTPException(404, 'Предмет не найден')
+    entry = db.get(InventoryCatalog, body.catalog_id)
+    if not entry or entry.hidden: raise HTTPException(404, 'Предмет недоступен для выдачи')
     if not db.get(User, body.recipient_id): raise HTTPException(404, 'Получатель не найден')
-    item = InventoryItem(catalog_id=body.catalog_id, kind=CATALOG[body.catalog_id]['kind'], owner_id=body.recipient_id)
+    item = InventoryItem(catalog_id=body.catalog_id, kind=entry.kind, owner_id=body.recipient_id)
     db.add(item); db.flush()
     db.add(InventoryEvent(request_id=body.request_id, item_id=item.id, actor_id=user.id,
                           recipient_id=body.recipient_id, action='grant'))

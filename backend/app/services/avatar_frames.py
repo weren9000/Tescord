@@ -1,7 +1,7 @@
 """Compose trusted frame assets over avatars without changing the original image."""
 from base64 import b64encode
 from functools import lru_cache
-from app.services.inventory import ASSETS, CATALOG
+from app.services.inventory import asset_path
 
 SVG_START = '<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">'
 NEON = '''<defs><linearGradient id="neon" x1="0" y1="0" x2="1" y2="1">
@@ -24,11 +24,9 @@ def data_uri(content: bytes, mime: str) -> str:
 
 @lru_cache(maxsize=10)
 def frame_layer(catalog_id: str) -> str:
-    if CATALOG.get(catalog_id, {}).get('kind') != 'frame':
-        raise ValueError('Unknown frame')
     if catalog_id == 'frame-neon':
         return NEON
-    uri = data_uri((ASSETS / f'{catalog_id}.webp').read_bytes(), 'image/webp')
+    uri = data_uri(asset_path(catalog_id).read_bytes(), 'image/webp')
     return f'<image width="512" height="512" href="{uri}"/>'
 
 

@@ -21,6 +21,22 @@ CATALOG.update({f'frame-{key}': {'name': name, 'kind': 'frame'} for key, name in
 ASSETS = Path(__file__).resolve().parents[1] / 'assets' / 'collectibles'
 
 
+def catalog_data(db, catalog_id):
+    from app.db.inventory import InventoryCatalog
+    entry = db.get(InventoryCatalog, catalog_id)
+    return {'name': entry.name, 'kind': entry.kind} if entry else {'name': catalog_id, 'kind': 'avatar'}
+
+
+def asset_path(catalog_id):
+    from app.services.attachment_storage import _uploads_root
+    from uuid import UUID
+    if catalog_id in CATALOG:
+        return ASSETS / (catalog_id + '.webp')
+    # All custom asset identifiers are server-generated UUIDs.
+    UUID(catalog_id)
+    return _uploads_root() / 'collectibles' / (catalog_id + '.webp')
+
+
 def lock_inventory(db: Session) -> None:
     # Serialize ownership/equipment operations, including ordinary profile changes.
     # Transaction-scoped PostgreSQL lock is released on commit or rollback.

@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select, delete
 from app.main import app
 from app.db.models import User
-from app.db.inventory import InventoryItem, InventoryEvent
+from app.db.inventory import InventoryItem, InventoryEvent, InventoryCatalog
 from app.db.session import SessionLocal
 from test_auth_workspace import register_regular_user, delete_user
 
@@ -29,6 +29,10 @@ def accounts():
                 items=select(InventoryItem.id).where(InventoryItem.owner_id.in_(ids))
                 db.execute(delete(InventoryEvent).where(InventoryEvent.item_id.in_(items)))
                 db.execute(delete(InventoryItem).where(InventoryItem.owner_id.in_(ids)))
+                from app.services.inventory import asset_path
+                for entry in db.scalars(select(InventoryCatalog).where(InventoryCatalog.created_by.in_(ids))):
+                    if not entry.builtin: asset_path(entry.id).unlink(missing_ok=True)
+                    db.delete(entry)
                 db.commit()
             for _,_,form in users: delete_user(form['email'])
 
