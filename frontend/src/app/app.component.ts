@@ -1,4 +1,5 @@
 import { synchronizeMessages } from './core/services/message-sync';
+import { InventoryComponent } from './workspace/inventory.component';
 import { SectionNavigationComponent } from './workspace/section-navigation.component';
 import { UiIconComponent } from './workspace/ui-icon.component';
 import { ConversationListComponent } from './workspace/conversation-list.component';
@@ -619,7 +620,7 @@ const DEFAULT_SERVER_ICON_ASSET_BY_NAME: Record<string, string> = {
 @Component({
   providers: [AuthFormStore],
     selector: 'app-root',
-    imports: [CommonModule, FormsModule, MediaStreamSrcDirective, SectionNavigationComponent, UiIconComponent, ConversationListComponent, QuickSwitchComponent, PlatformSwitcherComponent, InviteManagerComponent],
+    imports: [CommonModule, FormsModule, MediaStreamSrcDirective, SectionNavigationComponent, UiIconComponent, ConversationListComponent, QuickSwitchComponent, PlatformSwitcherComponent, InviteManagerComponent, InventoryComponent],
     templateUrl: './app.component.html',
     styleUrls: ['./app.component.scss', './app-layout.scss', './call-workspace.scss', './platform-workspace.scss', './invite-entry.scss', './palette-theme.scss', './auth-workspace.scss', './avatar-presets.scss']
 })
@@ -1083,6 +1084,14 @@ export class AppComponent {
   readonly fullscreenMediaControlsVisible = signal(true);
 
   readonly session = signal<AuthSessionResponse | null>(null);
+  readonly inventoryMode = signal<'inventory' | 'admin' | null>(null);
+  readonly inventoryUnread = signal(0);
+
+  refreshInventoryProfile(): void {
+    const token = this.session()?.access_token;
+    if (token) this.workspaceApi.getCurrentUser(token).pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({ next: user => this.applyCurrentUserProfile(user), error: () => {} });
+  }
   readonly currentUser = signal<CurrentUserResponse | null>(null);
   readonly workspaceMode = signal<WorkspaceMode>('chats');
   readonly servers = signal<WorkspaceServer[]>([]);
@@ -3687,6 +3696,7 @@ export class AppComponent {
   isProfileAvatarPresetSelected(id: string): boolean {
     if (this.profileAvatarFile()) return false;
     if (this.profileAvatarPreset()) return this.profileAvatarPreset() === id;
+    if (this.currentUser()?.avatar_item_id && !this.profileAvatarRemove()) return false;
     return (!this.currentUser()?.has_uploaded_avatar || this.profileAvatarRemove())
       && this.currentUser()?.avatar_preset === id;
   }

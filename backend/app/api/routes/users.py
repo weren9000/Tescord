@@ -15,6 +15,9 @@ from app.db.session import get_db
 from app.schemas.users import CurrentUserResponse, UpdateCurrentUserProfileResponse
 from app.services.app_events import publish_members_updated_from_sync, publish_voice_presence_updated_from_sync
 from app.services.avatar_presets import AVATAR_PRESETS, AVATAR_DIRECTORY
+from app.services.inventory import lock_inventory, ASSETS
+from app.db.inventory import InventoryItem
+from sqlalchemy import update
 
 router = APIRouter(tags=["users"])
 
@@ -38,8 +41,12 @@ def _publish_profile_updates_for_user(db: Session, user_id: UUID) -> None:
 
 
 @router.get("/me", response_model=CurrentUserResponse)
-def read_current_user(current_user: User = Depends(get_current_user)) -> CurrentUserResponse:
-    return CurrentUserResponse.from_user(current_user)
+def read_current_user(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> CurrentUserResponse:
+    result = CurrentUserResponse.from_user(current_user)
+    result.avatar_item_id = db.scalar(select(InventoryItem.id).where(
+        InventoryItem.owner_id == current_user.id, InventoryItem.kind == 'avatar',
+        InventoryItem.equipped.is_(True), InventoryItem.revoked.is_(False)))
+    return result
 
 
 @router.put("/me/profile", response_model=UpdateCurrentUserProfileResponse)
@@ -58,6 +65,12 @@ async def update_current_user_profile(
 
     if avatar_preset is not None and avatar_preset not in AVATAR_PRESETS:
         raise HTTPException(status_code=400, detail="Неизвестный аватар")
+
+    lock_inventory(db)
+    db.refresh(current_user)
+    if remove_avatar or avatar_preset is not None or avatar is not None:
+        db.execute(update(InventoryItem).where(InventoryItem.owner_id == current_user.id,
+                   InventoryItem.kind == 'avatar').values(equipped=False))
 
     if remove_avatar or avatar_preset is not None:
         current_user.avatar_filename = None
@@ -102,6 +115,11 @@ def read_user_avatar(user_id: UUID, db: Session = Depends(get_db)) -> Response:
     user = db.get(User, user_id)
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Аватарка не найдена")
+    equipped = db.scalar(select(InventoryItem).where(InventoryItem.owner_id == user.id,
+        InventoryItem.kind == 'avatar', InventoryItem.equipped.is_(True), InventoryItem.revoked.is_(False)))
+    if equipped:
+        return FileResponse(ASSETS / (equipped.catalog_id+'.webp'), media_type='image/webp',
+                            headers={'Cache-Control': 'no-cache'})
     if user.avatar_content is None or user.avatar_mime_type is None:
         return read_avatar_preset(user.avatar_preset)
 

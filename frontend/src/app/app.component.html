@@ -542,6 +542,8 @@
         </header>
 
         <nav class="side-drawer__actions" aria-label="Действия меню">
+          <button class="side-drawer__action" type="button" (click)="closeSideMenu(); inventoryMode.set('inventory')"><app-ui-icon name="inventory"/> Инвентарь @if(inventoryUnread()){· {{inventoryUnread()}}}</button>
+          @if(currentUser()?.is_avatar_admin){<button class="side-drawer__action" type="button" (click)="closeSideMenu(); inventoryMode.set('admin')"><app-ui-icon name="avatarAdmin"/> Админ-Аватарок</button>}
           <section class="side-drawer__section">
             <div class="side-drawer__section-title">Аккаунт</div>
             <button class="side-drawer__action" type="button" (click)="closeSideMenu(); openProfileEditor()">
@@ -669,7 +671,7 @@
       <app-quick-switch [query]="globalSearchQuery()" [links]="quickLinks()" (search)="updateGlobalSearchQuery($event)" (open)="openQuickLink($event)" (close)="closeQuickSwitch()" />
     }
     <div class="messenger-layout" [class.messenger-layout--platform]="isPlatformsMode()">
-      <app-section-navigation [avatarUrl]="currentUserAvatarUrl()" [selected]="workspaceMode()" [initials]="displayNickInitials(currentUser()?.nick ?? 'Я')" [hasNotifications]="friendRequestBadgeVisible()" (selectSection)="selectWorkspaceMode($event)" (menu)="toggleSideMenu()" (search)="openQuickSwitch()" (profile)="openProfileEditor()" (notifications)="openFriendRequestsModal()" />
+      <app-section-navigation [isAvatarAdmin]="!!currentUser()?.is_avatar_admin" [inventoryUnread]="inventoryUnread()" (inventory)="inventoryMode.set($event)" [avatarUrl]="currentUserAvatarUrl()" [selected]="workspaceMode()" [initials]="displayNickInitials(currentUser()?.nick ?? 'Я')" [hasNotifications]="friendRequestBadgeVisible()" (selectSection)="selectWorkspaceMode($event)" (menu)="toggleSideMenu()" (search)="openQuickSwitch()" (profile)="openProfileEditor()" (notifications)="openFriendRequestsModal()" />
       <aside class="conversation-sidebar" [class.conversation-sidebar--mobile-open]="mobilePanel() === 'servers'">
         @if (!isPlatformsMode() || !platformSpaces().length) {
           <div class="section-heading">
@@ -1924,6 +1926,7 @@
 
         <fieldset class="avatar-presets" [disabled]="profileSaving()">
           <legend>Или выберите готовый аватар</legend>
+          @if(currentUser()?.avatar_item_id){<p>Сейчас используется предмет из инвентаря. Выбор обычного аватара снимет его, но предмет останется у вас.</p>}
           <div class="avatar-presets__grid">
             @for (preset of avatarPresets; track preset.id) {
               <button type="button" [attr.aria-label]="preset.label" [attr.aria-pressed]="isProfileAvatarPresetSelected(preset.id)" [class.avatar-presets__selected]="isProfileAvatarPresetSelected(preset.id)" (click)="selectProfileAvatarPreset(preset.id)">
@@ -3881,4 +3884,8 @@
       </div>
     </section>
   </div>
+}
+
+@if(session(); as auth) {
+ <app-inventory [token]="auth.access_token" [mode]="inventoryMode()" [isAdmin]="!!currentUser()?.is_avatar_admin" (close)="inventoryMode.set(null)" (changed)="refreshInventoryProfile()" (unread)="inventoryUnread.set($event)" />
 }

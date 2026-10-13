@@ -14,6 +14,8 @@ export type WorkspaceSection = 'chats' | 'groups' | 'platforms';
             <app-ui-icon [name]="section.icon" /><span>{{ section.label }}</span>
           </button>
         }
+        @if(isAvatarAdmin()) {<button type="button" (click)="inventory.emit('admin')"><app-ui-icon name="avatarAdmin"/><span>Админ-Аватарок</span></button>}
+        <button type="button" (click)="inventory.emit('inventory')"><app-ui-icon name="inventory"/><span>Инвентарь @if(inventoryUnread()){· {{inventoryUnread()}}}</span></button>
       </div>
       <div class="utilities">
         <button type="button" title="Быстрый переход (Ctrl+K)" aria-label="Быстрый переход" (click)="search.emit()"><app-ui-icon name="search"/><span>Поиск</span></button>
@@ -34,11 +36,16 @@ export type WorkspaceSection = 'chats' | 'groups' | 'platforms';
     .profile b{color:var(--palette-secondary);background:var(--palette-hover)}
     .profile-avatar{width:30px;height:30px;object-fit:cover;border-radius:22%}
     .brand img{display:block;width:70px;height:35px;object-fit:contain;mix-blend-mode:lighten}
+    nav{overflow-y:auto}.brand,.sections,.utilities{flex-shrink:0}
+    @media(max-height:850px){nav{gap:14px;padding:14px 10px}.sections{gap:4px}.sections button{min-height:54px;gap:5px}.utilities button{min-height:46px;gap:4px}}
     @media(max-width:980px){:host{display:none}}
   `],
 })
 export class SectionNavigationComponent {
   readonly selected = input<WorkspaceSection>('chats');
+  readonly isAvatarAdmin = input(false);
+  readonly inventoryUnread = input(0);
+  readonly inventory = output<'inventory' | 'admin'>();
   readonly initials = input('Я');
   readonly avatarUrl = input<string | null>(null);
   readonly hasNotifications = input(false);
