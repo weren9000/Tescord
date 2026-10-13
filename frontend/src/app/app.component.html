@@ -631,10 +631,12 @@
     <div class="messenger-layout" [class.messenger-layout--platform]="isPlatformsMode()">
       <app-section-navigation [selected]="workspaceMode()" [initials]="displayNickInitials(currentUser()?.nick ?? 'Я')" [hasNotifications]="friendRequestBadgeVisible()" (selectSection)="selectWorkspaceMode($event)" (menu)="toggleSideMenu()" (search)="openQuickSwitch()" (profile)="openProfileEditor()" (notifications)="openFriendRequestsModal()" />
       <aside class="conversation-sidebar" [class.conversation-sidebar--mobile-open]="mobilePanel() === 'servers'">
-        <div class="section-heading">
-          <div><h1>{{ sectionTitle() }}</h1><p>{{ sectionDescription() }}</p></div>
-          <button type="button" [attr.aria-label]="sectionCreateLabel()" [attr.title]="sectionCreateLabel()" (click)="openSectionCreate()"><app-ui-icon name="plus" /></button>
-        </div>
+        @if (!isPlatformsMode() || !platformSpaces().length) {
+          <div class="section-heading">
+            <div><h1>{{ sectionTitle() }}</h1><p>{{ sectionDescription() }}</p></div>
+            <button type="button" [attr.aria-label]="sectionCreateLabel()" [attr.title]="sectionCreateLabel()" (click)="openSectionCreate()"><app-ui-icon name="plus" /></button>
+          </div>
+        }
         @if (isPlatformsMode() && platformSpaces().length) {
           <app-platform-switcher [spaces]="platformChoices()" [selected]="selectedServerId()" (select)="selectPlatformFromPicker($event)" (create)="openCreatePlatformShortcut()" />
         }
@@ -654,7 +656,7 @@
                   </div>
                   @if (!isPlatformChannelSectionCollapsed('text') || sidebarQuery().trim()) {
                     @for (channel of sidebarTextChannels(); track channel.id) {
-                      <button class="space-channel" type="button" [class.space-channel--selected]="selectedChannelId() === channel.id" [class.space-channel--unread]="channelUnreadCount(channel) > 0" [attr.aria-current]="selectedChannelId() === channel.id ? 'page' : null" [attr.title]="channel.topic || channel.name" (click)="selectChannel(channel)">
+                      <button class="space-channel" type="button" [class.space-channel--selected]="selectedChannelId() === channel.id" [class.space-channel--unread]="channelUnreadCount(channel) > 0" [attr.aria-current]="selectedChannelId() === channel.id ? 'page' : null" [attr.title]="channel.name + (channel.topic ? ' · ' + channel.topic : '')" (click)="selectChannel(channel)">
                         <app-ui-icon name="hash" /><span class="space-channel__name">{{ channel.name }}</span>
                         @if (channelMentionUnreadCount(channel) > 0) {<span class="space-badge space-badge--mention" [attr.aria-label]="'Упоминаний: ' + channelMentionUnreadCount(channel)">&#64;{{ channelMentionUnreadBadgeLabel(channel) }}</span>}
                         @else if (channelUnreadCount(channel) > 0) {<span class="space-badge" [attr.aria-label]="'Непрочитанных: ' + channelUnreadCount(channel)">{{ channelUnreadBadgeLabel(channel) }}</span>}
@@ -669,13 +671,22 @@
                   </div>
                   @if (!isPlatformChannelSectionCollapsed('voice') || sidebarQuery().trim()) {
                     @for (channel of sidebarVoiceChannels(); track channel.id) {
-                      <button class="space-channel" type="button" [class.space-channel--selected]="selectedChannelId() === channel.id" [class.space-channel--connected]="connectedVoiceChannelId() === channel.id" [attr.aria-current]="selectedChannelId() === channel.id ? 'page' : null" [attr.title]="channel.topic || channel.name" (click)="previewPlatformVoiceChannel(channel)">
+                      <button class="space-channel" type="button" [class.space-channel--selected]="selectedChannelId() === channel.id" [class.space-channel--connected]="connectedVoiceChannelId() === channel.id" [attr.aria-current]="selectedChannelId() === channel.id ? 'page' : null" [attr.title]="channel.name + (channel.topic ? ' · ' + channel.topic : '')" (click)="previewPlatformVoiceChannel(channel)">
                         <app-ui-icon name="sound" /><span class="space-channel__name">{{ channel.name }}</span>
                         @if (connectedVoiceChannelId() === channel.id) {<app-ui-icon name="check" aria-label="Вы подключены" />}
-                        <span class="space-channel__count" [attr.aria-label]="'Участников в комнате: ' + platformVoiceParticipants(channel.id).length">{{ platformVoiceParticipants(channel.id).length }}</span>
+                        @if (platformVoiceParticipants(channel.id).length) {<span class="space-channel__count" [attr.aria-label]="'Участников в комнате: ' + platformVoiceParticipants(channel.id).length">{{ platformVoiceParticipants(channel.id).length }}</span>}
                       </button>
                       @if (platformVoiceParticipants(channel.id).length) {
-                        <div class="space-people">
+                        <button class="space-roster-toggle" type="button" [attr.aria-expanded]="expandedPlatformRosters().has(channel.id)" [attr.aria-controls]="'room-roster-' + channel.id" [attr.aria-label]="(expandedPlatformRosters().has(channel.id) ? 'Скрыть участников: ' : 'Показать участников: ') + channel.name" (click)="togglePlatformRoster(channel.id)">
+                          <span class="space-roster-avatars" aria-hidden="true">
+                            @for (participant of platformVoiceParticipants(channel.id).slice(0, 3); track participant.user_id) {
+                              <span class="space-person__avatar">@if (userAvatarUrl(participant.user_id, participant.avatar_updated_at); as avatar) {<img [src]="avatar" alt="" />} @else { {{ displayNickInitials(participant.nick) }} }</span>
+                            }
+                          </span>
+                          <span>{{ expandedPlatformRosters().has(channel.id) ? 'Скрыть' : 'Участники · ' + platformVoiceParticipants(channel.id).length }}</span><app-ui-icon name="down" />
+                        </button>
+                        @if (expandedPlatformRosters().has(channel.id)) {
+                        <div class="space-people" [id]="'room-roster-' + channel.id">
                           @for (participant of platformVoiceParticipants(channel.id); track participant.user_id) {
                             <button class="space-person" type="button" [class.space-person--speaking]="participant.speaking" [attr.title]="displayNick(participant.nick)" (click)="openVoiceParticipantControls(participant.user_id, channel.id)">
                               <span class="space-person__avatar">@if (userAvatarUrl(participant.user_id, participant.avatar_updated_at); as avatar) {<img [src]="avatar" alt="" />} @else { {{ displayNickInitials(participant.nick) }} }</span>
@@ -684,6 +695,7 @@
                             </button>
                           }
                         </div>
+                        }
                       }
                     } @empty {<p class="space-section__empty">{{ sidebarQuery().trim() ? 'Комнаты не найдены' : 'Голосовых комнат пока нет' }}</p>}
                   }
@@ -870,8 +882,7 @@
                   <section class="space-voice-preview" aria-label="Голосовая комната">
                     <span class="space-voice-preview__icon"><app-ui-icon name="sound" /></span>
                     <div class="space-voice-preview__copy">
-                      <h2>{{ connectedVoiceChannelId() === channel.id ? 'Вы в голосовой комнате' : channel.name }}</h2>
-                      <p>{{ platformVoiceParticipants(channel.id).length ? 'Сейчас в комнате: ' + platformVoiceParticipants(channel.id).length : 'В комнате пока никого нет' }} · {{ connectedVoiceChannelId() === channel.id ? 'Звонок продолжается при переходе в другие каналы' : 'Подключитесь, когда будете готовы' }}</p>
+                      <p>{{ connectedVoiceChannelId() === channel.id ? 'Вы подключены' : platformVoiceParticipants(channel.id).length ? 'В комнате: ' + platformVoiceParticipants(channel.id).length : 'Комната свободна' }}</p>
                     </div>
                     @if (connectedVoiceChannelId() === channel.id) {
                       <button type="button" (click)="expandCallWindow()"><app-ui-icon name="expand" />Открыть звонок</button>

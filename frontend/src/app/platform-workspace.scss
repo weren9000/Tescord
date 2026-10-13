@@ -1,5 +1,5 @@
-.space-channels { display: flex; flex-direction: column; gap: 22px; padding: 2px 0 16px; }
-.space-section__head { display: flex; align-items: center; gap: 4px; margin-bottom: 6px; }
+.space-channels { display: flex; flex-direction: column; gap: 12px; padding: 0 0 10px; }
+.space-section__head { display: flex; align-items: center; gap: 4px; margin-bottom: 2px; }
 .space-section__toggle, .space-section__add { display: flex; align-items: center; gap: 6px; padding: 7px 6px; background: transparent; border: 0; color: #94a2b5; font: inherit; font-size: 11px; cursor: pointer; }
 .space-section__toggle { flex: 1; text-align: left; font-weight: 650; letter-spacing: .035em; }
 .space-section__toggle app-ui-icon { width: 14px; height: 14px; transition: transform .15s; }
@@ -7,12 +7,12 @@
 .space-section__toggle small { margin-left: auto; font-size: 10px; color: #758498; }
 .space-section__add { justify-content: center; width: 30px; height: 30px; border-radius: 6px; }
 .space-section__add:hover, .space-section__toggle:hover { color: #e4edf6; background: #ffffff06; }
-.space-channel { display: flex; align-items: center; gap: 9px; width: 100%; min-height: 38px; margin: 2px 0; padding: 8px 10px; border: 1px solid transparent; border-radius: 7px; background: transparent; color: #a8b5c6; font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+.space-channel { display: flex; align-items: center; gap: 9px; width: 100%; min-height: 34px; margin: 0; padding: 6px 10px; border: 1px solid transparent; border-radius: 7px; background: transparent; color: #a8b5c6; font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
 .space-channel > app-ui-icon { width: 18px; height: 18px; color: #78899d; }
-.space-channel__name { flex: 1; min-width: 0; overflow-wrap: anywhere; line-height: 1.4; }
+.space-channel__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.4; }
 .space-channel:hover { background: #ffffff07; color: #e9eff7; }
 .space-channel--unread { color: #e8eef6; font-weight: 600; }
-.space-channel--selected { color: #d4f0df; background: #90d5af13; border-color: #90d5af20; }
+.space-channel--selected { color: #d4f0df; background: #90d5af13; border-color: transparent; }
 .space-channel--selected > app-ui-icon, .space-channel--connected > app-ui-icon { color: #a6d9ba; }
 .space-channel__count { font-size: 11px; color: #8b9bb0; }
 .space-badge { padding: 1px 5px; min-width: 17px; border-radius: 5px; background: #435266; color: #fff; text-align: center; font-size: 10px; line-height: 17px; }
@@ -27,16 +27,23 @@
 .space-person__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
 .space-person > app-ui-icon { width: 13px; height: 13px; color: #8491a2; }
 .space-footer { display: flex; gap: 6px; margin: 0 14px 16px; padding-top: 12px; border-top: 1px solid #ffffff0b; }
-.space-footer button { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px; border: 1px solid #ffffff0d; border-radius: 7px; background: #ffffff03; color: #a2b2c4; font: inherit; font-size: 12px; cursor: pointer; }
+.space-footer button { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px; border: 0; border-radius: 7px; background: transparent; color: #a2b2c4; font: inherit; font-size: 12px; cursor: pointer; }
 .space-footer button:first-child { flex: 1; }
 .space-footer button:hover { background: #ffffff08; color: #e4edf5; }
 .space-footer app-ui-icon { width: 17px; height: 17px; }
-.space-voice-preview { flex-shrink: 0; display: flex; align-items: center; gap: 14px; margin: 18px 22px 0; padding: 18px; border: 1px solid #91d4b223; border-radius: 12px; background: #91d4b208; }
-.space-voice-preview__icon { display: grid; place-items: center; width: 42px; height: 42px; flex-shrink: 0; border-radius: 12px; background: #91d4b213; color: #abdac0; }
+.space-voice-preview { flex-shrink: 0; display: flex; align-items: center; gap: 9px; margin: 0; padding: 8px 20px; border-bottom: 1px solid #ffffff0b; background: #91d4b205; }
+.space-voice-preview__icon { display: grid; place-items: center; flex-shrink: 0; color: #abdac0; }
+.space-voice-preview__icon app-ui-icon { width: 16px; height: 16px; }
 .space-voice-preview__copy { flex: 1; min-width: 0; }
-.space-voice-preview h2 { margin: 0 0 5px; font-size: 15px; font-weight: 600; color: #d9e8df; overflow-wrap: anywhere; }
-.space-voice-preview p { margin: 0; font-size: 12px; line-height: 1.6; color: #96a7b8; }
-.space-voice-preview button { flex-shrink: 0; display: flex; justify-content: center; align-items: center; gap: 7px; padding: 10px 14px; border: 1px solid #a1ddba38; border-radius: 8px; background: #a1ddba; color: #163225; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.space-voice-preview p { margin: 0; font-size: 12px; line-height: 1.5; color: #a7b7c7; }
+.space-voice-preview button { flex-shrink: 0; display: flex; justify-content: center; align-items: center; gap: 6px; padding: 7px 10px; border: 0; border-radius: 6px; background: #a1ddba; color: #163225; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+.space-voice-preview button app-ui-icon { width: 16px; height: 16px; }
+.space-roster-toggle { display: flex; align-items: center; gap: 8px; margin: 0 0 4px 29px; padding: 4px 5px; border: 0; border-radius: 6px; background: transparent; color: #93a4b9; font: inherit; font-size: 11px; cursor: pointer; }
+.space-roster-toggle:hover { background: #ffffff07; color: #e4edf5; }
+.space-roster-toggle > app-ui-icon { width: 12px; height: 12px; }
+.space-roster-toggle[aria-expanded='true'] > app-ui-icon { transform: rotate(180deg); }
+.space-roster-avatars { display: flex; padding-left: 4px; }
+.space-roster-avatars .space-person__avatar { width: 20px; height: 20px; flex-basis: 20px; margin-left: -4px; border: 2px solid #171d27; font-size: 8px; }
 .space-voice-preview button:disabled { opacity: .5; cursor: wait; }
 .space-voice-preview button:hover:not(:disabled) { background: #b9e9ce; }
 .space-channels button:focus-visible, .space-footer button:focus-visible, .space-voice-preview button:focus-visible { outline: 2px solid #9edbb8; outline-offset: 2px; }
@@ -46,9 +53,9 @@
   .space-channel { min-height: 44px; font-size: 14px; }
   .space-section__toggle, .space-section__add { min-height: 36px; }
   .space-person { min-height: 36px; }
-  .space-voice-preview { margin: 10px 12px 0; padding: 12px; gap: 10px; flex-wrap: wrap; }
-  .space-voice-preview__copy { flex-basis: calc(100% - 52px); }
-  .space-voice-preview button { width: 100%; min-height: 42px; }
-  .space-voice-preview__icon { width: 36px; height: 36px; }
+  .space-voice-preview { padding: 6px 12px; gap: 8px; }
+  .space-roster-toggle { min-height: 36px; }
+  .space-voice-preview button { min-height: 44px; padding: 7px 9px; }
+
   .space-channel-icon { width: 24px; }
 }

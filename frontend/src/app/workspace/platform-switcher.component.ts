@@ -17,7 +17,7 @@ export interface PlatformChoice {
   template: `
     <button #trigger class="trigger" type="button" aria-label="Выбрать площадку" aria-haspopup="dialog" (click)="show()">
       <span class="avatar">@if (active()?.icon; as icon) {<img [src]="icon" alt="" />} @else {<app-ui-icon name="platforms" />}</span>
-      <span class="copy"><small>Текущая площадка</small><strong>{{ active()?.name || 'Выбрать площадку' }}</strong></span>
+      <span class="copy"><strong [title]="active()?.name || 'Выбрать площадку'">{{ active()?.name || 'Выбрать площадку' }}</strong></span>
       <app-ui-icon name="down" />
     </button>
     <dialog #dialog aria-label="Ваши площадки" (click)="onBackdrop($event)" (cancel)="query.set('')" (keydown.escape)="$event.preventDefault(); $event.stopPropagation(); close()">

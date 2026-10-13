@@ -639,6 +639,14 @@ export class AppComponent {
     else if (this.session()) this.openHome();
   };
   readonly sidebarQuery = signal('');
+  readonly expandedPlatformRosters = signal(new Set<string>());
+  togglePlatformRoster(channelId: string): void {
+    this.expandedPlatformRosters.update(current => {
+      const next = new Set(current);
+      next.has(channelId) ? next.delete(channelId) : next.add(channelId);
+      return next;
+    });
+  }
   private readonly platformSectionState = new Map<string, {text: boolean; voice: boolean}>();
   readonly platformChoices = computed(() => this.platformSpaces().map(space => ({
     id: space.id, name: space.name, description: space.description,
