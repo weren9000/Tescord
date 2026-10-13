@@ -29,10 +29,10 @@ export type WorkspaceSection = 'chats' | 'groups' | 'platforms';
     .sections,.utilities{display:flex;flex-direction:column;gap:8px}.utilities{margin-top:auto;gap:4px}
     button{position:relative;width:100%;min-height:66px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;border:1px solid transparent;border-radius:12px;background:transparent;color:inherit;font:500 11px system-ui;cursor:pointer}
     button:hover{background:color-mix(in srgb, var(--palette-text) 2.35%, transparent);color:var(--palette-text)}button.active{background:color-mix(in srgb, var(--palette-cyan) 7.06%, transparent);border-color:color-mix(in srgb, var(--palette-cyan) 14.90%, transparent);color:var(--palette-cyan)}button.active:before{content:'';position:absolute;left:-11px;top:20px;width:3px;height:26px;border-radius:3px;background:var(--palette-cyan)}
-    button:focus-visible{outline:2px solid var(--palette-cyan);outline-offset:2px}.utilities button{min-height:58px;font-size:10px}.profile b{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--palette-raised);color:var(--palette-cyan);font-size:11px}.notification i{position:absolute;top:8px;right:20px;width:6px;height:6px;border-radius:50%;background:var(--palette-cyan)}
+    button:focus-visible{outline:2px solid var(--palette-cyan);outline-offset:2px}.utilities button{min-height:58px;font-size:10px}.profile b{display:grid;place-items:center;width:30px;height:30px;border-radius:22%;background:var(--palette-raised);color:var(--palette-cyan);font-size:11px}.notification i{position:absolute;top:8px;right:20px;width:6px;height:6px;border-radius:50%;background:var(--palette-cyan)}
     button.active{background:var(--palette-selected);border-color:transparent;color:var(--palette-primary-text)}button.active:before{background:var(--palette-primary)}
     .profile b{color:var(--palette-secondary);background:var(--palette-hover)}
-    .profile-avatar{width:30px;height:30px;object-fit:cover;border-radius:50%}
+    .profile-avatar{width:30px;height:30px;object-fit:cover;border-radius:22%}
     .brand img{display:block;width:70px;height:35px;object-fit:contain;mix-blend-mode:lighten}
     @media(max-width:980px){:host{display:none}}
   `],

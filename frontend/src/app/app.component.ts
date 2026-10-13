@@ -1149,6 +1149,11 @@ export class AppComponent {
     { id: 'bear', label: 'Медведь' }, { id: 'wolf', label: 'Волк' },
     { id: 'panda', label: 'Панда' }, { id: 'rabbit', label: 'Заяц' },
     { id: 'raccoon', label: 'Енот' }, { id: 'owl', label: 'Сова' },
+    { id: 'tiger', label: 'Тигр' }, { id: 'penguin', label: 'Пингвин' },
+    { id: 'bat', label: 'Летучая мышь' }, { id: 'koala', label: 'Коала' },
+    { id: 'elephant', label: 'Слон' }, { id: 'deer', label: 'Олень' },
+    { id: 'capybara', label: 'Капибара' }, { id: 'monkey', label: 'Обезьяна' },
+    { id: 'hedgehog', label: 'Ёж' }, { id: 'otter', label: 'Выдра' },
   ];
   readonly ownerVoiceRequests = signal<VoiceJoinRequestSummary[]>([]);
   readonly activeOwnerRequestId = signal<string | null>(null);

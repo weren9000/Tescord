@@ -1177,7 +1177,7 @@ select {
   place-items: center;
   overflow: hidden;
   border: 1px solid var(--line);
-  border-radius: 50%;
+  border-radius: 22%;
   background: rgba(palette.$text, 0.0400);
   color: var(--text);
   font-size: 0.82rem;
@@ -1372,7 +1372,7 @@ select {
   place-items: center;
   overflow: hidden;
   border: 1px solid rgba(palette.$text, 0.1200);
-  border-radius: 50%;
+  border-radius: 22%;
   background: rgba(palette.$text, 0.0400);
   color: palette.$text;
   font-size: 0.58rem;
@@ -1812,7 +1812,7 @@ select {
   place-items: center;
   overflow: hidden;
   border: 1px solid rgba(palette.$text, 0.1200);
-  border-radius: 50%;
+  border-radius: 22%;
   background: rgba(palette.$text, 0.0400);
   color: palette.$text;
   font-weight: 700;
@@ -2128,7 +2128,7 @@ select {
   display: grid;
   place-items: center;
   overflow: hidden;
-  border-radius: 50%;
+  border-radius: 22%;
   background: color-mix(in srgb, var(--avatar-accent) 20%, rgba(palette.$text, 0.0300));
   color: palette.$text;
   font-weight: 700;
@@ -3095,7 +3095,7 @@ select {
   display: grid;
   place-items: center;
   overflow: hidden;
-  border-radius: 50%;
+  border-radius: 22%;
   background: rgba(palette.$text, 0.0600);
   color: palette.$text;
   font-size: 0.6rem;
@@ -3193,7 +3193,7 @@ select {
   place-items: center;
   overflow: hidden;
   border: 1px solid var(--line);
-  border-radius: 50%;
+  border-radius: 22%;
   background: rgba(palette.$text, 0.0400);
   color: palette.$text;
   font-size: 0.95rem;
@@ -3328,7 +3328,7 @@ select {
   place-items: center;
   overflow: hidden;
   border: 1px solid rgba(palette.$text, 0.1200);
-  border-radius: 50%;
+  border-radius: 22%;
   background: rgba(palette.$text, 0.0400);
   color: palette.$text;
   font-size: 0.56rem;
@@ -3508,7 +3508,7 @@ select {
   place-items: center;
   overflow: hidden;
   border: 1px solid var(--line-strong);
-  border-radius: 50%;
+  border-radius: 22%;
   background: rgba(palette.$text, 0.0400);
   color: palette.$text;
   font-size: 0.88rem;
@@ -3819,7 +3819,7 @@ select {
   place-items: center;
   overflow: hidden;
   border: 1px solid var(--line);
-  border-radius: 50%;
+  border-radius: 22%;
   background: rgba(palette.$text, 0.0400);
   color: palette.$text;
   font-size: 1.1rem;
@@ -4153,7 +4153,7 @@ select {
   place-items: center;
   overflow: hidden;
   border: 1px solid var(--line);
-  border-radius: 50%;
+  border-radius: 22%;
   background: rgba(palette.$text, 0.0400);
   color: var(--text);
   font-size: 0.76rem;
@@ -5558,7 +5558,7 @@ select {
 .sidebar-entry__avatar {
   width: 34px;
   height: 34px;
-  border-radius: 50%;
+  border-radius: 22%;
   overflow: hidden;
   background: linear-gradient(135deg, rgba(palette.$cyan, 0.1800), rgba(palette.$cyan, 0.1200));
   display: flex;
@@ -5570,7 +5570,7 @@ select {
 }
 
 .sidebar-entry__avatar--group {
-  border-radius: 50%;
+  border-radius: 22%;
 }
 
 .sidebar-entry__avatar img {
@@ -5981,7 +5981,7 @@ select {
   height: 42px;
   appearance: none;
   padding: 0;
-  border-radius: 2px;
+  border-radius: 22%;
   overflow: hidden;
   border: 1px solid rgba(palette.$text, 0.0800);
   background: linear-gradient(135deg, rgba(palette.$cyan, 0.1800), rgba(palette.$cyan, 0.1200));
@@ -5995,13 +5995,13 @@ select {
 }
 
 .conversation-head__avatar--group {
-  border-radius: 2px;
+  border-radius: 22%;
 }
 
 .conversation-head--managed .conversation-head__avatar {
   width: 34px;
   height: 34px;
-  border-radius: 2px;
+  border-radius: 22%;
   font-size: 13px;
 }
 
@@ -6373,7 +6373,7 @@ select {
 .friend-request-row__avatar {
   width: 40px;
   height: 40px;
-  border-radius: 50%;
+  border-radius: 22%;
   overflow: hidden;
   display: flex;
   align-items: center;
@@ -6391,7 +6391,7 @@ select {
 }
 
 .friend-request-row__avatar--group {
-  border-radius: 2px;
+  border-radius: 22%;
 }
 
 .friend-request-row__copy {
@@ -6873,7 +6873,7 @@ select {
   width: 28px;
   height: 28px;
   flex: 0 0 28px;
-  border-radius: 50%;
+  border-radius: 22%;
   overflow: hidden;
   display: inline-flex;
   align-items: center;
@@ -7174,7 +7174,7 @@ select {
   display: grid;
   place-items: center;
   overflow: hidden;
-  border-radius: 50%;
+  border-radius: 22%;
   border: 1px solid rgba(palette.$text, 0.0800);
   background: rgba(palette.$text, 0.0400);
   color: rgba(palette.$text, 0.8800);
@@ -8521,7 +8521,7 @@ select {
   width: 42px;
   height: 42px;
   border: 1px solid rgba(palette.$text, 0.1200);
-  border-radius: 50%;
+  border-radius: 22%;
   background:
     linear-gradient(135deg, rgba(palette.$cyan, 0.2200), rgba(palette.$primary-text, 0.1600)),
     palette.$raised;
@@ -8530,7 +8530,7 @@ select {
 }
 
 .sidebar-entry__avatar--group {
-  border-radius: var(--radius-md);
+  border-radius: 22%;
 }
 
 .sidebar-entry__headline {
@@ -8640,7 +8640,7 @@ select {
 .group-member-pill__avatar,
 .platform-voice-request-row__avatar {
   border: 1px solid rgba(palette.$text, 0.1400);
-  border-radius: var(--radius-md);
+  border-radius: 22%;
   background:
     linear-gradient(135deg, rgba(palette.$cyan, 0.2000), rgba(palette.$primary-text, 0.1800)),
     palette.$raised;
@@ -8915,7 +8915,7 @@ select {
   height: 40px;
   flex-basis: 40px;
   border: 1px solid color-mix(in srgb, var(--avatar-accent, var(--accent-cool)) 46%, rgba(palette.$text, 0.1200));
-  border-radius: 50%;
+  border-radius: 22%;
   background:
     linear-gradient(135deg, color-mix(in srgb, var(--avatar-accent, var(--accent-cool)) 30%, transparent), rgba(palette.$text, 0.0350)),
     palette.$raised;
@@ -9325,7 +9325,7 @@ select {
 }
 
 .group-voice-roster__avatar {
-  border-radius: 50%;
+  border-radius: 22%;
 }
 
 .group-voice-roster__avatar--compact {
@@ -9971,7 +9971,7 @@ select {
   height: 74px;
   display: inline-grid;
   place-items: center;
-  border-radius: 8px;
+  border-radius: 22%;
   border: 1px solid rgba(palette.$text, 0.1400);
   background: rgba(palette.$text, 0.0700);
   color: var(--text);
