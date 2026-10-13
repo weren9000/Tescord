@@ -21,17 +21,31 @@
     <section class="auth-panel auth-panel--story auth-panel--logo">
       <div class="auth-brand">
         <div class="auth-brand__logo-shell">
-          <img class="auth-logo" src="/assets/KVA-chat.png" alt="KVA Chat" />
+          <img class="auth-logo" src="/assets/kva-wordmark-v2.png" alt="KVA Chat" width="1774" height="887" fetchpriority="high" />
+        </div>
+        <div class="auth-brand__copy">
+          <h1>Ближе друг к другу.</h1>
+          <p>Переписка, голос и ваши сообщества<br />в одном месте.</p>
+        </div>
+        <div class="auth-brand__sections" aria-label="Возможности Квачат">
+          <span><app-ui-icon name="friends" />Друзья</span>
+          <span><app-ui-icon name="groups" />Группы</span>
+          <span><app-ui-icon name="platforms" />Площадки</span>
         </div>
       </div>
     </section>
 
     <section class="auth-panel auth-panel--form">
+      <header class="auth-form-heading">
+        <h2>{{ authMode() === 'login' ? 'С возвращением' : 'Давайте знакомиться' }}</h2>
+        <p>{{ authMode() === 'login' ? 'Войдите, чтобы продолжить общение.' : 'Создайте аккаунт и присоединяйтесь к своим.' }}</p>
+      </header>
       @if (pendingInviteCode()) {<ng-container *ngTemplateOutlet="inviteNotice" />}
       <div class="auth-tabs">
         <button
           class="auth-tab"
           [class.auth-tab--active]="authMode() === 'login'"
+          [attr.aria-pressed]="authMode() === 'login'"
           type="button"
           (click)="switchAuthMode('login')"
         >
@@ -40,6 +54,7 @@
         <button
           class="auth-tab"
           [class.auth-tab--active]="authMode() === 'register'"
+          [attr.aria-pressed]="authMode() === 'register'"
           type="button"
           (click)="switchAuthMode('register')"
         >
@@ -125,7 +140,7 @@
       }
 
       @if (authError()) {
-        <p class="auth-error">{{ authError() }}</p>
+        <p class="auth-error" role="alert">{{ authError() }}</p>
       }
     </section>
   </div>
