@@ -1,0 +1,17 @@
+dialog { width: 520px; max-width: calc(100vw - 24px); max-height: 88dvh; box-sizing: border-box; padding: 24px; border: 1px solid #ffffff20; border-radius: 14px; background: #19222e; color: #e5edf5; box-shadow: 0 24px 100px #0008; }
+dialog::backdrop { background: #050b14b3; }
+header { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+h2 { margin: 0; font-size: 19px; } h3 { margin: 24px 0 8px; font-size: 14px; }
+header p { margin: 5px 0 0; color: #a7b7c8; overflow-wrap: anywhere; }
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; padding: 9px 12px; border: 1px solid #ffffff19; border-radius: 7px; background: #283544; font-size: 12px; }
+button:disabled { opacity: .55; cursor: wait; } button:focus-visible,input:focus-visible,select:focus-visible { outline: 2px solid #a1ddba; outline-offset: 2px; }
+header button { border: 0; background: transparent; font-size: 24px; padding: 0 8px; }
+.hint { color: #a7b7c8; font-size: 12px; line-height: 1.6; }
+.options { display: flex; gap: 12px; margin: 18px 0 12px; } label { display: flex; flex: 1; flex-direction: column; min-width: 0; gap: 7px; font-size: 12px; color: #b5c4d4; }
+select,input { width: 100%; min-width: 0; padding: 10px; background: #101822; border: 1px solid #ffffff20; border-radius: 7px; }
+.primary { background: #a1ddba; color: #163225; font-size: 13px; font-weight: 600; }
+.link { display: flex; align-items: flex-end; gap: 8px; margin-top: 20px; } .link button { min-height: 38px; }
+.list { max-height: 230px; overflow-y: auto; } article { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #ffffff0b; } article div { flex: 1; min-width: 0; } article strong { display: block; font-size: 12px; font-weight: 500; } article small { display: block; margin-top: 4px; font-size: 11px; color: #9aabbe; overflow-wrap: anywhere; }
+.error { color: #f5adb5; font-size: 13px; }
+@media(max-width:480px) { dialog { padding: 18px; } .options { flex-direction: column; } button { min-height: 44px; } .link { flex-wrap: wrap; } .link label { flex-basis: 100%; } }

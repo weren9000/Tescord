@@ -1,5 +1,23 @@
-﻿@if (!isAuthenticated()) {
-  <div class="auth-shell">
+<ng-template #inviteNotice>
+  <section class="invite-entry" aria-label="Приглашение">
+    @if (invitePreview(); as invite) {
+      <div class="invite-entry__identity">
+        @if (resolveSpaceIconUrl(invite.server_id, invite.icon_asset, invite.icon_updated_at); as icon) {<img [src]="icon" alt="" />}
+        <strong>{{ invite.name }}</strong>
+      </div>
+      @if (!isAuthenticated()) {<p>После входа или регистрации вы автоматически присоединитесь {{ invite.kind === 'workspace' ? 'к площадке' : 'к группе' }}.</p>}
+    } @else {<strong>Приглашение в Квачат</strong>}
+    @if (inviteError()) {
+      <p class="invite-entry__error" role="alert">{{ inviteError() }}</p>
+      @if (isAuthenticated()) {<button type="button" (click)="retryInvite()" [disabled]="inviteJoining()">Попробовать снова</button>}
+    } @else if (inviteJoining() || !invitePreview()) {<p role="status">{{ inviteJoining() ? 'Присоединяемся…' : 'Проверяем приглашение…' }}</p>}
+    @if (!inviteJoining()) {<button type="button" (click)="dismissInvite()">Продолжить без приглашения</button>}
+  </section>
+</ng-template>
+@if (pendingInviteCode() && isAuthenticated()) {<div class="invite-entry-layer"><ng-container *ngTemplateOutlet="inviteNotice" /></div>}
+@if (inviteManagerSpace(); as space) {<app-invite-manager [space]="space" [token]="session()?.access_token ?? ''" (close)="closeInvites()" />}
+@if (!isAuthenticated()) {
+  <div class="auth-shell" [class.auth-shell--invite]="!!pendingInviteCode()">
     <section class="auth-panel auth-panel--story auth-panel--logo">
       <div class="auth-brand">
         <div class="auth-brand__logo-shell">
@@ -9,6 +27,7 @@
     </section>
 
     <section class="auth-panel auth-panel--form">
+      @if (pendingInviteCode()) {<ng-container *ngTemplateOutlet="inviteNotice" />}
       <div class="auth-tabs">
         <button
           class="auth-tab"
@@ -784,6 +803,9 @@
 
                 @if (conversationActionMenuOpen()) {
                   <div class="conversation-action-menu conversation-action-menu--managed">
+                    @if (!isChatsMode() && canManageActiveGroup()) {
+                      <button class="conversation-action-menu__item" type="button" (click)="openInvites()"><app-ui-icon name="plus" />Пригласить по ссылке</button>
+                    }
                     @if (isChatsMode() && activeDirectPeer()) {
                       <button class="conversation-action-menu__item" type="button" (click)="closeConversationActionMenu(); openActiveDirectPeerCall()">
                         <img class="conversation-action-menu__item-icon" src="/assets/Phone_connect.svg" alt="" />
@@ -3295,6 +3317,9 @@
               </div>
 
               <div class="platform-settings-actions">
+                @if (canManageActiveGroup()) {
+                  <button class="secondary-button platform-settings-action-button" type="button" (click)="openInvites()">Пригласить по ссылке</button>
+                }
                 @if (canEditActiveServerIcon()) {
                   <button class="secondary-button platform-settings-action-button" type="button" [disabled]="serverIconSaving()" (click)="openServerIconPicker()">Изменить иконку</button>
                 }

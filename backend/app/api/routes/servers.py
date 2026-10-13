@@ -427,6 +427,9 @@ def add_server_member(
 
     _ensure_manage_permission(membership, current_user)
 
+    # Serialize capacity checks with invitation joins for this same server.
+    db.execute(select(Server).where(Server.id == server_id).with_for_update()).scalar_one()
+
     if payload.user_id is not None:
         user = db.get(User, payload.user_id)
     else:

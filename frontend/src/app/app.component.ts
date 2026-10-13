@@ -4,6 +4,8 @@ import { UiIconComponent } from './workspace/ui-icon.component';
 import { ConversationListComponent } from './workspace/conversation-list.component';
 import { QuickSwitchComponent, QuickLink } from './workspace/quick-switch.component';
 import { PlatformSwitcherComponent } from './workspace/platform-switcher.component';
+import { InviteManagerComponent } from './workspace/invite-manager.component';
+import { InvitesApiService, InvitePreview } from './core/api/invites-api.service';
 import { WorkspaceMemoryService } from './core/services/workspace-memory.service';
 import { isMessageContinuation } from './core/services/message-layout';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -24,6 +26,8 @@ import {
   mergeMap,
   of,
   switchMap,
+  throwError,
+  map,
   takeUntil,
   tap
 } from 'rxjs';
@@ -614,11 +618,49 @@ const DEFAULT_SERVER_ICON_ASSET_BY_NAME: Record<string, string> = {
 @Component({
   providers: [AuthFormStore],
     selector: 'app-root',
-    imports: [CommonModule, FormsModule, MediaStreamSrcDirective, SectionNavigationComponent, UiIconComponent, ConversationListComponent, QuickSwitchComponent, PlatformSwitcherComponent],
+    imports: [CommonModule, FormsModule, MediaStreamSrcDirective, SectionNavigationComponent, UiIconComponent, ConversationListComponent, QuickSwitchComponent, PlatformSwitcherComponent, InviteManagerComponent],
     templateUrl: './app.component.html',
-    styleUrls: ['./app.component.scss', './app-layout.scss', './call-workspace.scss', './platform-workspace.scss']
+    styleUrls: ['./app.component.scss', './app-layout.scss', './call-workspace.scss', './platform-workspace.scss', './invite-entry.scss']
 })
 export class AppComponent {
+  private readonly invitesApi = inject(InvitesApiService);
+  readonly inviteManagerSpace = signal<{id: string; name: string} | null>(null);
+  readonly pendingInviteCode = signal(/^\/invite\/([^/]+)\/?$/.exec(window.location.pathname)?.[1] ?? null);
+  readonly invitePreview = signal<InvitePreview | null>(null);
+  readonly inviteError = signal('');
+  readonly inviteJoining = signal(false);
+  private inviteReturnFocus: HTMLElement | null = null;
+  openInvites(): void {
+    const space = this.activeServer();
+    if (!space || this.isChatsMode() || !this.canManageActiveGroup()) return;
+    this.inviteReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    this.closeConversationActionMenu();
+    this.inviteManagerSpace.set({id: space.id, name: space.name});
+  }
+  closeInvites(): void {
+    this.inviteManagerSpace.set(null);
+    const target = this.inviteReturnFocus?.isConnected ? this.inviteReturnFocus : document.querySelector<HTMLElement>('.conversation-head__settings-toggle');
+    target?.focus();
+  }
+  dismissInvite(): void {
+    if (this.inviteJoining()) return;
+    this.pendingInviteCode.set(null); this.invitePreview.set(null); this.inviteError.set('');
+    window.history.replaceState({}, '', '/');
+    const token = this.session()?.access_token;
+    if (token) this.bootstrapWorkspace(token);
+  }
+  retryInvite(): void {
+    const token = this.session()?.access_token;
+    if (token && !this.inviteJoining()) this.bootstrapWorkspace(token);
+  }
+  private previewPendingInvite(): void {
+    const code = this.pendingInviteCode();
+    if (!code) return;
+    this.invitesApi.preview(code).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: result => { if (this.pendingInviteCode() === code) this.invitePreview.set(result); },
+      error: error => { if (this.pendingInviteCode() === code && !this.session()) this.inviteError.set(this.extractErrorMessage(error, 'Не удалось проверить приглашение')); },
+    });
+  }
   private readonly workspaceMemory = inject(WorkspaceMemoryService);
   readonly quickSwitchOpen = signal(false);
   readonly showJumpToLatest = signal(false);
@@ -741,6 +783,7 @@ export class AppComponent {
     return match ? {spaceId: match[1], channelId: match[2]} : undefined;
   }
   private rememberChannelVisit(channelId: string): void {
+    if (this.pendingInviteCode()) return;
     const spaceId = this.selectedServerId();
     if (!spaceId) return;
     this.workspaceMemory.visit(spaceId, channelId);
@@ -2475,6 +2518,7 @@ export class AppComponent {
     this.setupPresenceActivityTracking();
     this.startPresenceKeepalive();
     this.loadHealth();
+    this.previewPendingInvite();
     this.restoreSession();
     void this.syncWakeLock();
   }
@@ -6601,6 +6645,7 @@ export class AppComponent {
   }
 
   logout(): void {
+    this.inviteManagerSpace.set(null);
     const token = this.session()?.access_token;
     if (token) {
       void fetch(`${API_BASE_URL}/api/auth/logout`, { method: 'POST', headers: { Authorization: `Bearer ${token}` }, keepalive: true }).catch(() => undefined);
@@ -8485,6 +8530,25 @@ export class AppComponent {
     this.workspaceApi
       .getCurrentUser(token)
       .pipe(
+        switchMap(me => {
+          const code = this.pendingInviteCode();
+          if (!code) return of(me);
+          this.inviteJoining.set(true); this.inviteError.set('');
+          return this.invitesApi.join(token, code).pipe(
+            tap(target => {
+              this.pendingInviteCode.set(null); this.invitePreview.set(null);
+              this.selectedServerId.set(null);
+              window.history.replaceState({}, '', `/channels/${target.server_id}/${target.channel_id}`);
+            }),
+            map(() => me),
+            catchError(error => {
+              if (this.isUnauthorizedError(error)) return throwError(() => error);
+              this.inviteError.set(this.extractErrorMessage(error, 'Не удалось вступить. Попробуйте ещё раз.'));
+              return of(me);
+            }),
+            finalize(() => this.inviteJoining.set(false)),
+          );
+        }),
         switchMap((me) =>
           forkJoin({
             me: of(me),
@@ -8504,6 +8568,10 @@ export class AppComponent {
           this.servers.set(this.mergeServersById(servers));
           const mergedConversations = this.mergeConversationsById(conversations);
           this.conversations.set(mergedConversations);
+          if (this.pendingInviteCode()) {
+            this.workspaceLoading.set(false);
+            return;
+          }
           this.tryOpenPendingPushConversation(token);
           this.schedulePresenceHeartbeat(true);
           void this.loadConversationDirectory(token);
@@ -8589,6 +8657,8 @@ export class AppComponent {
           this.selectedChannelId.set(null);
           this.clearStoredSession();
           this.authError.set(this.extractErrorMessage(error, 'Сессия устарела. Войдите снова.'));
+          const invite = this.pendingInviteCode();
+          if (invite) window.history.replaceState({}, '', `/invite/${encodeURIComponent(invite)}`);
         }
       });
   }
