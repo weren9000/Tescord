@@ -58,6 +58,7 @@ export class ActionMenuComponent implements AfterViewInit, OnDestroy {
     if (event.clientX < r.left || event.clientX > r.right || event.clientY < r.top || event.clientY > r.bottom) this.close.emit();
   }
   onKeydown(event: KeyboardEvent): void {
+    event.stopPropagation();
     if (event.key === 'Tab') {
       const focusable = Array.from(this.dialog.nativeElement.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),a[href],[tabindex="0"]')).filter(element => element.getClientRects().length > 0);
       const first = focusable[0], last = focusable[focusable.length - 1];

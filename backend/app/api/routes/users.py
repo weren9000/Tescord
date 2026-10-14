@@ -115,7 +115,7 @@ async def update_current_user_profile(
 
 
 @router.get("/users/{user_id}/avatar")
-def read_user_avatar(user_id: UUID, motion: bool = True, db: Session = Depends(get_db)) -> Response:
+def read_user_avatar(user_id: UUID, motion: bool = True, include_frame: bool = True, db: Session = Depends(get_db)) -> Response:
     user = db.get(User, user_id)
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Аватарка не найдена")
@@ -123,7 +123,7 @@ def read_user_avatar(user_id: UUID, motion: bool = True, db: Session = Depends(g
         InventoryItem.kind == 'avatar', InventoryItem.equipped.is_(True), InventoryItem.revoked.is_(False)))
     frame = db.scalar(select(InventoryItem).where(InventoryItem.owner_id == user.id,
         InventoryItem.kind == 'frame', InventoryItem.equipped.is_(True), InventoryItem.revoked.is_(False)))
-    if frame:
+    if frame and include_frame:
         if equipped:
             content, mime = asset_path(equipped.catalog_id).read_bytes(), 'image/webp'
         elif user.avatar_content is not None and user.avatar_mime_type is not None:

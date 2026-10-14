@@ -137,6 +137,9 @@ def test_frames_preserve_avatar_and_transfer_ownership(accounts):
     response = c.get('/api/users/'+a['id']+'/avatar')
     assert response.headers['content-type'].startswith('image/svg+xml')
     assert '@keyframes flow' in response.text
+    # Preview another frame over the raw avatar without changing equipped inventory.
+    assert c.get('/api/users/'+a['id']+'/avatar?include_frame=false').content == original
+    assert c.get('/api/users/'+a['id']+'/avatar').headers['content-type'].startswith('image/svg+xml')
     assert 'animation:flow' not in c.get('/api/users/'+a['id']+'/avatar?motion=false').text
     assert sum(i['equipped'] for i in c.get('/api/inventory',headers=alice).json()['items']) == 2
     second = frame('frame-sakura')

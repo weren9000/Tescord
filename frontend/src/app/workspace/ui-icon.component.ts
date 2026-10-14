@@ -1,6 +1,8 @@
 import { Component, input } from '@angular/core';
 
 const paths: Record<string, string> = {
+  gift: 'M3 8h18v4H3zM5 12v9h14v-9M12 8v13M12 8C3 8 5 1 9 3l3 5M12 8c9 0 7-7 3-5z',
+  info: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18M12 11v6M12 7h.01',
   profile: 'M20 21v-2a7 7 0 0 0-14 0v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8',
   appearance: 'M3 4h18v16H3zM3 16l5-5 5 5 4-4 4 4M15 8h.01',
   settings: 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2',

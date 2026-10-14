@@ -1,3 +1,5 @@
+import { ActionMenuComponent } from './action-menu.component';
+import { UiIconComponent } from './ui-icon.component';
 import { Component, ElementRef, effect, inject, input, output, signal, untracked, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -6,7 +8,7 @@ import { firstValueFrom } from 'rxjs';
 import { API_BASE_URL } from '../core/api/api-base';
 
 interface Person { id: string; nick: string; public_id: number; avatar_updated_at: string | null; }
-interface Item { id: string; catalog_id: string; name: string; kind: string; equipped: boolean; revoked: boolean; owner: Person | null; }
+interface Item { created_at: string; id: string; catalog_id: string; name: string; kind: string; equipped: boolean; revoked: boolean; owner: Person | null; }
 interface Notice { id: string; action: string; name: string; actor: Person | null; created_at: string; unread: boolean; }
 interface Event { action: string; actor: Person | null; recipient: Person | null; created_at: string; }
 interface Page<T> { items: T[]; total: number; page: number; pages: number; }
@@ -15,10 +17,13 @@ interface Catalog { id: string; name: string; kind: string; hidden: boolean; }
 interface Pending { action: string; item: Item | null; recipient: Person | null; request_id: string; catalog_id?: string; }
 
 @Component({
- selector: 'app-inventory', standalone: true, imports: [CommonModule, FormsModule],
+ selector: 'app-inventory', standalone: true, imports: [CommonModule, FormsModule, ActionMenuComponent, UiIconComponent],
  templateUrl: './inventory.component.html', styleUrl: './inventory.component.scss'
 })
 export class InventoryComponent implements OnDestroy {
+ readonly avatarUrl = input<string | null>(null);
+ readonly catalogMenu = signal<Catalog | null>(null);
+ private historyVersion = 0;
  readonly token = input.required<string>();
  readonly mode = input<'inventory' | 'admin' | null>(null);
  readonly isAdmin = input(false);
@@ -62,7 +67,7 @@ export class InventoryComponent implements OnDestroy {
  async goPage(value: number){this.currentPage.set(value);this.menu.set(null);this.selectedCatalog='';await this.reload();}
  openUpload(){this.resetUpload();this.uploadKind=this.adminTab()==='issued'?'avatar':this.adminTab();this.uploadOpen.set(true);this.error.set('');}
  resetUpload(){++this.fileVersion;if(this.previewUrl)URL.revokeObjectURL(this.previewUrl);this.previewUrl='';this.uploadFile=null;this.uploadName='';this.cropX=50;this.cropY=50;this.zoom=1;}
- ngOnDestroy(){this.resetUpload();++this.loadVersion;}
+ ngOnDestroy(){this.resetUpload();++this.loadVersion;++this.historyVersion;}
  async fileChanged(event: globalThis.Event){
   const version=++this.fileVersion;this.error.set('');const file=(event.target as HTMLInputElement).files?.[0];this.uploadFile=null;if(this.previewUrl)URL.revokeObjectURL(this.previewUrl);this.previewUrl='';
   if(!file)return;if(file.size>10*1024*1024){this.error.set('Изображение должно быть не больше 10 МБ');return;}
@@ -83,20 +88,15 @@ export class InventoryComponent implements OnDestroy {
  async resetTheme(){if(this.busy())return;this.busy.set(true);try{await this.request('/theme/reset','POST',{request_id:crypto.randomUUID()});this.changed.emit();await this.reload();this.success.set('Базовая тема включена');}catch(e){this.fail(e);}finally{this.busy.set(false);}}
  readonly eventsOpen = signal(false);
  readonly unreadCount = signal(0);
- menuX=0; menuY=0;
  private menuTrigger: HTMLElement | null = null;
  queryChanged() {++this.searchVersion;this.recipient.set(null);this.people.set([]);this.searched.set(false);}
  toggleMenu(item: Item, event: MouseEvent) {
   event.stopPropagation();
   if(this.menu()?.id===item.id){this.menu.set(null);return;}
-  const rect=(event.currentTarget as HTMLElement).getBoundingClientRect();
   this.menuTrigger=event.currentTarget as HTMLElement;
-  this.menuX=Math.max(12,Math.min(rect.left,window.innerWidth-192));
-  this.menuY=Math.max(12,Math.min(rect.bottom+6,window.innerHeight-160));
   this.menu.set(item);
-  setTimeout(()=>this.element.nativeElement.querySelector<HTMLButtonElement>('.item-menu button')?.focus());
  }
- closePanel() {if(this.busy())return;if(this.pending())this.pending.set(null);else{this.giftItem.set(null);this.detail.set(null);this.themePreview.set(null);this.eventsOpen.set(false);this.uploadOpen.set(false);this.editing.set(null);this.resetUpload();}}
+ closePanel() {if(this.busy())return;++this.historyVersion;if(this.pending())this.pending.set(null);else{this.giftItem.set(null);this.detail.set(null);this.themePreview.set(null);this.eventsOpen.set(false);this.uploadOpen.set(false);this.editing.set(null);this.resetUpload();}}
  async clearRecipient() {this.recipient.set(null);this.query='';this.people.set([]);this.searched.set(false);}
  query = '';
  selectedCatalog = '';
@@ -120,8 +120,8 @@ export class InventoryComponent implements OnDestroy {
    const focusTimer=mode ? setTimeout(()=>this.element.nativeElement.querySelector<HTMLButtonElement>('header button')?.focus()) : undefined;
    onCleanup(()=>{clearTimeout(focusTimer);if(mode)previousFocus?.focus();});
    this.pending.set(null); this.giftItem.set(null); this.recipient.set(null);
-   this.menu.set(null);this.detail.set(null);this.themePreview.set(null);this.eventsOpen.set(false);this.adminTab.set('avatar');this.tab.set('avatar');this.uploadOpen.set(false);this.editing.set(null);this.resetUpload();
-   this.history.set(null); this.people.set([]); this.searched.set(false); this.query='';this.filter='';this.currentPage.set(1);++this.loadVersion;
+   this.menu.set(null);this.catalogMenu.set(null);++this.historyVersion;this.detail.set(null);this.themePreview.set(null);this.eventsOpen.set(false);this.adminTab.set('avatar');this.tab.set('avatar');this.uploadOpen.set(false);this.editing.set(null);this.resetUpload();
+   this.history.set(null); this.people.set([]); this.searched.set(false); this.query='';this.filter='';this.selectedCatalog='';this.currentPage.set(1);++this.loadVersion;++this.searchVersion;
    this.error.set(''); this.success.set('');
    if (!token) return;
    untracked(()=>void this.reload());
@@ -186,17 +186,37 @@ export class InventoryComponent implements OnDestroy {
   try {
    await this.request(op.action==='grant'?'/grant':`/items/${op.item!.id}/${op.action}`, 'POST',
      {request_id:op.request_id,recipient_id:['gift','grant','revoke'].includes(op.action) ? op.recipient?.id ?? null : null,...(op.action==='grant'?{catalog_id:op.catalog_id}:{})});
-   this.pending.set(null);this.giftItem.set(null);this.themePreview.set(null);this.success.set('Готово. Инвентарь обновлён.');this.changed.emit();await this.reload();
+   this.pending.set(null);this.giftItem.set(null);this.themePreview.set(null);this.success.set(op.action==='grant' ? `«${this.catalogName(op.catalog_id ?? '')}» выдано: ${op.recipient?.nick}` : op.action==='gift' ? `«${op.item?.name}» подарено: ${op.recipient?.nick}` : 'Готово. Предмет обновлён.');this.changed.emit();await this.reload();
   }catch(e){this.fail(e);}finally{this.busy.set(false);}
  }
  async equip(item: Item) {this.confirm(item.equipped?'unequip':'equip',item);await this.perform();}
- async showHistory(item: Item) {this.menu.set(null);this.detail.set(item);this.history.set(null);try{this.history.set(await this.request<Event[]>(`/items/${item.id}/history`));}catch(e){this.fail(e);}}
+ async showHistory(item: Item) {
+  const version=++this.historyVersion;this.menu.set(null);this.detail.set(item);this.history.set(null);this.error.set('');
+  try{const events=await this.request<Event[]>(`/items/${item.id}/history`);if(version===this.historyVersion && this.detail()?.id===item.id)this.history.set(events);}catch(e){if(version===this.historyVersion)this.fail(e);}
+ }
+ preview(item: Item){this.menu.set(null);this.detail.set(null);this.error.set('');this.themePreview.set(item);}
+ requestEquip(item: Item){if(!item.equipped && ['frame','theme'].includes(item.kind))this.preview(item);else void this.equip(item);}
+ rawAvatar(){const url=this.avatarUrl();return url ? url+(url.includes('?')?'&':'?')+'include_frame=false' : this.presetImage('cat');}
+ itemStatus(item: Item){return item.revoked ? 'Отозван' : item.equipped ? 'Используется' : 'В инвентаре';}
+ openCatalogMenu(entry: Catalog,event: MouseEvent){event.stopPropagation();this.catalogMenu.set(entry);}
+ beginGrant(entry: Catalog){
+  if(this.busy()||entry.hidden)return;
+  this.catalogMenu.set(null);this.selectedCatalog=entry.id;
+  setTimeout(()=>{const target=this.element.nativeElement.querySelector<HTMLElement>('.grant-target');target?.scrollIntoView({block:'nearest'});target?.querySelector<HTMLInputElement>('input')?.focus({preventScroll:true});});
+ }
+ editCatalog(entry: Catalog){this.catalogMenu.set(null);this.edit(entry);}
+ async toggleCatalogVisibility(entry: Catalog){
+  if(this.busy())return;
+  if(!window.confirm(entry.hidden ? `Вернуть «${entry.name}» в выдачу?` : `Скрыть «${entry.name}» из будущих выдач? Полученные экземпляры сохранятся.`))return;
+  this.busy.set(true);this.error.set('');
+  try{await this.request('/catalog/'+entry.id,'PATCH',{hidden:!entry.hidden});this.catalogMenu.set(null);await this.reload();this.success.set(entry.hidden?'Предмет возвращён в выдачу':'Предмет скрыт из выдачи');}catch(e){this.fail(e);}finally{this.busy.set(false);}
+ }
  async markRead() {try{await this.request('/read','POST',{});await this.reload();}catch(e){this.fail(e);}}
  dismiss() {if(!this.busy())this.close.emit();}
  keydown(event: KeyboardEvent) {
   if(event.key==='Escape'){event.stopPropagation();if(!this.busy()){if(this.menu()){this.menu.set(null);this.menuTrigger?.focus();}else if(this.pending()||this.giftItem()||this.themePreview()||this.detail()||this.eventsOpen()||this.uploadOpen()||this.editing())this.closePanel();else this.dismiss();}}
   if(event.key!=='Tab')return;
-  const root=this.element.nativeElement.querySelector(this.menu()?'.item-menu':this.pending()?'.confirm':(this.giftItem()||this.themePreview()||this.detail()||this.eventsOpen()||this.uploadOpen()||this.editing())?'.subpanel':'.inventory');
+  const root=this.element.nativeElement.querySelector(this.pending()?'.confirm':(this.giftItem()||this.themePreview()||this.detail()||this.eventsOpen()||this.uploadOpen()||this.editing())?'.subpanel':'.inventory');
   const nodes=Array.from(root?.querySelectorAll<HTMLElement>('button:not(:disabled),input,select')??[]).filter(e=>e.offsetParent!==null);
   const first=nodes[0],last=nodes[nodes.length-1];
   if(event.shiftKey && (document.activeElement===first || !root?.contains(document.activeElement))){event.preventDefault();last?.focus();}

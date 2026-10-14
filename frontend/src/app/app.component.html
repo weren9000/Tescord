@@ -559,7 +559,32 @@
     @if (quickSwitchOpen()) {
       <app-quick-switch [query]="globalSearchQuery()" [links]="quickLinks()" (search)="updateGlobalSearchQuery($event)" (open)="openQuickLink($event)" (close)="closeQuickSwitch()" />
     }
-    <div class="messenger-layout" [class.messenger-layout--platform]="isPlatformsMode()" [attr.data-density]="desktopPreferences.value().density" [class.messenger-layout--sidebar-collapsed]="desktopPreferences.value().collapsed" [style.--sidebar-width]="desktopPreferences.value().width + 'px'" [style.--message-text-size]="desktopPreferences.value().textSize + 'px'">
+    @if (platformActionMenuOpen() && activeServer(); as platform) {
+      <app-action-menu [label]="'Площадка · ' + platform.name" (close)="platformActionMenuOpen.set(false)">
+        <section><button type="button" (click)="openConversationInfo()"><app-ui-icon name="info" />Информация о площадке</button></section>
+        @if(canManageActiveGroup()){
+          <section>
+            <button type="button" (click)="platformActionMenuOpen.set(false); openInvites()"><app-ui-icon name="plus" />Пригласить по ссылке</button>
+            <button type="button" (click)="platformActionMenuOpen.set(false); openCreateChannelModal('text')"><app-ui-icon name="hash" />Создать текстовый канал</button>
+            <button type="button" (click)="platformActionMenuOpen.set(false); openCreateChannelModal('voice')"><app-ui-icon name="sound" />Создать голосовой канал</button>
+          </section>
+        }
+        @if(canOpenPlatformSettings()){<section><button type="button" (click)="openPlatformSettingsModal()"><app-ui-icon name="settings" />Настройки площадки</button></section>}
+        <section><button type="button" [disabled]="isServerMembershipActionPending(platform.id)" (click)="platformActionMenuOpen.set(false); leaveActivePlatform()"><app-ui-icon name="logout" />Выйти с площадки</button><button type="button" class="danger" [disabled]="isServerMembershipActionPending(platform.id)" (click)="platformActionMenuOpen.set(false); blockActivePlatform()"><app-ui-icon name="block" />Заблокировать площадку</button></section>
+      </app-action-menu>
+    }
+    @if(channelActionTarget();as channel){
+      <app-action-menu [label]="(channel.type === 'voice' ? 'Голосовой канал · ' : 'Текстовый канал · ') + channel.name" (close)="channelActionTarget.set(null)">
+        @if(channel.topic){<p class="menu-note">{{channel.topic}}</p>}
+        @if(managementError()){<p class="menu-note" role="alert">{{managementError()}}</p>}
+        <section><button type="button" (click)="openChannelFromMenu(channel)"><app-ui-icon [name]="channel.type==='voice' ? 'sound' : 'hash'" />Открыть канал</button>
+          @if(selectedChannelId()===channel.id && canUseActiveChannelChat()){<button type="button" (click)="channelActionTarget.set(null); openChatFilesModal()"><app-ui-icon name="files" />Файлы канала</button>}
+        </section>
+        @if(channel.type==='voice' && canManagePlatformVoiceChannel(channel)){<section><button type="button" (click)="openChannelSettings(channel)"><app-ui-icon name="settings" />Доступ к голосовому каналу</button></section>}
+        @if(canDeleteWorkspaceChannel(channel)){<section><button type="button" class="danger" [disabled]="isDeletingChannel(channel.id)" (click)="deleteChannel(channel)"><app-ui-icon name="trash" />Удалить канал</button></section>}
+      </app-action-menu>
+    }
+    <div class="messenger-layout" [class.messenger-layout--info]="conversationInfoOpen()" [class.messenger-layout--platform]="isPlatformsMode()" [attr.data-density]="desktopPreferences.value().density" [class.messenger-layout--sidebar-collapsed]="desktopPreferences.value().collapsed" [style.--sidebar-width]="desktopPreferences.value().width + 'px'" [style.--message-text-size]="desktopPreferences.value().textSize + 'px'">
       <app-section-navigation [isAvatarAdmin]="!!currentUser()?.is_avatar_admin" [inventoryUnread]="inventoryUnread()" (inventory)="inventoryMode.set($event)" [avatarUrl]="currentUserAvatarUrl()" [selected]="workspaceMode()" [initials]="displayNickInitials(currentUser()?.nick ?? 'Я')" [hasNotifications]="friendRequestBadgeVisible()" (selectSection)="selectWorkspaceMode($event)" (menu)="toggleSideMenu()" (search)="openQuickSwitch()" (profile)="toggleSideMenu()" (notifications)="openFriendRequestsModal()" />
       <aside class="conversation-sidebar" [class.conversation-sidebar--mobile-open]="mobilePanel() === 'servers'">
         <div class="desktop-sidebar-toolbar">
@@ -574,7 +599,10 @@
           </div>
         }
         @if (isPlatformsMode() && platformSpaces().length) {
+          <div class="platform-heading">
           <app-platform-switcher [spaces]="platformChoices()" [selected]="selectedServerId()" (select)="selectPlatformFromPicker($event)" (create)="openCreatePlatformShortcut()" />
+            <button class="platform-menu-trigger" type="button" aria-label="Меню площадки" title="Меню площадки" aria-haspopup="dialog" [attr.aria-expanded]="platformActionMenuOpen()" (click)="platformActionMenuOpen.set(!platformActionMenuOpen())"><app-ui-icon name="more" /></button>
+          </div>
         }
         <div class="section-search"><app-ui-icon name="search" />
           <input type="search" [ngModel]="sidebarQuery()" (ngModelChange)="sidebarQuery.set($event)" (keydown.escape)="sidebarQuery.set('')" [placeholder]="isPlatformsMode() ? 'Найти канал' : isGroupsMode() ? 'Найти группу' : 'Найти друга'" [attr.aria-label]="'Поиск в разделе «' + sectionTitle() + '»'" />
@@ -601,11 +629,11 @@
                   </div>
                   @if (!isPlatformChannelSectionCollapsed('text') || sidebarQuery().trim()) {
                     @for (channel of sidebarTextChannels(); track channel.id) {
-                      <button class="space-channel" type="button" [class.space-channel--selected]="selectedChannelId() === channel.id" [class.space-channel--unread]="channelUnreadCount(channel) > 0" [attr.aria-current]="selectedChannelId() === channel.id ? 'page' : null" [attr.title]="channel.name + (channel.topic ? ' · ' + channel.topic : '')" (click)="selectChannel(channel)">
+                      <div class="channel-action-row"><button class="space-channel" type="button" [class.space-channel--selected]="selectedChannelId() === channel.id" [class.space-channel--unread]="channelUnreadCount(channel) > 0" [attr.aria-current]="selectedChannelId() === channel.id ? 'page' : null" [attr.title]="channel.name + (channel.topic ? ' · ' + channel.topic : '')" (click)="selectChannel(channel)">
                         <app-ui-icon name="hash" /><span class="space-channel__name">{{ channel.name }}</span>
                         @if (channelMentionUnreadCount(channel) > 0) {<span class="space-badge space-badge--mention" [attr.aria-label]="'Упоминаний: ' + channelMentionUnreadCount(channel)">&#64;{{ channelMentionUnreadBadgeLabel(channel) }}</span>}
                         @else if (channelUnreadCount(channel) > 0) {<span class="space-badge" [attr.aria-label]="'Непрочитанных: ' + channelUnreadCount(channel)">{{ channelUnreadBadgeLabel(channel) }}</span>}
-                      </button>
+                      </button><button class="channel-menu-trigger" type="button" [attr.aria-label]="'Действия канала: ' + channel.name" [attr.title]="'Действия канала: ' + channel.name" aria-haspopup="dialog" (click)="openChannelActions(channel)"><app-ui-icon name="more" /></button></div>
                     } @empty {<p class="space-section__empty">{{ sidebarQuery().trim() ? 'Каналы не найдены' : 'Текстовых каналов пока нет' }}</p>}
                   }
                 </section>
@@ -616,13 +644,13 @@
                   </div>
                   @if (!isPlatformChannelSectionCollapsed('voice') || sidebarQuery().trim()) {
                     @for (channel of sidebarVoiceChannels(); track channel.id) {
-                      <button class="space-channel" type="button" [class.space-channel--selected]="selectedChannelId() === channel.id" [class.space-channel--connected]="connectedVoiceChannelId() === channel.id" [attr.aria-current]="selectedChannelId() === channel.id ? 'page' : null" [attr.title]="channel.name + (channel.topic ? ' · ' + channel.topic : '')" (click)="previewPlatformVoiceChannel(channel)">
+                      <div class="channel-action-row"><button class="space-channel" type="button" [class.space-channel--selected]="selectedChannelId() === channel.id" [class.space-channel--connected]="connectedVoiceChannelId() === channel.id" [attr.aria-current]="selectedChannelId() === channel.id ? 'page' : null" [attr.title]="channel.name + (channel.topic ? ' · ' + channel.topic : '')" (click)="previewPlatformVoiceChannel(channel)">
                         <app-ui-icon name="sound" /><span class="space-channel__name">{{ channel.name }}</span>
                         @if (channelMentionUnreadCount(channel)>0) {<span class="space-badge space-badge--mention" [attr.aria-label]="'Упоминаний: ' + channelMentionUnreadCount(channel)">&#64;{{channelMentionUnreadBadgeLabel(channel)}}</span>}
                         @else if (channelUnreadCount(channel)>0) {<span class="space-badge" [attr.aria-label]="'Непрочитанных: ' + channelUnreadCount(channel)">{{channelUnreadBadgeLabel(channel)}}</span>}
                         @if (connectedVoiceChannelId() === channel.id) {<app-ui-icon name="check" aria-label="Вы подключены" />}
                         @if (platformVoiceParticipants(channel.id).length) {<span class="space-channel__count" [attr.aria-label]="'Участников в комнате: ' + platformVoiceParticipants(channel.id).length">{{ platformVoiceParticipants(channel.id).length }}</span>}
-                      </button>
+                      </button><button class="channel-menu-trigger" type="button" [attr.aria-label]="'Действия канала: ' + channel.name" [attr.title]="'Действия канала: ' + channel.name" aria-haspopup="dialog" (click)="openChannelActions(channel)"><app-ui-icon name="more" /></button></div>
                       @if (platformVoiceParticipants(channel.id).length) {
                         <button class="space-roster-toggle" type="button" [attr.aria-expanded]="expandedPlatformRosters().has(channel.id)" [attr.aria-controls]="'room-roster-' + channel.id" [attr.aria-label]="(expandedPlatformRosters().has(channel.id) ? 'Скрыть участников: ' : 'Показать участников: ') + channel.name" (click)="togglePlatformRoster(channel.id)">
                           <span class="space-roster-avatars" aria-hidden="true">
@@ -656,7 +684,7 @@
         </div>
         @if (isPlatformsMode() && activeServer()) {
           <div class="space-footer">
-            <button type="button" (click)="openGroupMembersPanel()"><app-ui-icon name="groups" />Участники · {{ members().length }}</button>
+            <button type="button" (click)="openConversationInfo()"><app-ui-icon name="info" />О площадке · {{ members().length }}</button>
             @if (canOpenPlatformSettings()) {<button type="button" aria-label="Настройки площадки" title="Настройки площадки" (click)="openPlatformSettingsModal()"><app-ui-icon name="more" /></button>}
           </div>
         } @else {
@@ -697,8 +725,8 @@
               </button>
               }
               <div class="conversation-head__summary">
-                <strong>{{ isPlatformsMode() && activeChannel() ? activeChannel()?.name : activeServer()?.name }}</strong>
-                <small class="channel-context" [attr.title]="isPlatformsMode() ? activeChannel()?.topic : null">{{ isPlatformsMode() ? activeChannel()?.topic || activeServer()?.name : isGroupsMode() ? 'Групповая беседа' : activeDirectPeer()?.is_online ? 'В сети' : 'Личная переписка' }}</small>
+                <button class="conversation-info-trigger" type="button" [attr.aria-label]="isPlatformsMode() ? 'Информация о канале' : 'Информация о беседе'" (click)="isPlatformsMode() && activeChannel() ? openChannelActions(activeChannel()!) : openConversationInfo()">{{ isPlatformsMode() && activeChannel() ? activeChannel()?.name : activeServer()?.name }}</button>
+                <small class="channel-context" [attr.title]="isPlatformsMode() ? activeChannel()?.topic : null">{{ isPlatformsMode() ? activeChannel()?.topic || activeServer()?.name : isGroupsMode() ? activeGroupMemberCount() + ' участников' : activeDirectPeer()?.is_online ? 'В сети' : 'Личная переписка' }}</small>
               </div>
 
               <div class="conversation-head__menu">
@@ -712,10 +740,10 @@
                   class="secondary-button conversation-head__action conversation-head__action--icon conversation-head__settings-toggle"
                   [class.conversation-head__settings-toggle--active]="conversationActionMenuOpen()"
                   type="button"
-                  [attr.aria-label]="'Действия ' + (isChatsMode() ? 'друга' : activeManagedSpaceLabel())"
-                  [attr.title]="'Действия ' + (isChatsMode() ? 'друга' : activeManagedSpaceLabel())"
+                  [attr.aria-label]="isPlatformsMode() ? 'Действия канала' : 'Действия ' + (isChatsMode() ? 'друга' : activeManagedSpaceLabel())"
+                  [attr.title]="isPlatformsMode() ? 'Действия канала' : 'Действия ' + (isChatsMode() ? 'друга' : activeManagedSpaceLabel())"
                   [attr.aria-expanded]="conversationActionMenuOpen()" aria-haspopup="dialog"
-                  (click)="toggleConversationActionMenu()"
+                  (click)="isPlatformsMode() && activeChannel() ? openChannelActions(activeChannel()!) : toggleConversationActionMenu()"
                 >
                   <app-ui-icon name="more" />
                   @if (isPlatformsMode() && activePlatformVoiceRequestCount() > 0) {
@@ -725,6 +753,7 @@
 
                 @if (conversationActionMenuOpen()) {
 <app-action-menu label="Действия беседы" (close)="closeConversationActionMenu()">
+<section><button type="button" (click)="openConversationInfo()"><app-ui-icon name="info" />Информация о беседе</button></section>
                     @if (pinError()) { <p class="menu-note" role="alert">{{ pinError() }}</p> }
                     @if (pushFeedback(); as feedback) { <p class="menu-note" role="status">{{ feedback.message }}</p> }
 @if (canUseActiveChannelChat()) { <section><p class="menu-heading">Материалы</p>                    @if (canUseActiveChannelChat()) {
@@ -753,28 +782,7 @@
 
                     }
 </section>
-@if (!isChatsMode()) { <section><p class="menu-heading">Участники и управление</p>                    @if (!isChatsMode() && canManageActiveGroup()) {
-                      <button  type="button" (click)="openInvites()"><app-ui-icon name="plus" />Пригласить по ссылке</button>
-                    }
-                    @if (!isChatsMode()) {
-                      <button  type="button" (click)="closeConversationActionMenu(); openGroupMembersPanel()">
-                        <app-ui-icon name="groups" />
-                        Участники
-                      </button>
-                    }
-                    @if (!isChatsMode() && canManageActiveGroup()) {
-                      <button  type="button" (click)="closeConversationActionMenu(); openAddGroupMemberModal()">
-                        <app-ui-icon name="plus" />
-                        Добавить участника
-                      </button>
-                    }
-                    @if (isPlatformsMode() && canOpenPlatformSettings()) {
-                      <button  type="button" (click)="openPlatformSettingsModal()">
-                        <app-ui-icon name="settings" />
-                        Настройки площадки
-                      </button>
-                    }
-</section> }
+
 <section><p class="menu-heading">{{ isChatsMode() ? 'Контакт' : 'Завершение участия' }}</p>                    @if (isChatsMode() && activeDirectPeer(); as directPeer) {
                       <button class="danger" type="button" [disabled]="isFriendManagementPending(directPeer.user_id)" (click)="removeActiveFriend()">
                         <app-ui-icon name="trash" />
@@ -1619,6 +1627,55 @@
           </section>
         }
       </main>
+      @if (conversationInfoOpen() && activeServer(); as space) {
+        <app-info-panel [label]="isChatsMode() ? 'О собеседнике' : isPlatformsMode() ? 'О площадке' : 'О группе'" (close)="closeConversationInfo()">
+          <div class="info-identity">
+            @if (activeSpaceIconUrl(); as icon) { <img class="info-avatar" [src]="icon" alt="" /> } @else { <span class="info-avatar">{{ displayNickInitials(space.name) }}</span> }
+            <h3>{{ space.name }}</h3>
+            @if (activeDirectPeer(); as peer) { <p>{{ peer.is_online ? 'В сети' : 'Не в сети' }} · ID {{ formatPublicUserId(peer.public_id) }}</p> }
+            @else { <p>{{ activeGroupMemberCount() }} участников</p>@if(conversationInfoDescription();as description){<p>{{description}}</p>} }
+          </div>
+          @if (managementError()) { <p class="info-feedback" role="alert">{{ managementError() }}</p> }
+          @if (managementSuccess()) { <p class="info-feedback" role="status">{{ managementSuccess() }}</p> }
+          @if (isChatsMode()) {
+            <section class="info-section">
+              <button type="button" (click)="closeConversationInfo()"><app-ui-icon name="back" />Написать сообщение</button>
+              <button type="button" (click)="closeConversationInfo(); openActiveDirectPeerCall()"><app-ui-icon name="phone" />Позвонить</button>
+            </section>
+          }
+          <section class="info-section"><h4>Общие материалы</h4>
+            @if(canUseActiveChannelChat()){<button type="button" (click)="closeConversationInfo(); openChatFilesModal()"><app-ui-icon name="files" />{{isPlatformsMode() ? 'Файлы текущего канала' : 'Файлы беседы'}}</button>}
+          </section>
+          <section class="info-section"><h4>Личные настройки</h4>
+            @if(activeConversation()){
+              <button type="button" [disabled]="isActiveConversationPushPending()" (click)="toggleActiveConversationPush()"><app-ui-icon name="bell" />{{isActiveConversationPushPending() ? 'Сохраняем…' : activeConversationPushActionLabel()}}</button>
+              @if(pushFeedback();as feedback){<p role="status">{{feedback.message}}</p>}
+            }
+            <button type="button" (click)="closeConversationInfo(); wallpaperOpen.set(true)"><app-ui-icon name="appearance" />Обои {{isPlatformsMode() ? 'площадки' : 'беседы'}}</button>
+          </section>
+          @if (!isChatsMode()) {
+            <section class="info-section"><h4>Участники · {{activeGroupMemberCount()}}</h4>
+              @if(canManageActiveGroup()){
+                <button type="button" (click)="closeConversationInfo(); openInvites()"><app-ui-icon name="plus" />Пригласить по ссылке</button>
+                <button type="button" (click)="closeConversationInfo(); openAddGroupMemberModal()"><app-ui-icon name="groups" />Добавить участника</button>
+              }
+              <input type="search" aria-label="Найти участника" placeholder="Найти участника" [ngModel]="infoMemberQuery()" (ngModelChange)="infoMemberQuery.set($event)" />
+              @for(member of infoMembers();track member.userId){
+                <button class="info-member" type="button" (click)="closeConversationInfo(); openGroupMemberFromPanel(member)">
+                  <img [src]="userAvatarUrl(member.userId,member.avatarUpdatedAt)" alt="" /><span><strong>{{displayNick(member.nick)}}</strong><small>{{member.roleLabel}} · {{member.isOnline ? 'В сети' : 'Не в сети'}}</small></span>
+                </button>
+              } @empty {<p>Участники не найдены</p>}
+            </section>
+            @if(canManageActiveGroup() || (isPlatformsMode() && canOpenPlatformSettings())){
+              <section class="info-section"><h4>Управление</h4>
+                @if(canEditActiveServerIcon()){<button type="button" [disabled]="serverIconSaving()" (click)="openServerIconPicker()"><app-ui-icon name="appearance" />Изменить иконку</button>}
+                @if(isPlatformsMode() && canOpenPlatformSettings()){<button type="button" (click)="closeConversationInfo(); openPlatformSettingsModal()"><app-ui-icon name="settings" />Настройки площадки</button>}
+                @if(canManageActiveGroup()){<button type="button" (click)="closeConversationInfo(); openGroupMembersPanel()"><app-ui-icon name="groups" />Управление участниками</button>}
+              </section>
+            }
+          }
+        </app-info-panel>
+      }
     </div>
 
     <nav
@@ -3214,7 +3271,7 @@
       <div class="modal__header">
         <div>
           <p class="eyebrow">Площадка</p>
-          <h3>Настройки площадки</h3>
+          <h3>{{channelSettingsOnly() ? 'Доступ к каналу · ' + platformVoiceSettingsChannel()?.name : 'Настройки площадки'}}</h3>
         </div>
         <button class="icon-button" type="button" (click)="closePlatformSettingsModal()">×</button>
       </div>
@@ -3228,6 +3285,7 @@
         }
 
         @if (activeServer(); as platform) {
+          @if(!channelSettingsOnly()){
           <section class="platform-settings-section platform-settings-section--overview">
             <div class="platform-settings-section__head platform-settings-section__head--overview">
               <div class="platform-settings-overview">
@@ -3251,7 +3309,9 @@
             </div>
           </section>
 
+          }
           <div class="platform-settings-sections">
+            @if(!channelSettingsOnly()){
             <section class="platform-settings-section">
               <div class="platform-settings-section__head">
                 <strong>Управление</strong>
@@ -3450,6 +3510,7 @@
               </div>
             </section>
 
+            }
             @if (platformVoiceSettingsChannel(); as voiceSettingsChannel) {
               <section class="platform-settings-section platform-settings-section--voice-access">
                 <div class="platform-settings-section__head">
@@ -3792,7 +3853,7 @@
 @if(session(); as auth) {
  <app-theme-controller [token]="auth.access_token" [revision]="wallpaperRevision()" />
  <app-wallpapers [token]="auth.access_token" [serverId]="selectedServerId()" [open]="wallpaperOpen()" [revision]="wallpaperRevision()" (close)="wallpaperOpen.set(false)" (applied)="wallpaperStyle.set($event)" />
- <app-inventory [token]="auth.access_token" [mode]="inventoryMode()" [isAdmin]="!!currentUser()?.is_avatar_admin" (close)="inventoryMode.set(null)" (changed)="refreshInventoryProfile()" (unread)="inventoryUnread.set($event)" />
+ <app-inventory [avatarUrl]="currentUserAvatarUrl()" [token]="auth.access_token" [mode]="inventoryMode()" [isAdmin]="!!currentUser()?.is_avatar_admin" (close)="inventoryMode.set(null)" (changed)="refreshInventoryProfile()" (unread)="inventoryUnread.set($event)" />
 }
 
 @if (messageActionsTarget(); as target) {

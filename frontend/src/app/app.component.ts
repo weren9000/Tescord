@@ -1,3 +1,4 @@
+import { InfoPanelComponent } from './workspace/info-panel.component';
 import { ActionMenuComponent } from './workspace/action-menu.component';
 import { ThemeControllerComponent } from './workspace/theme-controller.component';
 import { DesktopPreferencesService } from './workspace/desktop-preferences.service';
@@ -628,7 +629,7 @@ const DEFAULT_SERVER_ICON_ASSET_BY_NAME: Record<string, string> = {
 @Component({
   providers: [AuthFormStore],
     selector: 'app-root',
-    imports: [ActionMenuComponent, CommonModule, FormsModule, MediaStreamSrcDirective, SectionNavigationComponent, UiIconComponent, ConversationListComponent, QuickSwitchComponent, PlatformSwitcherComponent, InviteManagerComponent, InventoryComponent, WallpapersComponent, ThemeControllerComponent, MessageGestureDirective, MessageActionsComponent, DesktopPreferencesComponent, SidebarResizeDirective],
+    imports: [InfoPanelComponent, ActionMenuComponent, CommonModule, FormsModule, MediaStreamSrcDirective, SectionNavigationComponent, UiIconComponent, ConversationListComponent, QuickSwitchComponent, PlatformSwitcherComponent, InviteManagerComponent, InventoryComponent, WallpapersComponent, ThemeControllerComponent, MessageGestureDirective, MessageActionsComponent, DesktopPreferencesComponent, SidebarResizeDirective],
     templateUrl: './app.component.html',
     styleUrls: ['./app.component.scss', './app-layout.scss', './call-workspace.scss', './platform-workspace.scss', './invite-entry.scss', './palette-theme.scss', './auth-workspace.scss', './avatar-presets.scss']
 })
@@ -3828,6 +3829,36 @@ export class AppComponent {
     this.settingsPanelOpen.set(false);
   }
 
+  readonly conversationInfoOpen = signal(false);
+  readonly platformActionMenuOpen = signal(false);
+  readonly channelActionTarget = signal<WorkspaceChannel | null>(null);
+  readonly channelSettingsOnly = signal(false);
+  readonly infoMemberQuery = signal('');
+  readonly conversationInfoDescription = computed(() => this.servers().find(space => space.id === this.selectedServerId())?.description ?? (this.isPlatformsMode() ? this.activeServer()?.description : null));
+  readonly infoMembers = computed(() => this.groupMembers().filter(member => member.nick.toLocaleLowerCase('ru').includes(this.infoMemberQuery().trim().toLocaleLowerCase('ru'))));
+  private readonly closeStaleInfo = effect(() => {
+    this.selectedServerId(); this.session();
+    this.conversationInfoOpen.set(false);this.platformActionMenuOpen.set(false);this.channelActionTarget.set(null);this.infoMemberQuery.set('');
+  });
+  openConversationInfo(): void {
+    if(!this.activeServer())return;
+    this.closeConversationActionMenu();this.platformActionMenuOpen.set(false);this.channelActionTarget.set(null);
+    this.infoMemberQuery.set('');this.conversationInfoOpen.set(true);
+  }
+  closeConversationInfo(): void { this.conversationInfoOpen.set(false); }
+  openChannelActions(channel: WorkspaceChannel): void {
+    this.closeConversationActionMenu();this.platformActionMenuOpen.set(false);this.channelActionTarget.set(channel);
+  }
+  openChannelSettings(channel: WorkspaceChannel): void {
+    if(!this.canManagePlatformVoiceChannel(channel))return;
+    this.channelActionTarget.set(null);this.closeConversationInfo();
+    this.openPlatformSettingsModal();this.openPlatformVoiceChannelSettings(channel);this.channelSettingsOnly.set(true);
+  }
+  openChannelFromMenu(channel: WorkspaceChannel): void {
+    this.channelActionTarget.set(null);
+    if(channel.type==='voice')this.previewPlatformVoiceChannel(channel);else void this.selectChannel(channel);
+  }
+
   readonly personalMenuPage = signal<'main' | 'appearance' | 'settings'>('main');
 
   toggleSideMenu(): void {
@@ -4713,6 +4744,8 @@ export class AppComponent {
   }
 
   openPlatformSettingsModal(): void {
+    this.channelSettingsOnly.set(false);
+    this.platformActionMenuOpen.set(false);
     const activeServer = this.activeServer();
     if (!activeServer || activeServer.kind !== 'workspace' || !this.canOpenPlatformSettings()) {
       return;
@@ -4877,6 +4910,7 @@ export class AppComponent {
 
     this.managementError.set(null);
     this.managementSuccess.set(null);
+    if(!window.confirm(`Удалить ${this.displayNick(member.nick)} из участников?`))return;
     this.removingGroupMemberUserId.set(member.userId);
     this.removeServerMemberTrigger$.next({
       token,
@@ -6244,7 +6278,7 @@ export class AppComponent {
   deleteChannel(channel: WorkspaceChannel): void {
     const token = this.session()?.access_token;
     const activeServer = this.activeServer();
-    if (!token || !activeServer || !this.canManageActiveGroup()) {
+    if (!token || !activeServer || channel.server_id !== activeServer.id || !this.canDeleteWorkspaceChannel(channel) || this.isDeletingChannel(channel.id)) {
       return;
     }
 
@@ -6268,6 +6302,7 @@ export class AppComponent {
       this.closeMemberVolume();
     }
 
+    this.channelActionTarget.set(null);
     this.deletingChannelId.set(channel.id);
     this.managementError.set(null);
     this.managementSuccess.set(null);
