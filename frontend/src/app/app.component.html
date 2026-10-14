@@ -755,6 +755,7 @@
                   @if (isChatsMode() && activeDirectPeer()) {<button class="workspace-call" type="button" aria-label="Позвонить" title="Позвонить" (click)="openActiveDirectPeerCall()"><app-ui-icon name="phone" /></button>}
                   <button class="workspace-search" type="button" aria-label="Поиск сообщений" title="Поиск в беседе" (click)="toggleMessageSearchPanel()"><app-ui-icon name="search" /></button>
                   <button type="button" aria-label="Файлы беседы" title="Файлы беседы" (click)="openChatFilesModal()"><app-ui-icon name="files" /></button>
+                  @if (!isChatsMode() && canManageActiveGroup()) {<button class="workspace-invite" type="button" aria-label="Пригласить по ссылке" title="Пригласить по ссылке" (click)="openInvites()"><app-ui-icon name="friends" /></button>}
                   @if (!isChatsMode()) {<button type="button" aria-label="Участники беседы" title="Участники беседы" (click)="openGroupMembersPanel()"><app-ui-icon name="groups" /></button>}
                 </div>
                 <button
@@ -1865,80 +1866,20 @@
 }
 
 @if (profileEditorOpen()) {
-  <div class="modal-backdrop profile-editor-backdrop" (click)="closeProfileEditor()">
-    <section class="modal modal--compact" (click)="$event.stopPropagation()">
-      <div class="modal__header">
-        <div>
-          <p class="eyebrow">Профиль</p>
-          <h3>{{ displayNick(currentUser()?.nick ?? 'Пользователь') }}</h3>
-        </div>
-        <button class="icon-button" type="button" (click)="closeProfileEditor()">×</button>
-      </div>
-
-      <div class="modal__body">
-        <div class="profile-editor">
-          <button
-            class="profile-editor__avatar"
-            type="button"
-            [disabled]="profileSaving() || !currentUser()?.is_avatar_admin"
-            (click)="openProfileAvatarPicker('editor')"
-          >
-            @if (effectiveProfileAvatarUrl(); as avatarUrl) {
-              <img [src]="avatarUrl" [alt]="displayNick(currentUser()?.nick ?? '')" loading="lazy" />
-            } @else {
-              <span>{{ displayNickInitials(currentUser()?.nick ?? '??') }}</span>
-            }
-          </button>
-          <div class="profile-editor__controls">
-            @if(currentUser()?.is_avatar_admin){<button class="secondary-button" type="button" [disabled]="profileSaving()" (click)="openProfileAvatarPicker('editor')">
-              Загрузить аватарку
-            </button>}
-            <button
-              class="secondary-button"
-              type="button"
-              [disabled]="profileSaving() || (!currentUser()?.has_uploaded_avatar && !profileAvatarFile())"
-              (click)="resetProfileAvatar()"
-            >
-              Удалить своё фото
-            </button>
-@if(currentUser()?.is_avatar_admin){            <small>PNG или JPG, квадрат 1:1, максимум 300×300.</small>}
-          </div>
-        </div>
-
-        <fieldset class="avatar-presets" [disabled]="profileSaving()">
-          <legend>Или выберите готовый аватар</legend>
-          @if(currentUser()?.avatar_item_id){<p>Сейчас используется предмет из инвентаря. Выбор обычного аватара снимет его, но предмет останется у вас.</p>}
-          <div class="avatar-presets__grid">
-            @for (preset of avatarPresets; track preset.id) {
-              <button type="button" [attr.aria-label]="preset.label" [attr.aria-pressed]="isProfileAvatarPresetSelected(preset.id)" [class.avatar-presets__selected]="isProfileAvatarPresetSelected(preset.id)" (click)="selectProfileAvatarPreset(preset.id)">
-                <img [src]="avatarPresetUrl(preset.id)" alt="" width="64" height="64" loading="lazy" />
-                <span>{{ preset.label }}</span>
-              </button>
-            }
-          </div>
-          <p>Аватар виден всем участникам. Выбор применится после сохранения.</p>
-        </fieldset>
-
-        <div class="profile-editor__summary">
-          <p><span>Ник:</span> {{ currentUser()?.nick ?? 'Не указан' }}</p>
-          <p><span>Email:</span> {{ currentUser()?.email ?? 'Не указан' }}</p>
-        </div>
-
-        @if (profileError()) {
-          <p class="modal-note modal-note--error">{{ profileError() }}</p>
-        } @else if (profileNotice()) {
-          <p class="modal-note modal-note--success">{{ profileNotice() }}</p>
-        }
-      </div>
-
-      <div class="modal__actions">
-        <button class="secondary-button" type="button" [disabled]="profileSaving()" (click)="closeProfileEditor()">Отмена</button>
-        <button class="primary-button" type="button" [disabled]="!canSubmitProfile()" (click)="submitProfileChanges()">
-          {{ profileSaving() ? 'Сохраняем...' : 'Сохранить' }}
-        </button>
-      </div>
-    </section>
-  </div>
+ <div class="modal-backdrop profile-editor-backdrop" (click)="closeProfileEditor()">
+  <section class="modal profile-card" (keydown)="profileDialogKeydown($event)" role="dialog" aria-modal="true" aria-label="Мой профиль" (click)="$event.stopPropagation()">
+   <div class="modal__header"><h3>Мой профиль</h3><button class="icon-button" type="button" aria-label="Закрыть профиль" [disabled]="profileSaving()" (click)="closeProfileEditor()">×</button></div>
+   <div class="modal__body">
+    <div class="profile-card__identity"><button class="profile-card__avatar" type="button" aria-label="Изменить аватар" [disabled]="profileSaving()" (click)="profileAvatarChooserOpen.set(true)">
+     @if(effectiveProfileAvatarUrl();as url){<img [src]="url" alt=""/>}@else{<span>{{displayNickInitials(currentUser()?.nick ?? '')}}</span>}
+    </button><div><strong>{{displayNick(currentUser()?.nick ?? '')}}</strong><button class="secondary-button" type="button" [disabled]="profileSaving()" (click)="profileAvatarChooserOpen.set(true)">Изменить аватар</button></div></div>
+    <dl class="profile-card__details"><div><dt>Email</dt><dd>{{currentUser()?.email}}</dd></div><div><dt>ID</dt><dd>{{currentUser()?.public_id}}</dd></div></dl>
+    <div class="profile-card__feedback" aria-live="polite">@if(profileError()){<p class="modal-note modal-note--error">{{profileError()}}</p>}</div>
+   </div>
+   <div class="modal__actions"><button class="secondary-button" type="button" [disabled]="profileSaving()" (click)="closeProfileEditor()">Отмена</button><button class="primary-button" type="button" [disabled]="!canSubmitProfile()" (click)="submitProfileChanges()">{{profileSaving()?'Сохраняем…':'Сохранить'}}</button></div>
+  </section>
+ </div>
+ @if(profileAvatarChooserOpen()) {<app-avatar-picker [token]="session()!.access_token" [presets]="avatarPresets" [selectedPreset]="profileAvatarPreset() ?? currentUser()?.avatar_preset ?? null" [selectedItem]="profileAvatarPreset() ? null : profileInventoryAvatar()?.id ?? currentUser()?.avatar_item_id ?? null" (choose)="chooseProfileAvatar($event)" (close)="profileAvatarChooserOpen.set(false)"/>}
 }
 
 @if (friendRequestsModalOpen()) {

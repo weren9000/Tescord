@@ -3,8 +3,7 @@
 <div class="inventory-backdrop" (click)="menu() ? menu.set(null) : dismiss()">
  <section class="inventory" role="dialog" aria-modal="true" aria-labelledby="inventory-title" (click)="$event.stopPropagation();menu.set(null)" (keydown)="keydown($event)">
   <header><h2 id="inventory-title">{{mode()==='admin'?'Админ-Аватарок':'Инвентарь'}}</h2><div class="header-actions">@if(mode()==='inventory'){<button (click)="eventsOpen.set(true)">@if(unreadCount()){<span class="count">{{unreadCount()}}</span>} События</button>}<button aria-label="Закрыть инвентарь" [disabled]="busy()" (click)="dismiss()">×</button></div></header>
-  <div class="body" [attr.inert]="pending()||giftItem()||themePreview()||detail()||eventsOpen()||uploadOpen()||editing() ? '' : null">
-   @if(error()){<p role="alert" class="error">{{error()}}</p>}@if(success()){<p class="notice" role="status">{{success()}}</p>}
+  <div class="body" [attr.inert]="pending()||giftItem()||themePreview()||detail()||eventsOpen()||uploadOpen()||editing()||grantOpen() ? '' : null">
    <nav aria-label="Типы предметов">
     <button [class.active]="(mode()==='admin'?adminTab():tab())==='avatar'" [disabled]="busy()" (click)="switchTab('avatar')">Аватарки</button>
     <button [class.active]="(mode()==='admin'?adminTab():tab())==='frame'" [disabled]="busy()" (click)="switchTab('frame')">Рамки</button>
@@ -16,6 +15,8 @@
     @if(mode()==='admin'&&adminTab()!=='issued'&&adminTab()!=='theme'){<button class="primary" (click)="openUpload()">Добавить предмет</button>}
     @if(mode()==='admin'&&adminTab()==='issued'){<select aria-label="Тип выданных предметов" [(ngModel)]="issuedKind" (ngModelChange)="filterChanged()"><option value="">Все типы</option><option value="avatar">Аватарки</option><option value="frame">Рамки</option><option value="wallpaper">Обои</option><option value="theme">Темы</option></select>}
    </div>
+   <div class="inventory-scroll">
+   @if(error()){<p role="alert" class="error">{{error()}}</p>}@if(success()){<p class="notice" role="status">{{success()}}</p>}
    @if(mode()==='inventory'&&tab()==='theme'){<p>Темы меняют оформление интерфейса только для вас. <button [disabled]="busy()" (click)="resetTheme()">Базовая тема</button></p>}
    @if(mode()==='inventory') {
     <div class="grid">@for(item of items();track item.id){
@@ -28,10 +29,11 @@
    }
    @if(previewErrors()){<button type="button" class="preview-retry" (click)="retryPreviews()">Не все превью загрузились · Повторить</button>}
    @if(!total()&&!loading()){<div class="empty">{{filter?'Ничего не найдено':'Пока нет предметов'}}<small>{{mode()==='admin'?'Добавьте предмет или измените условия поиска.':'Здесь появятся выданные и подаренные предметы.'}}</small></div>}
-   <div class="pagination" aria-label="Страницы предметов"><small aria-live="polite">Всего: {{total()}}</small><button aria-label="Предыдущая страница" [disabled]="currentPage()===1||loading()||busy()" (click)="goPage(currentPage()-1)">‹</button>@for(n of pageNumbers();track n){<button [class.active]="currentPage()===n" [attr.aria-current]="currentPage()===n?'page':null" [attr.aria-label]="'Страница '+n" [disabled]="loading()||busy()" (click)="goPage(n)">{{n}}</button>}<button aria-label="Следующая страница" [disabled]="currentPage()===pageCount()||loading()||busy()" (click)="goPage(currentPage()+1)">›</button></div>
-   @if(mode()==='admin'&&adminTab()!=='issued'&&selectedEntry();as selected){<div class="grant-target"><div class="selection-summary"><app-asset-preview [src]="image(selected.id, true)" [retry]="previewRetry()" (error)="previewErrors.set(true)"/><strong>{{selected.name}}</strong></div><ng-container *ngTemplateOutlet="recipientSearch"/><button class="primary" [disabled]="!recipient()||busy()||selected.hidden" (click)="confirm('grant',null)">Выдать предмет</button></div>}
    @if(loading()){<p role="status">Загрузка…</p>}
+   </div>
+   <div class="pagination" aria-label="Страницы предметов"><small aria-live="polite">Всего: {{total()}}</small><button aria-label="Предыдущая страница" [disabled]="currentPage()===1||loading()||busy()" (click)="goPage(currentPage()-1)">‹</button>@for(n of pageNumbers();track n){<button [class.active]="currentPage()===n" [attr.aria-current]="currentPage()===n?'page':null" [attr.aria-label]="'Страница '+n" [disabled]="loading()||busy()" (click)="goPage(n)">{{n}}</button>}<button aria-label="Следующая страница" [disabled]="currentPage()===pageCount()||loading()||busy()" (click)="goPage(currentPage()+1)">›</button></div>
   </div>
+  @if(grantOpen() && selectedEntry();as selected){<div class="panel-shade"><section class="subpanel" role="dialog" aria-modal="true" aria-label="Выдать предмет"><header><h3>Выдать предмет</h3><button type="button" aria-label="Закрыть выдачу" [disabled]="busy()" (click)="closePanel()">×</button></header><div class="panel-body grant-target"><div class="selection-summary"><app-asset-preview [src]="image(selected.id,true)"/><strong>{{selected.name}}</strong></div><ng-container *ngTemplateOutlet="recipientSearch"/><button class="primary" [disabled]="!recipient()||busy()||selected.hidden" (click)="confirm('grant',null)">Выдать предмет</button></div></section></div>}
   @if(menu();as item){
     <app-action-menu [label]="item.name" (close)="menu.set(null)">
       @if(error()){<p class="menu-note" role="alert">{{error()}}</p>}

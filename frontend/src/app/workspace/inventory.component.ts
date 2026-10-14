@@ -42,6 +42,7 @@ export class InventoryComponent implements OnDestroy {
  readonly people = signal<Person[]>([]);
  readonly recipient = signal<Person | null>(null);
  readonly pending = signal<Pending | null>(null);
+ readonly grantOpen = signal(false);
  readonly giftItem = signal<Item | null>(null);
  readonly history = signal<Event[] | null>(null);
  readonly busy = signal(false);
@@ -99,7 +100,7 @@ export class InventoryComponent implements OnDestroy {
   this.menuTrigger=event.currentTarget as HTMLElement;
   this.menu.set(item);
  }
- closePanel() {if(this.busy())return;++this.historyVersion;if(this.pending())this.pending.set(null);else{this.giftItem.set(null);this.detail.set(null);this.themePreview.set(null);this.eventsOpen.set(false);this.uploadOpen.set(false);this.editing.set(null);this.resetUpload();}}
+ closePanel() {if(this.busy())return;++this.historyVersion;if(this.pending())this.pending.set(null);else{this.giftItem.set(null);this.grantOpen.set(false);this.detail.set(null);this.themePreview.set(null);this.eventsOpen.set(false);this.uploadOpen.set(false);this.editing.set(null);this.resetUpload();}}
  async clearRecipient() {this.recipient.set(null);this.query='';this.people.set([]);this.searched.set(false);}
  query = '';
  selectedCatalog = '';
@@ -110,7 +111,7 @@ export class InventoryComponent implements OnDestroy {
 
  constructor() {
   effect(onCleanup=>{
-   const selector=this.pending()?'.confirm':(this.giftItem()||this.themePreview()||this.detail()||this.eventsOpen()||this.uploadOpen()||this.editing())?'.subpanel':null;
+   const selector=this.pending()?'.confirm':(this.giftItem()||this.themePreview()||this.detail()||this.eventsOpen()||this.uploadOpen()||this.editing()||this.grantOpen())?'.subpanel':null;
    if(!selector)return;
    const previous=document.activeElement as HTMLElement | null;
    const timer=setTimeout(()=>this.element.nativeElement.querySelector<HTMLElement>(selector+' button')?.focus());
@@ -122,7 +123,7 @@ export class InventoryComponent implements OnDestroy {
    const previousFocus=document.activeElement as HTMLElement | null;
    const focusTimer=mode ? setTimeout(()=>this.element.nativeElement.querySelector<HTMLButtonElement>('header button')?.focus()) : undefined;
    onCleanup(()=>{clearTimeout(focusTimer);if(mode)previousFocus?.focus();});
-   this.pending.set(null); this.giftItem.set(null); this.recipient.set(null);
+   this.pending.set(null); this.giftItem.set(null); this.grantOpen.set(false); this.recipient.set(null);
    this.menu.set(null);this.catalogMenu.set(null);++this.historyVersion;this.detail.set(null);this.themePreview.set(null);this.eventsOpen.set(false);this.adminTab.set('avatar');this.tab.set('avatar');this.uploadOpen.set(false);this.editing.set(null);this.resetUpload();
    this.history.set(null); this.people.set([]); this.searched.set(false); this.query='';this.filter='';this.selectedCatalog='';this.currentPage.set(1);++this.loadVersion;++this.searchVersion;
    this.error.set(''); this.success.set('');
@@ -189,7 +190,7 @@ export class InventoryComponent implements OnDestroy {
   try {
    await this.request(op.action==='grant'?'/grant':`/items/${op.item!.id}/${op.action}`, 'POST',
      {request_id:op.request_id,recipient_id:['gift','grant','revoke'].includes(op.action) ? op.recipient?.id ?? null : null,...(op.action==='grant'?{catalog_id:op.catalog_id}:{})});
-   this.pending.set(null);this.giftItem.set(null);this.themePreview.set(null);this.success.set(op.action==='grant' ? `«${this.catalogName(op.catalog_id ?? '')}» выдано: ${op.recipient?.nick}` : op.action==='gift' ? `«${op.item?.name}» подарено: ${op.recipient?.nick}` : 'Готово. Предмет обновлён.');this.changed.emit();await this.reload();
+   this.pending.set(null);this.giftItem.set(null);this.grantOpen.set(false);this.themePreview.set(null);this.success.set(op.action==='grant' ? `«${this.catalogName(op.catalog_id ?? '')}» выдано: ${op.recipient?.nick}` : op.action==='gift' ? `«${op.item?.name}» подарено: ${op.recipient?.nick}` : 'Готово. Предмет обновлён.');this.changed.emit();await this.reload();
   }catch(e){this.fail(e);}finally{this.busy.set(false);}
  }
  async equip(item: Item) {this.confirm(item.equipped?'unequip':'equip',item);await this.perform();}
@@ -204,8 +205,8 @@ export class InventoryComponent implements OnDestroy {
  openCatalogMenu(entry: Catalog,event: MouseEvent){event.stopPropagation();this.catalogMenu.set(entry);}
  beginGrant(entry: Catalog){
   if(this.busy()||entry.hidden)return;
-  this.catalogMenu.set(null);this.selectedCatalog=entry.id;
-  setTimeout(()=>{const target=this.element.nativeElement.querySelector<HTMLElement>('.grant-target');target?.scrollIntoView({block:'nearest'});target?.querySelector<HTMLInputElement>('input')?.focus({preventScroll:true});});
+  this.catalogMenu.set(null);this.selectedCatalog=entry.id;this.grantOpen.set(true);
+  setTimeout(()=>{const target=this.element.nativeElement.querySelector<HTMLElement>('.grant-target');target?.querySelector<HTMLInputElement>('input')?.focus({preventScroll:true});});
  }
  editCatalog(entry: Catalog){this.catalogMenu.set(null);this.edit(entry);}
  async toggleCatalogVisibility(entry: Catalog){
@@ -217,9 +218,9 @@ export class InventoryComponent implements OnDestroy {
  async markRead() {try{await this.request('/read','POST',{});await this.reload();}catch(e){this.fail(e);}}
  dismiss() {if(!this.busy())this.close.emit();}
  keydown(event: KeyboardEvent) {
-  if(event.key==='Escape'){event.stopPropagation();if(!this.busy()){if(this.menu()){this.menu.set(null);this.menuTrigger?.focus();}else if(this.pending()||this.giftItem()||this.themePreview()||this.detail()||this.eventsOpen()||this.uploadOpen()||this.editing())this.closePanel();else this.dismiss();}}
+  if(event.key==='Escape'){event.stopPropagation();if(!this.busy()){if(this.menu()){this.menu.set(null);this.menuTrigger?.focus();}else if(this.pending()||this.giftItem()||this.themePreview()||this.detail()||this.eventsOpen()||this.uploadOpen()||this.editing()||this.grantOpen())this.closePanel();else this.dismiss();}}
   if(event.key!=='Tab')return;
-  const root=this.element.nativeElement.querySelector(this.pending()?'.confirm':(this.giftItem()||this.themePreview()||this.detail()||this.eventsOpen()||this.uploadOpen()||this.editing())?'.subpanel':'.inventory');
+  const root=this.element.nativeElement.querySelector(this.pending()?'.confirm':(this.giftItem()||this.themePreview()||this.detail()||this.eventsOpen()||this.uploadOpen()||this.editing()||this.grantOpen())?'.subpanel':'.inventory');
   const nodes=Array.from(root?.querySelectorAll<HTMLElement>('button:not(:disabled),input,select')??[]).filter(e=>e.offsetParent!==null);
   const first=nodes[0],last=nodes[nodes.length-1];
   if(event.shiftKey && (document.activeElement===first || !root?.contains(document.activeElement))){event.preventDefault();last?.focus();}

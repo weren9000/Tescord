@@ -19,7 +19,8 @@ import { InviteManagerComponent } from './workspace/invite-manager.component';
 import { InvitesApiService, InvitePreview } from './core/api/invites-api.service';
 import { WorkspaceMemoryService } from './core/services/workspace-memory.service';
 import { isMessageContinuation } from './core/services/message-layout';
-import { HttpErrorResponse } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import {AvatarPickerComponent, AvatarChoice} from './workspace/avatar-picker.component';
 import { CommonModule } from '@angular/common';
 import { Component, DestroyRef, ElementRef, ViewChild, computed, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -630,7 +631,7 @@ const DEFAULT_SERVER_ICON_ASSET_BY_NAME: Record<string, string> = {
 @Component({
   providers: [AuthFormStore],
     selector: 'app-root',
-    imports: [AudioDevicePickerComponent, InfoPanelComponent, ActionMenuComponent, CommonModule, FormsModule, MediaStreamSrcDirective, SectionNavigationComponent, UiIconComponent, ConversationListComponent, QuickSwitchComponent, PlatformSwitcherComponent, InviteManagerComponent, InventoryComponent, WallpapersComponent, ThemeControllerComponent, MessageGestureDirective, MessageActionsComponent, DesktopPreferencesComponent, SidebarResizeDirective],
+    imports: [AvatarPickerComponent, AudioDevicePickerComponent, InfoPanelComponent, ActionMenuComponent, CommonModule, FormsModule, MediaStreamSrcDirective, SectionNavigationComponent, UiIconComponent, ConversationListComponent, QuickSwitchComponent, PlatformSwitcherComponent, InviteManagerComponent, InventoryComponent, WallpapersComponent, ThemeControllerComponent, MessageGestureDirective, MessageActionsComponent, DesktopPreferencesComponent, SidebarResizeDirective],
     templateUrl: './app.component.html',
     styleUrls: ['./app.component.scss', './app-layout.scss', './call-workspace.scss', './platform-workspace.scss', './invite-entry.scss', './palette-theme.scss', './auth-workspace.scss', './avatar-presets.scss']
 })
@@ -1273,6 +1274,33 @@ export class AppComponent {
   readonly profileAvatarPreviewUrl = signal<string | null>(null);
   readonly profileAvatarRemove = signal(false);
   readonly profileAvatarPreset = signal<string | null>(null);
+  readonly profileAvatarChooserOpen = signal(false);
+  private readonly profileFocusEffect = effect(cleanup => {
+    if(!this.profileEditorOpen())return;
+    const previous=document.activeElement as HTMLElement|null;
+    const timer=setTimeout(()=>document.querySelector<HTMLButtonElement>('.profile-card .modal__header button')?.focus());
+    cleanup(()=>{clearTimeout(timer);if(previous?.isConnected)previous.focus({preventScroll:true});});
+  });
+  readonly profileInventoryAvatar = signal<AvatarChoice|null>(null);
+  private readonly profileHttp = inject(HttpClient);
+
+  chooseProfileAvatar(choice: AvatarChoice): void {
+    if (this.profileSaving()) return;
+    this.clearPendingProfileAvatar();
+    if(choice.catalog_id)this.profileInventoryAvatar.set(choice);
+    else this.selectProfileAvatarPreset(choice.id);
+    this.profileAvatarChooserOpen.set(false);
+  }
+
+  profileDialogKeydown(event: KeyboardEvent): void {
+    event.stopPropagation();
+    if(event.key==='Escape'){event.preventDefault();this.closeProfileEditor();return;}
+    if(event.key!=='Tab')return;
+    const buttons=Array.from((event.currentTarget as HTMLElement).querySelectorAll<HTMLButtonElement>('button:not(:disabled)'));
+    const first=buttons[0],last=buttons.at(-1);
+    if(event.shiftKey && document.activeElement===first){event.preventDefault();last?.focus();}
+    else if(!event.shiftKey && document.activeElement===last){event.preventDefault();first?.focus();}
+  }
   readonly avatarPresets = [
     { id: 'frog', label: 'Лягушка' }, { id: 'cat', label: 'Кот' },
     { id: 'dog', label: 'Собака' }, { id: 'fox', label: 'Лиса' },
@@ -2076,6 +2104,8 @@ export class AppComponent {
     this.buildUserAvatarUrl(this.currentUser()?.id ?? null, this.currentUser()?.avatar_updated_at ?? null)
   );
   readonly effectiveProfileAvatarUrl = computed(() => {
+    const item=this.profileInventoryAvatar();
+    if(item?.catalog_id)return `${API_BASE_URL}/api/inventory/assets/${encodeURIComponent(item.catalog_id)}?preview=true`;
     if (this.profileAvatarPreset()) return this.avatarPresetUrl(this.profileAvatarPreset()!);
     if (this.profileAvatarRemove()) return this.avatarPresetUrl(this.currentUser()?.avatar_preset ?? 'frog');
     return this.profileAvatarPreviewUrl() ?? this.currentUserAvatarUrl();
@@ -2088,6 +2118,7 @@ export class AppComponent {
 
     return (
       this.profileAvatarFile() !== null
+      || this.profileInventoryAvatar() !== null
       || this.profileAvatarPreset() !== null
       || this.profileAvatarRemove()
     );
@@ -3737,6 +3768,8 @@ export class AppComponent {
   }
 
   closeProfileEditor(): void {
+    if(this.profileSaving())return;
+    this.profileAvatarChooserOpen.set(false);
     this.profileEditorOpen.set(false);
     this.profileError.set(null);
     this.profileAvatarRemove.set(false);
@@ -3830,7 +3863,7 @@ export class AppComponent {
       && this.currentUser()?.avatar_preset === id;
   }
 
-  submitProfileChanges(): void {
+  async submitProfileChanges(): Promise<void> {
     const token = this.session()?.access_token;
     if (!token || !this.currentUser()) {
       return;
@@ -3845,6 +3878,17 @@ export class AppComponent {
     this.profileSaving.set(true);
     this.profileError.set(null);
     this.profileNotice.set(null);
+    const inventoryAvatar = this.profileInventoryAvatar();
+    if(inventoryAvatar){
+      try{
+        await firstValueFrom(this.profileHttp.post(`${API_BASE_URL}/api/inventory/items/${encodeURIComponent(inventoryAvatar.id)}/equip`,{request_id:crypto.randomUUID()},{headers:{Authorization:'Bearer '+token}}));
+        const updated=await firstValueFrom(this.workspaceApi.getCurrentUser(token));
+        if(this.session()?.access_token!==token)return;
+        this.applyCurrentUserProfile(updated);this.clearPendingProfileAvatar();this.profileEditorOpen.set(false);
+      }catch(error){this.profileError.set(this.extractErrorMessage(error,'Не удалось сохранить аватар.'));}
+      finally{this.profileSaving.set(false);}
+      return;
+    }
     this.profileUpdateTrigger$.next({
       token,
       avatarFile: this.profileAvatarFile(),
@@ -10052,6 +10096,7 @@ export class AppComponent {
   }
 
   private clearPendingProfileAvatar(): void {
+    this.profileInventoryAvatar.set(null);
     this.profileAvatarPreset.set(null);
     this.profileAvatarFile.set(null);
     this.profileAvatarPreviewUrl.set(null);

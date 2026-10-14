@@ -242,3 +242,5 @@ button:focus-visible, article:focus-visible, input:focus-visible, textarea:focus
 .info-section input{box-sizing:border-box;width:100%;margin:10px 0;padding:10px;border:1px solid var(--palette-border);border-radius:8px;background:var(--palette-raised);color:var(--palette-text)}.info-member img{width:34px;height:34px;object-fit:cover;border-radius:22%}.info-member span{display:flex;flex-direction:column;gap:3px;min-width:0}.info-member strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.info-member small{color:var(--palette-muted);font-size:11px}.info-feedback{color:var(--palette-danger);font-size:13px}
 @media(min-width:981px){.messenger-shell .messenger-layout--info{grid-template-columns:92px min(var(--sidebar-width,280px),22vw) minmax(0,1fr) min(320px,28vw)}.messenger-shell .messenger-layout--info.messenger-layout--sidebar-collapsed{grid-template-columns:92px 44px minmax(0,1fr) min(320px,28vw)}}
 @media(max-width:980px),(hover:none){.channel-menu-trigger{opacity:1;min-height:44px}.info-section button{min-height:44px}}
+
+@media(max-width:980px){.workspace-tools .workspace-invite{display:grid}.conversation-head__menu{flex-shrink:0}}
