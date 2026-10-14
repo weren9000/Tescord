@@ -503,10 +503,10 @@
               @if (activeCallOutputMuted()) {<p class="menu-note">Звук выключен только для вас. Выбранная громкость сохранена.</p>}
             }
             @if (callMenuPage() !== 'output') {
-              <label>Микрофон<select #callInputControl aria-label="Микрофон звонка" [disabled]="callDeviceChanging() || !activeCallMediaControlsVisible()" [ngModel]="callInputDeviceId() ?? ''" (ngModelChange)="changeCallDevice('input', $event, callInputControl)"><option value="">По умолчанию</option>@for (device of inputDevices(); track device.deviceId) { @if (device.deviceId) {<option [value]="device.deviceId">{{ device.label }}</option>} }</select></label>
+              <label>Микрофон<app-audio-device-picker label="Микрофон звонка" [value]="callInputDeviceId()" [devices]="inputDevices()" [disabled]="callDeviceChanging() || !activeCallMediaControlsVisible()" (changed)="changeCallDevice('input', $event)"/></label>
             }
             @if (callMenuPage() !== 'input') {
-              <label>Устройство вывода<select #callOutputControl aria-label="Устройство вывода звонка" [disabled]="!outputDeviceSupported() || callDeviceChanging() || !activeCallMediaControlsVisible()" [ngModel]="callOutputDeviceId() ?? ''" (ngModelChange)="changeCallDevice('output', $event, callOutputControl)"><option value="">По умолчанию</option>@for (device of outputDevices(); track device.deviceId) { @if (device.deviceId) {<option [value]="device.deviceId">{{ device.label }}</option>} }</select></label>
+              <label>Устройство вывода<app-audio-device-picker label="Устройство вывода звонка" [value]="callOutputDeviceId()" [devices]="outputDevices()" [disabled]="callDeviceChanging() || !activeCallMediaControlsVisible() || !outputDeviceSupported()" (changed)="changeCallDevice('output', $event)"/></label>
               @if (!outputDeviceSupported()) {<p class="menu-note">В этом браузере устройство вывода выбирается в настройках системы.</p>}
             }
             @if (devicesLoading() || callDeviceChanging()) {<p class="menu-note" role="status">{{ callDeviceChanging() ? 'Переключаем устройство…' : 'Обновляем список устройств…' }}</p>}
@@ -2563,7 +2563,7 @@
 
 @if (settingsPanelOpen()) {
   <div class="modal-backdrop" (click)="closeVoiceSettings()">
-    <section class="modal" (click)="$event.stopPropagation()">
+    <section class="modal audio-settings-modal" role="dialog" aria-modal="true" aria-label="Звук и микрофон" (click)="$event.stopPropagation()">
       <div class="modal__header">
         <div>
           <p class="eyebrow">Настройки</p>
@@ -2579,36 +2579,18 @@
           </button>
         </div>
 
-        <div class="settings-grid">
+        <div class="settings-grid">@if(settingsDeviceChanging()){<p role="status" class="modal-note">Переключаем устройство…</p>}<h4 class="audio-section-heading">Устройства</h4>
           <label class="field">
             <span>Микрофон</span>
-            <select
-              [ngModel]="voiceSettings().inputDeviceId ?? ''"
-              name="input_device_id"
-              (ngModelChange)="changeInputDevice($event)"
-            >
-              <option value="">По умолчанию</option>
-              @for (device of inputDevices(); track device.deviceId) {
-                <option [value]="device.deviceId">{{ device.label }}</option>
-              }
-            </select>
+            <app-audio-device-picker label="Микрофон" [value]="voiceSettings().inputDeviceId" [devices]="inputDevices()" [disabled]="devicesLoading() || !!settingsDeviceChanging()" (changed)="changeInputDevice($event)"/>
           </label>
 
           <label class="field">
             <span>Устройство вывода</span>
-            <select
-              [ngModel]="voiceSettings().outputDeviceId ?? ''"
-              name="output_device_id"
-              (ngModelChange)="changeOutputDevice($event)"
-              [disabled]="!outputDeviceSupported()"
-            >
-              <option value="">По умолчанию</option>
-              @for (device of outputDevices(); track device.deviceId) {
-                <option [value]="device.deviceId">{{ device.label }}</option>
-              }
-            </select>
+            <app-audio-device-picker label="Устройство вывода" [value]="voiceSettings().outputDeviceId" [devices]="outputDevices()" [disabled]="devicesLoading() || !!settingsDeviceChanging() || !outputDeviceSupported()" (changed)="changeOutputDevice($event)"/>
           </label>
 
+          <h4 class="audio-section-heading">Микрофон</h4>
           <label class="range-field">
             <span>Усиление микрофона</span>
             <div class="range-field__control">
@@ -2643,6 +2625,7 @@
             <small>Чем выше значение, тем раньше голос считается активным.</small>
           </label>
 
+          <h4 class="audio-section-heading">Воспроизведение</h4>
           <label class="range-field">
             <span>Общая громкость</span>
             <div class="range-field__control">

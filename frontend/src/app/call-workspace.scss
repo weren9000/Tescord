@@ -1,5 +1,7 @@
 @use '../palette';
 
+.audio-settings-modal{width:min(620px,calc(100vw - 24px))}.audio-settings-modal .modal__body{padding:20px 24px}.audio-settings-modal .settings-grid{gap:18px}.audio-section-heading{margin:6px 0 0;padding-top:16px;border-top:1px solid var(--palette-border);color:var(--palette-text);font-size:14px;font-weight:600;grid-column:1 / -1}.audio-section-heading:first-child{padding-top:0;border:0}.audio-settings-modal .field,.audio-settings-modal .range-field{gap:8px}.audio-settings-modal .range-field__control{gap:16px}.audio-settings-modal .range-field strong{min-width:48px;text-align:right;font-variant-numeric:tabular-nums}.audio-settings-modal .range-field small{color:var(--palette-muted);line-height:1.5}.audio-settings-modal .modal__footer{padding:16px 24px}.audio-settings-modal input[type=range]{accent-color:var(--palette-primary)}
+
 /* The call occupies its own space; navigating chats never moves their header. */
 .messenger-shell--call-active .messenger-layout { padding-top: 0; }
 .call-tray {

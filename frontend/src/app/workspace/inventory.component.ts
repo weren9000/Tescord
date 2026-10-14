@@ -1,3 +1,4 @@
+import {AssetPreviewComponent} from './asset-preview.component';
 import { ActionMenuComponent } from './action-menu.component';
 import { UiIconComponent } from './ui-icon.component';
 import { Component, ElementRef, effect, inject, input, output, signal, untracked, OnDestroy } from '@angular/core';
@@ -17,10 +18,12 @@ interface Catalog { id: string; name: string; kind: string; hidden: boolean; }
 interface Pending { action: string; item: Item | null; recipient: Person | null; request_id: string; catalog_id?: string; }
 
 @Component({
- selector: 'app-inventory', standalone: true, imports: [CommonModule, FormsModule, ActionMenuComponent, UiIconComponent],
+ selector: 'app-inventory', standalone: true, imports: [AssetPreviewComponent, CommonModule, FormsModule, ActionMenuComponent, UiIconComponent],
  templateUrl: './inventory.component.html', styleUrl: './inventory.component.scss'
 })
 export class InventoryComponent implements OnDestroy {
+ readonly previewErrors=signal(false); readonly previewRetry=signal(0);
+ retryPreviews(){this.previewErrors.set(false);this.previewRetry.update(v=>v+1);}
  readonly avatarUrl = input<string | null>(null);
  readonly catalogMenu = signal<Catalog | null>(null);
  private historyVersion = 0;
@@ -129,7 +132,7 @@ export class InventoryComponent implements OnDestroy {
    onCleanup(()=>{++this.loadVersion;clearInterval(timer);clearTimeout(focusTimer);if(mode)previousFocus?.focus();});
   });
  }
- image(id: string) { return `${API_BASE_URL}/api/inventory/assets/${encodeURIComponent(id)}?motion=${!window.matchMedia('(prefers-reduced-motion: reduce)').matches}`; }
+ image(id: string, preview=false) { if(preview)return `${API_BASE_URL}/api/inventory/assets/${encodeURIComponent(id)}?preview=true`; return `${API_BASE_URL}/api/inventory/assets/${encodeURIComponent(id)}?motion=${!window.matchMedia('(prefers-reduced-motion: reduce)').matches}`; }
  presetImage(id: string){return `${API_BASE_URL}/api/avatar-presets/${id}`;}
  private accept(data: Collection) {
   const snapshot=data.equipped_ids.join(',');

@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from uuid import UUID, uuid4
 from typing import Literal
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, UploadFile, File, Form, Request
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy import select, or_, func, update
@@ -136,6 +136,8 @@ async def upload_catalog(name: str = Form(max_length=80), kind: Literal['avatar'
     path.parent.mkdir(parents=True, exist_ok=True)
     try:
         path.write_bytes(content)
+        from app.services.image_previews import preview_path
+        await run_in_threadpool(preview_path, path)
         db.add(entry)
         db.commit()
     except Exception:
@@ -146,16 +148,20 @@ async def upload_catalog(name: str = Form(max_length=80), kind: Literal['avatar'
 
 
 @router.get('/assets/{catalog_id}')
-def asset(catalog_id: str, motion: bool = True, db: Session = Depends(get_db)):
+def asset(catalog_id: str, request: Request, motion: bool = True, preview: bool = False, db: Session = Depends(get_db)):
     if not db.get(InventoryCatalog, catalog_id): raise HTTPException(404, 'Предмет не найден')
     from app.services.themes import THEMES, theme_svg
     if catalog_id in THEMES:
-        return Response(theme_svg(catalog_id), media_type='image/svg+xml', headers={'X-Content-Type-Options':'nosniff'})
+        return Response(theme_svg(catalog_id), media_type='image/svg+xml', headers={'X-Content-Type-Options':'nosniff', 'Cache-Control':'public, max-age=3600'})
     if catalog_id == 'frame-neon':
-        return Response(frame_svg(catalog_id, motion=motion), media_type='image/svg+xml',
+        return Response(frame_svg(catalog_id, motion=motion and not preview), media_type='image/svg+xml',
                         headers={'Cache-Control': 'public, max-age=300', 'X-Content-Type-Options': 'nosniff'})
     # Display is public; ownership is enforced when equipping, granting or gifting.
     path = asset_path(catalog_id)
+    if not path.is_file(): raise HTTPException(404, 'Изображение не найдено')
+    if preview:
+        from app.services.image_previews import preview_response
+        return preview_response(path, request)
     return FileResponse(path, media_type='image/png' if path.suffix == '.png' else 'image/webp')
 
 

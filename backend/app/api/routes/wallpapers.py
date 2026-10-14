@@ -1,7 +1,7 @@
 from pathlib import Path
 from uuid import UUID
 from typing import Literal
-from fastapi import APIRouter, Depends, File, UploadFile, HTTPException
+from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, Request
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select, update
@@ -101,8 +101,11 @@ def get_chat_wallpapers(server_id: UUID, user: User = Depends(get_current_user),
 
 
 @router.get('/presets/{key}')
-def preset(key: str):
+def preset(key: str, request: Request, preview: bool = False):
     if key not in PRESETS: raise HTTPException(404, 'Обои не найдены')
+    if preview:
+        from app.services.image_previews import preview_response
+        return preview_response(ASSETS / (key+'.webp'), request)
     return FileResponse(ASSETS / (key+'.webp'), media_type='image/webp')
 
 

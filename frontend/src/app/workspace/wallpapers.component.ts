@@ -1,3 +1,4 @@
+import {AssetPreviewComponent} from './asset-preview.component';
 import {Component, ElementRef, effect, inject, input, output, signal, untracked, OnDestroy} from '@angular/core';
 import {FormsModule} from '@angular/forms';
 import {HttpClient, HttpErrorResponse} from '@angular/common/http';
@@ -10,8 +11,10 @@ interface Context {shared:Selection;override:Selection|null;effective:Selection;
 interface State extends Selection {presets:Choice[];items:Choice[];context?:Context;}
 export interface WallpaperStyle {image:string;size:string;}
 type Target = 'personal'|'shared'|'profile';
-@Component({selector:'app-wallpapers',standalone:true,imports:[FormsModule],templateUrl:'./wallpapers.component.html',styleUrl:'./wallpapers.component.scss'})
+@Component({selector:'app-wallpapers',standalone:true,imports:[AssetPreviewComponent, FormsModule],templateUrl:'./wallpapers.component.html',styleUrl:'./wallpapers.component.scss'})
 export class WallpapersComponent implements OnDestroy {
+ readonly previewErrors=signal(false); readonly previewRetry=signal(0);
+ retryPreviews(){this.previewErrors.set(false);this.previewRetry.update(v=>v+1);}
  readonly token=input.required<string>(); readonly open=input(false); readonly revision=input(0); readonly serverId=input<string|null>(null);
  readonly close=output<void>(); readonly applied=output<WallpaperStyle>();
  readonly http=inject(HttpClient); readonly element=inject<ElementRef<HTMLElement>>(ElementRef);

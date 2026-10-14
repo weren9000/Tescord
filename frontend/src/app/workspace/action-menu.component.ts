@@ -48,7 +48,8 @@ export class ActionMenuComponent implements AfterViewInit, OnDestroy {
     window.visualViewport?.removeEventListener('resize', this.reposition);
     this.dialog.nativeElement.close();
     // Do not steal focus from the next modal opened by a selected action.
-    if (this.opener?.isConnected && !document.querySelector('dialog[open]')) this.opener.focus({preventScroll: true});
+    const remaining = Array.from(document.querySelectorAll('dialog[open]')).at(-1);
+    if (this.opener?.isConnected && (!remaining || remaining.contains(this.opener))) this.opener.focus({preventScroll: true});
   }
   dismiss(event: Event): void { event.preventDefault(); this.close.emit(); }
   onBackdrop(event: MouseEvent): void {

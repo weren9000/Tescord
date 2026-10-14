@@ -1,3 +1,4 @@
+import {AudioDevicePickerComponent} from './workspace/audio-device-picker.component';
 import { InfoPanelComponent } from './workspace/info-panel.component';
 import { ActionMenuComponent } from './workspace/action-menu.component';
 import { ThemeControllerComponent } from './workspace/theme-controller.component';
@@ -629,7 +630,7 @@ const DEFAULT_SERVER_ICON_ASSET_BY_NAME: Record<string, string> = {
 @Component({
   providers: [AuthFormStore],
     selector: 'app-root',
-    imports: [InfoPanelComponent, ActionMenuComponent, CommonModule, FormsModule, MediaStreamSrcDirective, SectionNavigationComponent, UiIconComponent, ConversationListComponent, QuickSwitchComponent, PlatformSwitcherComponent, InviteManagerComponent, InventoryComponent, WallpapersComponent, ThemeControllerComponent, MessageGestureDirective, MessageActionsComponent, DesktopPreferencesComponent, SidebarResizeDirective],
+    imports: [AudioDevicePickerComponent, InfoPanelComponent, ActionMenuComponent, CommonModule, FormsModule, MediaStreamSrcDirective, SectionNavigationComponent, UiIconComponent, ConversationListComponent, QuickSwitchComponent, PlatformSwitcherComponent, InviteManagerComponent, InventoryComponent, WallpapersComponent, ThemeControllerComponent, MessageGestureDirective, MessageActionsComponent, DesktopPreferencesComponent, SidebarResizeDirective],
     templateUrl: './app.component.html',
     styleUrls: ['./app.component.scss', './app-layout.scss', './call-workspace.scss', './platform-workspace.scss', './invite-entry.scss', './palette-theme.scss', './auth-workspace.scss', './avatar-presets.scss']
 })
@@ -1137,6 +1138,7 @@ export class AppComponent {
   readonly callParticipantId = signal<string | null>(null);
   readonly callParticipant = computed(() => this.activeCallVoiceParticipants().find(p => p.user_id === this.callParticipantId()) ?? null);
   readonly callDeviceChanging = signal(false);
+  readonly settingsDeviceChanging = signal<'input' | 'output' | null>(null);
   readonly callDeviceNotice = computed(() => this.activeCallSurface()?.kind === 'direct' ? this.directCall.deviceNotice() : this.settingsNotice() || this.voiceError());
   readonly callInputDeviceId = computed(() => this.activeCallSurface()?.kind === 'direct' ? this.directCall.inputDeviceId() : this.voiceSettings().inputDeviceId);
   readonly callOutputDeviceId = computed(() => this.activeCallSurface()?.kind === 'direct' ? this.directCall.outputDeviceId() : this.voiceSettings().outputDeviceId);
@@ -6732,7 +6734,7 @@ export class AppComponent {
   }
 
   changeInputDevice(deviceId: string): void {
-    void this.voiceRoom.updateInputDevice(deviceId || null);
+    void this.changeSettingsDevice('input', deviceId);
   }
 
   refreshVoiceDevices(): void {
@@ -6740,7 +6742,18 @@ export class AppComponent {
   }
 
   changeOutputDevice(deviceId: string): void {
-    void this.voiceRoom.updateOutputDevice(deviceId || null);
+    void this.changeSettingsDevice('output', deviceId);
+  }
+
+  private async changeSettingsDevice(kind: 'input' | 'output', deviceId: string): Promise<void> {
+    if (this.settingsDeviceChanging()) return;
+    this.settingsDeviceChanging.set(kind);
+    try {
+      if (kind === 'input') await this.voiceRoom.updateInputDevice(deviceId || null);
+      else await this.voiceRoom.updateOutputDevice(deviceId || null);
+    } catch {
+      this.voiceRoom.settingsNotice.set('Не удалось переключить устройство. Попробуйте ещё раз.');
+    } finally { this.settingsDeviceChanging.set(null); }
   }
 
   changeVoiceSensitivity(value: number | string): void {
