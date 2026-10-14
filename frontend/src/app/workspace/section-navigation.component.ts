@@ -10,18 +10,17 @@ export type WorkspaceSection = 'chats' | 'groups' | 'platforms';
       <div class="brand"><img src="/assets/kva-wordmark-v2.png" alt="Квачат" width="70" height="35" /></div>
       <div class="sections">
         @for (section of sections; track section.id) {
-          <button type="button" [class.active]="selected() === section.id" [attr.aria-current]="selected() === section.id ? 'page' : null" (click)="selectSection.emit(section.id)">
+          <button type="button" [attr.title]="section.label" [class.active]="selected() === section.id" [attr.aria-current]="selected() === section.id ? 'page' : null" (click)="selectSection.emit(section.id)">
             <app-ui-icon [name]="section.icon" /><span>{{ section.label }}</span>
           </button>
         }
         @if(isAvatarAdmin()) {<button type="button" (click)="inventory.emit('admin')"><app-ui-icon name="avatarAdmin"/><span>Админ-Аватарок</span></button>}
-        <button type="button" (click)="inventory.emit('inventory')"><app-ui-icon name="inventory"/><span>Инвентарь @if(inventoryUnread()){· {{inventoryUnread()}}}</span></button>
       </div>
       <div class="utilities">
         <button type="button" title="Быстрый переход (Ctrl+K)" aria-label="Быстрый переход" (click)="search.emit()"><app-ui-icon name="search"/><span>Поиск</span></button>
         <button type="button" aria-label="Меню приложения" (click)="menu.emit()"><app-ui-icon name="menu"/><span>Меню</span></button>
         <button class="notification" type="button" aria-label="Уведомления" (click)="notifications.emit()"><app-ui-icon name="bell"/>@if (hasNotifications()) {<i></i>}<span>События</span></button>
-        <button class="profile" type="button" aria-label="Мой профиль" (click)="profile.emit()">@if(avatarUrl()){<img class="profile-avatar" [src]="avatarUrl()" alt="" width="44" height="44" />}@else{<b>{{ initials() }}</b>}<span>Профиль</span></button>
+        <button class="profile" type="button" aria-label="Личное меню" aria-haspopup="dialog" title="Личное меню" (click)="profile.emit()">@if(avatarUrl()){<img class="profile-avatar" [src]="avatarUrl()" alt="" width="44" height="44" />}@else{<b>{{ initials() }}</b>}<span>Профиль</span></button>
       </div>
     </nav>`,
   styles: [`

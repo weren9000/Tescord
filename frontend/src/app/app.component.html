@@ -510,158 +510,46 @@
     }
 
     @if (sideMenuOpen()) {
-      <button class="drawer-backdrop" type="button" aria-label="Закрыть меню" (click)="closeSideMenu()"></button>
-      <aside class="side-drawer" aria-label="Меню аккаунта">
-        <header class="side-drawer__top">
-          <div class="side-drawer__profile-card">
-            <button
-              class="profile-avatar-button side-drawer__avatar"
-              type="button"
-              [disabled]="!currentUser() || profileSaving()"
-              title="Изменить аватарку"
-              aria-label="Изменить аватарку"
-              (click)="openProfileAvatarPicker('instant')"
-            >
-              @if (currentUserAvatarUrl(); as avatarUrl) {
-                <img [src]="avatarUrl" [alt]="displayNick(currentUser()?.nick ?? '')" loading="lazy" />
-              } @else {
-                <span>{{ displayNickInitials(currentUser()?.nick ?? '??') }}</span>
-              }
-            </button>
-            <div class="side-drawer__identity">
-              <strong>{{ displayNick(currentUser()?.nick ?? '') }}</strong>
-              @if (currentUser(); as user) {
-                <span>ID: {{ formatPublicUserId(user.public_id) }}</span>
-                <small>{{ user.email }}</small>
-              }
-            </div>
-          </div>
-          <button class="secondary-button side-drawer__close" type="button" aria-label="Закрыть меню" title="Закрыть меню" (click)="closeSideMenu()">
-            ×
-          </button>
-        </header>
-
-        <nav class="side-drawer__actions" aria-label="Действия меню">
-          <button class="side-drawer__action" type="button" (click)="closeSideMenu(); inventoryMode.set('inventory')"><app-ui-icon name="inventory"/> Инвентарь @if(inventoryUnread()){· {{inventoryUnread()}}}</button>
-          @if(currentUser()?.is_avatar_admin){<button class="side-drawer__action" type="button" (click)="closeSideMenu(); inventoryMode.set('admin')"><app-ui-icon name="avatarAdmin"/> Админ-Аватарок</button>}
-          <section class="side-drawer__section">
-            <div class="side-drawer__section-title">Аккаунт</div>
-            <button class="side-drawer__action" type="button" (click)="closeSideMenu(); openProfileEditor()">
-              <span class="side-drawer__action-icon">
-                <img src="/assets/User_Profile.svg" alt="" />
-              </span>
-              <span class="side-drawer__action-copy">
-                <strong>Профиль</strong>
-              </span>
-              <span class="side-drawer__action-arrow" aria-hidden="true">›</span>
-            </button>
-            <button class="side-drawer__action" type="button" (click)="openAddUserShortcut()">
-              <span class="side-drawer__action-icon">
-                <img src="/assets/User_fill_add.svg" alt="" />
-              </span>
-              <span class="side-drawer__action-copy">
-                <strong>Добавить друга</strong>
-              </span>
-              <span class="side-drawer__action-arrow" aria-hidden="true">›</span>
-            </button>
+      <app-action-menu [label]="personalMenuPage() === 'main' ? 'Личное меню' : personalMenuPage() === 'appearance' ? 'Внешний вид' : 'Настройки'" (close)="closeSideMenu()">
+        @if (personalMenuPage() === 'main') {
+          <section>
+            <p class="menu-note">{{ displayNick(currentUser()?.nick ?? '') }}</p>
+            <button type="button" (click)="closeSideMenu(); openProfileEditor()"><app-ui-icon name="profile" />Мой профиль</button>
+            <button type="button" (click)="closeSideMenu(); inventoryMode.set('inventory')"><app-ui-icon name="inventory" />Инвентарь @if(inventoryUnread()){ · {{inventoryUnread()}} }</button>
           </section>
-
-          <section class="side-drawer__section">
-            <div class="side-drawer__section-title">Создать</div>
-            <button class="side-drawer__action" type="button" (click)="openCreateGroupShortcut()">
-              <span class="side-drawer__action-icon">
-                <img src="/assets/Group_fill.svg" alt="" />
-              </span>
-              <span class="side-drawer__action-copy">
-                <strong>Группу</strong>
-              </span>
-              <span class="side-drawer__action-arrow" aria-hidden="true">›</span>
-            </button>
-            <button class="side-drawer__action" type="button" (click)="openCreatePlatformShortcut()">
-              <span class="side-drawer__action-icon">
-                <img src="/assets/place.svg" alt="" />
-              </span>
-              <span class="side-drawer__action-copy">
-                <strong>Площадку</strong>
-              </span>
-              <span class="side-drawer__action-arrow" aria-hidden="true">›</span>
-            </button>
+          <section>
+            <button type="button" (click)="personalMenuPage.set('appearance')"><app-ui-icon name="appearance" />Внешний вид</button>
+            <button type="button" (click)="closeSideMenu(); openVoiceSettings()"><app-ui-icon name="sound" />Звук и устройства</button>
+            <button type="button" (click)="personalMenuPage.set('settings')"><app-ui-icon name="settings" />Настройки</button>
           </section>
-
-          <section class="side-drawer__section">
-            <div class="side-drawer__section-title">Безопасность</div>
-            <button class="side-drawer__action" type="button" (click)="openBlockedFriendsModal()">
-              <span class="side-drawer__action-icon">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <circle cx="12" cy="8" r="3.2"></circle>
-                  <path d="M5.5 20a6.5 6.5 0 0 1 13 0"></path>
-                  <path d="M5 5l14 14"></path>
-                </svg>
-              </span>
-              <span class="side-drawer__action-copy">
-                <strong>Заблокированные люди</strong>
-              </span>
-              <span class="side-drawer__action-arrow" aria-hidden="true">›</span>
-            </button>
-            <button class="side-drawer__action" type="button" (click)="openBlockedServersModal()">
-              <span class="side-drawer__action-icon">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <rect x="5" y="5" width="14" height="14" rx="3"></rect>
-                  <path d="M8 8l8 8"></path>
-                  <path d="M16 8l-8 8"></path>
-                </svg>
-              </span>
-              <span class="side-drawer__action-copy">
-                <strong>Заблокированные пространства</strong>
-              </span>
-              <span class="side-drawer__action-arrow" aria-hidden="true">›</span>
-            </button>
-            @if (isAdmin()) {
-              <button class="side-drawer__action" type="button" (click)="closeSideMenu(); openVoiceAdminPanel()">
-                <span class="side-drawer__action-icon">
-                  <img src="/assets/mic_voice.svg" alt="" />
-                </span>
-                <span class="side-drawer__action-copy">
-                  <strong>Доступ к голосу</strong>
-                </span>
-                <span class="side-drawer__action-arrow" aria-hidden="true">›</span>
-              </button>
-            }
-          </section>
-        </nav>
-
-        <footer class="side-drawer__footer">
-          <button class="side-drawer__action" type="button" (click)="closeSideMenu(); wallpaperOpen.set(true)">Обои</button>
-          <button class="side-drawer__action" type="button" (click)="closeSideMenu(); openVoiceSettings()">
-            <span class="side-drawer__action-icon">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <circle cx="12" cy="12" r="3"></circle>
-                <path d="M12 3v3"></path>
-                <path d="M12 18v3"></path>
-                <path d="M3 12h3"></path>
-                <path d="M18 12h3"></path>
-                <path d="M5.6 5.6l2.1 2.1"></path>
-                <path d="M16.3 16.3l2.1 2.1"></path>
-                <path d="M18.4 5.6l-2.1 2.1"></path>
-                <path d="M7.7 16.3l-2.1 2.1"></path>
-              </svg>
-            </span>
-            <span class="side-drawer__action-copy">
-              <strong>Настройки</strong>
-            </span>
-            <span class="side-drawer__action-arrow" aria-hidden="true">›</span>
-          </button>
-          <button class="side-drawer__action side-drawer__action--danger" type="button" (click)="closeSideMenu(); logout()">
-            <span class="side-drawer__action-icon">
-              <img src="/assets/Log out.svg" alt="" />
-            </span>
-            <span class="side-drawer__action-copy">
-              <strong>Выйти</strong>
-            </span>
-            <span class="side-drawer__action-arrow" aria-hidden="true">›</span>
-          </button>
-        </footer>
-      </aside>
+          @if (currentUser()?.is_avatar_admin || isAdmin()) {
+            <section><p class="menu-heading">Администрирование</p>
+              @if (currentUser()?.is_avatar_admin) { <button type="button" (click)="closeSideMenu(); inventoryMode.set('admin')"><app-ui-icon name="avatarAdmin" />Админ-Аватарок</button> }
+              @if (isAdmin()) { <button type="button" (click)="closeSideMenu(); openVoiceAdminPanel()"><app-ui-icon name="mic" />Доступ к голосу</button> }
+            </section>
+          }
+          <section><button type="button" (click)="closeSideMenu(); logout()"><app-ui-icon name="logout" />Выход</button></section>
+        } @else {
+          <button type="button" (click)="personalMenuPage.set('main')"><app-ui-icon name="back" />Личное меню</button>
+          @if (personalMenuPage() === 'appearance') {
+            <section>
+              <button type="button" (click)="closeSideMenu(); inventoryMode.set('inventory')"><app-ui-icon name="inventory" />Темы, аватары и рамки</button>
+              <button type="button" (click)="closeSideMenu(); wallpaperOpen.set(true)"><app-ui-icon name="appearance" />Обои</button>
+              <app-desktop-preferences />
+            </section>
+          } @else {
+            <section>
+              <button type="button" (click)="closeSideMenu(); openProfileEditor()"><app-ui-icon name="profile" />Профиль</button>
+              <button type="button" (click)="personalMenuPage.set('appearance')"><app-ui-icon name="appearance" />Внешний вид</button>
+              <button type="button" (click)="closeSideMenu(); openVoiceSettings()"><app-ui-icon name="sound" />Звук и устройства</button>
+            </section>
+            <section><p class="menu-heading">Безопасность</p>
+              <button type="button" (click)="openBlockedFriendsModal()">Заблокированные люди</button>
+              <button type="button" (click)="openBlockedServersModal()">Заблокированные пространства</button>
+            </section>
+          }
+        }
+      </app-action-menu>
     }
 
     @if (mobilePanel() === 'servers') {
@@ -672,7 +560,7 @@
       <app-quick-switch [query]="globalSearchQuery()" [links]="quickLinks()" (search)="updateGlobalSearchQuery($event)" (open)="openQuickLink($event)" (close)="closeQuickSwitch()" />
     }
     <div class="messenger-layout" [class.messenger-layout--platform]="isPlatformsMode()" [attr.data-density]="desktopPreferences.value().density" [class.messenger-layout--sidebar-collapsed]="desktopPreferences.value().collapsed" [style.--sidebar-width]="desktopPreferences.value().width + 'px'" [style.--message-text-size]="desktopPreferences.value().textSize + 'px'">
-      <app-section-navigation [isAvatarAdmin]="!!currentUser()?.is_avatar_admin" [inventoryUnread]="inventoryUnread()" (inventory)="inventoryMode.set($event)" [avatarUrl]="currentUserAvatarUrl()" [selected]="workspaceMode()" [initials]="displayNickInitials(currentUser()?.nick ?? 'Я')" [hasNotifications]="friendRequestBadgeVisible()" (selectSection)="selectWorkspaceMode($event)" (menu)="toggleSideMenu()" (search)="openQuickSwitch()" (profile)="openProfileEditor()" (notifications)="openFriendRequestsModal()" />
+      <app-section-navigation [isAvatarAdmin]="!!currentUser()?.is_avatar_admin" [inventoryUnread]="inventoryUnread()" (inventory)="inventoryMode.set($event)" [avatarUrl]="currentUserAvatarUrl()" [selected]="workspaceMode()" [initials]="displayNickInitials(currentUser()?.nick ?? 'Я')" [hasNotifications]="friendRequestBadgeVisible()" (selectSection)="selectWorkspaceMode($event)" (menu)="toggleSideMenu()" (search)="openQuickSwitch()" (profile)="toggleSideMenu()" (notifications)="openFriendRequestsModal()" />
       <aside class="conversation-sidebar" [class.conversation-sidebar--mobile-open]="mobilePanel() === 'servers'">
         <div class="desktop-sidebar-toolbar">
           <app-desktop-preferences />
@@ -785,14 +673,6 @@
         }
 
         @if (activeServer()) {
-          @if (conversationActionMenuOpen()) {
-            <button
-              class="floating-menu-backdrop"
-              type="button"
-              aria-label="Закрыть меню действий"
-              (click)="closeConversationActionMenu()"
-            ></button>
-          }
           <section class="conversation-head conversation-head--managed">
             <button class="workspace-back" type="button" aria-label="Назад к списку" (click)="toggleMobilePanel('servers')"><app-ui-icon name="back" /></button>
             <div class="conversation-head__identity conversation-head__identity--managed">
@@ -834,6 +714,7 @@
                   type="button"
                   [attr.aria-label]="'Действия ' + (isChatsMode() ? 'друга' : activeManagedSpaceLabel())"
                   [attr.title]="'Действия ' + (isChatsMode() ? 'друга' : activeManagedSpaceLabel())"
+                  [attr.aria-expanded]="conversationActionMenuOpen()" aria-haspopup="dialog"
                   (click)="toggleConversationActionMenu()"
                 >
                   <app-ui-icon name="more" />
@@ -843,92 +724,89 @@
                 </button>
 
                 @if (conversationActionMenuOpen()) {
-                  <div class="conversation-action-menu conversation-action-menu--managed">
-                    @if (!isChatsMode() && canManageActiveGroup()) {
-                      <button class="conversation-action-menu__item" type="button" (click)="openInvites()"><app-ui-icon name="plus" />Пригласить по ссылке</button>
-                    }
-                    @if (isChatsMode() && activeDirectPeer()) {
-                      <button class="conversation-action-menu__item" type="button" (click)="closeConversationActionMenu(); openActiveDirectPeerCall()">
-                        <img class="conversation-action-menu__item-icon" src="/assets/Phone_connect.svg" alt="" />
-                        Позвонить
+<app-action-menu label="Действия беседы" (close)="closeConversationActionMenu()">
+                    @if (pinError()) { <p class="menu-note" role="alert">{{ pinError() }}</p> }
+                    @if (pushFeedback(); as feedback) { <p class="menu-note" role="status">{{ feedback.message }}</p> }
+@if (canUseActiveChannelChat()) { <section><p class="menu-heading">Материалы</p>                    @if (canUseActiveChannelChat()) {
+                      <button  type="button" (click)="closeConversationActionMenu(); openChatFilesModal()">
+                        <app-ui-icon name="files" />
+                        Файлы беседы
                       </button>
                     }
-                    @if (activeConversation(); as conversation) {
-                      <button class="conversation-action-menu__item" type="button" [disabled]="pinPending().includes(conversation.id)" (click)="closeConversationActionMenu(); toggleConversationPin(conversation.id)">
-                        {{ conversation.pinned ? 'Открепить беседу' : 'Закрепить беседу' }}
+</section> }
+<section><p class="menu-heading">Личные настройки</p>                    @if (activeConversation(); as conversation) {
+                      <button  type="button" [disabled]="pinPending().includes(conversation.id)" (click)="toggleConversationPin(conversation.id)">
+                        <app-ui-icon name="pin" />{{ pinPending().includes(conversation.id) ? 'Сохраняем…' : conversation.pinned ? 'Открепить беседу' : 'Закрепить беседу' }}
                       </button>
                       <button
-                        class="conversation-action-menu__item"
+
                         type="button"
                         [disabled]="isActiveConversationPushPending()"
-                        (click)="closeConversationActionMenu(); toggleActiveConversationPush()"
+                        (click)="toggleActiveConversationPush()"
                       >
-                        <img class="conversation-action-menu__item-icon" [src]="activeConversationPushIcon()" alt="" />
-                        {{ activeConversationPushActionLabel() }}
+                        <app-ui-icon name="bell" />
+                        {{ isActiveConversationPushPending() ? 'Сохраняем…' : activeConversationPushActionLabel() }}
                       </button>
                     }
                     @if (canUseActiveChannelChat()) {
-                      <button class="conversation-action-menu__item" type="button" (click)="closeConversationActionMenu(); wallpaperOpen.set(true)"><span class="conversation-action-menu__item-icon conversation-action-menu__item-icon--symbol" aria-hidden="true">▧</span>Обои чата</button>
-                      <button class="conversation-action-menu__item" type="button" (click)="closeConversationActionMenu(); toggleMessageSearchPanel()">
-                        <span class="conversation-action-menu__item-icon conversation-action-menu__item-icon--symbol" aria-hidden="true">⌕</span>
-                        Поиск по сообщениям
-                      </button>
+                      <button  type="button" (click)="closeConversationActionMenu(); wallpaperOpen.set(true)"><app-ui-icon name="appearance" />Обои чата</button>
+
                     }
-                    @if (canUseActiveChannelChat()) {
-                      <button class="conversation-action-menu__item" type="button" (click)="closeConversationActionMenu(); openChatFilesModal()">
-                        <img class="conversation-action-menu__item-icon" src="/assets/Uploaded_sheet_files.svg" alt="" />
-                        Медиа чата
-                      </button>
+</section>
+@if (!isChatsMode()) { <section><p class="menu-heading">Участники и управление</p>                    @if (!isChatsMode() && canManageActiveGroup()) {
+                      <button  type="button" (click)="openInvites()"><app-ui-icon name="plus" />Пригласить по ссылке</button>
                     }
                     @if (!isChatsMode()) {
-                      <button class="conversation-action-menu__item" type="button" (click)="closeConversationActionMenu(); openGroupMembersPanel()">
-                        <img class="conversation-action-menu__item-icon" src="/assets/Group_fill.svg" alt="" />
-                        Пользователи
+                      <button  type="button" (click)="closeConversationActionMenu(); openGroupMembersPanel()">
+                        <app-ui-icon name="groups" />
+                        Участники
                       </button>
                     }
                     @if (!isChatsMode() && canManageActiveGroup()) {
-                      <button class="conversation-action-menu__item" type="button" (click)="closeConversationActionMenu(); openAddGroupMemberModal()">
-                        <img class="conversation-action-menu__item-icon" src="/assets/User_fill_add.svg" alt="" />
+                      <button  type="button" (click)="closeConversationActionMenu(); openAddGroupMemberModal()">
+                        <app-ui-icon name="plus" />
                         Добавить участника
                       </button>
                     }
                     @if (isPlatformsMode() && canOpenPlatformSettings()) {
-                      <button class="conversation-action-menu__item" type="button" (click)="openPlatformSettingsModal()">
-                        <span class="conversation-action-menu__item-icon conversation-action-menu__item-icon--symbol" aria-hidden="true">⚙</span>
+                      <button  type="button" (click)="openPlatformSettingsModal()">
+                        <app-ui-icon name="settings" />
                         Настройки площадки
                       </button>
                     }
-                    @if (isChatsMode() && activeDirectPeer(); as directPeer) {
-                      <button class="conversation-action-menu__item conversation-action-menu__item--danger" type="button" [disabled]="isFriendManagementPending(directPeer.user_id)" (click)="removeActiveFriend()">
-                        <img class="conversation-action-menu__item-icon" src="/assets/Trash.svg" alt="" />
+</section> }
+<section><p class="menu-heading">{{ isChatsMode() ? 'Контакт' : 'Завершение участия' }}</p>                    @if (isChatsMode() && activeDirectPeer(); as directPeer) {
+                      <button class="danger" type="button" [disabled]="isFriendManagementPending(directPeer.user_id)" (click)="removeActiveFriend()">
+                        <app-ui-icon name="trash" />
                         Убрать из друзей
                       </button>
-                      <button class="conversation-action-menu__item conversation-action-menu__item--danger" type="button" [disabled]="isFriendManagementPending(directPeer.user_id)" (click)="blockActiveFriend()">
-                        <span class="conversation-action-menu__item-icon conversation-action-menu__item-icon--symbol" aria-hidden="true">⛔</span>
+                      <button class="danger" type="button" [disabled]="isFriendManagementPending(directPeer.user_id)" (click)="blockActiveFriend()">
+                        <app-ui-icon name="block" />
                         Заблокировать
                       </button>
                     }
                     @if (isGroupsMode() && activeGroupConversation(); as groupConversation) {
-                      <button class="conversation-action-menu__item" type="button" [disabled]="isServerMembershipActionPending(groupConversation.id)" (click)="leaveActiveGroup()">
-                        <img class="conversation-action-menu__item-icon" src="/assets/Log out.svg" alt="" />
+                      <button  type="button" [disabled]="isServerMembershipActionPending(groupConversation.id)" (click)="leaveActiveGroup()">
+                        <app-ui-icon name="logout" />
                         Выйти из группы
                       </button>
-                      <button class="conversation-action-menu__item conversation-action-menu__item--danger" type="button" [disabled]="isServerMembershipActionPending(groupConversation.id)" (click)="blockActiveGroup()">
-                        <span class="conversation-action-menu__item-icon conversation-action-menu__item-icon--symbol" aria-hidden="true">⛔</span>
+                      <button class="danger" type="button" [disabled]="isServerMembershipActionPending(groupConversation.id)" (click)="blockActiveGroup()">
+                        <app-ui-icon name="block" />
                         Заблокировать группу
                       </button>
                     }
                     @if (isPlatformsMode() && activeServer(); as platform) {
-                      <button class="conversation-action-menu__item" type="button" [disabled]="isServerMembershipActionPending(platform.id)" (click)="leaveActivePlatform()">
-                        <img class="conversation-action-menu__item-icon" src="/assets/Log out.svg" alt="" />
+                      <button  type="button" [disabled]="isServerMembershipActionPending(platform.id)" (click)="leaveActivePlatform()">
+                        <app-ui-icon name="logout" />
                         Выйти с площадки
                       </button>
-                      <button class="conversation-action-menu__item conversation-action-menu__item--danger" type="button" [disabled]="isServerMembershipActionPending(platform.id)" (click)="blockActivePlatform()">
-                        <span class="conversation-action-menu__item-icon conversation-action-menu__item-icon--symbol" aria-hidden="true">⛔</span>
+                      <button class="danger" type="button" [disabled]="isServerMembershipActionPending(platform.id)" (click)="blockActivePlatform()">
+                        <app-ui-icon name="block" />
                         Заблокировать площадку
                       </button>
                     }
-                  </div>
+</section>
+</app-action-menu>
                 }
               </div>
             </div>

@@ -1,6 +1,13 @@
 import { Component, input } from '@angular/core';
 
 const paths: Record<string, string> = {
+  profile: 'M20 21v-2a7 7 0 0 0-14 0v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8',
+  appearance: 'M3 4h18v16H3zM3 16l5-5 5 5 4-4 4 4M15 8h.01',
+  settings: 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2',
+  logout: 'M9 3H3v18h6M9 12h12M17 8l4 4-4 4',
+  trash: 'M3 6h18M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7M14 10v7',
+  block: 'M5 5l14 14M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18',
+  pin: 'M9 3h6l-1 6 4 4v2H6v-2l4-4zM12 15v6',
   inventory: 'M3 7h18v14H3zM2 3h20v4H2zM9 11h6',
   avatarAdmin: 'M12 3l9 4v5c0 5-9 10-9 10S3 17 3 12V7zM8 12l3 3 5-6',
   hash: 'M5 9h15M4 15h15M11 3L7 21M17 3l-4 18',

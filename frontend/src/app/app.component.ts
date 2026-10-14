@@ -1,3 +1,4 @@
+import { ActionMenuComponent } from './workspace/action-menu.component';
 import { ThemeControllerComponent } from './workspace/theme-controller.component';
 import { DesktopPreferencesService } from './workspace/desktop-preferences.service';
 import { DesktopPreferencesComponent } from './workspace/desktop-preferences.component';
@@ -627,7 +628,7 @@ const DEFAULT_SERVER_ICON_ASSET_BY_NAME: Record<string, string> = {
 @Component({
   providers: [AuthFormStore],
     selector: 'app-root',
-    imports: [CommonModule, FormsModule, MediaStreamSrcDirective, SectionNavigationComponent, UiIconComponent, ConversationListComponent, QuickSwitchComponent, PlatformSwitcherComponent, InviteManagerComponent, InventoryComponent, WallpapersComponent, ThemeControllerComponent, MessageGestureDirective, MessageActionsComponent, DesktopPreferencesComponent, SidebarResizeDirective],
+    imports: [ActionMenuComponent, CommonModule, FormsModule, MediaStreamSrcDirective, SectionNavigationComponent, UiIconComponent, ConversationListComponent, QuickSwitchComponent, PlatformSwitcherComponent, InviteManagerComponent, InventoryComponent, WallpapersComponent, ThemeControllerComponent, MessageGestureDirective, MessageActionsComponent, DesktopPreferencesComponent, SidebarResizeDirective],
     templateUrl: './app.component.html',
     styleUrls: ['./app.component.scss', './app-layout.scss', './call-workspace.scss', './platform-workspace.scss', './invite-entry.scss', './palette-theme.scss', './auth-workspace.scss', './avatar-presets.scss']
 })
@@ -3827,7 +3828,10 @@ export class AppComponent {
     this.settingsPanelOpen.set(false);
   }
 
+  readonly personalMenuPage = signal<'main' | 'appearance' | 'settings'>('main');
+
   toggleSideMenu(): void {
+    this.personalMenuPage.set('main');
     if (this.callWindowExpanded()) this.minimizeCallWindow();
     this.closeQuickCreateMenu();
     this.sideMenuOpen.set(!this.sideMenuOpen());
@@ -4111,6 +4115,8 @@ export class AppComponent {
       return;
     }
 
+    if (!window.confirm(`Удалить ${this.displayNick(peer.nick)} из друзей?`)) return;
+    this.closeConversationActionMenu();
     this.friendManagementPendingUserId.set(peer.user_id);
     this.friendManagementTrigger$.next({
       token,
@@ -4127,6 +4133,8 @@ export class AppComponent {
       return;
     }
 
+    if (!window.confirm(`Заблокировать ${this.displayNick(peer.nick)}? Пользователь будет удалён из друзей.`)) return;
+    this.closeConversationActionMenu();
     this.friendManagementPendingUserId.set(peer.user_id);
     this.friendManagementTrigger$.next({
       token,
@@ -4532,6 +4540,7 @@ export class AppComponent {
   }
 
   toggleMobileFooterMenu(): void {
+    this.personalMenuPage.set('main');
     if (this.callWindowExpanded()) this.minimizeCallWindow();
     if (!this.isCompactVoiceWorkspaceViewport()) {
       this.toggleSideMenu();
@@ -5015,6 +5024,7 @@ export class AppComponent {
       return;
     }
 
+    if (!this.isActiveGroupOwner() && !window.confirm(action === 'leave' ? `Выйти из «${activeServer.name}»?` : `Заблокировать «${activeServer.name}» и выйти?`)) return;
     this.closeConversationActionMenu();
     this.closePlatformSettingsDangerMenu();
     if (activeServer.kind === 'workspace') {
