@@ -440,20 +440,7 @@
                             @if (participant.is_self) {
                               <small>{{ groupVoiceSelfStatusLabel(participant) }}</small>
                             } @else {
-                              <div class="group-voice-roster__controls">
-                                <input
-                                  class="group-voice-roster__volume"
-                                  type="range"
-                                  min="0"
-                                  max="100"
-                                  step="1"
-                                  [value]="groupVoiceParticipantVolume(participant)"
-                                  [attr.aria-label]="'Громкость ' + displayNick(participant.nick)"
-                                  (input)="setGroupVoiceParticipantVolume(participant, $any($event.target).value)"
-                                />
-                                <small [attr.title]="groupVoiceParticipantVolume(participant) === 0 ? 'Заглушён для вас' : null">{{ groupVoiceParticipantVolume(participant) }}%</small>
-                                <button class="participant-mute" type="button" [attr.aria-pressed]="groupVoiceParticipantVolume(participant) === 0" [attr.aria-label]="(groupVoiceParticipantVolume(participant) === 0 ? 'Включить для себя: ' : 'Заглушить для себя: ') + displayNick(participant.nick)" [attr.title]="groupVoiceParticipantVolume(participant) === 0 ? 'Вернуть прежнюю громкость' : 'Заглушить для себя'" (click)="toggleParticipantLocalMute(participant.user_id)"><app-ui-icon [name]="groupVoiceParticipantVolume(participant) === 0 ? 'soundOff' : 'sound'" /></button>
-                              </div>
+                              <button class="participant-menu-trigger" type="button" [attr.aria-label]="'Меню участника: ' + displayNick(participant.nick)" aria-haspopup="dialog" (click)="callParticipantId.set(participant.user_id)"><app-ui-icon name="more" />Действия</button>
                               <small>{{ groupVoiceStateIconAlt(participant) }}</small>
                             }
                           </div>
@@ -473,32 +460,18 @@
             }
 
             <div class="call-window__bottom">
-              @if (callAudioSettingsOpen() && !isIncomingDirectCall()) {
-                <section class="call-audio-settings" aria-label="Настройки звука звонка">
-                  <div class="call-audio-settings__heading"><strong>Звук звонка</strong><button type="button" aria-label="Закрыть настройки звука" (click)="callAudioSettingsOpen.set(false)">×</button></div>
-                  <label class="call-audio-settings__volume"><span>Громкость <b>{{ activeCallVolume() }}%</b></span><input type="range" aria-label="Громкость звонка" [min]="activeCallVolumeMin()" max="100" [value]="activeCallVolume()" (input)="changeActiveCallVolume($any($event.target).value)" /></label>
-                  @if (activeCallOutputMuted()) {<p>Звук выключен. Выбранная громкость сохранится после включения.</p>}
-                  @if (call.kind !== 'direct') {
-                    @if (devicesLoading()) {<p role="status">Обновляем список устройств…</p>}
-                    <label>Микрофон<select aria-label="Микрофон звонка" [ngModel]="voiceSettings().inputDeviceId ?? ''" (ngModelChange)="changeInputDevice($event)"><option value="">По умолчанию</option>@for (device of inputDevices(); track device.deviceId) {<option [value]="device.deviceId">{{ device.label }}</option>}</select></label>
-                    <label>Устройство вывода<select aria-label="Устройство вывода звонка" [disabled]="!outputDeviceSupported()" [ngModel]="voiceSettings().outputDeviceId ?? ''" (ngModelChange)="changeOutputDevice($event)"><option value="">По умолчанию</option>@for (device of outputDevices(); track device.deviceId) {<option [value]="device.deviceId">{{ device.label }}</option>}</select></label>
-                    @if (!outputDeviceSupported()) {<p>В этом браузере устройство вывода выбирается в настройках системы.</p>}
-                    @if (settingsNotice()) {<p role="status">{{ settingsNotice() }}</p>}
-                  } @else {<p>Микрофон для личного звонка выбирается в разрешениях браузера. Устройство вывода — в настройках системы.</p>}
-                </section>
-              }
               <footer class="call-window__controls">
                 @if (isIncomingDirectCall()) {
                   <button class="call-tray__answer" type="button" (click)="acceptDirectCall()"><app-ui-icon name="phone" />Ответить</button>
                   <button class="call-control-button call-control-button--danger" type="button" aria-label="Отклонить звонок" title="Отклонить звонок" (click)="rejectDirectCall()"><app-ui-icon name="hangup" /></button>
                 } @else {
-                  <button class="call-control-button" type="button" [class.call-control-button--muted]="activeCallMuted()" [attr.aria-pressed]="activeCallMuted()" [disabled]="call.kind !== 'direct' && voiceOwnerMuted()" [attr.title]="activeCallMuteLabel()" [attr.aria-label]="activeCallMuteLabel()" (click)="toggleActiveCallMute($event)"><app-ui-icon [name]="activeCallMuted() ? 'micOff' : 'mic'" /></button>
-                  <button class="call-control-button" type="button" [class.call-control-button--muted]="activeCallOutputMuted()" [attr.aria-pressed]="activeCallOutputMuted()" [attr.title]="activeCallOutputMuted() ? 'Включить звук звонка' : 'Выключить звук звонка'" [attr.aria-label]="activeCallOutputMuted() ? 'Включить звук звонка' : 'Выключить звук звонка'" (click)="toggleActiveCallOutput()"><app-ui-icon [name]="activeCallOutputMuted() ? 'soundOff' : 'sound'" /></button>
+<div class="call-device-control">                  <button class="call-control-button" type="button" [class.call-control-button--muted]="activeCallMuted()" [attr.aria-pressed]="activeCallMuted()" [disabled]="call.kind !== 'direct' && voiceOwnerMuted()" [attr.title]="activeCallMuteLabel()" [attr.aria-label]="activeCallMuteLabel()" (click)="toggleActiveCallMute($event)"><app-ui-icon [name]="activeCallMuted() ? 'micOff' : 'mic'" /></button><button class="call-device-toggle" type="button" aria-label="Выбрать микрофон" title="Выбрать микрофон" aria-haspopup="dialog" (click)="openCallMenu('input')">⌃</button></div>
+<div class="call-device-control">                  <button class="call-control-button" type="button" [class.call-control-button--muted]="activeCallOutputMuted()" [attr.aria-pressed]="activeCallOutputMuted()" [attr.title]="activeCallOutputMuted() ? 'Включить звук звонка' : 'Выключить звук звонка'" [attr.aria-label]="activeCallOutputMuted() ? 'Включить звук звонка' : 'Выключить звук звонка'" (click)="toggleActiveCallOutput()"><app-ui-icon [name]="activeCallOutputMuted() ? 'soundOff' : 'sound'" /></button><button class="call-device-toggle" type="button" aria-label="Выбрать устройство вывода" title="Выбрать устройство вывода" aria-haspopup="dialog" (click)="openCallMenu('output')">⌃</button></div>
                   @if (shouldShowWindowMediaControls()) {
                     <button class="call-control-button" type="button" [class.call-control-button--active]="activeCallCameraEnabled()" [attr.aria-pressed]="activeCallCameraEnabled()" [disabled]="!activeCallCanUseCamera()" [attr.title]="activeCallCameraEnabled() ? 'Выключить камеру' : 'Включить камеру'" [attr.aria-label]="activeCallCameraEnabled() ? 'Выключить камеру' : 'Включить камеру'" (click)="toggleActiveCallCamera($event)"><app-ui-icon name="camera" /></button>
                     <button class="call-control-button" type="button" [class.call-control-button--active]="activeCallScreenSharing()" [attr.aria-pressed]="activeCallScreenSharing()" [disabled]="!activeCallCanShareScreen()" [attr.title]="activeCallScreenSharing() ? 'Остановить показ экрана' : 'Показать экран'" [attr.aria-label]="activeCallScreenSharing() ? 'Остановить показ экрана' : 'Показать экран'" (click)="toggleActiveCallScreenShare($event)"><app-ui-icon name="screen" /></button>
                   }
-                  <button class="call-control-button" type="button" [class.call-control-button--active]="callAudioSettingsOpen()" [attr.aria-expanded]="callAudioSettingsOpen()" title="Настройки звука" aria-label="Настройки звука" (click)="toggleCallAudioSettings()"><app-ui-icon name="more" /></button>
+                  <button class="call-control-button" type="button" [class.call-control-button--active]="callAudioSettingsOpen()" [attr.aria-expanded]="callAudioSettingsOpen()" title="Меню звонка" aria-label="Меню звонка" aria-haspopup="dialog" (click)="toggleCallAudioSettings()"><app-ui-icon name="more" /></button>
                   <span class="call-controls-divider"></span>
                   <button class="call-control-button call-control-button--danger" type="button" title="Завершить звонок" aria-label="Завершить звонок" (click)="endActiveCall($event)"><app-ui-icon name="hangup" /></button>
                 }
@@ -507,6 +480,54 @@
           </div>
         </section>
       }
+    }
+
+    @if (callAudioSettingsOpen() && activeCallSurface() && !isIncomingDirectCall()) {
+      <app-action-menu [label]="callMenuPage() === 'input' ? 'Микрофон' : callMenuPage() === 'output' ? 'Звук и устройство вывода' : callMenuPage() === 'audio' ? 'Настройки звука' : 'Меню звонка'" (close)="callAudioSettingsOpen.set(false)">
+        @if (callMenuPage() === 'more') {
+          <section>
+            <button type="button" (click)="callMenuPage.set('audio')"><app-ui-icon name="sound" />Звук и устройства</button>
+            @if (activeCallSurface()?.kind === 'direct') {<button type="button" (click)="callMenuPage.set('output')">Звук собеседника</button>}
+            @if (callWindowExpanded()) {<button type="button" (click)="minimizeCallWindow()"><app-ui-icon name="minimize" />Вернуться к переписке</button>}
+            @else {<button type="button" (click)="callAudioSettingsOpen.set(false); expandCallWindow()">Развернуть звонок</button>}
+          </section>
+          @if (activeCallCanOpenSettings()) {
+            <section><p class="menu-heading">Управление каналом</p><button type="button" (click)="callAudioSettingsOpen.set(false); openActiveCallSettings($event)"><app-ui-icon name="groups" />Доступ и участники</button></section>
+          }
+        } @else {
+          <button type="button" (click)="callMenuPage.set('more')">← Меню звонка</button>
+          <section class="call-device-settings">
+            @if (callMenuPage() !== 'input') {
+              <label>Громкость: {{ activeCallVolume() }}%<input type="range" aria-label="Громкость звонка" [min]="activeCallVolumeMin()" max="100" [value]="activeCallVolume()" (input)="changeActiveCallVolume($any($event.target).value)" /></label>
+              <button type="button" [attr.aria-pressed]="activeCallOutputMuted()" (click)="toggleActiveCallOutput()"><app-ui-icon [name]="activeCallOutputMuted() ? 'soundOff' : 'sound'" />{{ activeCallOutputMuted() ? 'Включить звук звонка' : 'Заглушить для меня' }}</button>
+              @if (activeCallOutputMuted()) {<p class="menu-note">Звук выключен только для вас. Выбранная громкость сохранена.</p>}
+            }
+            @if (callMenuPage() !== 'output') {
+              <label>Микрофон<select #callInputControl aria-label="Микрофон звонка" [disabled]="callDeviceChanging() || !activeCallMediaControlsVisible()" [ngModel]="callInputDeviceId() ?? ''" (ngModelChange)="changeCallDevice('input', $event, callInputControl)"><option value="">По умолчанию</option>@for (device of inputDevices(); track device.deviceId) { @if (device.deviceId) {<option [value]="device.deviceId">{{ device.label }}</option>} }</select></label>
+            }
+            @if (callMenuPage() !== 'input') {
+              <label>Устройство вывода<select #callOutputControl aria-label="Устройство вывода звонка" [disabled]="!outputDeviceSupported() || callDeviceChanging() || !activeCallMediaControlsVisible()" [ngModel]="callOutputDeviceId() ?? ''" (ngModelChange)="changeCallDevice('output', $event, callOutputControl)"><option value="">По умолчанию</option>@for (device of outputDevices(); track device.deviceId) { @if (device.deviceId) {<option [value]="device.deviceId">{{ device.label }}</option>} }</select></label>
+              @if (!outputDeviceSupported()) {<p class="menu-note">В этом браузере устройство вывода выбирается в настройках системы.</p>}
+            }
+            @if (devicesLoading() || callDeviceChanging()) {<p class="menu-note" role="status">{{ callDeviceChanging() ? 'Переключаем устройство…' : 'Обновляем список устройств…' }}</p>}
+            @if (callDeviceNotice()) {<p class="menu-note" role="status">{{ callDeviceNotice() }}</p>}
+            @if (!activeCallMediaControlsVisible()) {<p class="menu-note">Выбор устройств доступен после подключения.</p>}
+            <button type="button" [disabled]="devicesLoading() || callDeviceChanging()" (click)="refreshVoiceDevices()">Обновить список устройств</button>
+          </section>
+        }
+      </app-action-menu>
+    }
+    @if (callParticipant(); as participant) {
+      <app-action-menu [label]="displayNick(participant.nick)" (close)="callParticipantId.set(null)">
+        <section class="call-device-settings">
+          <p class="menu-heading">Только для вас</p>
+          <label>Громкость: {{ groupVoiceParticipantVolume(participant) }}%<input type="range" min="0" max="100" [attr.aria-label]="'Громкость ' + displayNick(participant.nick)" [value]="groupVoiceParticipantVolume(participant)" (input)="setGroupVoiceParticipantVolume(participant, $any($event.target).value)" /></label>
+          <button type="button" [attr.aria-pressed]="groupVoiceParticipantVolume(participant) === 0" (click)="toggleParticipantLocalMute(participant.user_id)"><app-ui-icon [name]="groupVoiceParticipantVolume(participant) === 0 ? 'soundOff' : 'sound'" />{{ groupVoiceParticipantVolume(participant) === 0 ? 'Вернуть прежнюю громкость' : 'Заглушить для меня' }}</button>
+        </section>
+        @if (canManageCallParticipant(participant.user_id)) {
+          <section><p class="menu-heading">Управление каналом</p><button type="button" (click)="manageCallParticipant(participant.user_id)">Доступ и микрофон участника</button></section>
+        }
+      </app-action-menu>
     }
 
     @if (sideMenuOpen()) {

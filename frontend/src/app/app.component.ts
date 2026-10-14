@@ -1133,6 +1133,50 @@ export class AppComponent {
   readonly callWindowMode = signal<CallWindowMode>('minimized');
   readonly callDockVolumeOpen = signal(false);
   readonly callAudioSettingsOpen = signal(false);
+  readonly callMenuPage = signal<'more' | 'input' | 'output' | 'audio'>('more');
+  readonly callParticipantId = signal<string | null>(null);
+  readonly callParticipant = computed(() => this.activeCallVoiceParticipants().find(p => p.user_id === this.callParticipantId()) ?? null);
+  readonly callDeviceChanging = signal(false);
+  readonly callDeviceNotice = computed(() => this.activeCallSurface()?.kind === 'direct' ? this.directCall.deviceNotice() : this.settingsNotice() || this.voiceError());
+  readonly callInputDeviceId = computed(() => this.activeCallSurface()?.kind === 'direct' ? this.directCall.inputDeviceId() : this.voiceSettings().inputDeviceId);
+  readonly callOutputDeviceId = computed(() => this.activeCallSurface()?.kind === 'direct' ? this.directCall.outputDeviceId() : this.voiceSettings().outputDeviceId);
+
+  openCallMenu(page: 'more' | 'input' | 'output' | 'audio'): void {
+    this.callMenuPage.set(page);
+    this.callAudioSettingsOpen.set(true);
+    this.refreshVoiceDevices();
+  }
+
+  async changeCallDevice(kind: 'input' | 'output', deviceId: string, control?: HTMLSelectElement): Promise<void> {
+    if (this.callDeviceChanging() || !this.activeCallMediaControlsVisible()) return;
+    this.callDeviceChanging.set(true);
+    try {
+      const service = this.activeCallSurface()?.kind === 'direct' ? this.directCall : this.voiceRoom;
+      if (kind === 'input') await service.updateInputDevice(deviceId || null);
+      else await service.updateOutputDevice(deviceId || null);
+    } catch {
+      this.setPushFeedback({tone: 'warning', message: 'Не удалось переключить устройство. Попробуйте ещё раз.'});
+    } finally {
+      this.callDeviceChanging.set(false);
+      if (control?.isConnected) control.value = (kind === 'input' ? this.callInputDeviceId() : this.callOutputDeviceId()) ?? '';
+    }
+  }
+
+  canManageCallParticipant(userId: string): boolean {
+    const surface = this.activeCallSurface();
+    const channel = this.channels().find(entry => entry.id === surface?.channelId);
+    return surface?.kind === 'platform' && this.activeVoiceCallSnapshot()?.serverId === this.selectedServerId()
+      && userId !== this.currentUser()?.id && !!this.groupMembers().find(member => member.userId === userId)
+      && !!(this.currentUser()?.is_admin || this.canManageActiveGroup() || channel?.voice_access_role === 'owner');
+  }
+
+  manageCallParticipant(userId: string): void {
+    const channelId = this.activeCallSurface()?.channelId;
+    if (!channelId || !this.canManageCallParticipant(userId)) return;
+    this.callParticipantId.set(null);
+    this.minimizeCallWindow();
+    this.openVoiceParticipantControls(userId, channelId);
+  }
   readonly activeCallOutputMuted = computed(() => this.activeCallSurface()?.kind === 'direct'
     ? this.directCall.outputMuted() : this.voiceRoom.outputMuted());
 
@@ -1142,13 +1186,10 @@ export class AppComponent {
   }
 
   toggleCallAudioSettings(): void {
-    this.callAudioSettingsOpen.update(open => !open);
-    if (this.callAudioSettingsOpen()) this.refreshVoiceDevices();
+    this.openCallMenu('more');
   }
   openCallAudioSettings(): void {
-    this.callWindowMode.set('expanded');
-    this.callAudioSettingsOpen.set(true);
-    this.refreshVoiceDevices();
+    this.openCallMenu('more');
   }
   readonly activeCallWarning = computed(() => this.activeCallSurface()?.kind === 'direct'
     ? this.directCallError()
@@ -2567,6 +2608,7 @@ export class AppComponent {
       const surfaceId = this.activeCallSurface()?.id ?? null;
       if (!surfaceId) {
         this.callAudioSettingsOpen.set(false);
+        this.callParticipantId.set(null);
         this.lastActiveCallSurfaceId = null;
         this.directCallScreenExpanded.set(false);
         this.callDockVolumeOpen.set(false);
@@ -2575,6 +2617,8 @@ export class AppComponent {
       }
 
       if (surfaceId !== this.lastActiveCallSurfaceId) {
+        this.callAudioSettingsOpen.set(false);
+        this.callParticipantId.set(null);
         this.lastActiveCallSurfaceId = surfaceId;
         this.callWindowMode.set('minimized');
         this.callDockVolumeOpen.set(false);
@@ -5557,6 +5601,7 @@ export class AppComponent {
 
   minimizeCallWindow(event?: Event): void {
     this.callAudioSettingsOpen.set(false);
+    this.callParticipantId.set(null);
     event?.stopPropagation();
     if (!this.activeCallSurface()) {
       return;
@@ -5565,6 +5610,7 @@ export class AppComponent {
     this.directCallScreenExpanded.set(false);
     this.callDockVolumeOpen.set(false);
     this.callWindowMode.set('minimized');
+    requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('.call-tray__identity')?.focus({preventScroll: true}));
   }
 
   expandCallWindow(event?: Event): void {
@@ -5575,6 +5621,7 @@ export class AppComponent {
 
     this.callDockVolumeOpen.set(false);
     this.callWindowMode.set('expanded');
+    requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('.call-window__header-actions button[aria-label="Свернуть звонок"]')?.focus({preventScroll: true}));
   }
 
   toggleActiveCallMute(event?: Event): void {
@@ -6726,6 +6773,7 @@ export class AppComponent {
   }
 
   setSelectedVoiceMemberRole(role: Extract<VoiceAccessRole, 'resident' | 'guest' | 'stranger'>): void {
+    if (!this.canManageSelectedVoiceMember() || this.voiceOwnerActionLoading()) return;
     const token = this.session()?.access_token;
     const channelId = this.selectedVoiceMemberChannelId();
     const member = this.selectedMember();
@@ -6739,6 +6787,7 @@ export class AppComponent {
   }
 
   kickSelectedVoiceMember(): void {
+    if (!this.canManageSelectedVoiceMember() || this.voiceOwnerActionLoading()) return;
     const token = this.session()?.access_token;
     const channelId = this.selectedVoiceMemberChannelId();
     const member = this.selectedMember();
@@ -6748,10 +6797,15 @@ export class AppComponent {
 
     this.voiceOwnerActionLoading.set(true);
     this.managementError.set(null);
+    if (!window.confirm(`Отключить ${this.displayNick(member.nick)} от голосового канала?`)) {
+      this.voiceOwnerActionLoading.set(false);
+      return;
+    }
     this.kickVoiceMemberTrigger$.next({ token, channelId, member });
   }
 
   toggleSelectedVoiceMemberOwnerMute(): void {
+    if (this.voiceOwnerActionLoading()) return;
     const token = this.session()?.access_token;
     const channelId = this.selectedVoiceMemberChannelId();
     const member = this.selectedMember();

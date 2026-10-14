@@ -53,6 +53,19 @@
 .call-window__controls { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 10px; padding: 18px; border: 0; background: none; }
 .call-window__controls .call-control-button { width: 44px; min-width: 44px; height: 44px; border-radius: 12px; }
 .call-controls-divider { width: 1px; height: 26px; background: rgb(var(--rgb-text) / 0.0824); margin: 0 4px; }
+.call-device-control { display:flex; align-items:center; gap:2px; }
+.call-device-toggle { width:24px; min-height:44px; padding:0; border:1px solid var(--palette-border); border-radius:8px; background:var(--palette-surface); color:var(--palette-text); font:inherit; cursor:pointer; }
+.call-device-toggle:focus-visible,.participant-menu-trigger:focus-visible { outline:2px solid var(--palette-primary); outline-offset:2px; }
+.participant-menu-trigger { display:flex; align-items:center; gap:6px; width:max-content; min-height:36px; padding:4px 8px; border:1px solid var(--palette-border); border-radius:8px; background:transparent; color:var(--palette-text); font:inherit; font-size:12px; cursor:pointer; }
+.participant-menu-trigger app-ui-icon { width:16px; }
+.call-device-settings label { display:flex; flex-direction:column; gap:8px; padding:10px 12px; color:var(--palette-text); font-size:14px; }
+.call-device-settings select { width:100%; min-height:44px; padding:8px; border:1px solid var(--palette-border); border-radius:8px; background:var(--palette-surface); color:var(--palette-text); font:inherit; }
+.call-device-settings input { width:100%; accent-color:var(--palette-primary); }
+@media(max-width:420px) {
+ .call-window__controls { column-gap:4px; }
+ .call-window__controls .call-device-control .call-control-button { width:38px; min-width:38px; }
+ .call-device-toggle { width:22px; }
+}
 .call-audio-settings { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; padding: 18px 22px; font-size: 12px; border-bottom: 1px solid rgb(var(--rgb-text) / 0.0392); }
 .call-audio-settings__heading { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; }
 .call-audio-settings__heading button { background: transparent; color: var(--muted); border: 0; font-size: 22px; cursor: pointer; }

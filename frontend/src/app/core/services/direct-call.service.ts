@@ -122,6 +122,58 @@ export class DirectCallService {
   readonly localMuted = signal(false);
   readonly remoteVolume = signal(100);
   readonly outputMuted = signal(false);
+  readonly inputDeviceId = signal<string | null>(null);
+  readonly outputDeviceId = signal<string | null>(null);
+  readonly deviceChanging = signal(false);
+  readonly deviceNotice = signal<string | null>(null);
+
+  async updateInputDevice(deviceId: string | null): Promise<void> {
+    if (this.deviceChanging() || !this.localStream || !this.peerConnection) return;
+    const previous = this.localStream;
+    const connection = this.peerConnection;
+    this.deviceChanging.set(true);
+    this.deviceNotice.set(null);
+    let replacement: MediaStream | null = null;
+    try {
+      replacement = await navigator.mediaDevices.getUserMedia({audio: deviceId ? {deviceId: {exact: deviceId}} : true});
+      if (this.localStream !== previous || this.peerConnection !== connection) return;
+      const track = replacement.getAudioTracks()[0];
+      const sender = connection.getSenders().find(entry => entry.track?.kind === 'audio');
+      if (!track || !sender) throw new Error('No audio sender');
+      track.enabled = !this.localMuted();
+      await sender.replaceTrack(track);
+      if (this.localStream !== previous || this.peerConnection !== connection) return;
+      this.localStream = replacement;
+      replacement = null;
+      this.applyLocalMuteState();
+      previous.getTracks().forEach(entry => entry.stop());
+      this.inputDeviceId.set(deviceId);
+    } catch {
+      if (this.localStream === previous) this.deviceNotice.set('Не удалось переключить микрофон. Прежний микрофон сохранён. Проверьте разрешение браузера.');
+    } finally {
+      replacement?.getTracks().forEach(track => track.stop());
+      this.deviceChanging.set(false);
+    }
+  }
+
+  async updateOutputDevice(deviceId: string | null): Promise<void> {
+    if (this.deviceChanging()) return;
+    const audio = this.remoteAudioElement as (HTMLAudioElement & {setSinkId?: (id: string) => Promise<void>}) | null;
+    if (!audio?.setSinkId) {
+      this.deviceNotice.set('В этом браузере устройство вывода выбирается в настройках системы.');
+      return;
+    }
+    this.deviceChanging.set(true);
+    this.deviceNotice.set(null);
+    try {
+      await audio.setSinkId(deviceId ?? '');
+      if (audio === this.remoteAudioElement) this.outputDeviceId.set(deviceId);
+    } catch {
+      if (audio === this.remoteAudioElement) this.deviceNotice.set('Не удалось переключить устройство вывода. Прежнее устройство сохранено.');
+    } finally {
+      this.deviceChanging.set(false);
+    }
+  }
 
   toggleOutputMuted(): void {
     this.outputMuted.update(value => !value);
@@ -837,6 +889,9 @@ export class DirectCallService {
   }
 
   private resetCallState(): void {
+    this.inputDeviceId.set(null);
+    this.outputDeviceId.set(null);
+    this.deviceNotice.set(null);
     void this.detachCameraFromConnection();
     void this.detachScreenShareFromConnection();
     this.clearLocalCamera();

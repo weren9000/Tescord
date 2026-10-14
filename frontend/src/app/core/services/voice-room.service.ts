@@ -628,12 +628,51 @@ export class VoiceRoomService {
   }
 
   async updateInputDevice(deviceId: string | null): Promise<void> {
-    this.updateSettings({
-      inputDeviceId: deviceId || null,
-    });
-    await this.refreshDevices();
-    await this.reconnectIfNeeded();
+    if (this.inputDeviceChanging) return;
+    if (!this.rawLocalStream || !this.localAudioTrack) {
+      this.updateSettings({inputDeviceId: deviceId || null});
+      return;
+    }
+    const previous = this.rawLocalStream;
+    const localTrack = this.localAudioTrack;
+    const room = this.room;
+    this.inputDeviceChanging = true;
+    let replacement: MediaStream | null = null;
+    try {
+      replacement = await navigator.mediaDevices.getUserMedia({audio: {
+        echoCancellation: true, noiseSuppression: true, autoGainControl: true,
+        ...(deviceId ? {deviceId: {exact: deviceId}} : {}),
+      }});
+      if (this.rawLocalStream !== previous || this.room !== room) return;
+      const track = replacement.getAudioTracks()[0];
+      if (!track) throw new Error('No microphone track');
+      track.enabled = !this.localMuted() && !this.ownerMuted();
+      if (this.localAudioPipeline && this.audioContext) {
+        const source = this.audioContext.createMediaStreamSource(replacement);
+        source.connect(this.localAudioPipeline.gainNode);
+        this.localAudioPipeline.source.disconnect();
+        this.localAudioPipeline.source = source;
+      } else {
+        if (localTrack.sender) await localTrack.replaceTrack(track, true);
+        else this.localAudioTrack = this.createLocalAudioTrack(replacement);
+        if (this.rawLocalStream !== previous || this.room !== room) return;
+        this.localStream = replacement;
+      }
+      this.rawLocalStream = replacement;
+      replacement = null;
+      this.applyLocalMuteState();
+      previous.getTracks().forEach(track => track.stop());
+      this.updateSettings({inputDeviceId: deviceId || null});
+      await this.refreshDevices();
+    } catch {
+      if (this.rawLocalStream === previous) this.settingsNotice.set('Не удалось переключить микрофон. Проверьте устройство и разрешение браузера.');
+    } finally {
+      replacement?.getTracks().forEach(track => track.stop());
+      this.inputDeviceChanging = false;
+    }
   }
+
+  private inputDeviceChanging = false;
 
   async updateOutputDevice(deviceId: string | null): Promise<void> {
     this.updateSettings({
@@ -1284,12 +1323,12 @@ export class VoiceRoomService {
       setSinkId?: (sinkId: string) => Promise<void>;
     };
 
-    if (!outputDeviceId || !sinkCapableElement.setSinkId) {
+    if (!sinkCapableElement.setSinkId) {
       return;
     }
 
     try {
-      await sinkCapableElement.setSinkId(outputDeviceId);
+      await sinkCapableElement.setSinkId(outputDeviceId ?? '');
       if (this.settingsNotice() === 'Браузер не дал переключить устройство вывода звука, используем вывод по умолчанию') {
         this.settingsNotice.set(null);
       }
