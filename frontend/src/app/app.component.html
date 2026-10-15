@@ -613,7 +613,6 @@
         <div class="desktop-sidebar-toolbar">
           @if(isPlatformsMode()) {<button class="platform-toolbar-title" type="button" aria-label="Меню площадки" [title]="activeServer()?.name" aria-haspopup="dialog" [attr.aria-expanded]="platformActionMenuOpen()" (click)="platformActionMenuOpen.set(!platformActionMenuOpen())"><span>{{activeServer()?.name}}</span><app-ui-icon name="down"/></button>}
           <app-desktop-preferences />
-          @if(!isPlatformsMode()){<button class="sidebar-create-shortcut" type="button" [attr.aria-label]="sectionCreateLabel()" [title]="sectionCreateLabel()" (click)="openSectionCreate()"><app-ui-icon name="plus"/></button>}
           <button type="button" [attr.aria-expanded]="!desktopPreferences.value().collapsed" [attr.aria-label]="desktopPreferences.value().collapsed ? 'Развернуть список бесед' : 'Свернуть список бесед'" [attr.title]="desktopPreferences.value().collapsed ? 'Развернуть список бесед' : 'Свернуть список бесед'" (click)="desktopPreferences.update({collapsed: !desktopPreferences.value().collapsed})"><app-ui-icon [name]="desktopPreferences.value().collapsed ? 'forward' : 'back'" /></button>
         </div>
         <div class="sidebar-resizer" appSidebarResize title="Перетащите для изменения ширины. Двойной щелчок — сброс." ></div>
