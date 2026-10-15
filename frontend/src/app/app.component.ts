@@ -17,6 +17,7 @@ import { UiIconComponent } from './workspace/ui-icon.component';
 import { ConversationListComponent } from './workspace/conversation-list.component';
 import { QuickSwitchComponent, QuickLink } from './workspace/quick-switch.component';
 import { InviteManagerComponent } from './workspace/invite-manager.component';
+import { ActivityService } from './core/services/activity.service';
 import { InvitesApiService, InvitePreview } from './core/api/invites-api.service';
 import { WorkspaceMemoryService } from './core/services/workspace-memory.service';
 import { isMessageContinuation } from './core/services/message-layout';
@@ -2591,6 +2592,8 @@ export class AppComponent {
   });
 
   constructor() {
+    const activity=inject(ActivityService);
+    effect(()=>activity.setToken(this.session()?.access_token??null));
     if (typeof window !== 'undefined') {
       window.addEventListener('keydown', this.handleCallWindowKeydown);
       window.addEventListener('keydown', this.workspaceKeydown);

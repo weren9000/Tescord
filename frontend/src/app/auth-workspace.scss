@@ -15,11 +15,12 @@
 .auth-brand { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 36px; width: 100%; min-height: 0; padding: 0; background: transparent; border: 0; border-radius: 0; text-align: center; }
 .auth-brand__logo-shell { width: min(100%, 400px); padding: 0; }
 .auth-logo { display: block; width: 100%; max-width: none; height: auto; max-height: none; object-fit: contain; filter: none; mix-blend-mode: lighten; }
-.auth-brand__copy h1 { margin: 0 0 16px; max-width: none; font-size: clamp(28px, 3vw, 38px); font-weight: 600; letter-spacing: -.035em; line-height: 1.2; }
+.auth-brand__copy h1 { margin: 0; max-width: none; font-size: clamp(28px, 3vw, 38px); font-weight: 600; letter-spacing: -.035em; line-height: 1.2; }
 .auth-brand__copy p { margin: 0; font-size: 17px; line-height: 1.7; color: var(--palette-muted); }
 .auth-brand__sections { display: flex; flex-wrap: wrap; gap: 24px; color: var(--palette-muted); font-size: 12px; }
 .auth-brand__sections span { display: inline-flex; align-items: center; gap: 8px; }
 .auth-brand__sections app-ui-icon { width: 16px; height: 16px; color: var(--palette-primary-text); }
+.auth-about { margin: 0; max-width: 400px; color: var(--palette-muted); font-size: 12px; line-height: 1.6; }
 .auth-panel--form { display: flex; flex-direction: column; gap: 24px; padding: 32px; background: rgb(var(--rgb-surface) / .8); border: 1px solid rgb(var(--rgb-text) / .07); border-radius: 24px; align-self: center; }
 .auth-form-heading h2 { margin: 0 0 8px; font-size: 25px; font-weight: 600; letter-spacing: -.025em; }
 .auth-form-heading p { margin: 0; color: var(--palette-muted); font-size: 13px; line-height: 1.6; }
@@ -40,9 +41,10 @@
 @media(max-width:760px) {
   .auth-shell { grid-template-columns: minmax(0, 420px); gap: 28px; padding: 36px 20px; align-content: center; }
   .auth-panel--logo { display: block; }
-  .auth-brand { align-items: center; gap: 0; }
+  .auth-brand { align-items: center; gap: 12px; }
   .auth-brand__logo-shell { width: 180px; }
-  .auth-brand__copy, .auth-brand__sections { display: none; }
+  .auth-brand__sections { display: none; }
+  .auth-brand__copy h1 { font-size: 22px; }
   .auth-panel--form { padding: 24px; border-radius: 18px; }
   .auth-shell--invite .auth-panel--logo { display: block; }
 }

@@ -22,6 +22,7 @@ from sqlalchemy import select
 from app.db.models import AuthSession, OutboxEvent
 from app.api.dependencies.upload_admission import UploadAdmissionMiddleware
 from app.services.event_bus import start_event_bus, stop_event_bus
+from app.services.monitoring import collect_metrics
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
@@ -51,9 +52,12 @@ async def lifespan(_: FastAPI):
     presence_sweeper_task = asyncio.create_task(run_presence_sweeper())
     outbox_task = asyncio.create_task(run_message_outbox())
     media_task = asyncio.create_task(reconcile_media_permissions())
+    monitoring_task = asyncio.create_task(collect_metrics())
     try:
         yield
     finally:
+        monitoring_task.cancel()
+        await asyncio.gather(monitoring_task, return_exceptions=True)
         await stop_event_bus(event_bus_task)
         media_task.cancel()
         await asyncio.gather(media_task, return_exceptions=True)

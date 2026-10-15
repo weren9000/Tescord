@@ -1,5 +1,6 @@
 # Exact versions verified on Python 3.12 and 3.14. Regenerate with a dependency review.
 Mako==1.4.3
+psutil==7.2.2
 MarkupSafe==3.0.4
 PyJWT==2.15.1
 PyYAML==6.0.3

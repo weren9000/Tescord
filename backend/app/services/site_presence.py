@@ -32,6 +32,11 @@ class SitePresenceManager:
         with self._lock:
             return self._cleanup_locked(now)
 
+    def snapshot_user_ids(self) -> set[UUID]:
+        with self._lock:
+            now=monotonic()
+            return {uid for uid,seen in self._last_seen.items() if now-seen<=self._ttl_seconds}
+
     def _cleanup_locked(self, now: float) -> list[UUID]:
         expired_user_ids = [
             user_id

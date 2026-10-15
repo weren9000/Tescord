@@ -50,6 +50,10 @@ class DirectCallSession:
 
 
 class DirectCallSignalingManager:
+    async def analytics_participants(self) -> dict[str, str]:
+        async with self._lock:
+            return {uid:call.id for call in self._calls.values() if call.status == 'active' for uid in (call.caller_user_id,call.callee_user_id)}
+
     def __init__(self) -> None:
         self._connections: dict[str, dict[str, DirectCallConnection]] = {}
         self._calls: dict[str, DirectCallSession] = {}

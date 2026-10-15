@@ -1,8 +1,9 @@
 <section class="admin" aria-label="Админка" (keydown)="keydown($event)">
  <header><div><h1>Админка</h1><span class="muted">Обзор пользователей и пространств</span></div><button type="button" (click)="close.emit()">Вернуться к чатам</button></header>
- <nav aria-label="Разделы админки">@if(systemAdmin()){@for(t of tabs;track t.id){<button type="button" [attr.aria-pressed]="!itemsActive() && tab()===t.id" (click)="switchTab(t.id)">{{t.label}} <span>{{counts()?.[t.id] ?? '—'}}</span></button>}}<button type="button" [attr.aria-pressed]="itemsActive()" (click)="closeDetail();itemsActive.set(true)">Предметы</button></nav>
+ <nav aria-label="Разделы админки">@if(systemAdmin()){<button type="button" [attr.aria-pressed]="statsActive()" (click)="closeDetail();itemsActive.set(false);statsActive.set(true)">&#1057;&#1090;&#1072;&#1090;&#1080;&#1089;&#1090;&#1080;&#1082;&#1072;</button>@for(t of tabs;track t.id){<button type="button" [attr.aria-pressed]="!statsActive() && !itemsActive() && tab()===t.id" (click)="switchTab(t.id)">{{t.label}} <span>{{counts()?.[t.id] ?? '—'}}</span></button>}}<button type="button" [attr.aria-pressed]="itemsActive()" (click)="closeDetail();statsActive.set(false);itemsActive.set(true)">Предметы</button></nav>
  @if(itemsActive()){<app-admin-items [token]="token()" [actorId]="actorId()" [avatarUrl]="avatarUrl()" (changed)="changed.emit()"/>}
- @if(!itemsActive() && systemAdmin()){
+ @if(statsActive() && systemAdmin()){<app-admin-statistics [token]="token()" (forbidden)="forbidden.emit()"/>}
+ @if(!statsActive() && !itemsActive() && systemAdmin()){
  <div class="tools">
   <input aria-label="Поиск в админке" [placeholder]="tab()==='users'?'Ник, ID или email':'Название или ID'" [(ngModel)]="filter.q" (ngModelChange)="search()" [maxlength]="tab()==='users'?320:80" />
   @if(tab()==='users'){<select aria-label="Роль пользователя" [(ngModel)]="filter.role" (change)="change()"><option value="all">Все роли</option><option value="admin">Администраторы</option><option value="avatar">Админы аватарок</option><option value="regular">Пользователи</option></select>}
