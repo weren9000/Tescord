@@ -6,5 +6,6 @@ interface AltgrammRuntimeConfig {
 }
 
 interface Window {
+  kvaDesktop?: {version: string; readSession(): string | null; writeSession(value: string | null): boolean};
   __TESCORD_RUNTIME_CONFIG__?: AltgrammRuntimeConfig;
 }

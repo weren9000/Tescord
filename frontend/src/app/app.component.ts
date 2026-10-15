@@ -8776,7 +8776,7 @@ export class AppComponent {
       return;
     }
 
-    const rawSession = localStorage.getItem(SESSION_STORAGE_KEY);
+    const rawSession = window.kvaDesktop ? window.kvaDesktop.readSession() : localStorage.getItem(SESSION_STORAGE_KEY);
     if (!rawSession) {
       return;
     }
@@ -10250,7 +10250,10 @@ export class AppComponent {
       return;
     }
 
-    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
+    if (window.kvaDesktop) {
+      window.kvaDesktop.writeSession(JSON.stringify(session));
+      localStorage.removeItem(SESSION_STORAGE_KEY);
+    } else localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
   }
 
   private clearStoredSession(): void {
@@ -10258,6 +10261,7 @@ export class AppComponent {
       return;
     }
 
+    if (window.kvaDesktop) window.kvaDesktop.writeSession(null);
     localStorage.removeItem(SESSION_STORAGE_KEY);
   }
 

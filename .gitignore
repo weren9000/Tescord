@@ -17,4 +17,8 @@ backend/*.db
 *.pyo
 *.pyd
 *.log
+desktop/node_modules/
+desktop/dist/
+desktop/web/
+desktop/release/
 backend/storage/

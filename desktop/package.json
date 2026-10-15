@@ -1,0 +1,64 @@
+{
+  "name": "kvachat-desktop",
+  "productName": "KvaChat",
+  "version": "0.1.0",
+  "description": "Квачат для Windows",
+  "author": "KvaChat",
+  "private": true,
+  "main": "dist/main.js",
+  "scripts": {
+    "compile": "tsc",
+    "prepare:web": "node scripts/prepare-web.cjs",
+    "build": "npm run compile && npm run prepare:web",
+    "start": "electron .",
+    "pack": "npm run build && electron-builder --win --x64 --dir",
+    "dist": "npm run build && electron-builder --win nsis --x64"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "electron": "44.7.2",
+    "electron-builder": "26.15.3",
+    "playwright": "1.64.1",
+    "typescript": "~5.9.3"
+  },
+  "build": {
+    "appId": "ru.kvachat.desktop",
+    "artifactName": "KvaChat-Setup-${version}-${arch}.${ext}",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "web/**/*",
+      "ui/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "../frontend/src/assets/Icons.png",
+      "signAndEditExecutable": true
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Квачат",
+      "runAfterFinish": false,
+      "deleteAppDataOnUninstall": false,
+      "installerLanguages": [
+        "ru_RU",
+        "en_US"
+      ]
+    }
+  }
+}
