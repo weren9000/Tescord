@@ -649,7 +649,7 @@
         <div class="conversation-sidebar__list">
           @if (!isPlatformsMode()) {
             @if (pinError()) { <p class="pin-error" role="alert">{{pinError()}}</p> }
-            <app-conversation-list [entries]="conversationLinks()" [pending]="pinPending()" (pin)="toggleConversationPin($event)" [selected]="selectedServerId()" [emptyLabel]="sidebarQuery() ? 'Ничего не найдено' : isGroupsMode() ? 'Создайте группу, чтобы общаться вместе' : 'Добавьте друга, чтобы начать общение'" (open)="openWorkspaceTarget($event)" />
+            <app-conversation-list [compact]="desktopPreferences.value().collapsed" [entries]="conversationLinks()" [pending]="pinPending()" (pin)="toggleConversationPin($event)" [selected]="selectedServerId()" [emptyLabel]="sidebarQuery() ? 'Ничего не найдено' : isGroupsMode() ? 'Создайте группу, чтобы общаться вместе' : 'Добавьте друга, чтобы начать общение'" (open)="openWorkspaceTarget($event)" />
           } @else {
             @if (activeServer()) {
               <div class="space-filters" role="group" aria-label="Фильтр каналов">
