@@ -1,0 +1,36 @@
+<section class="batch" aria-label="Массовая выдача">
+ <nav><button [disabled]="busy()||!!pending" [attr.aria-pressed]="step()==='items'" (click)="toItems()">1. Предметы · {{selectedItems().length}}</button><button [disabled]="busy()||!!pending||!selectedItems().length" [attr.aria-pressed]="step()==='people'" (click)="toPeople()">2. Получатели · {{selectedUsers().length}}</button><button [disabled]="busy()||!!pending" (click)="reset()">Очистить черновик</button></nav>
+ @if(error()){<p class="error" role="alert">{{error()}} <button [disabled]="busy()" (click)="step()==='items'?loadItems(catalog().page):step()==='people'?loadUsers(users().page):pending?recover():review()">Повторить проверку</button></p>}
+ @if(notice()){<p role="status">{{notice()}}</p>}
+ <div class="scroll">
+ @if(step()==='items'){
+  <form (ngSubmit)="loadItems()"><select aria-label="Тип предметов для выдачи" [(ngModel)]="kind" name="kind" (change)="loadItems()"><option value="avatar">Аватары</option><option value="frame">Рамки</option><option value="wallpaper">Обои</option><option value="theme">Темы</option></select><input name="q" aria-label="Поиск предметов для выдачи" placeholder="Название предмета" [(ngModel)]="query" maxlength="80"/><button>Найти</button></form>
+  <div class="actions"><button (click)="selectPage()" [disabled]="loading()">Выбрать страницу</button><button (click)="clearItems()">Снять выбор предметов</button></div>
+  @if(loading()){<p role="status">Загрузка…</p>}@else{
+  <div class="grid">@for(item of catalog().items;track item.id){<label class="item" [class.selected]="hasItem(item.id)"><input type="checkbox" [checked]="hasItem(item.id)" [disabled]="item.hidden" (change)="toggleItem(item)" [attr.aria-label]="'Выбрать предмет: '+item.name"/><app-asset-preview [src]="image(item.id)"/><span>{{item.name}}</span>@if(item.hidden){<small>Скрыт из выдачи</small>}</label>}</div>
+  @if(!catalog().total){<p>Предметы не найдены.</p>}}
+  <div class="pages"><button aria-label="Предыдущая страница предметов" [disabled]="catalog().page===1||loading()" (click)="loadItems(catalog().page-1)">‹</button>{{catalog().page}} / {{catalog().pages}}<button aria-label="Следующая страница предметов" [disabled]="catalog().page===catalog().pages||loading()" (click)="loadItems(catalog().page+1)">›</button></div>
+ }@else if(step()==='people'){
+  <form (ngSubmit)="loadUsers()"><input name="userQuery" aria-label="Поиск получателей" placeholder="Ник, ID или точный email" [(ngModel)]="userQuery" maxlength="320"/><button>Найти</button></form>
+  <label class="check"><input type="checkbox" [(ngModel)]="onlySelected"/>Только выбранные</label>
+  @if(loading()&&!onlySelected){<p role="status">Загрузка…</p>}@else{<div class="people">@for(person of people();track person.id){<label class="person" [class.selected]="hasUser(person.id)"><input type="checkbox" [checked]="hasUser(person.id)" (change)="toggleUser(person)" [attr.aria-label]="'Получатель: '+person.nick"/><img [src]="avatar(person.id)" alt="" loading="lazy" (error)="$any($event.target).hidden=true"/><span>{{person.nick}}<small>ID {{person.public_id}}</small></span></label>}@empty{<p>Пользователи не найдены.</p>}</div>}
+  @if(!onlySelected){<div class="pages"><button aria-label="Предыдущая страница получателей" [disabled]="users().page===1||loading()" (click)="loadUsers(users().page-1)">‹</button>{{users().page}} / {{users().pages}}<button aria-label="Следующая страница получателей" [disabled]="users().page===users().pages||loading()" (click)="loadUsers(users().page+1)">›</button></div>}
+  <label class="check"><input type="checkbox" [(ngModel)]="skipExisting" (change)="save()"/>Пропускать уже имеющиеся предметы</label>
+ }@else{
+  <h3>{{step()==='review'?'Подтверждение выдачи':'Результат операции'}}</h3>
+  @if(result();as r){<p class="summary">{{step()==='review'?'К выдаче: '+r.ready:'Выдано: '+r.granted}} · Пропущено: {{r.skipped}} · Ошибок: {{r.failed}}</p>
+   @if(step()==='review'){<p>{{isRetry()?'Повторяем только неудачные выдачи предыдущей операции.':'Каждый выбранный пользователь получит по экземпляру каждого выбранного предмета.'}} При выполнении доступность и наличие проверяются повторно.</p>}
+   @if(r.request_id){<p class="operation">Номер операции: {{r.request_id}}</p>}
+   <details [open]="!!r.failed"><summary>Все результаты · {{r.total}}</summary>@for(row of r.rows;track $index){<div class="result-row"><span>{{row.name}} → {{row.nick}}</span><strong>{{status(row.status)}}</strong>@if(row.reason){<small>{{row.reason}}</small>}</div>}</details>
+  }@else if(pending){<p>Номер незавершённой операции: {{pending.request_id}}</p><button (click)="recover()">Проверить результат</button>}
+ }
+ @if(history().length && step()==='items'){<details class="history"><summary>Мои последние выдачи</summary>@for(h of history();track h.id){<button (click)="showResult(h.id)">{{h.created_at|date:'dd.MM HH:mm'}} · Выдано {{h.granted}} · Пропущено {{h.skipped}} · Ошибок {{h.failed}}</button>}</details>}
+ </div>
+ <footer><span>@if(step()==='review'||step()==='result'){Сочетаний в операции: {{result()?.total??count()}}}@else{ {{selectedItems().length}} предметов × {{selectedUsers().length}} получателей = {{count()}} сочетаний }</span>
+ @if(count()>500){<strong class="error">Максимум 500 сочетаний</strong>}
+ @if(step()==='items'){<button class="primary" [disabled]="!selectedItems().length||busy()||!!pending" (click)="toPeople()">Выбрать получателей</button>}
+ @if(step()==='people'){<button class="primary" [disabled]="!count()||count()>500||busy()" (click)="review()">Проверить выдачу</button>}
+ @if(step()==='review'){<button class="primary" [disabled]="busy()||(!pending && !result())" (click)="submit()">{{busy()?'Выполняем…':pending?'Повторить отправку':'Подтвердить выдачу'}}</button>}
+ @if(step()==='result'){<button [disabled]="busy()" (click)="issued.emit()">Открыть выданное</button>@if(result()?.failed){<button [disabled]="busy()" (click)="retryFailed()">Повторить только ошибки</button>}<button (click)="reset()">Новая выдача</button>}
+ </footer>
+</section>

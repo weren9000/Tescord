@@ -1,3 +1,4 @@
+import {PlatformListComponent} from './workspace/platform-list.component';
 import {AdminDirectoryComponent} from './workspace/admin-directory.component';
 import {AudioDevicePickerComponent} from './workspace/audio-device-picker.component';
 import { InfoPanelComponent } from './workspace/info-panel.component';
@@ -15,7 +16,6 @@ import { SectionNavigationComponent } from './workspace/section-navigation.compo
 import { UiIconComponent } from './workspace/ui-icon.component';
 import { ConversationListComponent } from './workspace/conversation-list.component';
 import { QuickSwitchComponent, QuickLink } from './workspace/quick-switch.component';
-import { PlatformSwitcherComponent } from './workspace/platform-switcher.component';
 import { InviteManagerComponent } from './workspace/invite-manager.component';
 import { InvitesApiService, InvitePreview } from './core/api/invites-api.service';
 import { WorkspaceMemoryService } from './core/services/workspace-memory.service';
@@ -632,13 +632,13 @@ const DEFAULT_SERVER_ICON_ASSET_BY_NAME: Record<string, string> = {
 @Component({
   providers: [AuthFormStore],
     selector: 'app-root',
-    imports: [AdminDirectoryComponent, AvatarPickerComponent, AudioDevicePickerComponent, InfoPanelComponent, ActionMenuComponent, CommonModule, FormsModule, MediaStreamSrcDirective, SectionNavigationComponent, UiIconComponent, ConversationListComponent, QuickSwitchComponent, PlatformSwitcherComponent, InviteManagerComponent, InventoryComponent, WallpapersComponent, ThemeControllerComponent, MessageGestureDirective, MessageActionsComponent, DesktopPreferencesComponent, SidebarResizeDirective],
+    imports: [PlatformListComponent, AdminDirectoryComponent, AvatarPickerComponent, AudioDevicePickerComponent, InfoPanelComponent, ActionMenuComponent, CommonModule, FormsModule, MediaStreamSrcDirective, SectionNavigationComponent, UiIconComponent, ConversationListComponent, QuickSwitchComponent, InviteManagerComponent, InventoryComponent, WallpapersComponent, ThemeControllerComponent, MessageGestureDirective, MessageActionsComponent, DesktopPreferencesComponent, SidebarResizeDirective],
     templateUrl: './app.component.html',
     styleUrls: ['./app.component.scss', './app-layout.scss', './call-workspace.scss', './platform-workspace.scss', './invite-entry.scss', './palette-theme.scss', './auth-workspace.scss', './avatar-presets.scss']
 })
 export class AppComponent {
   readonly adminDirectoryOpen = signal(false);
-  openAdminDirectory(): void { if(this.isAdmin()){this.closeSideMenu();this.adminDirectoryOpen.set(true);} }
+  openAdminDirectory(): void { if(this.isAdmin()||this.currentUser()?.is_avatar_admin){this.closeSideMenu();this.adminDirectoryOpen.set(true);} }
   private readonly invitesApi = inject(InvitesApiService);
   readonly desktopPreferences = inject(DesktopPreferencesService);
   readonly pinPending = signal<string[]>([]);
@@ -771,7 +771,9 @@ export class AppComponent {
     icon: this.resolveSpaceIconUrl(space.id, space.icon_asset, space.icon_updated_at),
     unread: this.platformUnreadCount(space), mentions: this.platformMentionUnreadCount(space),
   })));
+  readonly platformBrowserStage=signal<'spaces'|'channels'>('spaces');
   selectPlatformFromPicker(id: string): void {
+    this.platformBrowserStage.set('channels');
     this.platformChannelFilter.set('all');
     this.sidebarQuery.set('');
     this.openWorkspaceTarget(id);
@@ -4651,6 +4653,7 @@ export class AppComponent {
       return;
     }
 
+    if(mode==='platforms'){this.closeSideMenu();this.closeFriendRequestsModal();this.selectWorkspaceMode(mode);this.platformBrowserStage.set('spaces');this.mobilePanel.set('servers');return;}
     const sameMode = this.workspaceMode() === mode;
     const serversPanelOpen = this.mobilePanel() === 'servers';
     if (sameMode && serversPanelOpen) {

@@ -1,8 +1,8 @@
 import { Injectable, signal } from '@angular/core';
 
 export type Density = 'compact' | 'normal' | 'spacious';
-interface Preferences { density: Density; width: number; collapsed: boolean; textSize: number; }
-const defaults: Preferences = { density: 'normal', width: 280, collapsed: false, textSize: 15 };
+interface Preferences { density: Density; width: number; collapsed: boolean; textSize: number; platformsCollapsed:boolean; }
+const defaults: Preferences = { density: 'normal', width: 280, collapsed: false, textSize: 15, platformsCollapsed:false };
 const key = 'kva.desktop-layout.v1';
 
 @Injectable({ providedIn: 'root' })
@@ -24,6 +24,7 @@ export class DesktopPreferencesService {
       density: ['compact', 'normal', 'spacious'].includes(value?.density ?? '') ? value!.density! : 'normal',
       width: bounded(value?.width, 220, 460, 280),
       collapsed: value?.collapsed === true,
+      platformsCollapsed:value?.platformsCollapsed===true,
       textSize: bounded(value?.textSize, 13, 20, 15),
     };
   }

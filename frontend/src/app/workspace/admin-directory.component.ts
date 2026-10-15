@@ -4,6 +4,7 @@ import {FormsModule} from '@angular/forms';
 import {HttpClient, HttpErrorResponse} from '@angular/common/http';
 import {Subscription} from 'rxjs';
 import {API_BASE_URL} from '../core/api/api-base';
+import {AdminItemsComponent} from './admin-items.component';
 
 type Tab = 'users' | 'groups' | 'platforms';
 interface Entry {
@@ -16,10 +17,15 @@ interface Page {items: Entry[]; total: number; page: number; pages: number}
 interface Filter {q: string; owner: string; role: string; sort: string; page: number; size: number; scroll: number}
 const emptyPage = (): Page => ({items: [], total: 0, page: 1, pages: 1});
 
-@Component({selector:'app-admin-directory', standalone:true, imports:[CommonModule, FormsModule],
+@Component({selector:'app-admin-directory', standalone:true, imports:[CommonModule, FormsModule, AdminItemsComponent],
   templateUrl:'./admin-directory.component.html', styleUrl:'./admin-directory.component.scss'})
 export class AdminDirectoryComponent implements OnInit, OnDestroy {
   readonly token = input.required<string>();
+  readonly systemAdmin=input(true);
+  readonly actorId=input.required<string>();
+  readonly avatarUrl=input<string|null>(null);
+  readonly changed=output<void>();
+  readonly itemsActive=signal(false);
   readonly close = output<void>();
   readonly forbidden = output<void>();
   readonly tabs: {id:Tab;label:string}[] = [{id:'users',label:'Пользователи'},{id:'groups',label:'Группы'},{id:'platforms',label:'Площадки'}];
@@ -52,12 +58,12 @@ export class AdminDirectoryComponent implements OnInit, OnDestroy {
   private readonly filters: Record<Tab,Filter> = Object.fromEntries(['users','groups','platforms'].map(k=>[k,{q:'',owner:'',role:'all',sort:'new',page:1,size:24,scroll:0}])) as Record<Tab,Filter>;
   @ViewChild('list') list?: ElementRef<HTMLElement>;
   get filter(){return this.filters[this.tab()];}
-  ngOnInit(){this.refresh();}
+  ngOnInit(){if(this.systemAdmin())this.refresh();else this.itemsActive.set(true);}
   ngOnDestroy(){this.listSub?.unsubscribe();this.detailSub?.unsubscribe();this.relatedSub?.unsubscribe();this.countSub?.unsubscribe();clearTimeout(this.timer);clearTimeout(this.focusTimer);}
   private get<T>(path:string, params:Record<string,string|number>={}){return this.http.get<T>(API_BASE_URL+'/api/admin/directory'+path,{params,headers:{Authorization:'Bearer '+this.token()}});}
   private message(e:unknown){if(e instanceof HttpErrorResponse && (e.status===403 || e.status===401)){this.forbidden.emit();return 'Доступ к админке закрыт.';}return e instanceof HttpErrorResponse && e.status===404?'Запись больше недоступна.':'Не удалось загрузить данные. Повторите попытку.';}
   refresh(){this.countSub?.unsubscribe();this.countSub=this.get<Record<Tab,number>>('/counts').subscribe({next:x=>this.counts.set(x),error:e=>this.message(e)});this.load();}
-  switchTab(tab:Tab){if(tab===this.tab())return;this.filter.scroll=this.list?.nativeElement.scrollTop??0;clearTimeout(this.timer);this.closeDetail();this.tab.set(tab);this.load(true);}
+  switchTab(tab:Tab){if(!this.systemAdmin())return;if(tab===this.tab()&&!this.itemsActive())return;this.itemsActive.set(false);this.filter.scroll=this.list?.nativeElement.scrollTop??this.filter.scroll;clearTimeout(this.timer);this.closeDetail();this.tab.set(tab);this.load(true);}
   search(){clearTimeout(this.timer);this.timer=setTimeout(()=>this.change(),300);}
   change(){clearTimeout(this.timer);this.filter.page=1;this.filter.scroll=0;this.load();}
   reset(){Object.assign(this.filter,{q:'',owner:'',role:'all',sort:'new',page:1,scroll:0});this.load();}

@@ -1,6 +1,8 @@
 <section class="admin" aria-label="Админка" (keydown)="keydown($event)">
  <header><div><h1>Админка</h1><span class="muted">Обзор пользователей и пространств</span></div><button type="button" (click)="close.emit()">Вернуться к чатам</button></header>
- <nav aria-label="Разделы админки">@for(t of tabs;track t.id){<button type="button" [attr.aria-pressed]="tab()===t.id" (click)="switchTab(t.id)">{{t.label}} <span>{{counts()?.[t.id] ?? '—'}}</span></button>}</nav>
+ <nav aria-label="Разделы админки">@if(systemAdmin()){@for(t of tabs;track t.id){<button type="button" [attr.aria-pressed]="!itemsActive() && tab()===t.id" (click)="switchTab(t.id)">{{t.label}} <span>{{counts()?.[t.id] ?? '—'}}</span></button>}}<button type="button" [attr.aria-pressed]="itemsActive()" (click)="closeDetail();itemsActive.set(true)">Предметы</button></nav>
+ @if(itemsActive()){<app-admin-items [token]="token()" [actorId]="actorId()" [avatarUrl]="avatarUrl()" (changed)="changed.emit()"/>}
+ @if(!itemsActive() && systemAdmin()){
  <div class="tools">
   <input aria-label="Поиск в админке" [placeholder]="tab()==='users'?'Ник, ID или email':'Название или ID'" [(ngModel)]="filter.q" (ngModelChange)="search()" [maxlength]="tab()==='users'?320:80" />
   @if(tab()==='users'){<select aria-label="Роль пользователя" [(ngModel)]="filter.role" (change)="change()"><option value="all">Все роли</option><option value="admin">Администраторы</option><option value="avatar">Админы аватарок</option><option value="regular">Пользователи</option></select>}
@@ -44,4 +46,5 @@
   }
  </div>
  <footer><span aria-live="polite">Найдено: {{result().total}}</span><select aria-label="Записей на странице" [(ngModel)]="filter.size" (change)="change()"><option [ngValue]="24">24 на странице</option><option [ngValue]="48">48 на странице</option></select><button aria-label="Предыдущая страница" [disabled]="loading() || result().page===1" (click)="go(result().page-1)">‹</button><span>{{result().page}} / {{result().pages}}</span><button aria-label="Следующая страница" [disabled]="loading() || result().page===result().pages" (click)="go(result().page+1)">›</button></footer>
+ }
 </section>

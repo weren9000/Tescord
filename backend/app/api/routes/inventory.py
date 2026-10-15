@@ -18,7 +18,7 @@ router = APIRouter(prefix='/inventory', tags=['inventory'])
 
 
 def admin(user: User = Depends(get_current_user)) -> User:
-    if not user.is_avatar_admin:
+    if not (user.is_avatar_admin or user.is_admin):
         raise HTTPException(403, 'Требуется роль «Админ аватарок»')
     return user
 
@@ -219,7 +219,7 @@ class Action(BaseModel):
 @router.post('/items/{item_id}/{action}')
 def change(item_id: UUID, action: str, body: Action, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if action not in ('equip', 'unequip', 'gift', 'revoke'): raise HTTPException(404, 'Действие не найдено')
-    if action == 'revoke' and not user.is_avatar_admin: raise HTTPException(403, 'Недостаточно прав')
+    if action == 'revoke' and not (user.is_avatar_admin or user.is_admin): raise HTTPException(403, 'Недостаточно прав')
     lock_inventory(db)
     if replay(db, body.request_id, user, action, item_id, body.recipient_id): return {'ok': True}
     item = db.get(InventoryItem, item_id)

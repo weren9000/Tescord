@@ -22,6 +22,9 @@ interface Pending { action: string; item: Item | null; recipient: Person | null;
  templateUrl: './inventory.component.html', styleUrl: './inventory.component.scss'
 })
 export class InventoryComponent implements OnDestroy {
+ readonly embedded=input(false);
+ readonly initialTab=input<'avatar'|'issued'>('avatar');
+ readonly grantRequested=output<Catalog>();
  readonly previewErrors=signal(false); readonly previewRetry=signal(0);
  retryPreviews(){this.previewErrors.set(false);this.previewRetry.update(v=>v+1);}
  readonly avatarUrl = input<string | null>(null);
@@ -121,15 +124,15 @@ export class InventoryComponent implements OnDestroy {
    const token = this.token();
    const mode = this.mode();
    const previousFocus=document.activeElement as HTMLElement | null;
-   const focusTimer=mode ? setTimeout(()=>this.element.nativeElement.querySelector<HTMLButtonElement>('header button')?.focus()) : undefined;
+   const focusTimer=mode && !this.embedded() ? setTimeout(()=>this.element.nativeElement.querySelector<HTMLButtonElement>('header button')?.focus()) : undefined;
    onCleanup(()=>{clearTimeout(focusTimer);if(mode)previousFocus?.focus();});
    this.pending.set(null); this.giftItem.set(null); this.grantOpen.set(false); this.recipient.set(null);
-   this.menu.set(null);this.catalogMenu.set(null);++this.historyVersion;this.detail.set(null);this.themePreview.set(null);this.eventsOpen.set(false);this.adminTab.set('avatar');this.tab.set('avatar');this.uploadOpen.set(false);this.editing.set(null);this.resetUpload();
+   this.menu.set(null);this.catalogMenu.set(null);++this.historyVersion;this.detail.set(null);this.themePreview.set(null);this.eventsOpen.set(false);this.adminTab.set(this.initialTab());this.tab.set('avatar');this.uploadOpen.set(false);this.editing.set(null);this.resetUpload();
    this.history.set(null); this.people.set([]); this.searched.set(false); this.query='';this.filter='';this.selectedCatalog='';this.currentPage.set(1);++this.loadVersion;++this.searchVersion;
    this.error.set(''); this.success.set('');
    if (!token) return;
    untracked(()=>void this.reload());
-   const timer=setInterval(()=>{if(!this.busy()&&!this.loading())void this.reload(true);},15000);
+   const timer=setInterval(()=>{if(this.element.nativeElement.offsetParent!==null&&!this.busy()&&!this.loading())void this.reload(true);},15000);
    onCleanup(()=>{++this.loadVersion;clearInterval(timer);clearTimeout(focusTimer);if(mode)previousFocus?.focus();});
   });
  }
@@ -205,6 +208,7 @@ export class InventoryComponent implements OnDestroy {
  openCatalogMenu(entry: Catalog,event: MouseEvent){event.stopPropagation();this.catalogMenu.set(entry);}
  beginGrant(entry: Catalog){
   if(this.busy()||entry.hidden)return;
+  if(this.embedded()){this.catalogMenu.set(null);this.grantRequested.emit(entry);return;}
   this.catalogMenu.set(null);this.selectedCatalog=entry.id;this.grantOpen.set(true);
   setTimeout(()=>{const target=this.element.nativeElement.querySelector<HTMLElement>('.grant-target');target?.querySelector<HTMLInputElement>('input')?.focus({preventScroll:true});});
  }
@@ -218,6 +222,7 @@ export class InventoryComponent implements OnDestroy {
  async markRead() {try{await this.request('/read','POST',{});await this.reload();}catch(e){this.fail(e);}}
  dismiss() {if(!this.busy())this.close.emit();}
  keydown(event: KeyboardEvent) {
+  if(this.embedded()&&!this.pending()&&!this.giftItem()&&!this.themePreview()&&!this.detail()&&!this.eventsOpen()&&!this.uploadOpen()&&!this.editing()&&!this.grantOpen())return;
   if(event.key==='Escape'){event.stopPropagation();if(!this.busy()){if(this.menu()){this.menu.set(null);this.menuTrigger?.focus();}else if(this.pending()||this.giftItem()||this.themePreview()||this.detail()||this.eventsOpen()||this.uploadOpen()||this.editing()||this.grantOpen())this.closePanel();else this.dismiss();}}
   if(event.key!=='Tab')return;
   const root=this.element.nativeElement.querySelector(this.pending()?'.confirm':(this.giftItem()||this.themePreview()||this.detail()||this.eventsOpen()||this.uploadOpen()||this.editing()||this.grantOpen())?'.subpanel':'.inventory');

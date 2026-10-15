@@ -14,8 +14,8 @@ export type WorkspaceSection = 'chats' | 'groups' | 'platforms';
             <app-ui-icon [name]="section.icon" /><span>{{ section.label }}</span>
           </button>
         }
-        @if(isSystemAdmin()){<button type="button" [class.active]="adminSelected()" [attr.aria-current]="adminSelected()?'page':null" (click)="admin.emit()"><app-ui-icon name="avatarAdmin"/><span>Админка</span></button>}
-        @if(isAvatarAdmin()) {<button type="button" (click)="inventory.emit('admin')"><app-ui-icon name="avatarAdmin"/><span>Админ-Аватарок</span></button>}
+        <button type="button" (click)="inventory.emit('inventory')"><app-ui-icon name="inventory"/><span>Инвентарь @if(inventoryUnread()){ · {{inventoryUnread()}} }</span></button>
+        @if(isSystemAdmin() || isAvatarAdmin()){<button type="button" [class.active]="adminSelected()" [attr.aria-current]="adminSelected()?'page':null" (click)="admin.emit()"><app-ui-icon name="avatarAdmin"/><span>Админка</span></button>}
       </div>
       <div class="utilities">
         <button type="button" title="Быстрый переход (Ctrl+K)" aria-label="Быстрый переход" (click)="search.emit()"><app-ui-icon name="search"/><span>Поиск</span></button>

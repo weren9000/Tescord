@@ -545,8 +545,7 @@
           </section>
           @if (currentUser()?.is_avatar_admin || isAdmin()) {
             <section><p class="menu-heading">Администрирование</p>
-              @if (currentUser()?.is_avatar_admin) { <button type="button" (click)="closeSideMenu(); inventoryMode.set('admin')"><app-ui-icon name="avatarAdmin" />Админ-Аватарок</button> }
-              @if (isAdmin()) { <button type="button" (click)="openAdminDirectory()"><app-ui-icon name="avatarAdmin" />Админка</button> }
+              @if (isAdmin() || currentUser()?.is_avatar_admin) { <button type="button" (click)="openAdminDirectory()"><app-ui-icon name="avatarAdmin" />Админка</button> }
               @if (isAdmin()) { <button type="button" (click)="closeSideMenu(); openVoiceAdminPanel()"><app-ui-icon name="mic" />Доступ к голосу</button> }
             </section>
           }
@@ -606,10 +605,11 @@
         @if(canDeleteWorkspaceChannel(channel)){<section><button type="button" class="danger" [disabled]="isDeletingChannel(channel.id)" (click)="deleteChannel(channel)"><app-ui-icon name="trash" />Удалить канал</button></section>}
       </app-action-menu>
     }
-    <div class="messenger-layout" [class.messenger-layout--admin]="adminDirectoryOpen() && isAdmin()" [class.messenger-layout--info]="conversationInfoOpen()" [class.messenger-layout--platform]="isPlatformsMode()" [attr.data-density]="desktopPreferences.value().density" [class.messenger-layout--sidebar-collapsed]="desktopPreferences.value().collapsed" [style.--sidebar-width]="desktopPreferences.value().width + 'px'" [style.--message-text-size]="desktopPreferences.value().textSize + 'px'">
-      <app-section-navigation [isSystemAdmin]="isAdmin()" [adminSelected]="adminDirectoryOpen() && isAdmin()" (admin)="openAdminDirectory()" [isAvatarAdmin]="!!currentUser()?.is_avatar_admin" [inventoryUnread]="inventoryUnread()" (inventory)="inventoryMode.set($event)" [avatarUrl]="currentUserAvatarUrl()" [selected]="workspaceMode()" [initials]="displayNickInitials(currentUser()?.nick ?? 'Я')" [hasNotifications]="friendRequestBadgeVisible()" (selectSection)="selectWorkspaceMode($event)" (menu)="toggleSideMenu()" (search)="openQuickSwitch()" (profile)="toggleSideMenu()" (notifications)="openFriendRequestsModal()" />
-      @if(adminDirectoryOpen() && isAdmin()){<app-admin-directory [token]="session()!.access_token" (close)="adminDirectoryOpen.set(false)" (forbidden)="adminDirectoryOpen.set(false)"/>}
-      <aside class="conversation-sidebar" [class.conversation-sidebar--mobile-open]="mobilePanel() === 'servers'">
+    <div class="messenger-layout" [class.messenger-layout--admin]="adminDirectoryOpen() && (isAdmin() || !!currentUser()?.is_avatar_admin)" [class.messenger-layout--info]="conversationInfoOpen()" [class.messenger-layout--platform]="isPlatformsMode()" [class.platforms-list-collapsed]="desktopPreferences.value().platformsCollapsed" [attr.data-density]="desktopPreferences.value().density" [class.messenger-layout--sidebar-collapsed]="desktopPreferences.value().collapsed" [style.--sidebar-width]="desktopPreferences.value().width + 'px'" [style.--message-text-size]="desktopPreferences.value().textSize + 'px'">
+      <app-section-navigation [isSystemAdmin]="isAdmin()" [adminSelected]="adminDirectoryOpen() && (isAdmin() || !!currentUser()?.is_avatar_admin)" (admin)="openAdminDirectory()" [isAvatarAdmin]="!!currentUser()?.is_avatar_admin" [inventoryUnread]="inventoryUnread()" (inventory)="inventoryMode.set($event)" [avatarUrl]="currentUserAvatarUrl()" [selected]="workspaceMode()" [initials]="displayNickInitials(currentUser()?.nick ?? 'Я')" [hasNotifications]="friendRequestBadgeVisible()" (selectSection)="selectWorkspaceMode($event)" (menu)="toggleSideMenu()" (search)="openQuickSwitch()" (profile)="toggleSideMenu()" (notifications)="openFriendRequestsModal()" />
+      @if(adminDirectoryOpen() && (isAdmin() || !!currentUser()?.is_avatar_admin)){<app-admin-directory [systemAdmin]="isAdmin()" [actorId]="currentUser()!.id" [avatarUrl]="currentUserAvatarUrl()" (changed)="refreshInventoryProfile()" [token]="session()!.access_token" (close)="adminDirectoryOpen.set(false)" (forbidden)="adminDirectoryOpen.set(false)"/>}
+      @if(isPlatformsMode()){<app-platform-list [spaces]="platformChoices()" [selected]="selectedServerId()" [collapsed]="desktopPreferences.value().platformsCollapsed" [class.platform-list-mobile-open]="mobilePanel()==='servers' && platformBrowserStage()==='spaces'" (select)="selectPlatformFromPicker($event)" (create)="openCreatePlatformShortcut()" (toggle)="desktopPreferences.update({platformsCollapsed:!desktopPreferences.value().platformsCollapsed})"/>}
+      <aside class="conversation-sidebar" [class.conversation-sidebar--mobile-open]="mobilePanel() === 'servers' && (!isPlatformsMode() || platformBrowserStage()==='channels')">
         <div class="desktop-sidebar-toolbar">
           <app-desktop-preferences />
           <button type="button" [attr.aria-expanded]="!desktopPreferences.value().collapsed" [attr.aria-label]="desktopPreferences.value().collapsed ? 'Развернуть список бесед' : 'Свернуть список бесед'" [attr.title]="desktopPreferences.value().collapsed ? 'Развернуть список бесед' : 'Свернуть список бесед'" (click)="desktopPreferences.update({collapsed: !desktopPreferences.value().collapsed})"><app-ui-icon name="menu" /></button>
@@ -623,7 +623,7 @@
         }
         @if (isPlatformsMode() && platformSpaces().length) {
           <div class="platform-heading">
-          <app-platform-switcher [spaces]="platformChoices()" [selected]="selectedServerId()" (select)="selectPlatformFromPicker($event)" (create)="openCreatePlatformShortcut()" />
+          <button class="platform-list-back" type="button" aria-label="Назад к площадкам" (click)="platformBrowserStage.set('spaces')"><app-ui-icon name="back"/></button><strong class="platform-current-name">{{activeServer()?.name}}</strong>
             <button class="platform-menu-trigger" type="button" aria-label="Меню площадки" title="Меню площадки" aria-haspopup="dialog" [attr.aria-expanded]="platformActionMenuOpen()" (click)="platformActionMenuOpen.set(!platformActionMenuOpen())"><app-ui-icon name="more" /></button>
           </div>
         }
@@ -725,7 +725,7 @@
 
         @if (activeServer()) {
           <section class="conversation-head conversation-head--managed">
-            <button class="workspace-back" type="button" aria-label="Назад к списку" (click)="toggleMobilePanel('servers')"><app-ui-icon name="back" /></button>
+            <button class="workspace-back" type="button" aria-label="Назад к списку" (click)="platformBrowserStage.set('channels');toggleMobilePanel('servers')"><app-ui-icon name="back" /></button>
             <div class="conversation-head__identity conversation-head__identity--managed">
               @if (isPlatformsMode()) {
                 <span class="space-channel-icon"><app-ui-icon [name]="activeChannel()?.type === 'voice' ? 'sound' : 'hash'" /></span>
@@ -3800,7 +3800,7 @@
 @if(session(); as auth) {
  <app-theme-controller [token]="auth.access_token" [revision]="wallpaperRevision()" />
  <app-wallpapers [token]="auth.access_token" [serverId]="selectedServerId()" [open]="wallpaperOpen()" [revision]="wallpaperRevision()" (close)="wallpaperOpen.set(false)" (applied)="wallpaperStyle.set($event)" />
- <app-inventory [avatarUrl]="currentUserAvatarUrl()" [token]="auth.access_token" [mode]="inventoryMode()" [isAdmin]="!!currentUser()?.is_avatar_admin" (close)="inventoryMode.set(null)" (changed)="refreshInventoryProfile()" (unread)="inventoryUnread.set($event)" />
+ <app-inventory [avatarUrl]="currentUserAvatarUrl()" [token]="auth.access_token" [mode]="inventoryMode()" [isAdmin]="isAdmin() || !!currentUser()?.is_avatar_admin" (close)="inventoryMode.set(null)" (changed)="refreshInventoryProfile()" (unread)="inventoryUnread.set($event)" />
 }
 
 @if (messageActionsTarget(); as target) {

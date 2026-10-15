@@ -1,7 +1,7 @@
 
 @if(mode()) {
-<div class="inventory-backdrop" (click)="menu() ? menu.set(null) : dismiss()">
- <section class="inventory" role="dialog" aria-modal="true" aria-labelledby="inventory-title" (click)="$event.stopPropagation();menu.set(null)" (keydown)="keydown($event)">
+<div class="inventory-backdrop" [class.embedded]="embedded()" [class.issued-only]="embedded() && initialTab()==='issued'" (click)="menu() ? menu.set(null) : embedded() ? null : dismiss()">
+ <section class="inventory" [attr.role]="embedded()?'region':'dialog'" [attr.aria-modal]="embedded()?null:true" aria-label="Предметы" (click)="$event.stopPropagation();menu.set(null)" (keydown)="keydown($event)">
   <header><h2 id="inventory-title">{{mode()==='admin'?'Админ-Аватарок':'Инвентарь'}}</h2><div class="header-actions">@if(mode()==='inventory'){<button (click)="eventsOpen.set(true)">@if(unreadCount()){<span class="count">{{unreadCount()}}</span>} События</button>}<button aria-label="Закрыть инвентарь" [disabled]="busy()" (click)="dismiss()">×</button></div></header>
   <div class="body" [attr.inert]="pending()||giftItem()||themePreview()||detail()||eventsOpen()||uploadOpen()||editing()||grantOpen() ? '' : null">
    <nav aria-label="Типы предметов">
@@ -9,7 +9,7 @@
     <button [class.active]="(mode()==='admin'?adminTab():tab())==='frame'" [disabled]="busy()" (click)="switchTab('frame')">Рамки</button>
     <button [class.active]="(mode()==='admin'?adminTab():tab())==='wallpaper'" [disabled]="busy()" (click)="switchTab('wallpaper')">Обои</button>
     <button [class.active]="(mode()==='admin'?adminTab():tab())==='theme'" [disabled]="busy()" (click)="switchTab('theme')">Темы</button>
-    @if(mode()==='admin'){<button [class.active]="adminTab()==='issued'" [disabled]="busy()" (click)="switchTab('issued')">Выдано</button>}
+    @if(mode()==='admin'&&!embedded()){<button [class.active]="adminTab()==='issued'" [disabled]="busy()" (click)="switchTab('issued')">Выдано</button>}
    </nav>
    <div class="catalog-tools"><form (ngSubmit)="filterChanged()"><input aria-label="Поиск предметов" [placeholder]="adminTab()==='issued'&&mode()==='admin'?'Предмет, владелец или email':'Название предмета'" name="filter" [(ngModel)]="filter" maxlength="80"/><button type="submit" [disabled]="busy()">Найти</button></form>
     @if(mode()==='admin'&&adminTab()!=='issued'&&adminTab()!=='theme'){<button class="primary" (click)="openUpload()">Добавить предмет</button>}
