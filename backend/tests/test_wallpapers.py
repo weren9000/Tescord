@@ -27,7 +27,7 @@ def test_collectible_wallpaper_catalog_and_ownership(accounts):
         asset=c.get('/api/inventory/assets/'+key)
         assert asset.status_code==200
         assert asset.headers['content-type']=='image/png'
-        assert Image.open(BytesIO(asset.content)).size==((1400,840) if key=='wallpaper-living-marsh' else (1254,1254))
+        assert Image.open(BytesIO(asset.content)).size==((1400,840) if key.startswith('wallpaper-living-') else (1254,1254))
         assert select_wallpaper(c,alice,key).status_code==400
     key=next(iter(WALLPAPERS))
     payload={'catalog_id':key,'recipient_id':a['id'],'request_id':str(uuid4())}

@@ -2,6 +2,7 @@
 
 WALLPAPERS = {
     'wallpaper-living-marsh': 'Своё болото · Живые обои',
+    'wallpaper-living-valheim': 'Valheim · Северный фьорд',
     'wallpaper-mint-animals': 'Мятные зверята',
     'wallpaper-peach-games': 'Персиковый игровой мир',
     'wallpaper-forest-tales': 'Лесные истории',

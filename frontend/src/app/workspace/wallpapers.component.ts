@@ -81,11 +81,11 @@ export class WallpapersComponent implements OnDestroy {
   return this.makeStyle(url,scale,dim);
  }
  private makeStyle(url:string,scale:number,dim:number):WallpaperStyle{
-  const live=url.endsWith('/wallpaper-living-marsh');
+  const live=/\/wallpaper-living-(marsh|valheim)$/.test(url);
   if(live)url+='?live=true&motion='+(this.motion()&&this.visible()&&!this.reduced())+'&v=1';
   return {image:url?`linear-gradient(rgba(12,16,26,${dim/100}),rgba(12,16,26,${dim/100})),url("${url}")`:'none',size:live?'auto, cover':`auto, ${640*scale/100}px auto`};
  }
- living(){return this.style().image.includes('/wallpaper-living-marsh');}
+ living(){return /\/wallpaper-living-(marsh|valheim)[?]/.test(this.style().image);}
  setMotion(enabled:boolean){this.motion.set(enabled);try{localStorage.setItem('kva-wallpaper-motion',enabled?'on':'off');}catch{}}
  style():WallpaperStyle{
   if(this.target==='personal'&&this.inherit){const shared=this.data()?.context?.shared;return shared?this.assetStyle(shared.asset,shared.scale,shared.dim):{image:'none',size:'auto'};}
