@@ -21,7 +21,19 @@ export class WallpapersComponent implements OnDestroy {
  readonly data=signal<State|null>(null); readonly error=signal(''); readonly busy=signal(false);
  selected:string|null=null;scale=100;dim=35;target:Target='personal';inherit=true;
  private version=0;private contextKey='';
+ readonly motion=signal(true);
+ readonly visible=signal(document.visibilityState==='visible');
+ readonly reduced=signal(window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+ private readonly media=window.matchMedia('(prefers-reduced-motion: reduce)');
+ private readonly visibilityChanged=()=>this.visible.set(document.visibilityState==='visible');
+ private readonly reducedChanged=()=>this.reduced.set(this.media.matches);
  constructor(){
+  try{this.motion.set(localStorage.getItem('kva-wallpaper-motion')!=='off');}catch{}
+  document.addEventListener('visibilitychange',this.visibilityChanged);
+  this.media.addEventListener('change',this.reducedChanged);
+  effect(()=>{this.motion();this.visible();this.reduced();const choice=this.data()?.context?.effective;
+   this.applied.emit(choice?this.assetStyle(choice.asset,choice.scale,choice.dim):{image:'none',size:'auto'});
+  });
   effect(cleanup=>{const token=this.token(),serverId=this.serverId();this.revision();const open=this.open();
    const key=token+'|'+serverId;
    if(key!==this.contextKey){this.contextKey=key;this.data.set(null);this.error.set('');this.target=serverId?'personal':'profile';this.applied.emit({image:'none',size:'auto'});}
@@ -66,11 +78,18 @@ export class WallpapersComponent implements OnDestroy {
  }
  private assetStyle(asset:string|null|undefined,scale:number,dim:number):WallpaperStyle{
   const url=asset?API_BASE_URL+asset:'';
-  return {image:url?`linear-gradient(rgba(12,16,26,${dim/100}),rgba(12,16,26,${dim/100})),url("${url}")`:'none',size:`auto, ${640*scale/100}px auto`};
+  return this.makeStyle(url,scale,dim);
  }
+ private makeStyle(url:string,scale:number,dim:number):WallpaperStyle{
+  const live=url.endsWith('/wallpaper-living-marsh');
+  if(live)url+='?live=true&motion='+(this.motion()&&this.visible()&&!this.reduced())+'&v=1';
+  return {image:url?`linear-gradient(rgba(12,16,26,${dim/100}),rgba(12,16,26,${dim/100})),url("${url}")`:'none',size:live?'auto, cover':`auto, ${640*scale/100}px auto`};
+ }
+ living(){return this.style().image.includes('/wallpaper-living-marsh');}
+ setMotion(enabled:boolean){this.motion.set(enabled);try{localStorage.setItem('kva-wallpaper-motion',enabled?'on':'off');}catch{}}
  style():WallpaperStyle{
   if(this.target==='personal'&&this.inherit){const shared=this.data()?.context?.shared;return shared?this.assetStyle(shared.asset,shared.scale,shared.dim):{image:'none',size:'auto'};}
-  const url=this.url(this.selected);return {image:url?`linear-gradient(rgba(12,16,26,${this.dim/100}),rgba(12,16,26,${this.dim/100})),url("${url}")`:'none',size:`auto, ${640*this.scale/100}px auto`};
+  return this.makeStyle(this.url(this.selected),this.scale,this.dim);
  }
  async save(){if(this.busy())return;this.busy.set(true);this.error.set('');
   const token=this.token(),serverId=this.serverId(),key=this.contextKey;
@@ -89,5 +108,5 @@ export class WallpapersComponent implements OnDestroy {
   if(event.shiftKey&&document.activeElement===first){event.preventDefault();last?.focus();}
   else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first?.focus();}
  }
- ngOnDestroy(){++this.version;}
+ ngOnDestroy(){++this.version;document.removeEventListener('visibilitychange',this.visibilityChanged);this.media.removeEventListener('change',this.reducedChanged);}
 }

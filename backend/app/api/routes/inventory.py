@@ -148,8 +148,11 @@ async def upload_catalog(name: str = Form(max_length=80), kind: Literal['avatar'
 
 
 @router.get('/assets/{catalog_id}')
-def asset(catalog_id: str, request: Request, motion: bool = True, preview: bool = False, db: Session = Depends(get_db)):
+def asset(catalog_id: str, request: Request, motion: bool = True, preview: bool = False, live: bool = False, db: Session = Depends(get_db)):
     if not db.get(InventoryCatalog, catalog_id): raise HTTPException(404, 'Предмет не найден')
+    from app.services.living_wallpaper import CATALOG_ID, marsh_svg
+    if catalog_id == CATALOG_ID and live and not preview:
+        return Response(marsh_svg(motion=motion),media_type='image/svg+xml',headers={'Cache-Control':'public, max-age=86400','X-Content-Type-Options':'nosniff'})
     from app.services.themes import THEMES, theme_svg
     if catalog_id in THEMES:
         return Response(theme_svg(catalog_id), media_type='image/svg+xml', headers={'X-Content-Type-Options':'nosniff', 'Cache-Control':'public, max-age=3600'})

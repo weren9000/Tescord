@@ -1,6 +1,7 @@
 """Wallpaper items available only through inventory grants and gifts."""
 
 WALLPAPERS = {
+    'wallpaper-living-marsh': 'Своё болото · Живые обои',
     'wallpaper-mint-animals': 'Мятные зверята',
     'wallpaper-peach-games': 'Персиковый игровой мир',
     'wallpaper-forest-tales': 'Лесные истории',
