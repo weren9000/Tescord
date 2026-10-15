@@ -244,3 +244,7 @@ button:focus-visible, article:focus-visible, input:focus-visible, textarea:focus
 @media(max-width:980px),(hover:none){.channel-menu-trigger{opacity:1;min-height:44px}.info-section button{min-height:44px}}
 
 @media(max-width:980px){.workspace-tools .workspace-invite{display:grid}.conversation-head__menu{flex-shrink:0}}
+.messenger-shell .messenger-layout.messenger-layout--admin{grid-template-columns:92px minmax(0,1fr)}
+.messenger-layout--admin> :not(app-section-navigation):not(app-admin-directory){display:none!important}
+.messenger-layout--admin>app-admin-directory{grid-column:2 / -1;min-height:0;overflow:hidden}
+@media(max-width:980px){.messenger-shell .messenger-layout.messenger-layout--admin{grid-template-columns:minmax(0,1fr)}.messenger-layout--admin>app-admin-directory{grid-column:1 / -1}}

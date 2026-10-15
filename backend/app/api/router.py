@@ -1,4 +1,5 @@
 from fastapi import APIRouter
+from app.api.routes.admin_directory import router as admin_directory_router
 from app.api.routes.inventory import router as inventory_router
 
 from app.api.routes.attention import router as attention_router
@@ -20,6 +21,7 @@ from app.api.routes.voice import router as voice_router
 from app.api.routes.wallpapers import router as wallpapers_router
 
 api_router = APIRouter()
+api_router.include_router(admin_directory_router)
 api_router.include_router(wallpapers_router)
 api_router.include_router(inventory_router)
 api_router.include_router(invites_router)

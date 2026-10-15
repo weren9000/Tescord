@@ -1,0 +1,47 @@
+<section class="admin" aria-label="Админка" (keydown)="keydown($event)">
+ <header><div><h1>Админка</h1><span class="muted">Обзор пользователей и пространств</span></div><button type="button" (click)="close.emit()">Вернуться к чатам</button></header>
+ <nav aria-label="Разделы админки">@for(t of tabs;track t.id){<button type="button" [attr.aria-pressed]="tab()===t.id" (click)="switchTab(t.id)">{{t.label}} <span>{{counts()?.[t.id] ?? '—'}}</span></button>}</nav>
+ <div class="tools">
+  <input aria-label="Поиск в админке" [placeholder]="tab()==='users'?'Ник, ID или email':'Название или ID'" [(ngModel)]="filter.q" (ngModelChange)="search()" [maxlength]="tab()==='users'?320:80" />
+  @if(tab()==='users'){<select aria-label="Роль пользователя" [(ngModel)]="filter.role" (change)="change()"><option value="all">Все роли</option><option value="admin">Администраторы</option><option value="avatar">Админы аватарок</option><option value="regular">Пользователи</option></select>}
+  @else{<input aria-label="Владелец" placeholder="Владелец: ник или ID" [(ngModel)]="filter.owner" (ngModelChange)="search()" maxlength="80" />}
+  <select aria-label="Сортировка" [(ngModel)]="filter.sort" (change)="change()"><option value="new">Новые сверху</option><option value="old">Старые сверху</option><option value="name">По имени</option>@if(tab()!=='users'){<option value="members">По участникам</option>}</select>
+  <button type="button" (click)="refresh()" [disabled]="loading()">Обновить</button>
+ </div>
+ <div class="content">
+  <div class="list" #list [attr.aria-busy]="loading()">
+   @if(error()){<div class="state" role="alert"><p>{{error()}}</p><button (click)="load()">Повторить</button></div>}
+   @else if(loading()){<div class="cards" aria-label="Загрузка">@for(i of [1,2,3,4,5,6,7,8,9,10,11,12];track i){<div class="skeleton"></div>}</div>}
+   @else{<div class="cards">@for(row of result().items;track row.id){
+    <button class="card" type="button" [class.selected]="detailOpen() && detail()?.id===row.id" (click)="open(row)" [attr.aria-label]="'Подробнее: '+row.name">
+     <span class="avatar">@if(image(row,tab());as url){@if(!failedImages().has(url)){<img [src]="url" alt="" width="44" height="44" loading="lazy" (error)="imageFailed(url)"/>}@else{ {{row.name.slice(0,2)}} }}@else{ {{row.name.slice(0,2)}} }</span>
+     <span class="card-copy"><strong [title]="row.name">{{row.name}}</strong>@if(tab()==='users'){<small>ID {{row.public_id}}</small><span class="badge">{{roles(row)}}</span>}@else{<small>{{row.owner_name}}</small><small>{{row.members_count}} участников @if(tab()==='platforms'){ · {{row.channels_count}} каналов}</small><small class="id" [title]="row.id">{{row.id}}</small>}</span>
+    </button>
+   }</div>@if(!result().total){<div class="state"><h3>Ничего не найдено</h3><button (click)="reset()">Сбросить фильтры</button></div>}}
+  </div>
+  @if(detailOpen()){
+   <aside class="detail" aria-label="Подробности записи">
+    <div class="detail-head"><h2>Подробности</h2><button class="detail-close" aria-label="Закрыть подробности" (click)="closeDetail()">×</button></div>
+    <div class="detail-body">
+     @if(detailLoading()){<p role="status">Загрузка…</p>}
+     @if(detailError()){<p role="alert">{{detailError()}}</p><button (click)="retryDetail()">Повторить</button>}
+     @if(detail();as d){
+      <h3>{{d.name}}</h3><dl>
+       @if(detailKind()==='users'){<dt>Роль</dt><dd>{{roles(d)}}</dd><dt>Email</dt><dd>{{d.email}}</dd><dt>Публичный ID</dt><dd>{{d.public_id}} <button aria-label="Копировать публичный ID" (click)="copy(''+d.public_id)">Копировать</button></dd>}
+       @else{<dt>Владелец</dt><dd><button (click)="openOwner()">{{d.owner_name}}</button></dd><dt>Участники / каналы</dt><dd>{{d.members_count}} / {{d.channels_count}}</dd>@if(d.description){<dt>Описание</dt><dd>{{d.description}}</dd>}}
+       <dt>Дата создания</dt><dd>{{d.created_at | date:'dd.MM.yyyy HH:mm'}}</dd><dt>Внутренний ID</dt><dd class="id">{{d.id}} <button aria-label="Копировать внутренний ID" (click)="copy(d.id)">Копировать</button></dd>
+      </dl><p class="copy-status" role="status">{{copied()}}</p>
+      @if(detailKind()==='users'){<h3>Группы и площадки</h3>}
+      @else{<div class="relation-tabs"><button [attr.aria-pressed]="relation()==='members'" (click)="changeRelation('members')">Участники</button><button [attr.aria-pressed]="relation()==='channels'" (click)="changeRelation('channels')">Каналы</button></div>}
+      @if(relation()==='members'){<form (ngSubmit)="loadRelated()"><input aria-label="Поиск участников" placeholder="Ник или ID участника" name="memberSearch" [(ngModel)]="memberSearch" maxlength="80"/><button>Найти</button></form>}
+      @if(relatedError()){<p role="alert">{{relatedError()}}</p><button (click)="loadRelated()">Повторить</button>}
+      @else if(relatedLoading()){<p role="status">Загрузка…</p>}
+      @else{@for(row of related().items;track row.id){@if(relation()==='channels'){<div class="related"><strong>{{row.name}}</strong><small>{{row.type==='voice'?'Голосовой':row.type==='announcement'?'Объявления':'Текстовый'}}</small></div>}@else{<button class="related" (click)="openRelated(row)"><strong>{{row.name}}</strong><small>{{relation()==='spaces'?kindLabel(row.kind):memberRole(row.role)}}</small></button>}}@if(!related().total){<p class="muted">Записей нет.</p>}}
+      <div class="related-pages"><button aria-label="Предыдущая страница подробностей" [disabled]="related().page===1 || relatedLoading()" (click)="loadRelated(related().page-1)">‹</button><span>{{related().page}} / {{related().pages}}</span><button aria-label="Следующая страница подробностей" [disabled]="related().page===related().pages || relatedLoading()" (click)="loadRelated(related().page+1)">›</button></div>
+     }
+    </div>
+   </aside>
+  }
+ </div>
+ <footer><span aria-live="polite">Найдено: {{result().total}}</span><select aria-label="Записей на странице" [(ngModel)]="filter.size" (change)="change()"><option [ngValue]="24">24 на странице</option><option [ngValue]="48">48 на странице</option></select><button aria-label="Предыдущая страница" [disabled]="loading() || result().page===1" (click)="go(result().page-1)">‹</button><span>{{result().page}} / {{result().pages}}</span><button aria-label="Следующая страница" [disabled]="loading() || result().page===result().pages" (click)="go(result().page+1)">›</button></footer>
+</section>

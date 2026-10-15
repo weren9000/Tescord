@@ -3,12 +3,35 @@ import hashlib
 import os
 from pathlib import Path
 import tempfile
+from io import BytesIO
 
 from fastapi import Request
 from fastapi.responses import FileResponse, Response
 from PIL import Image, ImageOps
 
 from app.services.attachment_storage import _uploads_root
+
+
+def small_preview_response(content: bytes):
+    """96 px thumbnails for database-backed avatars and space icons."""
+    key = hashlib.sha256(b'small-v1:96:' + content).hexdigest()
+    directory = _uploads_root() / 'previews'
+    target = directory / (key + '.webp')
+    if not target.is_file():
+        directory.mkdir(parents=True, exist_ok=True)
+        with Image.open(BytesIO(content)) as original:
+            original.seek(0)
+            image = ImageOps.exif_transpose(original).convert('RGBA')
+            image.thumbnail((96, 96), Image.Resampling.LANCZOS)
+            fd, name = tempfile.mkstemp(prefix='small-', suffix='.tmp', dir=directory)
+            try:
+                with os.fdopen(fd, 'wb') as output:
+                    image.save(output, 'WEBP', quality=76, method=4)
+                os.replace(name, target)
+            finally:
+                Path(name).unlink(missing_ok=True)
+    return FileResponse(target, media_type='image/webp', headers={
+        'Cache-Control': 'public, max-age=300', 'X-Content-Type-Options': 'nosniff'})
 
 
 def preview_path(source: Path) -> Path:

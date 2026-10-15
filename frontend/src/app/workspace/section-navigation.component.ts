@@ -10,10 +10,11 @@ export type WorkspaceSection = 'chats' | 'groups' | 'platforms';
       <div class="brand"><img src="/assets/kva-wordmark-v2.png" alt="Квачат" width="70" height="35" /></div>
       <div class="sections">
         @for (section of sections; track section.id) {
-          <button type="button" [attr.title]="section.label" [class.active]="selected() === section.id" [attr.aria-current]="selected() === section.id ? 'page' : null" (click)="selectSection.emit(section.id)">
+          <button type="button" [attr.title]="section.label" [class.active]="!adminSelected() && selected() === section.id" [attr.aria-current]="!adminSelected() && selected() === section.id ? 'page' : null" (click)="selectSection.emit(section.id)">
             <app-ui-icon [name]="section.icon" /><span>{{ section.label }}</span>
           </button>
         }
+        @if(isSystemAdmin()){<button type="button" [class.active]="adminSelected()" [attr.aria-current]="adminSelected()?'page':null" (click)="admin.emit()"><app-ui-icon name="avatarAdmin"/><span>Админка</span></button>}
         @if(isAvatarAdmin()) {<button type="button" (click)="inventory.emit('admin')"><app-ui-icon name="avatarAdmin"/><span>Админ-Аватарок</span></button>}
       </div>
       <div class="utilities">
@@ -43,6 +44,9 @@ export type WorkspaceSection = 'chats' | 'groups' | 'platforms';
 })
 export class SectionNavigationComponent {
   readonly selected = input<WorkspaceSection>('chats');
+  readonly isSystemAdmin = input(false);
+  readonly adminSelected = input(false);
+  readonly admin = output<void>();
   readonly isAvatarAdmin = input(false);
   readonly inventoryUnread = input(0);
   readonly inventory = output<'inventory' | 'admin'>();

@@ -1,3 +1,4 @@
+import {AdminDirectoryComponent} from './workspace/admin-directory.component';
 import {AudioDevicePickerComponent} from './workspace/audio-device-picker.component';
 import { InfoPanelComponent } from './workspace/info-panel.component';
 import { ActionMenuComponent } from './workspace/action-menu.component';
@@ -631,11 +632,13 @@ const DEFAULT_SERVER_ICON_ASSET_BY_NAME: Record<string, string> = {
 @Component({
   providers: [AuthFormStore],
     selector: 'app-root',
-    imports: [AvatarPickerComponent, AudioDevicePickerComponent, InfoPanelComponent, ActionMenuComponent, CommonModule, FormsModule, MediaStreamSrcDirective, SectionNavigationComponent, UiIconComponent, ConversationListComponent, QuickSwitchComponent, PlatformSwitcherComponent, InviteManagerComponent, InventoryComponent, WallpapersComponent, ThemeControllerComponent, MessageGestureDirective, MessageActionsComponent, DesktopPreferencesComponent, SidebarResizeDirective],
+    imports: [AdminDirectoryComponent, AvatarPickerComponent, AudioDevicePickerComponent, InfoPanelComponent, ActionMenuComponent, CommonModule, FormsModule, MediaStreamSrcDirective, SectionNavigationComponent, UiIconComponent, ConversationListComponent, QuickSwitchComponent, PlatformSwitcherComponent, InviteManagerComponent, InventoryComponent, WallpapersComponent, ThemeControllerComponent, MessageGestureDirective, MessageActionsComponent, DesktopPreferencesComponent, SidebarResizeDirective],
     templateUrl: './app.component.html',
     styleUrls: ['./app.component.scss', './app-layout.scss', './call-workspace.scss', './platform-workspace.scss', './invite-entry.scss', './palette-theme.scss', './auth-workspace.scss', './avatar-presets.scss']
 })
 export class AppComponent {
+  readonly adminDirectoryOpen = signal(false);
+  openAdminDirectory(): void { if(this.isAdmin()){this.closeSideMenu();this.adminDirectoryOpen.set(true);} }
   private readonly invitesApi = inject(InvitesApiService);
   readonly desktopPreferences = inject(DesktopPreferencesService);
   readonly pinPending = signal<string[]>([]);
@@ -4601,6 +4604,7 @@ export class AppComponent {
   }
 
   selectWorkspaceMode(mode: WorkspaceMode): void {
+    this.adminDirectoryOpen.set(false);
     if (this.workspaceMode() === mode) {
       return;
     }

@@ -17,6 +17,7 @@ from app.services.app_events import publish_members_updated_from_sync, publish_v
 from app.services.avatar_presets import AVATAR_PRESETS, AVATAR_DIRECTORY
 from app.services.inventory import lock_inventory, asset_path
 from app.services.avatar_frames import frame_svg
+from app.services.image_previews import small_preview_response
 from app.db.inventory import InventoryItem
 from sqlalchemy import update
 
@@ -115,12 +116,17 @@ async def update_current_user_profile(
 
 
 @router.get("/users/{user_id}/avatar")
-def read_user_avatar(user_id: UUID, motion: bool = True, include_frame: bool = True, db: Session = Depends(get_db)) -> Response:
+def read_user_avatar(user_id: UUID, motion: bool = True, include_frame: bool = True, preview: bool = False, db: Session = Depends(get_db)) -> Response:
     user = db.get(User, user_id)
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Аватарка не найдена")
     equipped = db.scalar(select(InventoryItem).where(InventoryItem.owner_id == user.id,
         InventoryItem.kind == 'avatar', InventoryItem.equipped.is_(True), InventoryItem.revoked.is_(False)))
+    if preview:
+        content = asset_path(equipped.catalog_id).read_bytes() if equipped else user.avatar_content
+        if content is None:
+            content = (AVATAR_DIRECTORY / (user.avatar_preset+'.webp')).read_bytes()
+        return small_preview_response(content)
     frame = db.scalar(select(InventoryItem).where(InventoryItem.owner_id == user.id,
         InventoryItem.kind == 'frame', InventoryItem.equipped.is_(True), InventoryItem.revoked.is_(False)))
     if frame and include_frame:

@@ -546,6 +546,7 @@
           @if (currentUser()?.is_avatar_admin || isAdmin()) {
             <section><p class="menu-heading">Администрирование</p>
               @if (currentUser()?.is_avatar_admin) { <button type="button" (click)="closeSideMenu(); inventoryMode.set('admin')"><app-ui-icon name="avatarAdmin" />Админ-Аватарок</button> }
+              @if (isAdmin()) { <button type="button" (click)="openAdminDirectory()"><app-ui-icon name="avatarAdmin" />Админка</button> }
               @if (isAdmin()) { <button type="button" (click)="closeSideMenu(); openVoiceAdminPanel()"><app-ui-icon name="mic" />Доступ к голосу</button> }
             </section>
           }
@@ -605,8 +606,9 @@
         @if(canDeleteWorkspaceChannel(channel)){<section><button type="button" class="danger" [disabled]="isDeletingChannel(channel.id)" (click)="deleteChannel(channel)"><app-ui-icon name="trash" />Удалить канал</button></section>}
       </app-action-menu>
     }
-    <div class="messenger-layout" [class.messenger-layout--info]="conversationInfoOpen()" [class.messenger-layout--platform]="isPlatformsMode()" [attr.data-density]="desktopPreferences.value().density" [class.messenger-layout--sidebar-collapsed]="desktopPreferences.value().collapsed" [style.--sidebar-width]="desktopPreferences.value().width + 'px'" [style.--message-text-size]="desktopPreferences.value().textSize + 'px'">
-      <app-section-navigation [isAvatarAdmin]="!!currentUser()?.is_avatar_admin" [inventoryUnread]="inventoryUnread()" (inventory)="inventoryMode.set($event)" [avatarUrl]="currentUserAvatarUrl()" [selected]="workspaceMode()" [initials]="displayNickInitials(currentUser()?.nick ?? 'Я')" [hasNotifications]="friendRequestBadgeVisible()" (selectSection)="selectWorkspaceMode($event)" (menu)="toggleSideMenu()" (search)="openQuickSwitch()" (profile)="toggleSideMenu()" (notifications)="openFriendRequestsModal()" />
+    <div class="messenger-layout" [class.messenger-layout--admin]="adminDirectoryOpen() && isAdmin()" [class.messenger-layout--info]="conversationInfoOpen()" [class.messenger-layout--platform]="isPlatformsMode()" [attr.data-density]="desktopPreferences.value().density" [class.messenger-layout--sidebar-collapsed]="desktopPreferences.value().collapsed" [style.--sidebar-width]="desktopPreferences.value().width + 'px'" [style.--message-text-size]="desktopPreferences.value().textSize + 'px'">
+      <app-section-navigation [isSystemAdmin]="isAdmin()" [adminSelected]="adminDirectoryOpen() && isAdmin()" (admin)="openAdminDirectory()" [isAvatarAdmin]="!!currentUser()?.is_avatar_admin" [inventoryUnread]="inventoryUnread()" (inventory)="inventoryMode.set($event)" [avatarUrl]="currentUserAvatarUrl()" [selected]="workspaceMode()" [initials]="displayNickInitials(currentUser()?.nick ?? 'Я')" [hasNotifications]="friendRequestBadgeVisible()" (selectSection)="selectWorkspaceMode($event)" (menu)="toggleSideMenu()" (search)="openQuickSwitch()" (profile)="toggleSideMenu()" (notifications)="openFriendRequestsModal()" />
+      @if(adminDirectoryOpen() && isAdmin()){<app-admin-directory [token]="session()!.access_token" (close)="adminDirectoryOpen.set(false)" (forbidden)="adminDirectoryOpen.set(false)"/>}
       <aside class="conversation-sidebar" [class.conversation-sidebar--mobile-open]="mobilePanel() === 'servers'">
         <div class="desktop-sidebar-toolbar">
           <app-desktop-preferences />
