@@ -616,6 +616,21 @@
           <button type="button" [attr.aria-expanded]="!desktopPreferences.value().collapsed" [attr.aria-label]="desktopPreferences.value().collapsed ? 'Развернуть список бесед' : 'Свернуть список бесед'" [attr.title]="desktopPreferences.value().collapsed ? 'Развернуть список бесед' : 'Свернуть список бесед'" (click)="desktopPreferences.update({collapsed: !desktopPreferences.value().collapsed})"><app-ui-icon [name]="desktopPreferences.value().collapsed ? 'forward' : 'back'" /></button>
         </div>
         <div class="sidebar-resizer" appSidebarResize title="Перетащите для изменения ширины. Двойной щелчок — сброс." ></div>
+        @if(isPlatformsMode()) {
+          <nav class="compact-platform-channels" aria-label="Каналы площадки — компактный вид">
+            @for(channel of textChannels();track channel.id) {
+              <button type="button" [title]="channel.name" [attr.aria-label]="channel.name" [attr.aria-current]="selectedChannelId()===channel.id?'page':null" (click)="selectChannel(channel)"><app-ui-icon name="hash"/>
+                @if(channelUnreadCount(channel)>0){<span class="compact-channel-badge" [attr.aria-label]="'Непрочитанных: '+channelUnreadCount(channel)">{{channelMentionUnreadCount(channel)>0?'@':channelUnreadBadgeLabel(channel)}}</span>}
+              </button>
+            }
+            @for(channel of voiceChannels();track channel.id) {
+              <button type="button" [title]="channel.name" [attr.aria-label]="channel.name" [attr.aria-current]="selectedChannelId()===channel.id?'page':null" [class.connected]="connectedVoiceChannelId()===channel.id" (click)="previewPlatformVoiceChannel(channel)"><app-ui-icon name="sound"/>
+                @if(connectedVoiceChannelId()===channel.id){<span class="compact-channel-connected" aria-label="Вы подключены"></span>}
+                @if(channelUnreadCount(channel)>0){<span class="compact-channel-badge" [attr.aria-label]="'Непрочитанных: '+channelUnreadCount(channel)">{{channelMentionUnreadCount(channel)>0?'@':channelUnreadBadgeLabel(channel)}}</span>}
+              </button>
+            }
+          </nav>
+        }
         @if (!isPlatformsMode() || !platformSpaces().length) {
           <div class="section-heading">
             <div><h1>{{ sectionTitle() }}</h1><p>{{ sectionDescription() }}</p></div>
