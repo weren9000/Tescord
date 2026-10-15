@@ -1,5 +1,19 @@
 @use '../palette';
 
+@media(min-width:981px){
+ .messenger-shell .messenger-layout--platform .desktop-sidebar-toolbar,
+ .messenger-shell .messenger-layout--platform .conversation-head{height:64px;min-height:64px;max-height:64px;box-sizing:border-box;padding:0 10px;border-bottom:1px solid var(--palette-border);flex-shrink:0}
+ .messenger-shell .messenger-layout--platform .desktop-sidebar-toolbar{gap:6px;margin-bottom:12px}
+ .messenger-shell .messenger-layout--platform .conversation-head{align-items:center;align-content:center}
+ .messenger-shell .messenger-layout--platform .platform-heading{display:none}
+ .desktop-sidebar-toolbar>.platform-toolbar-title{display:flex;flex:1;min-width:0;width:auto;gap:4px;text-align:left;font-weight:600}
+ .platform-toolbar-title span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+ .platform-toolbar-title app-ui-icon{width:14px;height:14px}
+ .desktop-sidebar-toolbar>button:not(.platform-toolbar-title),.desktop-sidebar-toolbar app-desktop-preferences{flex-shrink:0}
+ .messenger-layout--sidebar-collapsed .desktop-sidebar-toolbar>.platform-toolbar-title{display:none}
+ .messenger-shell .messenger-layout--platform.messenger-layout--sidebar-collapsed .desktop-sidebar-toolbar{padding:0 6px;justify-content:center}
+}
+
 .desktop-sidebar-toolbar, .sidebar-resizer { display: none; }
 .pin-error { color: var(--palette-danger); font-size: 13px; padding: 8px; }
 @media (min-width: 981px) {
