@@ -746,17 +746,12 @@ export class AppComponent {
     else if (this.session()) this.openHome();
   };
   readonly sidebarQuery = signal('');
-  readonly platformChannelFilter = signal<'all'|'unread'|'active'>('all');
-  readonly platformUnreadChannels = computed(() => this.channels().filter(c => this.channelUnreadCount(c)>0 || this.channelMentionUnreadCount(c)>0).length);
-  readonly platformActiveRooms = computed(() => this.voiceChannels().filter(c => this.platformVoiceParticipants(c.id).length>0).length);
   private matchesPlatformChannel(channel: WorkspaceChannel): boolean {
     const query=this.sidebarQuery().trim().toLocaleLowerCase('ru');
     if (!`${channel.name} ${channel.topic ?? ''}`.toLocaleLowerCase('ru').includes(query)) return false;
-    const filter=this.platformChannelFilter();
-    return filter==='all' || (filter==='unread' && (this.channelUnreadCount(channel)>0 || this.channelMentionUnreadCount(channel)>0))
-      || (filter==='active' && channel.type==='voice' && this.platformVoiceParticipants(channel.id).length>0);
+    return true;
   }
-  resetPlatformChannelFilters(): void { this.platformChannelFilter.set('all');this.sidebarQuery.set(''); }
+  resetPlatformChannelFilters(): void { this.sidebarQuery.set(''); }
   readonly expandedPlatformRosters = signal(new Set<string>());
   togglePlatformRoster(channelId: string): void {
     this.expandedPlatformRosters.update(current => {
@@ -774,7 +769,7 @@ export class AppComponent {
   readonly platformBrowserStage=signal<'spaces'|'channels'>('spaces');
   selectPlatformFromPicker(id: string): void {
     this.platformBrowserStage.set('channels');
-    this.platformChannelFilter.set('all');
+
     this.sidebarQuery.set('');
     this.openWorkspaceTarget(id);
     if (this.isCompactVoiceWorkspaceViewport()) this.mobilePanel.set('servers');
@@ -5031,7 +5026,7 @@ export class AppComponent {
   }
 
   isPlatformChannelSectionCollapsed(section: 'text' | 'voice'): boolean {
-    if (this.platformChannelFilter() !== 'all' || this.sidebarQuery().trim()) return false;
+    if (this.sidebarQuery().trim()) return false;
     return section === 'text' ? this.platformTextChannelsCollapsed() : this.platformVoiceChannelsCollapsed();
   }
 
