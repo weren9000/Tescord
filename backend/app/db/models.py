@@ -446,8 +446,8 @@ class MessageReaction(TimestampMixin, Base):
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     message_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("messages.id", ondelete="CASCADE"), nullable=False)
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    reaction: Mapped[MessageReactionKind] = mapped_column(
-        Enum(MessageReactionKind, name="messagereactionkind", values_callable=enum_values),
+    reaction: Mapped[str] = mapped_column(
+        String(32),
         nullable=False,
     )
 

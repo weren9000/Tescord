@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.services.reaction_codes import normalize_reaction, ordered_codes
 
 import asyncio
 from datetime import datetime, timedelta, timezone
@@ -24,7 +25,6 @@ from app.db.models import (
     Message,
     MessageMention,
     MessageReaction,
-    MessageReactionKind,
     MessageType,
     ServerMember,
     ServerKind,
@@ -71,19 +71,7 @@ MAX_PAGE_SIZE = 200
 MAX_ATTACHMENT_SIZE_BYTES = 500 * 1024 * 1024
 ATTACHMENT_DOWNLOAD_LINK_EXPIRE_SECONDS = 180
 ATTACHMENT_DOWNLOAD_TOKEN_TYPE = "attachment_download"
-MESSAGE_REACTION_ORDER: tuple[MessageReactionKind, ...] = (
-    MessageReactionKind.HEART,
-    MessageReactionKind.LIKE,
-    MessageReactionKind.DISLIKE,
-    MessageReactionKind.ANGRY,
-    MessageReactionKind.CRY,
-    MessageReactionKind.CONFUSED,
-    MessageReactionKind.DISPLEASED,
-    MessageReactionKind.LAUGH,
-    MessageReactionKind.FIRE,
-    MessageReactionKind.WOW,
-    MessageReactionKind.PRAYING_CAT,
-)
+
 settings = get_settings()
 
 
@@ -147,19 +135,19 @@ def _build_reaction_summaries(message: Message, current_user_id: UUID) -> list[M
     reacted_codes: set[str] = set()
 
     for reaction in message.reactions:
-        code = reaction.reaction.value
+        code = reaction.reaction
         counts_by_code[code] = counts_by_code.get(code, 0) + 1
         if reaction.user_id == current_user_id:
             reacted_codes.add(code)
 
     return [
         MessageReactionSummary(
-            code=reaction_kind.value,
-            count=counts_by_code[reaction_kind.value],
-            reacted=reaction_kind.value in reacted_codes,
+            code=reaction_kind,
+            count=counts_by_code[reaction_kind],
+            reacted=reaction_kind in reacted_codes,
         )
-        for reaction_kind in MESSAGE_REACTION_ORDER
-        if counts_by_code.get(reaction_kind.value)
+        for reaction_kind in ordered_codes(counts_by_code)
+        if counts_by_code.get(reaction_kind)
     ]
 
 
@@ -213,16 +201,16 @@ def _build_message_reactions_snapshot(message: Message, current_user_id: UUID) -
 def _build_message_reactions_event_snapshot(message: Message) -> MessageReactionsSnapshot:
     counts_by_code: dict[str, int] = {}
     for reaction in message.reactions:
-        code = reaction.reaction.value
+        code = reaction.reaction
         counts_by_code[code] = counts_by_code.get(code, 0) + 1
 
     return MessageReactionsSnapshot(
         message_id=message.id,
         channel_id=message.channel_id,
         reactions=[
-            MessageReactionSummary(code=reaction_kind.value, count=counts_by_code[reaction_kind.value], reacted=False)
-            for reaction_kind in MESSAGE_REACTION_ORDER
-            if counts_by_code.get(reaction_kind.value)
+            MessageReactionSummary(code=reaction_kind, count=counts_by_code[reaction_kind], reacted=False)
+            for reaction_kind in ordered_codes(counts_by_code)
+            if counts_by_code.get(reaction_kind)
         ],
     )
 
@@ -479,9 +467,9 @@ def _validate_attachment_download_token(token: str, attachment_id: UUID) -> UUID
         ) from exc
 
 
-def _parse_message_reaction_kind(reaction_code: str) -> MessageReactionKind:
+def _parse_message_reaction_kind(reaction_code: str) -> str:
     try:
-        return MessageReactionKind(reaction_code)
+        return normalize_reaction(reaction_code)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Неизвестная реакция") from exc
 

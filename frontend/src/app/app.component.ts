@@ -730,11 +730,16 @@ export class AppComponent {
   private readonly bubbleClockFormat=new Intl.DateTimeFormat('ru-RU',{hour:'2-digit',minute:'2-digit'});
   messageLinks(text:string):{text:string;url:string|null}[]{return text.split(/(https?:\/\/[^\s<>]+)/g).filter(Boolean).flatMap(part=>{if(!/^https?:\/\//i.test(part))return [{text:part,url:null}];const clean=part.replace(/[.,!?]+$/,'');try{const url=new URL(clean);if(!['http:','https:'].includes(url.protocol))return [{text:part,url:null}];return [{text:clean,url:clean},...(clean.length<part.length?[{text:part.slice(clean.length),url:null}]:[])];}catch{return [{text:part,url:null}];}});}
   insertComposerEmoji(emoji:string):void {const field=this.messageTextareaRef?.nativeElement;const draft=this.messageDraft();const at=field?.selectionStart??draft.length;const end=field?.selectionEnd??at;this.onMessageDraftChange(draft.slice(0,at)+emoji+draft.slice(end));this.composerEmojiOpen.set(false);requestAnimationFrame(()=>{field?.focus();field?.setSelectionRange(at+emoji.length,at+emoji.length);});}
-  reactFromMenu(code:WorkspaceMessageReactionCode):void {const target=this.messageActionsTarget();this.closeMessageActions();if(target)this.toggleMessageReaction(target,code);}
+  reactFromMenu(code:WorkspaceMessageReactionCode):void {const target=this.messageActionsTarget();this.closeMessageActions();if(target)this.toggleMessageReaction(target,this.messageReactionOptions.find(item=>item.emoji===code)?.code??code);}
   messageDay(value:string):string{return this.bubbleDayFormat.format(new Date(value));}
   startsMessageDay(message:WorkspaceMessage,index:number):boolean{return index===0||new Date(message.created_at).toDateString()!==new Date(this.messages()[index-1].created_at).toDateString();}
   messageClock(value:string):string{return this.bubbleClockFormat.format(new Date(value));}
   goToReply(message:WorkspaceMessage):void {const reply=message.reply_to;const token=this.session()?.access_token;const channel=this.activeMessagingChannel();if(!reply||!token||!channel)return;this.messageSearchFocusedMessageId.set(reply.id);if(this.messages().some(m=>m.id===reply.id)){this.openedMessageFocusKind.set('search');this.scrollMessageIntoView(reply.id);return;}this.loadMessagesForChannel(token,channel.id,undefined,{focusMessageId:reply.id,focusKind:'search',limit:MESSAGES_PAGE_SIZE,preserve:true});}
+  menuImage(message:WorkspaceMessage){return message.attachments.find(a=>a.mime_type.startsWith('image/')&&!a.deleted_at);}
+  messageBubbleClick(message:WorkspaceMessage,event:MouseEvent):void {
+    if(event.defaultPrevented||window.getSelection()?.toString()||(event.target as Element).closest('button,a,input,textarea,video,audio,[role="button"]'))return;
+    this.openMessageActions(message,event);
+  }
   private messageActionsFocus: HTMLElement | null = null;
   openMessageActions(message: WorkspaceMessage, event?: Event): void {
     this.composerEmojiOpen.set(false);
@@ -749,7 +754,7 @@ export class AppComponent {
     this.messageActionsFocus = null;
     requestAnimationFrame(() => { if (focus?.isConnected) focus.focus({preventScroll:true}); });
   }
-  chooseMessageAction(action: 'reply'|'reaction'): void {
+  chooseMessageAction(action: 'reply'|'open-image'|'download-image'): void {
     const message = this.messageActionsTarget();
     this.closeMessageActions();
     if (!message || !this.messages().some(item => item.id === message.id)) return;
@@ -757,8 +762,8 @@ export class AppComponent {
     requestAnimationFrame(() => {
       if (action === 'reply') this.startReplyToMessage(message);
       else {
-        this.toggleMessageReactionPicker(message.id);
-        requestAnimationFrame(() => this.messageListRef?.nativeElement.querySelector<HTMLElement>(`[data-message-id="${message.id}"] .reaction-picker button`)?.focus());
+        const image = this.menuImage(message);
+        if(image){if(action==='open-image')this.openImageAttachment(image);else this.downloadAttachment(image);}
       }
     });
   }
@@ -6695,7 +6700,7 @@ export class AppComponent {
   }
 
   reactionEmoji(code: WorkspaceMessageReactionCode): string {
-    return this.messageReactionOptions.find((option) => option.code === code)?.emoji ?? '🙂';
+    return this.messageReactionOptions.find((option) => option.code === code)?.emoji ?? code;
   }
 
   reactionAssetPath(code: WorkspaceMessageReactionCode): string | null {

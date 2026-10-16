@@ -557,6 +557,43 @@ def test_app_events_websocket_pushes_message_reaction_updates() -> None:
     assert pushed_event["snapshot"]["reactions"] == [{"code": "like", "count": 1, "reacted": False}]
 
 
+
+def test_app_events_websocket_pushes_unicode_reaction_updates() -> None:
+    suffix = uuid4().hex[:6]
+
+    with TestClient(app) as client:
+        admin_token = login_admin_user(client)
+        regular_token, payload = register_regular_user(client)
+        server, text_channel = get_seed_server_and_text_channel(client, admin_token)
+        invite_to_server(client, admin_token, regular_token, server["id"])
+
+        try:
+            create_message_response = client.post(
+                f"/api/channels/{text_channel['id']}/messages",
+                headers={"Authorization": f"Bearer {admin_token}"},
+                data={"content": f"react-{suffix}"},
+            )
+            assert create_message_response.status_code == 201
+            message_id = create_message_response.json()["id"]
+
+            with connect_app_events_websocket(client, regular_token, server["id"]) as websocket:
+                reaction_response = client.put(
+                    f"/api/messages/{message_id}/reactions/\U0001f438",
+                    headers={"Authorization": f"Bearer {admin_token}"},
+                )
+
+                assert reaction_response.status_code == 200
+                pushed_event = receive_app_event(websocket, "message_reactions_updated", lambda event: event["snapshot"]["message_id"] == message_id)
+        finally:
+            delete_user(payload["email"])
+
+    assert pushed_event["type"] == "message_reactions_updated"
+    assert pushed_event["server_id"] == server["id"]
+    assert pushed_event["channel_id"] == text_channel["id"]
+    assert pushed_event["snapshot"]["message_id"] == message_id
+    assert pushed_event["snapshot"]["reactions"] == [{"code": "\U0001f438", "count": 1, "reacted": False}]
+
+
 def test_regular_user_can_access_invited_groups_channels_and_members() -> None:
     with TestClient(app) as client:
         token, payload = register_regular_user(client)

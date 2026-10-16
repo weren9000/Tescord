@@ -1185,6 +1185,7 @@
                         class="message-card"
                         appMessageGesture
                         (replyGesture)="startReplyToMessage(message)"
+                        (click)="messageBubbleClick(message,$event)"
                         (holdGesture)="openMessageActions(message)"
                         (contextmenu)="openMessageActions(message,$event)"
                         (keydown.shift.f10)="openMessageActions(message, $event)"
@@ -3771,5 +3772,5 @@
 }
 
 @if (messageActionsTarget(); as target) {
-  <app-message-actions [text]="target.content" [anchor]="messageActionsAnchor()" (react)="reactFromMenu($event)" (choose)="chooseMessageAction($event)" (close)="closeMessageActions()" />
+  <app-message-actions [token]="session()?.access_token ?? ''" [hasImage]="!!menuImage(target)" [text]="target.content" [anchor]="messageActionsAnchor()" (react)="reactFromMenu($event)" (choose)="chooseMessageAction($event)" (close)="closeMessageActions()" />
 }

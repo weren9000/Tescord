@@ -528,7 +528,7 @@ export class WorkspaceApiService {
     reactionCode: WorkspaceMessageReactionCode
   ): Observable<WorkspaceMessageReactionsSnapshot> {
     return this.http.put<WorkspaceMessageReactionsSnapshot>(
-      `${API_BASE_URL}/api/messages/${messageId}/reactions/${reactionCode}`,
+      `${API_BASE_URL}/api/messages/${messageId}/reactions/${encodeURIComponent(reactionCode)}`,
       null,
       {
         headers: this.buildAuthHeaders(token)
@@ -542,7 +542,7 @@ export class WorkspaceApiService {
     reactionCode: WorkspaceMessageReactionCode
   ): Observable<WorkspaceMessageReactionsSnapshot> {
     return this.http.delete<WorkspaceMessageReactionsSnapshot>(
-      `${API_BASE_URL}/api/messages/${messageId}/reactions/${reactionCode}`,
+      `${API_BASE_URL}/api/messages/${messageId}/reactions/${encodeURIComponent(reactionCode)}`,
       {
         headers: this.buildAuthHeaders(token)
       }

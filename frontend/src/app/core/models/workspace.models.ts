@@ -150,18 +150,7 @@ export interface WorkspaceChatAttachmentSummary {
   author: WorkspaceMessageAuthor;
 }
 
-export type WorkspaceMessageReactionCode =
-  | 'heart'
-  | 'like'
-  | 'dislike'
-  | 'angry'
-  | 'cry'
-  | 'confused'
-  | 'displeased'
-  | 'laugh'
-  | 'fire'
-  | 'wow'
-  | 'praying_cat';
+export type WorkspaceMessageReactionCode = string;
 
 export interface WorkspaceMessageReaction {
   code: WorkspaceMessageReactionCode;
