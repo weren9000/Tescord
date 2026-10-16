@@ -36,4 +36,4 @@ def persist(source: Path, destination: Path):
 if __name__ == '__main__':
     release = Path(sys.argv[1]).resolve()
     if release.parent != Path('/srv/tescord/releases'): raise SystemExit('Release outside deployment directory')
-    persist(release / 'frontend/dist/frontend/browser/downloads', Path('/srv/tescord/shared/downloads'))
+    persist(release / 'frontend/dist/frontend/browser/downloads', Path('/srv/tescord/downloads'))
