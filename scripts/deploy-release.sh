@@ -17,6 +17,7 @@ exec 9>/run/lock/kva-deploy.lock
 flock -n 9
 cd "$release"
 sha256sum -c RELEASE.sha256 >/dev/null
+python3 "$release/scripts/persist-downloads.py" "$release"
 ln -s /srv/tescord/shared/backend.env backend/.env
 ln -s /srv/tescord/shared/storage backend/storage
 python3.12 -m venv backend/.venv

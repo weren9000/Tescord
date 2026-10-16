@@ -34,3 +34,5 @@ mobile/android/capacitor-cordova-android-plugins/
 mobile/*.jks
 mobile/*.keystore
 mobile/signing.properties
+
+/frontend/public/downloads/

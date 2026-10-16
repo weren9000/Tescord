@@ -256,7 +256,9 @@
 @if (pendingInviteCode() && isAuthenticated()) {<div class="invite-entry-layer"><ng-container *ngTemplateOutlet="inviteNotice" /></div>}
 @if(pendingFriendInvite() && isAuthenticated()) {<div class="invite-entry-layer" role="dialog" aria-modal="true" aria-label="Приглашение в друзья"><app-friend-invite [userId]="pendingFriendInvite()!" [token]="session()!.access_token" (close)="dismissFriendInvite()" (requests)="dismissFriendInvite(); openFriendRequestsModal()" /></div>}
 @if (inviteManagerSpace(); as space) {<app-invite-manager [space]="space" [token]="session()?.access_token ?? ''" (close)="closeInvites()" />}
-@if (!isAuthenticated()) {
+@if (showLanding()) {
+  @defer (on immediate) {<app-landing />}
+} @else if (!isAuthenticated()) {
   <div class="auth-shell" [class.auth-shell--invite]="!!pendingInviteCode() || !!pendingFriendInvite()">
     <section class="auth-panel auth-panel--story auth-panel--logo">
       <div class="auth-brand">

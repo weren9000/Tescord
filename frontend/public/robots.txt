@@ -1,5 +1,8 @@
 User-agent: *
 Disallow: /api/
 Disallow: /livekit/
+Disallow: /login
+Disallow: /channels/
+Disallow: /invite/
 
 Sitemap: https://kvachat.ru/sitemap.xml

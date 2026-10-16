@@ -1,3 +1,4 @@
+import {LandingComponent} from './landing/landing.component';
 import {FriendLinkComponent} from './workspace/friend-link.component';
 import {FriendInviteComponent} from './workspace/friend-invite.component';
 import {MobileViewportDirective} from './workspace/mobile-viewport.directive';
@@ -638,7 +639,7 @@ const DEFAULT_SERVER_ICON_ASSET_BY_NAME: Record<string, string> = {
 @Component({
   providers: [AuthFormStore],
     selector: 'app-root',
-    imports: [FriendLinkComponent, FriendInviteComponent, MobileViewportDirective, PlatformListComponent, AdminDirectoryComponent, AvatarPickerComponent, AudioDevicePickerComponent, InfoPanelComponent, ActionMenuComponent, CommonModule, FormsModule, MediaStreamSrcDirective, SectionNavigationComponent, UiIconComponent, ConversationListComponent, QuickSwitchComponent, InviteManagerComponent, InventoryComponent, WallpapersComponent, ThemeControllerComponent, MessageGestureDirective, MessageActionsComponent, EmojiPickerComponent, DesktopPreferencesComponent, SidebarResizeDirective],
+    imports: [LandingComponent, FriendLinkComponent, FriendInviteComponent, MobileViewportDirective, PlatformListComponent, AdminDirectoryComponent, AvatarPickerComponent, AudioDevicePickerComponent, InfoPanelComponent, ActionMenuComponent, CommonModule, FormsModule, MediaStreamSrcDirective, SectionNavigationComponent, UiIconComponent, ConversationListComponent, QuickSwitchComponent, InviteManagerComponent, InventoryComponent, WallpapersComponent, ThemeControllerComponent, MessageGestureDirective, MessageActionsComponent, EmojiPickerComponent, DesktopPreferencesComponent, SidebarResizeDirective],
     templateUrl: './app.component.html',
     styleUrls: ['./app.component.scss', './app-layout.scss', './call-workspace.scss', './platform-workspace.scss', './invite-entry.scss', './palette-theme.scss', './auth-workspace.scss', './avatar-presets.scss', './mobile-workspace.scss', './chat-bubbles.scss', './conference-stage.scss']
 })
@@ -1422,6 +1423,7 @@ export class AppComponent {
   };
 
   readonly isAuthenticated = computed(() => this.session() !== null);
+  readonly showLanding = computed(() => !this.isAuthenticated() && !window.kvaDesktop && window.location.pathname === '/' && !this.pendingInviteCode() && !this.pendingFriendInvite());
   readonly isAdmin = computed(() => this.currentUser()?.is_admin === true);
   readonly voiceParticipants = this.voiceRoom.participants;
   readonly voiceError = this.voiceRoom.error;
