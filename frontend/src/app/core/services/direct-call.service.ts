@@ -1,4 +1,5 @@
 import { authenticatedWebSocket } from './authenticated-websocket';
+import { CallRingtone } from './call-ringtone';
 import { Injectable, computed, signal } from '@angular/core';
 
 import { VOICE_ICE_SERVERS, WS_BASE_URL } from '../api/api-base';
@@ -103,6 +104,10 @@ export class DirectCallService {
   private remoteScreenTrack: MediaStreamTrack | null = null;
   private remoteAudioElement: HTMLAudioElement | null = null;
   private activeCallId: string | null = null;
+  private readonly ringtone = new CallRingtone();
+  private signalingQueue: Promise<void> = Promise.resolve();
+  private callGeneration = 0;
+  private pendingIce: RTCIceCandidateInit[] = [];
   private negotiationInFlight = false;
   private negotiationQueued = false;
   private pendingRemoteAudioPlayback = false;
@@ -194,6 +199,7 @@ export class DirectCallService {
   });
 
   start(token: string): void {
+    this.ringtone.install();
     if (!token) {
       return;
     }
@@ -220,6 +226,7 @@ export class DirectCallService {
   }
 
   stop(): void {
+    this.ringtone.dispose();
     this.manuallyStopped = true;
     this.currentToken = null;
     this.currentUserId = null;
@@ -264,6 +271,7 @@ export class DirectCallService {
 
     this.error.set(null);
     this.notice.set(null);
+    this.ringtone.stop();
     this.send({
       type: 'call_response',
       call_id: this.activeCallId,
@@ -481,6 +489,7 @@ export class DirectCallService {
     }
 
     const websocketUrl = `${WS_BASE_URL}/api/calls/ws`;
+    this.connected.set(false);
     const socket = authenticatedWebSocket(websocketUrl, this.currentToken);
     this.socket = socket;
 
@@ -489,19 +498,30 @@ export class DirectCallService {
         return;
       }
 
-      this.connected.set(true);
       this.reconnectAttempt = 0;
       this.startPing();
     });
 
     socket.addEventListener('message', (event) => {
+      if (this.socket !== socket) return;
       if (typeof event.data !== 'string') {
         return;
       }
 
       try {
         const payload = JSON.parse(event.data) as IncomingDirectCallMessage;
-        void this.handleMessage(payload);
+        if (['call_accepted','offer','answer','ice_candidate'].includes(payload.type)) {
+          const generation = this.callGeneration;
+          this.signalingQueue = this.signalingQueue.then(async () => {
+            if (this.socket !== socket || generation !== this.callGeneration) return;
+            if ('call_id' in payload && payload.call_id !== this.activeCallId) return;
+            await this.handleMessage(payload);
+          }).catch(error => {
+            if (generation !== this.callGeneration) return;
+            this.error.set(error instanceof Error ? error.message : 'Не удалось соединить звонок');
+            void this.hangUp();
+          });
+        } else void this.handleMessage(payload);
       } catch {
         // Ignore malformed payloads.
       }
@@ -551,6 +571,7 @@ export class DirectCallService {
 
   private async handleMessage(message: IncomingDirectCallMessage): Promise<void> {
     if (message.type === 'ready') {
+      this.connected.set(true);
       const pendingCall = window.kvaAndroid?.pendingCall();
       if (pendingCall && this.state() === 'idle') {
         try {
@@ -563,6 +584,8 @@ export class DirectCallService {
     }
 
     if (message.type === 'call_ringing') {
+      if (this.state() !== 'outgoing') {this.send({type:'hangup',call_id:message.call_id});return;}
+      this.ringtone.start('outgoing');
       this.activeCallId = message.call_id;
       this.peer.set(message.peer);
       this.state.set('outgoing');
@@ -572,6 +595,7 @@ export class DirectCallService {
     }
 
     if (message.type === 'incoming_call') {
+      this.ringtone.start('incoming');
       void window.kvaDesktop?.notify?.({id: message.call_id, title: 'Входящий звонок', body: message.peer.nick, target: 'call'});
       this.activeCallId = message.call_id;
       this.peer.set(message.peer);
@@ -582,6 +606,7 @@ export class DirectCallService {
     }
 
     if (message.type === 'call_accepted') {
+      this.ringtone.stop();
       window.kvaDesktop?.clearNotifications?.('call');
       this.activeCallId = message.call_id;
       this.peer.set(message.peer);
@@ -593,6 +618,7 @@ export class DirectCallService {
         this.remoteCameraExpected = false;
         this.remoteScreenExpected = false;
         await this.ensureLocalStream();
+        if (this.activeCallId !== message.call_id) return;
         const connection = await this.ensurePeerConnection(message.peer.user_id);
         if (message.should_create_offer) {
           const offer = await connection.createOffer();
@@ -605,6 +631,7 @@ export class DirectCallService {
           });
         }
       } catch (error) {
+        if (this.activeCallId !== message.call_id) return;
         this.error.set(error instanceof Error ? error.message : 'Не удалось подключить личный звонок');
         await this.hangUp();
       }
@@ -636,6 +663,7 @@ export class DirectCallService {
           }
         }
         await connection.setRemoteDescription(new RTCSessionDescription(message.payload as RTCSessionDescriptionInit));
+        await this.flushPendingIce(connection);
         const answer = await connection.createAnswer();
         await connection.setLocalDescription(answer);
         this.send({
@@ -645,6 +673,7 @@ export class DirectCallService {
           payload: connection.localDescription,
         });
       } catch (error) {
+        if (this.activeCallId !== message.call_id) return;
         this.error.set(error instanceof Error ? error.message : 'Не удалось принять личный звонок');
         await this.hangUp();
       }
@@ -659,11 +688,14 @@ export class DirectCallService {
       await this.peerConnection.setRemoteDescription(
         new RTCSessionDescription(message.payload as RTCSessionDescriptionInit)
       );
+      await this.flushPendingIce(this.peerConnection);
       return;
     }
 
     if (message.type === 'ice_candidate') {
-      if (!this.peerConnection || !message.payload) {
+      if (!message.payload) return;
+      if (!this.peerConnection?.remoteDescription) {
+        this.pendingIce.push(message.payload as RTCIceCandidateInit);
         return;
       }
 
@@ -720,10 +752,21 @@ export class DirectCallService {
       return;
     }
 
-    this.localStream = await navigator.mediaDevices.getUserMedia({
+    const generation = this.callGeneration;
+    const stream = await navigator.mediaDevices.getUserMedia({
       audio: true
     });
+    if (generation !== this.callGeneration) {stream.getTracks().forEach(track=>track.stop());return;}
+    this.localStream = stream;
     this.applyLocalMuteState();
+  }
+
+  private async flushPendingIce(connection: RTCPeerConnection): Promise<void> {
+    const candidates = this.pendingIce.splice(0);
+    for (const candidate of candidates) {
+      if (this.peerConnection !== connection) return;
+      try {await connection.addIceCandidate(new RTCIceCandidate(candidate));} catch { /* Invalid remote candidate. */ }
+    }
   }
 
   private async ensurePeerConnection(targetUserId: string): Promise<RTCPeerConnection> {
@@ -778,6 +821,7 @@ export class DirectCallService {
     });
 
     connection.addEventListener('connectionstatechange', () => {
+      if (this.peerConnection !== connection) return;
       const state = connection.connectionState;
       if (state === 'connected') {
         this.state.set('connected');
@@ -909,6 +953,10 @@ export class DirectCallService {
   }
 
   private resetCallState(): void {
+    this.ringtone.stop();
+    this.callGeneration++;
+    this.signalingQueue = Promise.resolve();
+    this.pendingIce = [];
     this.inputDeviceId.set(null);
     this.outputDeviceId.set(null);
     this.deviceNotice.set(null);

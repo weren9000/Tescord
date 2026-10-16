@@ -5152,14 +5152,6 @@ export class AppComponent {
 
     this.directCall.clearFeedback();
 
-    if (!peer.is_online) {
-      this.setPushFeedback({
-        tone: 'warning',
-        message: `Друг ${this.displayNick(peer.nick)} сейчас офлайн`
-      });
-      return;
-    }
-
     const activePeer = this.directCallPeer();
     if (this.hasDirectCall() && activePeer?.user_id === peer.user_id) {
       this.closeMobilePanel();
