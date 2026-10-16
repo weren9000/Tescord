@@ -14,5 +14,5 @@ for source in files:
     if not checksum.is_file() or checksum.read_text().split()[0].lower() != digest:
         raise SystemExit(f'Checksum mismatch: {source.name}')
     shutil.copy2(source, target / source.name)
-    (target / checksum.name).write_text(f'{digest}  {source.name}\n', encoding='ascii')
+    (target / checksum.name).write_text(f'{digest}  {source.name}\n', encoding='ascii', newline='\n')
     print(f'{source.name}: {source.stat().st_size} bytes, verified')

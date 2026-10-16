@@ -19,6 +19,9 @@ def persist(source: Path, destination: Path):
         if file.with_suffix(file.suffix + '.sha256').read_text().split()[0].lower() != digest: raise ValueError(f'Checksum mismatch: {file.name}')
     for file in files:
         target = destination / file.name
+        if target.exists() and file.suffix == '.sha256' and target.read_text() == file.read_text():
+            target.write_text(file.read_text(), encoding='ascii', newline='\n')
+            continue
         if target.exists():
             if hashlib.sha256(target.read_bytes()).digest() != hashlib.sha256(file.read_bytes()).digest(): raise ValueError(f'Cannot replace immutable download: {file.name}')
         else:
