@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.core.security import TokenError, decode_access_token
 from app.db.models import AuthSession, User
-from app.db.session import get_db
+from app.db.session import get_db, SessionLocal
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -40,4 +40,11 @@ def get_current_user(
     if credentials is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Требуется авторизация")
 
-    return resolve_user_from_token(credentials.credentials, db)
+    # Release the authentication checkout before FastAPI resumes an async route.
+    # Otherwise concurrent dependencies can fill the pool while an async handler
+    # blocks the event loop waiting for its own synchronous ORM connection.
+    with SessionLocal() as auth_db:
+        user = resolve_user_from_token(credentials.credentials, auth_db)
+        auth_db.expunge(user)
+    # Keep profile edits attached to the request session without issuing a query.
+    return db.merge(user, load=False)
