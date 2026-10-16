@@ -4,16 +4,34 @@ from app.api.dependencies.websocket_auth import authenticate_websocket, receive_
 
 from uuid import UUID
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
+from fastapi.security import HTTPAuthorizationCredentials
+from pydantic import BaseModel, Field
 from sqlalchemy import and_, or_, select
 
-from app.api.dependencies.auth import resolve_user_from_token
+from app.api.dependencies.auth import get_current_user, bearer_scheme
+from app.core.config import get_settings
+from app.core.security import decode_access_token
+from app.db.models import User
+from app.services.direct_call_sfu import issue_call_token
 from app.db.models import FriendBlock
 from app.db.session import SessionLocal
 from app.services.direct_call_signaling import direct_call_signaling_manager
 from app.services.direct_conversations import load_direct_conversation
 
 router = APIRouter(prefix="/calls", tags=["calls"])
+
+
+class CallTokenRequest(BaseModel):
+    client_id: str = Field(min_length=1, max_length=100)
+
+
+@router.post('/{call_id}/sfu-token')
+async def create_direct_sfu_token(call_id: str, body: CallTokenRequest,
+        current_user: User = Depends(get_current_user),
+        credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)):
+    session_id = decode_access_token(credentials.credentials, get_settings().secret_key)['sid']
+    return await issue_call_token(call_id, str(current_user.id), current_user.username, session_id, body.client_id)
 
 
 def _can_start_direct_call(current_user_id: UUID, target_user_id: UUID) -> bool:
@@ -47,12 +65,14 @@ async def connect_to_direct_calls(websocket: WebSocket) -> None:
     if current_user is None:
         return
     connection_id = ""
+    client_id = websocket.query_params.get('client_id', '')[:100]
     with SessionLocal() as db:
         connection_id = await direct_call_signaling_manager.connect(
             websocket,
             user_id=str(current_user.id),
             nick=current_user.username,
             avatar_updated_at=current_user.avatar_updated_at,
+            client_id=client_id,
         )
 
     user_id = str(current_user.id)
@@ -63,6 +83,9 @@ async def connect_to_direct_calls(websocket: WebSocket) -> None:
             message_type = message.get("type")
 
             if message_type == "call_request":
+                if message.get('transport') != 'sfu' or not client_id:
+                    await websocket.send_json({'type': 'error', 'detail': 'Обновите приложение для личных звонков'})
+                    continue
                 target_user_id = message.get("target_user_id")
                 if not isinstance(target_user_id, str) or not target_user_id:
                     await websocket.send_json({"type": "error", "detail": "Нужно указать target_user_id"})
@@ -78,10 +101,13 @@ async def connect_to_direct_calls(websocket: WebSocket) -> None:
                     await websocket.send_json({"type": "error", "detail": "Личный звонок доступен только для друзей"})
                     continue
 
-                await direct_call_signaling_manager.request_call(user_id, target_user_id)
+                await direct_call_signaling_manager.request_call(user_id, target_user_id, connection_id)
                 continue
 
             if message_type == "call_response":
+                if message.get('action') == 'accept' and (message.get('transport') != 'sfu' or not client_id):
+                    await websocket.send_json({'type': 'error', 'detail': 'Обновите приложение для личных звонков'})
+                    continue
                 call_id = message.get("call_id")
                 action = message.get("action")
                 if not isinstance(call_id, str) or not call_id:
@@ -96,31 +122,10 @@ async def connect_to_direct_calls(websocket: WebSocket) -> None:
                     user_id,
                     call_id,
                     accept=action == "accept",
+                    connection_id=connection_id,
                 )
                 if not handled:
                     await websocket.send_json({"type": "error", "detail": "Запрос на звонок уже неактуален"})
-                continue
-
-            if message_type in {"offer", "answer", "ice_candidate", "screen_share_state", "camera_state"}:
-                call_id = message.get("call_id")
-                target_user_id = message.get("target_user_id")
-                if not isinstance(call_id, str) or not call_id:
-                    await websocket.send_json({"type": "error", "detail": "Нужно указать call_id"})
-                    continue
-
-                if not isinstance(target_user_id, str) or not target_user_id:
-                    await websocket.send_json({"type": "error", "detail": "Нужно указать target_user_id"})
-                    continue
-
-                relayed = await direct_call_signaling_manager.relay(
-                    call_id=call_id,
-                    source_user_id=user_id,
-                    target_user_id=target_user_id,
-                    message_type=message_type,
-                    payload=message.get("payload"),
-                )
-                if not relayed:
-                    await websocket.send_json({"type": "error", "detail": "Не удалось передать сигнал личного звонка"})
                 continue
 
             if message_type == "hangup":
@@ -129,7 +134,7 @@ async def connect_to_direct_calls(websocket: WebSocket) -> None:
                     await websocket.send_json({"type": "error", "detail": "Нужно указать call_id"})
                     continue
 
-                await direct_call_signaling_manager.hangup(user_id, call_id, detail="Собеседник завершил звонок")
+                await direct_call_signaling_manager.hangup(user_id, call_id, detail="Собеседник завершил звонок", client_id=client_id or connection_id)
                 continue
 
             if message_type == "ping":

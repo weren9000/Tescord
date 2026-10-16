@@ -1,1318 +1,163 @@
-import { authenticatedWebSocket } from './authenticated-websocket';
-import { CallRingtone } from './call-ringtone';
-import { Injectable, computed, signal } from '@angular/core';
+import {Injectable, computed, signal} from '@angular/core';
+import {API_BASE_URL, WS_BASE_URL} from '../api/api-base';
+import {authenticatedWebSocket} from './authenticated-websocket';
+import {CallRingtone} from './call-ringtone';
+import {DirectCallMedia} from './direct-call-media';
 
-import { VOICE_ICE_SERVERS, WS_BASE_URL } from '../api/api-base';
-import { isIphoneLikeBrowser, prepareInlineMediaElement, requestCameraStream } from '../../shared/media-device.utils';
-
-export interface DirectCallPeer {
-  user_id: string;
-  nick: string;
-  avatar_updated_at: string | null;
+export interface DirectCallPeer {user_id: string; nick: string; avatar_updated_at: string | null;}
+interface CallMessage {
+  type: string;
+  user_id?: string;
+  call_id?: string | null;
+  peer?: DirectCallPeer;
+  detail?: string;
+  transport?: string;
 }
 
-type DirectCallState = 'idle' | 'outgoing' | 'incoming' | 'connecting' | 'connected';
-type DirectCallSignalType = 'offer' | 'answer' | 'ice_candidate' | 'screen_share_state' | 'camera_state';
-
-interface DirectCallReadyMessage {
-  type: 'ready';
-  user_id: string;
-}
-
-interface DirectCallRingingMessage {
-  type: 'call_ringing';
-  call_id: string;
-  peer: DirectCallPeer;
-}
-
-interface DirectCallIncomingMessage {
-  type: 'incoming_call';
-  call_id: string;
-  peer: DirectCallPeer;
-}
-
-interface DirectCallAcceptedMessage {
-  type: 'call_accepted';
-  call_id: string;
-  peer: DirectCallPeer;
-  should_create_offer: boolean;
-}
-
-interface DirectCallRejectedMessage {
-  type: 'call_rejected';
-  call_id: string | null;
-  detail: string;
-}
-
-interface DirectCallEndedMessage {
-  type: 'call_ended';
-  call_id: string;
-  detail: string;
-}
-
-interface DirectCallRelayedSignalMessage {
-  type: DirectCallSignalType;
-  call_id: string;
-  from_user_id: string;
-  payload: RTCSessionDescriptionInit | RTCIceCandidateInit | { sharing?: boolean; enabled?: boolean };
-}
-
-interface DirectCallErrorMessage {
-  type: 'error';
-  detail: string;
-}
-
-type IncomingDirectCallMessage =
-  | DirectCallReadyMessage
-  | DirectCallRingingMessage
-  | DirectCallIncomingMessage
-  | DirectCallAcceptedMessage
-  | DirectCallRejectedMessage
-  | DirectCallEndedMessage
-  | DirectCallRelayedSignalMessage
-  | DirectCallErrorMessage
-  | { type: 'pong' };
-
-const DIRECT_CALL_PING_INTERVAL_MS = 25000;
-const DIRECT_CALL_RECONNECT_BASE_MS = 1000;
-const DIRECT_CALL_RECONNECT_MAX_MS = 10000;
-const DIRECT_CALL_AUTH_CLOSE_CODES = new Set([4401, 4403]);
-const DIRECT_CALL_AUDIO_UNLOCK_NOTICE =
-  'На телефоне коснитесь экрана еще раз, если браузер не включил звук звонка автоматически.';
-
-@Injectable({
-  providedIn: 'root'
-})
-export class DirectCallService {
-  private socket: WebSocket | null = null;
-  private reconnectTimerId: number | null = null;
-  private pingIntervalId: number | null = null;
-  private reconnectAttempt = 0;
-  private currentToken: string | null = null;
-  private manuallyStopped = true;
-  private currentUserId: string | null = null;
-
-  private peerConnection: RTCPeerConnection | null = null;
-  private localStream: MediaStream | null = null;
-  private cameraStream: MediaStream | null = null;
-  private cameraTrack: MediaStreamTrack | null = null;
-  private screenShareStream: MediaStream | null = null;
-  private screenShareTrack: MediaStreamTrack | null = null;
-  private cameraTransceiver: RTCRtpTransceiver | null = null;
-  private screenTransceiver: RTCRtpTransceiver | null = null;
-  private remoteCameraTrack: MediaStreamTrack | null = null;
-  private remoteScreenTrack: MediaStreamTrack | null = null;
-  private remoteAudioElement: HTMLAudioElement | null = null;
-  private activeCallId: string | null = null;
-  private readonly ringtone = new CallRingtone();
-  private signalingQueue: Promise<void> = Promise.resolve();
-  private callGeneration = 0;
-  private pendingIce: RTCIceCandidateInit[] = [];
-  private negotiationInFlight = false;
-  private negotiationQueued = false;
-  private pendingRemoteAudioPlayback = false;
-  private userGestureUnlockHandler: (() => void) | null = null;
-  private remoteCameraExpected = false;
-  private remoteScreenExpected = false;
-
-  readonly connected = signal(false);
-  readonly state = signal<DirectCallState>('idle');
-  readonly error = signal<string | null>(null);
-  readonly notice = signal<string | null>(null);
-  readonly peer = signal<DirectCallPeer | null>(null);
-  readonly localCameraStream = signal<MediaStream | null>(null);
-  readonly remoteCameraStream = signal<MediaStream | null>(null);
-  readonly localScreenStream = signal<MediaStream | null>(null);
-  readonly remoteScreenStream = signal<MediaStream | null>(null);
-  readonly localMuted = signal(false);
-  readonly remoteVolume = signal(100);
-  readonly outputMuted = signal(false);
-  readonly inputDeviceId = signal<string | null>(null);
-  readonly outputDeviceId = signal<string | null>(null);
-  readonly deviceChanging = signal(false);
-  readonly deviceNotice = signal<string | null>(null);
-
-  async updateInputDevice(deviceId: string | null): Promise<void> {
-    if (this.deviceChanging() || !this.localStream || !this.peerConnection) return;
-    const previous = this.localStream;
-    const connection = this.peerConnection;
-    this.deviceChanging.set(true);
-    this.deviceNotice.set(null);
-    let replacement: MediaStream | null = null;
-    try {
-      replacement = await navigator.mediaDevices.getUserMedia({audio: deviceId ? {deviceId: {exact: deviceId}} : true});
-      if (this.localStream !== previous || this.peerConnection !== connection) return;
-      const track = replacement.getAudioTracks()[0];
-      const sender = connection.getSenders().find(entry => entry.track?.kind === 'audio');
-      if (!track || !sender) throw new Error('No audio sender');
-      track.enabled = !this.localMuted();
-      await sender.replaceTrack(track);
-      if (this.localStream !== previous || this.peerConnection !== connection) return;
-      this.localStream = replacement;
-      replacement = null;
-      this.applyLocalMuteState();
-      previous.getTracks().forEach(entry => entry.stop());
-      this.inputDeviceId.set(deviceId);
-    } catch {
-      if (this.localStream === previous) this.deviceNotice.set('Не удалось переключить микрофон. Прежний микрофон сохранён. Проверьте разрешение браузера.');
-    } finally {
-      replacement?.getTracks().forEach(track => track.stop());
-      this.deviceChanging.set(false);
-    }
-  }
-
-  async updateOutputDevice(deviceId: string | null): Promise<void> {
-    if (this.deviceChanging()) return;
-    const audio = this.remoteAudioElement as (HTMLAudioElement & {setSinkId?: (id: string) => Promise<void>}) | null;
-    if (!audio?.setSinkId) {
-      this.deviceNotice.set('В этом браузере устройство вывода выбирается в настройках системы.');
-      return;
-    }
-    this.deviceChanging.set(true);
-    this.deviceNotice.set(null);
-    try {
-      await audio.setSinkId(deviceId ?? '');
-      if (audio === this.remoteAudioElement) this.outputDeviceId.set(deviceId);
-    } catch {
-      if (audio === this.remoteAudioElement) this.deviceNotice.set('Не удалось переключить устройство вывода. Прежнее устройство сохранено.');
-    } finally {
-      this.deviceChanging.set(false);
-    }
-  }
-
-  toggleOutputMuted(): void {
-    this.outputMuted.update(value => !value);
-    this.applyRemoteVolume();
-  }
-  readonly canCall = computed(() => this.connected() && this.state() === 'idle');
-  readonly cameraSupported = computed(() => typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia);
-  readonly screenShareSupported = computed(
-    () => typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getDisplayMedia && !isIphoneLikeBrowser()
-  );
-  readonly isCameraEnabled = computed(() => this.localCameraStream() !== null);
-  readonly hasRemoteCamera = computed(() => this.remoteCameraStream() !== null);
-  readonly isScreenSharing = computed(() => this.localScreenStream() !== null);
-  readonly hasRemoteScreenShare = computed(() => this.remoteScreenStream() !== null);
-  readonly hasActiveCall = computed(() => {
-    const state = this.state();
-    return state === 'outgoing' || state === 'incoming' || state === 'connecting' || state === 'connected';
-  });
+@Injectable({providedIn:'root'})
+export class DirectCallService extends DirectCallMedia {
+  private socket: WebSocket | null=null;
+  private currentToken: string | null=null;
+  private currentUserId: string | null=null;
+  private activeCallId: string | null=null;
+  private readonly clientId=crypto.randomUUID();
+  private readonly ringtone=new CallRingtone();
+  private reconnectTimer: ReturnType<typeof setTimeout> | null=null;
+  private pingTimer: ReturnType<typeof setInterval> | null=null;
+  private reconnectDeadline: ReturnType<typeof setTimeout> | null=null;
+  private requestTimer: ReturnType<typeof setTimeout> | null=null;
+  private joinAbort: AbortController | null=null;
+  private manuallyStopped=true;
+  private reconnectAttempt=0;
+  private joiningCall: string | null=null;
+  private pendingHangup: string | null=null;
+  readonly connected=signal(false);
+  readonly peer=signal<DirectCallPeer | null>(null);
+  readonly canCall=computed(()=>this.connected() && !this.hasActiveCall());
 
   start(token: string): void {
-    this.ringtone.install();
-    if (!token) {
-      return;
-    }
-
-    const normalizedToken = token.trim();
-    if (!normalizedToken) {
-      return;
-    }
-
-    const shouldReconnectImmediately = this.currentToken !== normalizedToken;
-    this.currentToken = normalizedToken;
-    this.manuallyStopped = false;
-
-    if (this.socket?.readyState === WebSocket.OPEN || this.socket?.readyState === WebSocket.CONNECTING) {
-      if (!shouldReconnectImmediately) {
-        return;
-      }
-
-      this.closeSocket();
-    }
-
-    this.clearReconnectTimer();
+    if(!token.trim())return;
+    if(this.currentToken===token && this.socket && this.socket.readyState<2)return;
+    if(this.currentToken && this.currentToken!==token)this.stop();
+    this.currentToken=token;this.manuallyStopped=false;this.ringtone.install();
     this.openSocket();
   }
-
   stop(): void {
-    this.ringtone.dispose();
-    this.manuallyStopped = true;
-    this.currentToken = null;
-    this.currentUserId = null;
-    this.reconnectAttempt = 0;
-    this.clearReconnectTimer();
-    this.stopPing();
-    this.closeSocket();
-    this.connected.set(false);
-    this.resetCallState();
+    if(this.activeCallId)this.send({type:'hangup',call_id:this.activeCallId});
+    this.manuallyStopped=true;this.currentToken=null;this.currentUserId=null;
+    this.resetCallState();this.ringtone.dispose();
+    if(this.reconnectTimer)clearTimeout(this.reconnectTimer);this.reconnectTimer=null;
+    this.clearSocketTimers();
+    const socket=this.socket;this.socket=null;socket?.close();this.connected.set(false);
   }
-
   openCall(peer: DirectCallPeer): void {
-    if (!this.connected()) {
-      this.error.set('Личный звонок пока недоступен');
-      return;
-    }
-
-    if (!peer.user_id || peer.user_id === this.currentUserId) {
-      this.error.set('Нельзя позвонить самому себе');
-      return;
-    }
-
-    if (this.hasActiveCall()) {
-      this.error.set('Сначала завершите текущий личный звонок');
-      return;
-    }
-
-    this.error.set(null);
-    this.notice.set(null);
-    this.peer.set(peer);
-    this.state.set('outgoing');
-    this.send({
-      type: 'call_request',
-      target_user_id: peer.user_id
-    });
+    if(!this.canCall()){this.error.set('Сначала завершите текущий звонок или дождитесь подключения');return;}
+    if(peer.user_id===this.currentUserId)return;
+    this.clearFeedback();this.peer.set(peer);this.state.set('outgoing');
+    this.send({type:'call_request',target_user_id:peer.user_id,transport:'sfu'});
+    this.requestTimer=setTimeout(()=>{if(!this.activeCallId){this.resetCallState();this.error.set('Не удалось отправить вызов');}},10000);
   }
-
   acceptIncoming(): void {
-    if (this.state() !== 'incoming' || !this.activeCallId) {
-      return;
-    }
-
-    this.error.set(null);
-    this.notice.set(null);
-    this.ringtone.stop();
-    this.send({
-      type: 'call_response',
-      call_id: this.activeCallId,
-      action: 'accept'
-    });
+    if(this.state()!=='incoming' || !this.activeCallId || !this.connected())return;
+    this.ringtone.stop();this.state.set('connecting');this.clearFeedback();
+    this.send({type:'call_response',call_id:this.activeCallId,action:'accept',transport:'sfu'});
   }
-
   rejectIncoming(): void {
-    if (this.state() !== 'incoming' || !this.activeCallId) {
-      return;
-    }
-
-    this.send({
-      type: 'call_response',
-      call_id: this.activeCallId,
-      action: 'reject'
-    });
-    this.resetCallState();
+    if(this.state()!=='incoming' || !this.activeCallId)return;
+    this.send({type:'call_response',call_id:this.activeCallId,action:'reject'});this.resetCallState();
   }
-
   async hangUp(): Promise<void> {
-    const callId = this.activeCallId;
-    this.resetCallState();
-
-    if (!callId) {
-      return;
-    }
-
-    this.send({
-      type: 'hangup',
-      call_id: callId
-    });
+    const id=this.activeCallId;this.resetCallState();
+    if(id && !this.send({type:'hangup',call_id:id}))this.pendingHangup=id;
   }
-
-  clearFeedback(): void {
-    this.error.set(null);
-    this.notice.set(null);
-  }
-
-  setLocalMuted(muted: boolean): void {
-    this.localMuted.set(muted);
-    this.applyLocalMuteState();
-  }
-
-  toggleLocalMute(): void {
-    this.setLocalMuted(!this.localMuted());
-  }
-
-  updateRemoteVolume(value: number | string): void {
-    const numericValue = typeof value === 'number' ? value : Number(value);
-    if (!Number.isFinite(numericValue)) {
-      return;
-    }
-
-    this.remoteVolume.set(Math.max(0, Math.min(100, Math.round(numericValue))));
-    this.applyRemoteVolume();
-  }
-
-  readonly cameraDeviceId = signal<string | null>(null);
-  async setCameraDevice(deviceId: string | null): Promise<void> {
-    const enabled = this.isCameraEnabled();
-    if (enabled) await this.stopCamera();
-    this.cameraDeviceId.set(deviceId);
-    if (enabled) await this.startCamera();
-  }
-
-  async startCamera(): Promise<void> {
-    if (!this.cameraSupported()) {
-      this.error.set('Браузер не поддерживает доступ к камере');
-      return;
-    }
-
-    if (typeof window !== 'undefined' && !window.isSecureContext) {
-      this.error.set('Камера работает только через HTTPS или localhost');
-      return;
-    }
-
-    if (this.state() !== 'connected' || !this.peerConnection || !this.peer() || !this.activeCallId) {
-      this.error.set('Сначала установите личный звонок');
-      return;
-    }
-
-    if (this.cameraTrack) {
-      return;
-    }
-
-    try {
-      const stream = await requestCameraStream({
-        ...(this.cameraDeviceId() ? {deviceId: {exact: this.cameraDeviceId()!}} : {}),
-        width: { ideal: 1280, max: 1920 },
-        height: { ideal: 720, max: 1080 },
-        frameRate: { ideal: 24, max: 30 },
-        facingMode: 'user'
-      });
-      const [track] = stream.getVideoTracks();
-      if (!track) {
-        throw new Error('Не удалось получить видеодорожку камеры');
-      }
-
-      track.onended = () => {
-        if (this.cameraTrack?.id === track.id) {
-          void this.stopCamera();
-        }
-      };
-
-      this.cameraStream = stream;
-      this.cameraTrack = track;
-      this.localCameraStream.set(stream);
-
-      const cameraTransceiver = this.ensureCameraTransceiver();
-      await cameraTransceiver.sender.replaceTrack(track);
-      cameraTransceiver.direction = 'sendrecv';
-      this.sendCameraState(true);
-      this.error.set(null);
-      this.notice.set('Вы включили камеру');
-      await this.renegotiate();
-    } catch (error) {
-      this.clearLocalCamera();
-      this.error.set(error instanceof Error ? error.message : 'Не удалось включить камеру');
-    }
-  }
-
-  async stopCamera(): Promise<void> {
-    const hadCamera = !!this.cameraTrack || !!this.localCameraStream();
-    await this.detachCameraFromConnection();
-    this.clearLocalCamera();
-
-    if (!hadCamera || !this.peerConnection || !this.peer() || !this.activeCallId) {
-      return;
-    }
-
-    if (this.state() === 'connected') {
-      this.sendCameraState(false);
-      this.notice.set('Камера выключена');
-      await this.renegotiate();
-    }
-  }
-
-  async startScreenShare(): Promise<void> {
-    if (!this.screenShareSupported()) {
-      this.error.set('Браузер не поддерживает показ экрана');
-      return;
-    }
-
-    if (this.state() !== 'connected' || !this.peerConnection || !this.peer() || !this.activeCallId) {
-      this.error.set('Сначала установите личный звонок');
-      return;
-    }
-
-    if (this.screenShareTrack) {
-      return;
-    }
-
-    try {
-      if (isIphoneLikeBrowser()) {
-        throw new Error('На iPhone браузер не дает полноценно запустить показ экрана из звонка.');
-      }
-
-      const stream = await navigator.mediaDevices.getDisplayMedia({
-        video: {
-          frameRate: {
-            ideal: 15,
-            max: 30
-          }
-        },
-        audio: false
-      });
-      const [track] = stream.getVideoTracks();
-      if (!track) {
-        throw new Error('Не удалось получить видеодорожку экрана');
-      }
-
-      track.onended = () => {
-        if (this.screenShareTrack?.id === track.id) {
-          void this.stopScreenShare();
-        }
-      };
-
-      this.screenShareStream = stream;
-      this.screenShareTrack = track;
-      this.localScreenStream.set(stream);
-
-      const screenTransceiver = this.ensureScreenTransceiver();
-      await screenTransceiver.sender.replaceTrack(track);
-      screenTransceiver.direction = 'sendrecv';
-      this.sendScreenShareState(true);
-      this.error.set(null);
-      this.notice.set('Вы показываете экран');
-      await this.renegotiate();
-    } catch (error) {
-      this.clearLocalScreenShare();
-      this.error.set(error instanceof Error ? error.message : 'Не удалось начать показ экрана');
-    }
-  }
-
-  async stopScreenShare(): Promise<void> {
-    const hadScreenShare = !!this.screenShareTrack || !!this.localScreenStream();
-    await this.detachScreenShareFromConnection();
-    this.clearLocalScreenShare();
-
-    if (!hadScreenShare || !this.peerConnection || !this.peer() || !this.activeCallId) {
-      return;
-    }
-
-    if (this.state() === 'connected') {
-      this.sendScreenShareState(false);
-      this.notice.set('Показ экрана остановлен');
-      await this.renegotiate();
-    }
-  }
+  clearFeedback(): void {this.error.set(null);this.notice.set(null);}
+  protected mediaFailed(message: string): void {this.error.set(message);void this.hangUp();}
 
   private openSocket(): void {
-    if (typeof window === 'undefined' || !this.currentToken) {
-      return;
-    }
-
-    const websocketUrl = `${WS_BASE_URL}/api/calls/ws`;
-    this.connected.set(false);
-    const socket = authenticatedWebSocket(websocketUrl, this.currentToken);
-    this.socket = socket;
-
-    socket.addEventListener('open', () => {
-      if (this.socket !== socket) {
-        return;
-      }
-
-      this.reconnectAttempt = 0;
-      this.startPing();
+    if(this.manuallyStopped || !this.currentToken)return;
+    if(this.reconnectTimer)clearTimeout(this.reconnectTimer);this.reconnectTimer=null;
+    const socket=authenticatedWebSocket(`${WS_BASE_URL}/api/calls/ws?client_id=${this.clientId}`,this.currentToken);
+    this.socket=socket;this.connected.set(false);
+    socket.addEventListener('message',event=>{
+      if(this.socket!==socket || typeof event.data!=='string')return;
+      try {void this.handleMessage(JSON.parse(event.data) as CallMessage);}catch {/* Ignore malformed control frames. */}
     });
-
-    socket.addEventListener('message', (event) => {
-      if (this.socket !== socket) return;
-      if (typeof event.data !== 'string') {
-        return;
+    socket.addEventListener('close',event=>{
+      if(this.socket!==socket)return;
+      this.socket=null;this.connected.set(false);this.clearSocketTimers();
+      if([4401,4403].includes(event.code)){this.stop();this.error.set('Сессия устарела. Войдите снова.');return;}
+      if(this.hasActiveCall()){
+        this.notice.set('Восстанавливаем соединение…');
+        this.reconnectDeadline=setTimeout(()=>{if(!this.connected()){this.resetCallState();this.notice.set('Звонок прерван');}},20000);
       }
-
-      try {
-        const payload = JSON.parse(event.data) as IncomingDirectCallMessage;
-        if (['call_accepted','offer','answer','ice_candidate'].includes(payload.type)) {
-          const generation = this.callGeneration;
-          this.signalingQueue = this.signalingQueue.then(async () => {
-            if (this.socket !== socket || generation !== this.callGeneration) return;
-            if ('call_id' in payload && payload.call_id !== this.activeCallId) return;
-            await this.handleMessage(payload);
-          }).catch(error => {
-            if (generation !== this.callGeneration) return;
-            this.error.set(error instanceof Error ? error.message : 'Не удалось соединить звонок');
-            void this.hangUp();
-          });
-        } else void this.handleMessage(payload);
-      } catch {
-        // Ignore malformed payloads.
-      }
-    });
-
-    socket.addEventListener('error', () => {
-      if (this.socket !== socket) {
-        return;
-      }
-
-      this.error.set('Не удалось подключить личный звонок');
-    });
-
-    socket.addEventListener('close', (event) => {
-      if (this.socket !== socket) {
-        return;
-      }
-
-      this.connected.set(false);
-      this.stopPing();
-      this.socket = null;
-
-      if (DIRECT_CALL_AUTH_CLOSE_CODES.has(event.code)) {
-        this.manuallyStopped = true;
-        this.currentToken = null;
-        this.currentUserId = null;
-        this.reconnectAttempt = 0;
-        this.error.set('Сессия устарела. Войдите снова.');
-        if (this.hasActiveCall()) {
-          this.resetCallState();
-        }
-        return;
-      }
-
-      if (this.hasActiveCall()) {
-        this.resetCallState();
-        this.notice.set('Личный звонок прерван');
-      }
-
-      if (this.manuallyStopped) {
-        return;
-      }
-
-      this.scheduleReconnect();
+      if(!this.manuallyStopped)this.reconnectTimer=setTimeout(()=>this.openSocket(),Math.min(1000*2**this.reconnectAttempt++,8000));
     });
   }
-
-  private async handleMessage(message: IncomingDirectCallMessage): Promise<void> {
-    if (message.type === 'ready') {
-      this.connected.set(true);
-      const pendingCall = window.kvaAndroid?.pendingCall();
-      if (pendingCall && this.state() === 'idle') {
-        try {
-          const incoming = JSON.parse(pendingCall) as DirectCallIncomingMessage;
-          if (incoming.type === 'incoming_call') void this.handleMessage(incoming);
-        } catch { /* A stale native notification must not prevent connection. */ }
-      }
-      this.currentUserId = message.user_id;
+  private async handleMessage(message: CallMessage): Promise<void> {
+    if(message.type==='ready'){
+      this.connected.set(true);this.currentUserId=message.user_id??null;this.reconnectAttempt=0;
+      this.clearSocketTimers();this.pingTimer=setInterval(()=>this.send({type:'ping'}),25000);
+      if(this.pendingHangup){this.send({type:'hangup',call_id:this.pendingHangup});this.pendingHangup=null;}
+      if(this.activeCallId && message.call_id!==this.activeCallId)this.resetCallState();
+      if(this.room?.state==='connected')this.notice.set(null);
       return;
     }
-
-    if (message.type === 'call_ringing') {
-      if (this.state() !== 'outgoing') {this.send({type:'hangup',call_id:message.call_id});return;}
-      this.ringtone.start('outgoing');
-      this.activeCallId = message.call_id;
-      this.peer.set(message.peer);
-      this.state.set('outgoing');
-      this.error.set(null);
-      this.notice.set('Ожидаем ответа собеседника');
-      return;
-    }
-
-    if (message.type === 'incoming_call') {
+    if(message.type==='incoming_call' && message.call_id && message.peer){
+      if(this.hasActiveCall() && this.activeCallId!==message.call_id){this.send({type:'call_response',call_id:message.call_id,action:'reject'});return;}
+      this.activeCallId=message.call_id;this.peer.set(message.peer);this.state.set('incoming');
       this.ringtone.start('incoming');
-      void window.kvaDesktop?.notify?.({id: message.call_id, title: 'Входящий звонок', body: message.peer.nick, target: 'call'});
-      this.activeCallId = message.call_id;
-      this.peer.set(message.peer);
-      this.state.set('incoming');
-      this.error.set(null);
-      this.notice.set(null);
+      void window.kvaDesktop?.notify?.({id:message.call_id,title:'Входящий звонок',body:message.peer.nick,target:'call'});
       return;
     }
-
-    if (message.type === 'call_accepted') {
-      this.ringtone.stop();
-      window.kvaDesktop?.clearNotifications?.('call');
-      this.activeCallId = message.call_id;
-      this.peer.set(message.peer);
-      this.state.set('connecting');
-      this.error.set(null);
-      this.notice.set('Соединяем личный звонок');
-
+    if(message.type==='call_ringing' && message.call_id && message.peer){
+      if(this.state()!=='outgoing'){this.send({type:'hangup',call_id:message.call_id});return;}
+      if(this.requestTimer)clearTimeout(this.requestTimer);this.requestTimer=null;
+      this.activeCallId=message.call_id;this.peer.set(message.peer);this.ringtone.start('outgoing');return;
+    }
+    if(message.type==='call_accepted' && message.call_id && message.peer){
+      if(this.activeCallId!==message.call_id){this.send({type:'hangup',call_id:message.call_id});return;}
+      if(this.joiningCall===message.call_id)return;
+      this.ringtone.stop();window.kvaDesktop?.clearNotifications?.('call');
+      if(message.transport!=='sfu'){this.mediaFailed('Обновите приложение для личных звонков');return;}
+      this.joiningCall=message.call_id;this.state.set('connecting');this.peer.set(message.peer);
+      const id=message.call_id,generation=this.mediaGeneration;
+      const abort=new AbortController();this.joinAbort=abort;
+      const timeout=setTimeout(()=>{if(this.activeCallId===id && this.state()!=='connected'){abort.abort();this.mediaFailed('Не удалось подключиться к звонку');}},35000);
       try {
-        this.remoteCameraExpected = false;
-        this.remoteScreenExpected = false;
-        await this.ensureLocalStream();
-        if (this.activeCallId !== message.call_id) return;
-        const connection = await this.ensurePeerConnection(message.peer.user_id);
-        if (message.should_create_offer) {
-          const offer = await connection.createOffer();
-          await connection.setLocalDescription(offer);
-          this.send({
-            type: 'offer',
-            call_id: message.call_id,
-            target_user_id: message.peer.user_id,
-            payload: connection.localDescription,
-          });
-        }
-      } catch (error) {
-        if (this.activeCallId !== message.call_id) return;
-        this.error.set(error instanceof Error ? error.message : 'Не удалось подключить личный звонок');
-        await this.hangUp();
-      }
-      return;
-    }
-
-    if (message.type === 'call_rejected') {
-      window.kvaDesktop?.clearNotifications?.('call');
-      this.resetCallState();
-      this.error.set(message.detail);
-      return;
-    }
-
-    if (message.type === 'call_ended') {
-      window.kvaDesktop?.clearNotifications?.('call');
-      this.resetCallState();
-      this.notice.set(message.detail);
-      return;
-    }
-
-    if (message.type === 'offer') {
-      try {
-        const connection = await this.ensurePeerConnection(message.from_user_id);
-        if (connection.signalingState !== 'stable') {
-          try {
-            await connection.setLocalDescription({ type: 'rollback' });
-          } catch {
-            // Ignore rollback failures and continue with the remote offer.
-          }
-        }
-        await connection.setRemoteDescription(new RTCSessionDescription(message.payload as RTCSessionDescriptionInit));
-        await this.flushPendingIce(connection);
-        const answer = await connection.createAnswer();
-        await connection.setLocalDescription(answer);
-        this.send({
-          type: 'answer',
-          call_id: message.call_id,
-          target_user_id: message.from_user_id,
-          payload: connection.localDescription,
+        const response=await fetch(`${API_BASE_URL}/api/calls/${id}/sfu-token`,{
+          method:'POST',headers:{Authorization:`Bearer ${this.currentToken}`,'Content-Type':'application/json'},
+          body:JSON.stringify({client_id:this.clientId}),signal:abort.signal
         });
-      } catch (error) {
-        if (this.activeCallId !== message.call_id) return;
-        this.error.set(error instanceof Error ? error.message : 'Не удалось принять личный звонок');
-        await this.hangUp();
-      }
+        if(!response.ok)throw Error('Не удалось получить доступ к звонку');
+        const credentials=await response.json();
+        if(this.activeCallId!==id || generation!==this.mediaGeneration)return;
+        await this.connectMedia(credentials,message.peer.user_id);
+      }catch(error){if(this.activeCallId===id && generation===this.mediaGeneration)this.mediaFailed(error instanceof Error?error.message:'Не удалось подключиться к звонку');}
+      finally{clearTimeout(timeout);if(this.joinAbort===abort)this.joinAbort=null;}
       return;
     }
-
-    if (message.type === 'answer') {
-      if (!this.peerConnection) {
-        return;
-      }
-
-      await this.peerConnection.setRemoteDescription(
-        new RTCSessionDescription(message.payload as RTCSessionDescriptionInit)
-      );
-      await this.flushPendingIce(this.peerConnection);
-      return;
+    if(message.type==='call_ended' || message.type==='call_rejected'){
+      if(message.call_id && message.call_id!==this.activeCallId)return;
+      this.resetCallState();this.notice.set(message.detail??'Звонок завершён');return;
     }
-
-    if (message.type === 'ice_candidate') {
-      if (!message.payload) return;
-      if (!this.peerConnection?.remoteDescription) {
-        this.pendingIce.push(message.payload as RTCIceCandidateInit);
-        return;
-      }
-
-      try {
-        await this.peerConnection.addIceCandidate(new RTCIceCandidate(message.payload as RTCIceCandidateInit));
-      } catch {
-        // Ignore malformed ICE candidates instead of breaking the call.
-      }
-      return;
-    }
-
-    if (message.type === 'camera_state') {
-      const payload = message.payload as { enabled?: unknown } | null;
-      const enabled = Boolean(payload?.enabled);
-      this.remoteCameraExpected = enabled;
-
-      if (!enabled) {
-        this.clearRemoteCamera();
-        if (this.state() === 'connected') {
-          this.notice.set('Камера собеседника выключена');
-        }
-      } else if (this.state() === 'connected') {
-        this.notice.set('Собеседник включил камеру');
-      }
-      return;
-    }
-
-    if (message.type === 'screen_share_state') {
-      const payload = message.payload as { sharing?: unknown } | null;
-      const sharing = Boolean(payload?.sharing);
-      this.remoteScreenExpected = sharing;
-
-      if (!sharing) {
-        this.clearRemoteScreenShare();
-        if (this.state() === 'connected') {
-          this.notice.set('Показ экрана собеседника остановлен');
-        }
-      } else if (this.state() === 'connected') {
-        this.notice.set('Собеседник начал показ экрана');
-      }
-      return;
-    }
-
-    if (message.type === 'error') {
-      this.error.set(message.detail);
-      if (this.state() === 'outgoing') {
-        this.resetCallState();
-      }
+    if(message.type==='error'){
+      this.error.set(message.detail??'Ошибка звонка');
+      if(this.hasActiveCall())void this.hangUp();
     }
   }
-
-  private async ensureLocalStream(): Promise<void> {
-    if (this.localStream) {
-      return;
-    }
-
-    const generation = this.callGeneration;
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: true
-    });
-    if (generation !== this.callGeneration) {stream.getTracks().forEach(track=>track.stop());return;}
-    this.localStream = stream;
-    this.applyLocalMuteState();
-  }
-
-  private async flushPendingIce(connection: RTCPeerConnection): Promise<void> {
-    const candidates = this.pendingIce.splice(0);
-    for (const candidate of candidates) {
-      if (this.peerConnection !== connection) return;
-      try {await connection.addIceCandidate(new RTCIceCandidate(candidate));} catch { /* Invalid remote candidate. */ }
-    }
-  }
-
-  private async ensurePeerConnection(targetUserId: string): Promise<RTCPeerConnection> {
-    if (this.peerConnection) {
-      return this.peerConnection;
-    }
-
-    const connection = new RTCPeerConnection({
-      iceServers: VOICE_ICE_SERVERS
-    });
-    this.peerConnection = connection;
-
-    if (this.localStream) {
-      for (const track of this.localStream.getTracks()) {
-        connection.addTrack(track, this.localStream);
-      }
-    }
-
-    if (this.cameraTrack) {
-      const cameraTransceiver = this.ensureCameraTransceiver();
-      await cameraTransceiver.sender.replaceTrack(this.cameraTrack);
-      cameraTransceiver.direction = 'sendrecv';
-    }
-
-    if (this.screenShareTrack) {
-      const screenTransceiver = this.ensureScreenTransceiver();
-      await screenTransceiver.sender.replaceTrack(this.screenShareTrack);
-      screenTransceiver.direction = 'sendrecv';
-    }
-
-    connection.addEventListener('icecandidate', (event) => {
-      if (!event.candidate || !this.activeCallId) {
-        return;
-      }
-
-      this.send({
-        type: 'ice_candidate',
-        call_id: this.activeCallId,
-        target_user_id: targetUserId,
-        payload: event.candidate.toJSON()
-      });
-    });
-
-    connection.addEventListener('track', (event) => {
-      if (event.track.kind === 'video') {
-        this.routeIncomingVideoTrack(event.track, event.transceiver);
-        return;
-      }
-
-      const stream = event.streams[0] ?? new MediaStream([event.track]);
-      this.attachRemoteStream(stream);
-    });
-
-    connection.addEventListener('connectionstatechange', () => {
-      if (this.peerConnection !== connection) return;
-      const state = connection.connectionState;
-      if (state === 'connected') {
-        this.state.set('connected');
-        this.notice.set('Связь установлена');
-        return;
-      }
-
-      if (state === 'disconnected') {
-        if (this.hasActiveCall()) {
-          this.notice.set('Соединение просело, пытаемся восстановить звонок');
-        }
-        return;
-      }
-
-      if (state === 'failed' || state === 'closed') {
-        if (this.hasActiveCall()) {
-          this.notice.set('Соединение личного звонка прервано');
-          void this.hangUp();
-        }
-      }
-    });
-
-    connection.addEventListener('signalingstatechange', () => {
-      if (connection.signalingState === 'stable' && this.negotiationQueued) {
-        this.negotiationQueued = false;
-        void this.renegotiate();
-      }
-    });
-
-    return connection;
-  }
-
-  private ensureCameraTransceiver(): RTCRtpTransceiver {
-    if (this.cameraTransceiver) {
-      return this.cameraTransceiver;
-    }
-
-    if (!this.peerConnection) {
-      throw new Error('Соединение звонка еще не готово');
-    }
-
-    this.cameraTransceiver = this.peerConnection.addTransceiver('video', {
-      direction: this.cameraTrack ? 'sendrecv' : 'recvonly'
-    });
-    return this.cameraTransceiver;
-  }
-
-  private ensureScreenTransceiver(): RTCRtpTransceiver {
-    if (this.screenTransceiver) {
-      return this.screenTransceiver;
-    }
-
-    if (!this.peerConnection) {
-      throw new Error('Соединение звонка еще не готово');
-    }
-
-    this.screenTransceiver = this.peerConnection.addTransceiver('video', {
-      direction: this.screenShareTrack ? 'sendrecv' : 'recvonly'
-    });
-    return this.screenTransceiver;
-  }
-
-  private routeIncomingVideoTrack(track: MediaStreamTrack, transceiver: RTCRtpTransceiver): void {
-    if (transceiver === this.screenTransceiver || transceiver.mid === this.screenTransceiver?.mid) {
-      this.attachRemoteScreenTrack(track);
-      return;
-    }
-
-    if (transceiver === this.cameraTransceiver || transceiver.mid === this.cameraTransceiver?.mid) {
-      this.attachRemoteCameraTrack(track);
-      return;
-    }
-
-    if (this.remoteScreenExpected && !this.remoteScreenTrack) {
-      this.attachRemoteScreenTrack(track);
-      return;
-    }
-
-    if (this.remoteCameraExpected && !this.remoteCameraTrack) {
-      this.attachRemoteCameraTrack(track);
-      return;
-    }
-
-    if (this.remoteScreenTrack && !this.remoteCameraTrack) {
-      this.attachRemoteCameraTrack(track);
-      return;
-    }
-
-    this.attachRemoteCameraTrack(track);
-  }
-
-  private attachRemoteStream(stream: MediaStream): void {
-    if (this.remoteAudioElement === null) {
-      this.remoteAudioElement = document.createElement('audio');
-      prepareInlineMediaElement(this.remoteAudioElement);
-      this.remoteAudioElement.style.display = 'none';
-      document.body.appendChild(this.remoteAudioElement);
-    }
-
-    this.remoteAudioElement.srcObject = stream;
-    this.applyRemoteVolume();
-    void this.playRemoteAudio();
-  }
-
-  private attachRemoteCameraTrack(track: MediaStreamTrack): void {
-    const stream = new MediaStream([track]);
-    this.remoteCameraTrack = track;
-    this.remoteCameraStream.set(stream);
-    track.onended = () => {
-      if (this.remoteCameraTrack?.id === track.id) {
-        this.clearRemoteCamera();
-      }
-    };
-  }
-
-  private attachRemoteScreenTrack(track: MediaStreamTrack): void {
-    const stream = new MediaStream([track]);
-    this.remoteScreenTrack = track;
-    this.remoteScreenStream.set(stream);
-    this.notice.set('Собеседник показывает экран');
-    track.onended = () => {
-      if (this.remoteScreenTrack?.id === track.id) {
-        this.clearRemoteScreenShare();
-        if (this.state() === 'connected' && this.notice() === 'Собеседник показывает экран') {
-          this.notice.set('Показ экрана собеседника остановлен');
-        }
-      }
-    };
-  }
-
   private resetCallState(): void {
-    this.ringtone.stop();
-    this.callGeneration++;
-    this.signalingQueue = Promise.resolve();
-    this.pendingIce = [];
-    this.inputDeviceId.set(null);
-    this.outputDeviceId.set(null);
-    this.deviceNotice.set(null);
-    void this.detachCameraFromConnection();
-    void this.detachScreenShareFromConnection();
-    this.clearLocalCamera();
-    this.clearRemoteCamera();
-    this.clearLocalScreenShare();
-    this.clearRemoteScreenShare();
-    this.remoteCameraExpected = false;
-    this.remoteScreenExpected = false;
-    this.localMuted.set(false);
-    this.remoteVolume.set(100);
-    this.outputMuted.set(false);
-    this.stopLocalStream();
-    this.teardownPeerConnection();
-    this.teardownRemoteAudio();
-    this.activeCallId = null;
-    this.peer.set(null);
-    this.state.set('idle');
+    this.joinAbort?.abort();this.joinAbort=null;
+    this.ringtone.stop();this.disconnectMedia();
+    this.activeCallId=null;this.joiningCall=null;this.peer.set(null);this.state.set('idle');
+    if(this.requestTimer)clearTimeout(this.requestTimer);this.requestTimer=null;
+    window.kvaDesktop?.clearNotifications?.('call');
   }
-
-  private stopLocalStream(): void {
-    if (!this.localStream) {
-      return;
-    }
-
-    for (const track of this.localStream.getTracks()) {
-      track.stop();
-    }
-    this.localStream = null;
+  private send(payload: object): boolean {
+    if(this.socket?.readyState!==WebSocket.OPEN)return false;
+    this.socket.send(JSON.stringify(payload));return true;
   }
-
-  private applyLocalMuteState(): void {
-    if (!this.localStream) {
-      return;
-    }
-
-    const enabled = !this.localMuted();
-    for (const track of this.localStream.getAudioTracks()) {
-      track.enabled = enabled;
-    }
-  }
-
-  private applyRemoteVolume(): void {
-    if (!this.remoteAudioElement) {
-      return;
-    }
-
-    this.remoteAudioElement.muted = this.outputMuted();
-    this.remoteAudioElement.volume = this.outputMuted() ? 0 : Math.max(0, Math.min(1, this.remoteVolume() / 100));
-  }
-
-  private teardownPeerConnection(): void {
-    if (!this.peerConnection) {
-      return;
-    }
-
-    this.peerConnection.onicecandidate = null;
-    this.peerConnection.ontrack = null;
-    this.peerConnection.onconnectionstatechange = null;
-    this.peerConnection.close();
-    this.peerConnection = null;
-    this.cameraTransceiver = null;
-    this.screenTransceiver = null;
-    this.negotiationInFlight = false;
-    this.negotiationQueued = false;
-  }
-
-  private teardownRemoteAudio(): void {
-    if (!this.remoteAudioElement) {
-      this.pendingRemoteAudioPlayback = false;
-      this.detachUserGestureUnlock();
-      return;
-    }
-
-    this.remoteAudioElement.pause();
-    this.remoteAudioElement.srcObject = null;
-    this.remoteAudioElement.remove();
-    this.remoteAudioElement = null;
-    this.pendingRemoteAudioPlayback = false;
-    this.detachUserGestureUnlock();
-  }
-
-  private send(payload: object): void {
-    if (this.socket?.readyState !== WebSocket.OPEN) {
-      return;
-    }
-
-    this.socket.send(JSON.stringify(payload));
-  }
-
-  private startPing(): void {
-    if (typeof window === 'undefined' || this.pingIntervalId !== null) {
-      return;
-    }
-
-    this.pingIntervalId = window.setInterval(() => {
-      this.send({ type: 'ping' });
-    }, DIRECT_CALL_PING_INTERVAL_MS);
-  }
-
-  private stopPing(): void {
-    if (this.pingIntervalId !== null) {
-      window.clearInterval(this.pingIntervalId);
-      this.pingIntervalId = null;
-    }
-  }
-
-  private scheduleReconnect(): void {
-    if (typeof window === 'undefined' || this.reconnectTimerId !== null || !this.currentToken) {
-      return;
-    }
-
-    const delay = Math.min(
-      DIRECT_CALL_RECONNECT_BASE_MS * 2 ** this.reconnectAttempt,
-      DIRECT_CALL_RECONNECT_MAX_MS
-    );
-    this.reconnectAttempt += 1;
-
-    this.reconnectTimerId = window.setTimeout(() => {
-      this.reconnectTimerId = null;
-      this.openSocket();
-    }, delay);
-  }
-
-  private clearReconnectTimer(): void {
-    if (this.reconnectTimerId !== null) {
-      window.clearTimeout(this.reconnectTimerId);
-      this.reconnectTimerId = null;
-    }
-  }
-
-  private closeSocket(): void {
-    if (!this.socket) {
-      return;
-    }
-
-    const socket = this.socket;
-    this.socket = null;
-    if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
-      socket.close(1000, 'client_closed');
-    }
-  }
-
-  private async renegotiate(): Promise<void> {
-    if (!this.peerConnection || !this.activeCallId) {
-      return;
-    }
-
-    if (this.negotiationInFlight || this.peerConnection.signalingState !== 'stable') {
-      this.negotiationQueued = true;
-      return;
-    }
-
-    const peer = this.peer();
-    if (!peer) {
-      return;
-    }
-
-    this.negotiationInFlight = true;
-
-    try {
-      const offer = await this.peerConnection.createOffer();
-      await this.peerConnection.setLocalDescription(offer);
-      if (!this.peerConnection.localDescription) {
-        return;
-      }
-
-      this.send({
-        type: 'offer',
-        call_id: this.activeCallId,
-        target_user_id: peer.user_id,
-        payload: this.peerConnection.localDescription
-      });
-    } catch (error) {
-      this.error.set(error instanceof Error ? error.message : 'Не удалось обновить звонок');
-    } finally {
-      this.negotiationInFlight = false;
-    }
-  }
-
-  private async detachCameraFromConnection(): Promise<void> {
-    if (!this.cameraTransceiver) {
-      return;
-    }
-
-    try {
-      await this.cameraTransceiver.sender.replaceTrack(null);
-    } catch {
-      // Ignore sender replacement failures when connection is already closed.
-    }
-
-    this.cameraTransceiver.direction = 'recvonly';
-  }
-
-  private async detachScreenShareFromConnection(): Promise<void> {
-    if (!this.screenTransceiver) {
-      return;
-    }
-
-    try {
-      await this.screenTransceiver.sender.replaceTrack(null);
-    } catch {
-      // Ignore sender replacement failures when connection is already closed.
-    }
-
-    this.screenTransceiver.direction = 'recvonly';
-  }
-
-  private clearLocalCamera(): void {
-    if (this.cameraTrack) {
-      this.cameraTrack.onended = null;
-      this.cameraTrack = null;
-    }
-
-    if (this.cameraStream) {
-      for (const track of this.cameraStream.getTracks()) {
-        track.stop();
-      }
-      this.cameraStream = null;
-    }
-
-    this.localCameraStream.set(null);
-  }
-
-  private clearRemoteCamera(): void {
-    if (this.remoteCameraTrack) {
-      this.remoteCameraTrack.onended = null;
-      this.remoteCameraTrack = null;
-    }
-
-    this.remoteCameraStream.set(null);
-  }
-
-  private clearLocalScreenShare(): void {
-    if (this.screenShareTrack) {
-      this.screenShareTrack.onended = null;
-      this.screenShareTrack = null;
-    }
-
-    if (this.screenShareStream) {
-      for (const track of this.screenShareStream.getTracks()) {
-        track.stop();
-      }
-      this.screenShareStream = null;
-    }
-
-    this.localScreenStream.set(null);
-  }
-
-  private clearRemoteScreenShare(): void {
-    if (this.remoteScreenTrack) {
-      this.remoteScreenTrack.onended = null;
-      this.remoteScreenTrack = null;
-    }
-
-    this.remoteScreenStream.set(null);
-  }
-
-  private async playRemoteAudio(): Promise<void> {
-    if (!this.remoteAudioElement) {
-      return;
-    }
-
-    try {
-      await this.remoteAudioElement.play();
-      this.pendingRemoteAudioPlayback = false;
-      if (this.notice() === DIRECT_CALL_AUDIO_UNLOCK_NOTICE) {
-        this.notice.set(null);
-      }
-      this.detachUserGestureUnlock();
-    } catch {
-      this.pendingRemoteAudioPlayback = true;
-      this.attachUserGestureUnlock();
-      if (this.state() === 'connected') {
-        this.notice.set(DIRECT_CALL_AUDIO_UNLOCK_NOTICE);
-      }
-    }
-  }
-
-  private attachUserGestureUnlock(): void {
-    if (typeof window === 'undefined' || this.userGestureUnlockHandler) {
-      return;
-    }
-
-    this.userGestureUnlockHandler = () => {
-      void this.retryPendingRemoteAudioPlayback();
-    };
-
-    window.addEventListener('touchstart', this.userGestureUnlockHandler, { passive: true });
-    window.addEventListener('pointerdown', this.userGestureUnlockHandler, { passive: true });
-    window.addEventListener('click', this.userGestureUnlockHandler);
-  }
-
-  private detachUserGestureUnlock(): void {
-    if (typeof window === 'undefined' || !this.userGestureUnlockHandler) {
-      return;
-    }
-
-    window.removeEventListener('touchstart', this.userGestureUnlockHandler);
-    window.removeEventListener('pointerdown', this.userGestureUnlockHandler);
-    window.removeEventListener('click', this.userGestureUnlockHandler);
-    this.userGestureUnlockHandler = null;
-  }
-
-  private async retryPendingRemoteAudioPlayback(): Promise<void> {
-    if (!this.pendingRemoteAudioPlayback || !this.remoteAudioElement) {
-      this.detachUserGestureUnlock();
-      return;
-    }
-
-    try {
-      await this.remoteAudioElement.play();
-      this.pendingRemoteAudioPlayback = false;
-      if (this.notice() === DIRECT_CALL_AUDIO_UNLOCK_NOTICE) {
-        this.notice.set(null);
-      }
-      this.detachUserGestureUnlock();
-    } catch {
-      // Wait for the next explicit gesture if playback is still blocked.
-    }
-  }
-
-  private sendScreenShareState(sharing: boolean): void {
-    const peer = this.peer();
-    if (!peer || !this.activeCallId) {
-      return;
-    }
-
-    this.send({
-      type: 'screen_share_state',
-      call_id: this.activeCallId,
-      target_user_id: peer.user_id,
-      payload: {
-        sharing
-      }
-    });
-  }
-
-  private sendCameraState(enabled: boolean): void {
-    const peer = this.peer();
-    if (!peer || !this.activeCallId) {
-      return;
-    }
-
-    this.send({
-      type: 'camera_state',
-      call_id: this.activeCallId,
-      target_user_id: peer.user_id,
-      payload: {
-        enabled
-      }
-    });
+  private clearSocketTimers(): void {
+    if(this.pingTimer)clearInterval(this.pingTimer);this.pingTimer=null;
+    if(this.reconnectDeadline)clearTimeout(this.reconnectDeadline);this.reconnectDeadline=null;
   }
 }
-
-
-

@@ -11,22 +11,22 @@ describe('Call device changes', () => {
 
   it('replaces a direct microphone without unmuting or replacing the connection', async () => {
     const call = new DirectCallService(), old = stream(), next = stream();
-    const sender = {track: old.track, replaceTrack: jasmine.createSpy().and.resolveTo()};
-    const connection = {getSenders: () => [sender]};
-    Object.assign(call as any, {localStream: old.media, peerConnection: connection});
+    const sender = {replaceTrack: jasmine.createSpy().and.resolveTo(), mute: jasmine.createSpy().and.resolveTo(), unmute: jasmine.createSpy().and.resolveTo()};
+    const connection = {};
+    Object.assign(call as any, {localStream: old.media, localAudioTrack: sender, room: connection});
     call.localMuted.set(true);
     spyOn(navigator.mediaDevices, 'getUserMedia').and.resolveTo(next.media);
     await call.updateInputDevice('second');
-    expect(sender.replaceTrack).toHaveBeenCalledWith(next.track);
+    expect(sender.replaceTrack).toHaveBeenCalledWith(next.track, true);
     expect(next.track.enabled).toBeFalse();
     expect(old.track.stop).toHaveBeenCalled();
-    expect((call as any).peerConnection).toBe(connection);
+    expect((call as any).room).toBe(connection);
     expect(call.inputDeviceId()).toBe('second');
   });
 
   it('keeps the old direct microphone on failure and disposes the rejected replacement', async () => {
     const call = new DirectCallService(), old = stream(), next = stream();
-    Object.assign(call as any, {localStream: old.media, peerConnection: {getSenders: () => [{track: old.track, replaceTrack: () => Promise.reject(new Error('closed'))}]}});
+    Object.assign(call as any, {localStream: old.media, localAudioTrack: {replaceTrack: () => Promise.reject(new Error('closed'))}});
     spyOn(navigator.mediaDevices, 'getUserMedia').and.resolveTo(next.media);
     await call.updateInputDevice('second');
     expect(old.track.stop).not.toHaveBeenCalled();
@@ -38,11 +38,11 @@ describe('Call device changes', () => {
   it('disposes a late microphone result after the call has ended', async () => {
     const call = new DirectCallService(), old = stream(), next = stream();
     let resolve!: (value: MediaStream) => void;
-    Object.assign(call as any, {localStream: old.media, peerConnection: {getSenders: () => []}});
+    Object.assign(call as any, {localStream: old.media, localAudioTrack: {}});
     spyOn(navigator.mediaDevices, 'getUserMedia').and.returnValue(new Promise(r => resolve = r));
     const pending = call.updateInputDevice('second');
     (call as any).localStream = null;
-    (call as any).peerConnection = null;
+    (call as any).localAudioTrack = null;
     resolve(next.media);
     await pending;
     expect(next.track.stop).toHaveBeenCalled();

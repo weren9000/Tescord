@@ -26,13 +26,20 @@ def _client():
 def media_permission(room: str, identity: str, metadata: str, *, joining: bool) -> bool | None:
     """None denies participation, False permits listening, True permits publishing."""
     try:
-        channel_id, user_id = UUID(room), UUID(identity)
+        user_id = UUID(identity)
         session_id = UUID(json.loads(metadata)['session_id'])
     except (ValueError, TypeError, KeyError):
         return None
     with SessionLocal() as db:
         session = db.get(AuthSession, session_id)
         if session is None or session.user_id != user_id or session.revoked_at or session.expires_at <= datetime.now(timezone.utc):
+            return None
+        if room.startswith('direct-'):
+            from app.services.direct_call_signaling import direct_call_signaling_manager
+            return True if direct_call_signaling_manager.media_allowed(room[7:], str(user_id), json.loads(metadata).get('client_id', '')) else None
+        try:
+            channel_id = UUID(room)
+        except ValueError:
             return None
         channel = db.get(Channel, channel_id)
         if channel is None:

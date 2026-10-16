@@ -2,7 +2,7 @@
   const native = window.KvaNative;
   if (!native) throw new Error('Android bridge unavailable');
   window.kvaDesktop = Object.freeze({
-    version: 'android-0.1.1',
+    version: 'android-0.2.0',
     readSession: () => native.readSession(),
     writeSession: value => native.writeSession(value),
     // Native background service owns notifications, avoiding duplicate web notifications.

@@ -1,27 +1,42 @@
 import {DirectCallService} from './direct-call.service';
 
 describe('Direct call signaling lifecycle', () => {
-  it('releases a microphone granted after the call was cancelled', async () => {
-    const call = new DirectCallService();
+  it('stops a microphone granted after the LiveKit join was cancelled', async () => {
+    const call=new DirectCallService();
     let grant!: (stream: MediaStream) => void;
-    spyOn(navigator.mediaDevices,'getUserMedia').and.returnValue(new Promise(resolve=>grant=resolve));
-    const track={stop:jasmine.createSpy('stop')};
-    const pending=(call as any).ensureLocalStream();
-    (call as any).resetCallState();
-    grant({getTracks:()=>[track]} as unknown as MediaStream);
-    await pending;
+    let requested!: () => void;
+    const request=new Promise<void>(resolve=>requested=resolve);
+    spyOn(navigator.mediaDevices,'getUserMedia').and.callFake(()=>{requested();return new Promise(resolve=>grant=resolve);});
+    const track={kind:'audio',enabled:true,stop:jasmine.createSpy('stop')};
+    const join=(call as any).connectMedia({url:'ws://localhost',token:'unused'},'friend');
+    await request;
+    await call.hangUp();
+    grant({getTracks:()=>[track],getAudioTracks:()=>[track],getVideoTracks:()=>[]} as unknown as MediaStream);
+    await join;
     expect(track.stop).toHaveBeenCalled();
     expect((call as any).localStream).toBeNull();
+    expect((call as any).room).toBeNull();
   });
-  it('buffers early ICE candidates and applies them after the answer', async () => {
-    const call=new DirectCallService(), candidate={candidate:'candidate:1 1 UDP 1 127.0.0.1 5000 typ host',sdpMid:'0',sdpMLineIndex:0};
-    const connection={remoteDescription:null,setRemoteDescription:jasmine.createSpy().and.resolveTo(),addIceCandidate:jasmine.createSpy().and.resolveTo()};
-    Object.assign(call as any,{peerConnection:connection});
-    await (call as any).handleMessage({type:'ice_candidate',payload:candidate});
-    expect(connection.addIceCandidate).not.toHaveBeenCalled();
-    await (call as any).handleMessage({type:'answer',payload:{type:'answer',sdp:''}});
-    expect(connection.addIceCandidate).toHaveBeenCalledTimes(1);
-    expect((call as any).pendingIce.length).toBe(0);
+  it('never joins a call that was cancelled before acceptance arrived', async () => {
+    const call=new DirectCallService();
+    const join=spyOn(call as any,'connectMedia');
+    const send=spyOn(call as any,'send');
+    await (call as any).handleMessage({type:'call_accepted',call_id:'late',transport:'sfu',peer:{user_id:'friend'}});
+    expect(join).not.toHaveBeenCalled();
+    expect(send).toHaveBeenCalledWith({type:'hangup',call_id:'late'});
+  });
+  it('does not capture media when token issuance completes after cancellation', async () => {
+    const call=new DirectCallService();
+    let reply!: (response: Response) => void;
+    spyOn(window,'fetch').and.returnValue(new Promise(resolve=>reply=resolve));
+    const join=spyOn(call as any,'connectMedia');
+    (call as any).activeCallId='call';
+    const pending=(call as any).handleMessage({type:'call_accepted',call_id:'call',transport:'sfu',peer:{user_id:'friend'}});
+    await call.hangUp();
+    reply(new Response(JSON.stringify({url:'ws://localhost',token:'test'})));
+    await pending;
+    expect(join).not.toHaveBeenCalled();
+    expect(call.state()).toBe('idle');
   });
   it('cancels a late ringing acknowledgement instead of resurrecting a cancelled call', async () => {
     const call=new DirectCallService();const send=spyOn(call as any,'send');
