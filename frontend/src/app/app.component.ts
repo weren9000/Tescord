@@ -3952,10 +3952,9 @@ export class AppComponent {
     if(channel.type==='voice')this.previewPlatformVoiceChannel(channel);else void this.selectChannel(channel);
   }
 
-  readonly personalMenuPage = signal<'main' | 'appearance' | 'settings'>('main');
+  readonly appearanceOpen = signal(false);
 
   toggleSideMenu(): void {
-    this.personalMenuPage.set('main');
     if (this.callWindowExpanded()) this.minimizeCallWindow();
     this.closeQuickCreateMenu();
     this.sideMenuOpen.set(!this.sideMenuOpen());
@@ -4079,6 +4078,7 @@ export class AppComponent {
     }
 
     this.closeSideMenu();
+    this.closeBlockedServersModal();
     this.blockedFriendsModalOpen.set(true);
     this.blockedFriendsLoading.set(true);
     this.blockedFriendsError.set(null);
@@ -4098,6 +4098,7 @@ export class AppComponent {
     }
 
     this.closeSideMenu();
+    this.closeBlockedFriendsModal();
     this.blockedServersModalOpen.set(true);
     this.blockedServersLoading.set(true);
     this.blockedServersError.set(null);
@@ -4666,7 +4667,6 @@ export class AppComponent {
   }
 
   toggleMobileFooterMenu(): void {
-    this.personalMenuPage.set('main');
     if (this.callWindowExpanded()) this.minimizeCallWindow();
     if (!this.isCompactVoiceWorkspaceViewport()) {
       this.toggleSideMenu();
@@ -7006,6 +7006,7 @@ export class AppComponent {
     this.platformSettingsDangerMenuOpen.set(false);
     this.platformVoiceSettingsChannelId.set(null);
     this.friendRequestsModalOpen.set(false);
+    this.appearanceOpen.set(false);
     this.blockedFriendsModalOpen.set(false);
     this.blockedServersModalOpen.set(false);
     this.groupMembersModalOpen.set(false);

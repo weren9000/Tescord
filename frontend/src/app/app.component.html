@@ -531,46 +531,20 @@
     }
 
     @if (sideMenuOpen()) {
-      <app-action-menu [label]="personalMenuPage() === 'main' ? 'Личное меню' : personalMenuPage() === 'appearance' ? 'Внешний вид' : 'Настройки'" (close)="closeSideMenu()">
-        @if (personalMenuPage() === 'main') {
-          <section>
-            <p class="menu-note">{{ displayNick(currentUser()?.nick ?? '') }}</p>
-            <button type="button" (click)="closeSideMenu(); openProfileEditor()"><app-ui-icon name="profile" />Мой профиль</button>
-            <button type="button" (click)="closeSideMenu(); inventoryMode.set('inventory')"><app-ui-icon name="inventory" />Инвентарь @if(inventoryUnread()){ · {{inventoryUnread()}} }</button>
-          </section>
-          <section>
-            <button type="button" (click)="personalMenuPage.set('appearance')"><app-ui-icon name="appearance" />Внешний вид</button>
-            <button type="button" (click)="closeSideMenu(); openVoiceSettings()"><app-ui-icon name="sound" />Звук и устройства</button>
-            <button type="button" (click)="personalMenuPage.set('settings')"><app-ui-icon name="settings" />Настройки</button>
-          </section>
-          @if (currentUser()?.is_avatar_admin || isAdmin()) {
-            <section><p class="menu-heading">Администрирование</p>
-              @if (isAdmin() || currentUser()?.is_avatar_admin) { <button type="button" (click)="openAdminDirectory()"><app-ui-icon name="avatarAdmin" />Админка</button> }
-              @if (isAdmin()) { <button type="button" (click)="closeSideMenu(); openVoiceAdminPanel()"><app-ui-icon name="mic" />Доступ к голосу</button> }
-            </section>
-          }
-          <section><button type="button" (click)="closeSideMenu(); logout()"><app-ui-icon name="logout" />Выход</button></section>
-        } @else {
-          <button type="button" (click)="personalMenuPage.set('main')"><app-ui-icon name="back" />Личное меню</button>
-          @if (personalMenuPage() === 'appearance') {
-            <section>
-              <button type="button" (click)="closeSideMenu(); inventoryMode.set('inventory')"><app-ui-icon name="inventory" />Темы, аватары и рамки</button>
-              <button type="button" (click)="closeSideMenu(); wallpaperOpen.set(true)"><app-ui-icon name="appearance" />Обои</button>
-              <app-desktop-preferences />
-            </section>
-          } @else {
-            <section>
-              <button type="button" (click)="closeSideMenu(); openProfileEditor()"><app-ui-icon name="profile" />Профиль</button>
-              <button type="button" (click)="personalMenuPage.set('appearance')"><app-ui-icon name="appearance" />Внешний вид</button>
-              <button type="button" (click)="closeSideMenu(); openVoiceSettings()"><app-ui-icon name="sound" />Звук и устройства</button>
-            </section>
-            <section><p class="menu-heading">Безопасность</p>
-              <button type="button" (click)="openBlockedFriendsModal()">Заблокированные люди</button>
-              <button type="button" (click)="openBlockedServersModal()">Заблокированные пространства</button>
-            </section>
-          }
-        }
+      <app-action-menu label="Меню" (close)="closeSideMenu()">
+        <section>
+          <button type="button" (click)="closeSideMenu(); openProfileEditor()"><app-ui-icon name="profile" />Мой профиль</button>
+          <button type="button" (click)="closeSideMenu(); inventoryMode.set('inventory')"><app-ui-icon name="inventory" />Инвентарь @if(inventoryUnread()){ · {{inventoryUnread()}} }</button>
+          <button type="button" (click)="closeSideMenu(); appearanceOpen.set(true)"><app-ui-icon name="appearance" />Оформление</button>
+          <button type="button" (click)="closeSideMenu(); openVoiceSettings()"><app-ui-icon name="sound" />Звук и устройства</button>
+          <button type="button" (click)="openBlockedFriendsModal()"><app-ui-icon name="block" />Блокировки</button>
+          @if (isAdmin() || currentUser()?.is_avatar_admin) { <button type="button" (click)="openAdminDirectory()"><app-ui-icon name="avatarAdmin" />Админка</button> }
+        </section>
+        <section><button type="button" (click)="closeSideMenu(); logout()"><app-ui-icon name="logout" />Выход</button></section>
       </app-action-menu>
+    }
+    @if (appearanceOpen()) {
+      <app-desktop-preferences [openImmediately]="true" [token]="session()!.access_token" (closed)="appearanceOpen.set(false)" (changed)="refreshInventoryProfile()" />
     }
 
     @if (mobilePanel() === 'servers') {
@@ -607,7 +581,7 @@
     }
     <div class="messenger-layout" [class.messenger-layout--admin]="adminDirectoryOpen() && (isAdmin() || !!currentUser()?.is_avatar_admin)" [class.messenger-layout--info]="conversationInfoOpen()" [class.messenger-layout--platform]="isPlatformsMode()" [class.platforms-list-collapsed]="desktopPreferences.value().platformsCollapsed" [attr.data-density]="desktopPreferences.value().density" [class.messenger-layout--sidebar-collapsed]="desktopPreferences.value().collapsed" [style.--sidebar-width]="desktopPreferences.value().width + 'px'" [style.--message-text-size]="desktopPreferences.value().textSize + 'px'">
       <app-section-navigation [isSystemAdmin]="isAdmin()" [adminSelected]="adminDirectoryOpen() && (isAdmin() || !!currentUser()?.is_avatar_admin)" (admin)="openAdminDirectory()" [isAvatarAdmin]="!!currentUser()?.is_avatar_admin" [inventoryUnread]="inventoryUnread()" (inventory)="inventoryMode.set($event)" [avatarUrl]="currentUserAvatarUrl()" [selected]="workspaceMode()" [initials]="displayNickInitials(currentUser()?.nick ?? 'Я')" [hasNotifications]="friendRequestBadgeVisible()" (selectSection)="selectWorkspaceMode($event)" (menu)="toggleSideMenu()" (search)="openQuickSwitch()" (profile)="toggleSideMenu()" (notifications)="openFriendRequestsModal()" />
-      @if(adminDirectoryOpen() && (isAdmin() || !!currentUser()?.is_avatar_admin)){<app-admin-directory [systemAdmin]="isAdmin()" [actorId]="currentUser()!.id" [avatarUrl]="currentUserAvatarUrl()" (changed)="refreshInventoryProfile()" [token]="session()!.access_token" (close)="adminDirectoryOpen.set(false)" (forbidden)="adminDirectoryOpen.set(false)"/>}
+      @if(adminDirectoryOpen() && (isAdmin() || !!currentUser()?.is_avatar_admin)){<app-admin-directory (voiceAccess)="openVoiceAdminPanel()" [systemAdmin]="isAdmin()" [actorId]="currentUser()!.id" [avatarUrl]="currentUserAvatarUrl()" (changed)="refreshInventoryProfile()" [token]="session()!.access_token" (close)="adminDirectoryOpen.set(false)" (forbidden)="adminDirectoryOpen.set(false)"/>}
       @if(isPlatformsMode()){<app-platform-list [spaces]="platformChoices()" [selected]="selectedServerId()" [collapsed]="desktopPreferences.value().platformsCollapsed" [class.platform-list-mobile-open]="mobilePanel()==='servers' && platformBrowserStage()==='spaces'" (select)="selectPlatformFromPicker($event)" (create)="openCreatePlatformShortcut()" (toggle)="desktopPreferences.update({platformsCollapsed:!desktopPreferences.value().platformsCollapsed})"/>}
       <aside class="conversation-sidebar" [class.conversation-sidebar--mobile-open]="mobilePanel() === 'servers' && (!isPlatformsMode() || platformBrowserStage()==='channels')">
         <div class="desktop-sidebar-toolbar">
@@ -2052,18 +2026,16 @@
   </div>
 }
 
-@if (blockedFriendsModalOpen()) {
-  <div class="modal-backdrop" (click)="closeBlockedFriendsModal()">
-    <section class="modal modal--compact modal--friend-requests" (click)="$event.stopPropagation()">
-      <div class="modal__header">
-        <div>
-          <p class="eyebrow">Безопасность</p>
-          <h3>Заблокированные пользователи</h3>
-        </div>
-        <button class="icon-button" type="button" (click)="closeBlockedFriendsModal()">×</button>
-      </div>
-
+@if (blockedFriendsModalOpen() || blockedServersModalOpen()) {
+  <div class="modal-backdrop" (click)="closeBlockedFriendsModal(); closeBlockedServersModal()">
+    <section class="modal modal--compact modal--friend-requests block-settings" role="dialog" aria-modal="true" aria-labelledby="block-settings-title" (click)="$event.stopPropagation()" (keydown.escape)="closeBlockedFriendsModal(); closeBlockedServersModal(); $event.stopPropagation()">
+      <div class="modal__header"><h3 id="block-settings-title">Блокировки</h3><button class="icon-button" type="button" aria-label="Закрыть блокировки" (click)="closeBlockedFriendsModal(); closeBlockedServersModal()">×</button></div>
+      <nav class="block-settings-tabs" aria-label="Категории блокировок">
+        <button class="secondary-button" [attr.aria-pressed]="blockedFriendsModalOpen()" (click)="openBlockedFriendsModal()">Люди</button>
+        <button class="secondary-button" [attr.aria-pressed]="blockedServersModalOpen()" (click)="openBlockedServersModal()">Группы и площадки</button>
+      </nav>
       <div class="modal__body">
+        @if(blockedFriendsModalOpen()) {
         @if (blockedFriendsError()) {
           <p class="modal-note modal-note--error">{{ blockedFriendsError() }}</p>
         }
@@ -2102,27 +2074,7 @@
         } @else {
           <p class="modal-note">Заблокированных пользователей пока нет.</p>
         }
-      </div>
-
-      <div class="modal__actions">
-        <button class="secondary-button" type="button" (click)="closeBlockedFriendsModal()">Закрыть</button>
-      </div>
-    </section>
-  </div>
-}
-
-@if (blockedServersModalOpen()) {
-  <div class="modal-backdrop" (click)="closeBlockedServersModal()">
-    <section class="modal modal--compact modal--friend-requests" (click)="$event.stopPropagation()">
-      <div class="modal__header">
-        <div>
-          <p class="eyebrow">Безопасность</p>
-          <h3>Заблокированные группы и площадки</h3>
-        </div>
-        <button class="icon-button" type="button" (click)="closeBlockedServersModal()">×</button>
-      </div>
-
-      <div class="modal__body">
+} @else {
         @if (blockedServersError()) {
           <p class="modal-note modal-note--error">{{ blockedServersError() }}</p>
         }
@@ -2160,11 +2112,9 @@
         } @else {
           <p class="modal-note">Заблокированных групп и площадок пока нет.</p>
         }
+}
       </div>
-
-      <div class="modal__actions">
-        <button class="secondary-button" type="button" (click)="closeBlockedServersModal()">Закрыть</button>
-      </div>
+      <div class="modal__actions"><button class="secondary-button" (click)="closeBlockedFriendsModal(); closeBlockedServersModal()">Закрыть</button></div>
     </section>
   </div>
 }

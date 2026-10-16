@@ -26,6 +26,7 @@ export class AdminDirectoryComponent implements OnInit, OnDestroy {
   readonly actorId=input.required<string>();
   readonly avatarUrl=input<string|null>(null);
   readonly changed=output<void>();
+  readonly voiceAccess=output<void>();
   readonly itemsActive=signal(false);
   readonly statsActive=signal(true);
   readonly close = output<void>();

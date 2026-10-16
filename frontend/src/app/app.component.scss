@@ -10309,3 +10309,5 @@ select {
  .message-card:hover,.message-card--search-focused {background:rgb(var(--rgb-raised) / .92);}
  .message-list__status {background:rgb(var(--rgb-raised) / .85);border-radius:10px;padding:12px;color:var(--palette-text);}
 }
+
+.block-settings{height:min(560px,calc(100dvh - 32px));display:flex;flex-direction:column}.block-settings .modal__body{flex:1;min-height:0;overflow:auto}.block-settings-tabs{display:flex;gap:8px;padding:12px 20px}.block-settings-tabs [aria-pressed="true"]{background:var(--palette-primary);color:white}

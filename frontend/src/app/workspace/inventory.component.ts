@@ -202,7 +202,7 @@ export class InventoryComponent implements OnDestroy {
   try{const events=await this.request<Event[]>(`/items/${item.id}/history`);if(version===this.historyVersion && this.detail()?.id===item.id)this.history.set(events);}catch(e){if(version===this.historyVersion)this.fail(e);}
  }
  preview(item: Item){this.menu.set(null);this.detail.set(null);this.error.set('');this.themePreview.set(item);}
- requestEquip(item: Item){if(!item.equipped && ['frame','theme'].includes(item.kind))this.preview(item);else void this.equip(item);}
+ requestEquip(item: Item){if(item.kind==='wallpaper')return;if(!item.equipped && ['frame','theme'].includes(item.kind))this.preview(item);else void this.equip(item);}
  rawAvatar(){const url=this.avatarUrl();return url ? url+(url.includes('?')?'&':'?')+'include_frame=false' : this.presetImage('cat');}
  itemStatus(item: Item){return item.revoked ? 'Отозван' : item.equipped ? 'Используется' : 'В инвентаре';}
  openCatalogMenu(entry: Catalog,event: MouseEvent){event.stopPropagation();this.catalogMenu.set(entry);}
