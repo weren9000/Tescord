@@ -13,6 +13,9 @@ export class AdminStatisticsComponent implements OnInit,OnDestroy{
  readonly token=input.required<string>();readonly forbidden=output<void>();
  readonly data=signal<Stats|null>(null);readonly error=signal('');readonly busy=signal(false);
  readonly tab=signal('activity');readonly history=signal(false);
+ readonly panels=signal<Record<string,boolean>>({});readonly help=signal<string|null>(null);
+ togglePanel(key:string){this.panels.update(value=>({...value,[key]:!value[key]}));}
+ toggleHelp(key:string){this.help.update(value=>value===key?null:key);}
  days=1;excludeSelf=false;startDate='';endDate='';resourceKey='cpu_percent';
  readonly today=new Date().toISOString().slice(0,10);
  private timer?:ReturnType<typeof setInterval>;private sub?:Subscription;private http=inject(HttpClient);
