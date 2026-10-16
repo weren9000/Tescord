@@ -1617,7 +1617,7 @@
                     }
                   </label>
 
-                  <div class="composer-emoji"><button type="button" aria-label="Эмодзи" [attr.aria-expanded]="composerEmojiOpen()" (click)="composerEmojiOpen.set(!composerEmojiOpen())" [disabled]="messageSubmitting()">☺</button>@if(composerEmojiOpen()){<div class="composer-emoji__panel" role="group" aria-label="Выбор эмодзи" (keydown.escape)="composerEmojiOpen.set(false)">@for(emoji of composerEmojis;track emoji){<button type="button" (mousedown)="$event.preventDefault()" (click)="insertComposerEmoji(emoji)">{{emoji}}</button>}</div>}</div>
+                  <div class="composer-emoji"><button type="button" aria-label="Эмодзи" [attr.aria-expanded]="composerEmojiOpen()" (click)="composerEmojiOpen.set(!composerEmojiOpen())" [disabled]="messageSubmitting()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 14.5c1.5 2.7 6.5 2.7 8 0"/><circle cx="8.5" cy="9" r=".8" fill="currentColor" stroke="none"/><circle cx="15.5" cy="9" r=".8" fill="currentColor" stroke="none"/></svg></button>@if(composerEmojiOpen() && session();as auth){<app-emoji-picker [token]="auth.access_token" (choose)="insertComposerEmoji($event)" (close)="composerEmojiOpen.set(false)"/>}</div>
                   <button
                     class="primary-button composer__submit"
                     type="button"

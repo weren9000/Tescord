@@ -20,11 +20,43 @@ from app.services.avatar_frames import frame_svg
 from app.services.image_previews import small_preview_response
 from app.db.inventory import InventoryItem
 from sqlalchemy import update
+from sqlalchemy import func
+from sqlalchemy.dialects.postgresql import insert
+from pydantic import BaseModel, Field
+from app.db.emoji import EmojiUsage
+from app.services.emoji_catalog import CATALOG, ALLOWED, DEFAULTS
 
 router = APIRouter(tags=["users"])
 
 ALLOWED_AVATAR_MIME_TYPES = {"image/png", "image/jpeg"}
 MAX_AVATAR_SIZE_BYTES = 2 * 1024 * 1024
+
+
+class EmojiChoice(BaseModel):
+    emoji: str = Field(min_length=1, max_length=32)
+
+
+def frequent_emojis(db, user_id):
+    return list(db.scalars(select(EmojiUsage.emoji).where(EmojiUsage.user_id == user_id)
+        .order_by(EmojiUsage.uses.desc(), EmojiUsage.last_used.desc(), EmojiUsage.emoji).limit(10)))
+
+
+@router.get('/users/me/emojis')
+def get_emoji_picker(response: Response, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    response.headers['Cache-Control'] = 'no-store'
+    return dict(groups=CATALOG, frequent=frequent_emojis(db, current_user.id), defaults=DEFAULTS)
+
+
+@router.post('/users/me/emojis/use')
+def use_emoji(payload: EmojiChoice, response: Response, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if payload.emoji not in ALLOWED: raise HTTPException(422, 'Unknown emoji')
+    now = datetime.now(timezone.utc)
+    statement = insert(EmojiUsage).values(user_id=current_user.id, emoji=payload.emoji, uses=1, last_used=now)
+    db.execute(statement.on_conflict_do_update(index_elements=['user_id', 'emoji'],
+        set_={'uses': func.least(EmojiUsage.uses + 1, 2147483647), 'last_used': now}))
+    db.commit()
+    response.headers['Cache-Control'] = 'no-store'
+    return dict(frequent=frequent_emojis(db, current_user.id))
 
 
 def _sanitize_filename(filename: str | None) -> str:
