@@ -25,6 +25,7 @@ function clearNotifications() {
   notifications.clear();
 }
 const trusted = (url: string) => { try {const origin=new URL(url).origin;return origin === ORIGIN || (developmentTest && origin === 'http://localhost:4200');} catch {return false;} };
+const appPage = (url: string) => {try {return trusted(url) && /^\/(?:login\/?|invite\/[A-Za-z0-9_-]+\/?|channels\/[a-fA-F0-9-]+\/[a-fA-F0-9-]+\/?)?$/.test(new URL(url).pathname);}catch{return false;}};
 const isMain = (event: IpcMainEvent | Electron.IpcMainInvokeEvent) => !!main && event.sender === main.webContents && event.senderFrame === main.webContents.mainFrame && trusted(event.senderFrame.url);
 const isPicker = (event: Electron.IpcMainEvent | Electron.IpcMainInvokeEvent) => !!picker && event.sender === picker.webContents && event.senderFrame === picker.webContents.mainFrame;
 const stateFile = () => path.join(app.getPath('userData'), 'window.json');
@@ -92,7 +93,7 @@ else {
         if (inside && fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
           return net.fetch(pathToFileURL(candidate).toString());
         }
-        if (pathname === '/' || pathname.startsWith('/invite/')) {
+        if (appPage(request.url)) {
           const html = fs.readFileSync(path.join(web, 'index.html'));
           return new Response(html, {headers:{'Content-Type':'text/html; charset=utf-8', 'Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; media-src 'self' https: blob:; connect-src 'self' https: wss:; font-src 'self' data:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-src 'none'"}});
         }
@@ -161,7 +162,7 @@ else {
     main.on('ready-to-show',()=>{if(state.maximized)main!.maximize();main!.show();});
     main.on('resize',saveState);main.on('move',saveState);
     main.on('close',event=>{saveState();if(!quitting && tray){event.preventDefault();main!.hide();}});
-    main.webContents.setWindowOpenHandler(({url})=>{external(url);return {action:'deny'};});
+    main.webContents.setWindowOpenHandler(({url})=>{if(appPage(url))void main?.loadURL(url);else external(url);return {action:'deny'};});
     main.webContents.on('will-navigate',(event,url)=>{if(!trusted(url)){event.preventDefault();external(url);}});
     main.webContents.on('will-attach-webview',event=>event.preventDefault());
     main.webContents.on('audio-state-changed',()=>{

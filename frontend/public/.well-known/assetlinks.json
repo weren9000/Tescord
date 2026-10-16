@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "ru.kvachat.android",
+      "sha256_cert_fingerprints": [
+        "BC:78:41:03:9B:69:7E:A7:FC:42:CB:CD:B4:81:4F:C7:83:92:91:EE:7A:15:4F:AF:BC:F7:61:A9:C0:91:D6:50"
+      ]
+    }
+  }
+]

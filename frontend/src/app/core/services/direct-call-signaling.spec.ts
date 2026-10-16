@@ -3,6 +3,9 @@ import {DirectCallService} from './direct-call.service';
 describe('Direct call signaling lifecycle', () => {
   it('stops a microphone granted after the LiveKit join was cancelled', async () => {
     const call=new DirectCallService();
+    const previousAndroid = window.kvaAndroid;
+    const directAudio = jasmine.createSpy('directAudio');
+    window.kvaAndroid = {pendingCall: () => null, directAudio};
     let grant!: (stream: MediaStream) => void;
     let requested!: () => void;
     const request=new Promise<void>(resolve=>requested=resolve);
@@ -16,6 +19,8 @@ describe('Direct call signaling lifecycle', () => {
     expect(track.stop).toHaveBeenCalled();
     expect((call as any).localStream).toBeNull();
     expect((call as any).room).toBeNull();
+    expect(directAudio.calls.allArgs()).toEqual([[true], [false]]);
+    window.kvaAndroid = previousAndroid;
   });
   it('never joins a call that was cancelled before acceptance arrived', async () => {
     const call=new DirectCallService();

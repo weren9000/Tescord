@@ -6,7 +6,12 @@ interface AltgrammRuntimeConfig {
 }
 
 interface Window {
-  kvaAndroid?: {pendingCall(): string | null};
+  kvaAndroid?: {
+    pendingCall(): string | null;
+    directAudio?(active: boolean): void;
+    audioRoutes?(): {id: string; label: string; selected: boolean}[];
+    selectAudioRoute?(id: string): boolean;
+  };
   kvaDesktop?: {
     version: string; readSession(): string | null; writeSession(value: string | null): boolean;
     notify?(value: {id: string; title: string; body: string; target: string}): Promise<boolean>;

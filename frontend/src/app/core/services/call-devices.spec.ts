@@ -17,6 +17,9 @@ describe('Call device changes', () => {
     call.localMuted.set(true);
     spyOn(navigator.mediaDevices, 'getUserMedia').and.resolveTo(next.media);
     await call.updateInputDevice('second');
+    expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith({audio: {
+      deviceId: {exact: 'second'}, echoCancellation: true, noiseSuppression: true, autoGainControl: true
+    }});
     expect(sender.replaceTrack).toHaveBeenCalledWith(next.track, true);
     expect(next.track.enabled).toBeFalse();
     expect(old.track.stop).toHaveBeenCalled();

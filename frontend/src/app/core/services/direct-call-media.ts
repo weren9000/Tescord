@@ -44,6 +44,11 @@ export abstract class DirectCallMedia {
 
   protected abstract mediaFailed(message: string): void;
 
+  private microphoneConstraints(deviceId: string | null): MediaTrackConstraints {
+    return {echoCancellation: true, noiseSuppression: true, autoGainControl: true,
+      ...(deviceId ? {deviceId: {exact: deviceId}} : {})};
+  }
+
   protected async connectMedia(credentials: {url: string; token: string}, peerId: string): Promise<void> {
     const generation = this.mediaGeneration;
     const sdk = await import('livekit-client');
@@ -71,7 +76,8 @@ export abstract class DirectCallMedia {
     window.addEventListener('keydown', this.unlockAudio);
     let stream: MediaStream | null = null;
     try {
-      stream = await navigator.mediaDevices.getUserMedia({audio: this.inputDeviceId() ? {deviceId: {exact: this.inputDeviceId()!}} : true});
+      window.kvaAndroid?.directAudio?.(true);
+      stream = await navigator.mediaDevices.getUserMedia({audio: this.microphoneConstraints(this.inputDeviceId())});
       if (!current()) {stream.getTracks().forEach(t => t.stop());return;}
       this.localStream = stream;
       const microphone = stream.getAudioTracks()[0];
@@ -121,7 +127,7 @@ export abstract class DirectCallMedia {
     this.deviceChanging.set(true);this.deviceNotice.set(null);
     let replacement: MediaStream | null = null;
     try {
-      replacement = await navigator.mediaDevices.getUserMedia({audio: deviceId ? {deviceId: {exact: deviceId}} : true});
+      replacement = await navigator.mediaDevices.getUserMedia({audio: this.microphoneConstraints(deviceId)});
       if (this.localStream !== previous || this.localAudioTrack !== published) return;
       const track = replacement.getAudioTracks()[0];
       if (!track) throw Error('No microphone');
@@ -199,6 +205,7 @@ export abstract class DirectCallMedia {
     void this.stopCamera();void this.stopScreenShare();
     this.localStream?.getTracks().forEach(t=>t.stop());this.localStream=null;
     this.localAudioTrack?.stop();this.localAudioTrack=null;
+    window.kvaAndroid?.directAudio?.(false);
     if(room)void room.disconnect().catch(()=>{});
     this.clearRemoteAudio();this.remoteCameraStream.set(null);this.remoteScreenStream.set(null);
     this.localMuted.set(false);this.deviceNotice.set(null);this.deviceChanging.set(false);

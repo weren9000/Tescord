@@ -1,3 +1,5 @@
+import {AndroidCallOutputComponent} from './workspace/android-call-output.component';
+import {GuestHeaderComponent} from './landing/guest-header.component';
 import {LandingComponent} from './landing/landing.component';
 import {FriendLinkComponent} from './workspace/friend-link.component';
 import {FriendInviteComponent} from './workspace/friend-invite.component';
@@ -24,7 +26,7 @@ import { ConversationListComponent } from './workspace/conversation-list.compone
 import { QuickSwitchComponent, QuickLink } from './workspace/quick-switch.component';
 import { InviteManagerComponent } from './workspace/invite-manager.component';
 import { ActivityService } from './core/services/activity.service';
-import { InvitesApiService, InvitePreview } from './core/api/invites-api.service';
+import { InvitesApiService, InvitePreview, FriendSpaceInvitation } from './core/api/invites-api.service';
 import { WorkspaceMemoryService } from './core/services/workspace-memory.service';
 import { isMessageContinuation } from './core/services/message-layout';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
@@ -639,7 +641,7 @@ const DEFAULT_SERVER_ICON_ASSET_BY_NAME: Record<string, string> = {
 @Component({
   providers: [AuthFormStore],
     selector: 'app-root',
-    imports: [LandingComponent, FriendLinkComponent, FriendInviteComponent, MobileViewportDirective, PlatformListComponent, AdminDirectoryComponent, AvatarPickerComponent, AudioDevicePickerComponent, InfoPanelComponent, ActionMenuComponent, CommonModule, FormsModule, MediaStreamSrcDirective, SectionNavigationComponent, UiIconComponent, ConversationListComponent, QuickSwitchComponent, InviteManagerComponent, InventoryComponent, WallpapersComponent, ThemeControllerComponent, MessageGestureDirective, MessageActionsComponent, EmojiPickerComponent, DesktopPreferencesComponent, SidebarResizeDirective],
+    imports: [AndroidCallOutputComponent, GuestHeaderComponent, LandingComponent, FriendLinkComponent, FriendInviteComponent, MobileViewportDirective, PlatformListComponent, AdminDirectoryComponent, AvatarPickerComponent, AudioDevicePickerComponent, InfoPanelComponent, ActionMenuComponent, CommonModule, FormsModule, MediaStreamSrcDirective, SectionNavigationComponent, UiIconComponent, ConversationListComponent, QuickSwitchComponent, InviteManagerComponent, InventoryComponent, WallpapersComponent, ThemeControllerComponent, MessageGestureDirective, MessageActionsComponent, EmojiPickerComponent, DesktopPreferencesComponent, SidebarResizeDirective],
     templateUrl: './app.component.html',
     styleUrls: ['./app.component.scss', './app-layout.scss', './call-workspace.scss', './platform-workspace.scss', './invite-entry.scss', './palette-theme.scss', './auth-workspace.scss', './avatar-presets.scss', './mobile-workspace.scss', './chat-bubbles.scss', './conference-stage.scss']
 })
@@ -1133,6 +1135,30 @@ export class AppComponent {
   readonly deletingChatAttachmentId = signal<string | null>(null);
   readonly attachmentAvailabilityLabels = signal<Record<string, string>>({});
   readonly friendRequestsModalOpen = signal(false);
+  readonly spaceInvitations = signal<FriendSpaceInvitation[]>([]);
+  readonly spaceInviteBusy = signal(false);
+  async respondSpaceInvitation(id: string, action: 'accept' | 'reject'): Promise<void> {
+    const token = this.session()?.access_token;
+    if (!token || this.spaceInviteBusy()) return;
+    this.spaceInviteBusy.set(true);
+    this.friendRequestsError.set(null);
+    try {
+      const result = await firstValueFrom(this.invitesApi.respond(token, id, action));
+      if (this.session()?.access_token !== token) return;
+      this.spaceInvitations.update(rows => rows.filter(row => row.id !== id));
+      if (result.accepted && result.server_id && result.channel_id) {
+        const refreshed = await firstValueFrom(forkJoin({
+          servers: this.workspaceApi.getServers(token), conversations: this.workspaceApi.getConversations(token)
+        }));
+        if (this.session()?.access_token !== token) return;
+        this.servers.set(this.mergeServersById(refreshed.servers));
+        this.conversations.set(this.mergeConversationsById(refreshed.conversations));
+        this.closeFriendRequestsModal();
+        this.openWorkspaceTarget(result.server_id, result.channel_id);
+      }
+    } catch (error) {this.friendRequestsError.set(this.extractErrorMessage(error, 'Не удалось обработать приглашение'));}
+    finally {this.spaceInviteBusy.set(false);}
+  }
   readonly friendRequestsLoading = signal(false);
   readonly friendRequestsError = signal<string | null>(null);
   readonly attentionInboxLoading = signal(false);
@@ -1168,6 +1194,7 @@ export class AppComponent {
   readonly callParticipant = computed(() => this.activeCallVoiceParticipants().find(p => p.user_id === this.callParticipantId()) ?? null);
   readonly callDeviceChanging = signal(false);
   readonly settingsDeviceChanging = signal<'input' | 'output' | null>(null);
+  readonly androidAudioRoutesSupported = !!window.kvaAndroid?.audioRoutes;
   readonly callDeviceNotice = computed(() => this.activeCallSurface()?.kind === 'direct' ? this.directCall.deviceNotice() : this.settingsNotice() || this.voiceError());
   readonly callInputDeviceId = computed(() => this.activeCallSurface()?.kind === 'direct' ? this.directCall.inputDeviceId() : this.voiceSettings().inputDeviceId);
   readonly callOutputDeviceId = computed(() => this.activeCallSurface()?.kind === 'direct' ? this.directCall.outputDeviceId() : this.voiceSettings().outputDeviceId);
@@ -1385,7 +1412,7 @@ export class AppComponent {
     this.servers().reduce((total, server) => total + Math.max(0, server.mention_unread_count ?? 0), 0)
   );
   readonly notificationAlertCount = computed(
-    () => this.pendingFriendRequestCount() + this.ownerVoiceRequests().length + this.conversationMentionTotalCount() + this.serverMentionTotalCount()
+    () => this.spaceInvitations().length + this.pendingFriendRequestCount() + this.ownerVoiceRequests().length + this.conversationMentionTotalCount() + this.serverMentionTotalCount()
   );
   readonly friendRequestBadgeVisible = computed(() => this.notificationAlertCount() > 0);
   readonly isActiveGroupOwner = computed(() => {
@@ -2747,7 +2774,9 @@ export class AppComponent {
     });
     this.bindActionPipelines();
     const stopDesktopNotifications = window.kvaDesktop?.onNotificationOpen?.((target) => {
-      if (target === 'call') { if (this.directCallState() === 'incoming') this.expandCallWindow(); }
+      if (/^\/(?:invite\/|channels\/|login(?:\?|$)|\?|$)/.test(target) && !target.startsWith('//')) {
+        window.location.assign(target);
+      } else if (target === 'call') { if (this.directCallState() === 'incoming') this.expandCallWindow(); }
       else this.handlePushConversationRequest(target);
     });
     if (stopDesktopNotifications) this.destroyRef.onDestroy(stopDesktopNotifications);
@@ -6998,6 +7027,7 @@ export class AppComponent {
   }
 
   logout(): void {
+    this.spaceInvitations.set([]);
     this.inviteManagerSpace.set(null);
     const token = this.session()?.access_token;
     if (token) {
@@ -7602,7 +7632,7 @@ export class AppComponent {
 
     this.stopPresenceKeepalive();
     this.presenceKeepaliveIntervalId = window.setInterval(() => {
-      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden' && !this.hasActiveCallSurface()) {
         return;
       }
 
@@ -8057,6 +8087,12 @@ export class AppComponent {
   }
 
   private handlePresenceUpdatedEvent(event: AppPresenceUpdatedEvent): void {
+    this.conversations.update(rows => rows.map(row => ({...row,
+      members: row.members.map(member => member.user_id === event.user_id
+        ? {...member, is_online: event.is_online} : member)
+    })));
+    this.conversationDirectory.update(rows => rows.map(row => row.user_id === event.user_id
+      ? {...row, is_online: event.is_online} : row));
     this.members.update((members) =>
       members.map((member) =>
         member.user_id === event.user_id
@@ -8293,6 +8329,14 @@ export class AppComponent {
 
     this.channels.set(channels);
     this.syncActiveServerUnreadCountFromChannels(channels);
+
+    const requestedUrl = this.readWorkspaceUrl();
+    if (!this.selectedChannelId() && requestedUrl?.spaceId === this.selectedServerId()
+      && !channels.some(channel => channel.id === requestedUrl.channelId)) {
+      this.pendingSearchNavigation.set(null);
+      this.workspaceError.set('Канал недоступен. Проверьте ссылку или попросите приглашение.');
+      return;
+    }
 
     const connectedVoiceSnapshot = this.activeVoiceCallSnapshot();
     const connectedVoiceBelongsToCurrentServer =
@@ -8568,6 +8612,10 @@ export class AppComponent {
   }
 
   private async refreshFriendRequests(token: string): Promise<void> {
+    this.invitesApi.inbox(token).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: rows => {if (this.session()?.access_token === token) this.spaceInvitations.set(rows);},
+      error: () => {}
+    });
     this.workspaceApi
       .getFriendRequests(token)
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -8957,6 +9005,13 @@ export class AppComponent {
           const groupSpaces = mergedConversations.filter((conversation) => conversation.kind === 'group_chat');
           const platformSpaces = this.mergeServersById(servers).filter((server) => server.kind === 'workspace');
 
+          const requested = this.readWorkspaceUrl();
+          if (requested && ![...this.conversationSpaces(), ...this.platformSpaces()].some(s => s.id === requested.spaceId)) {
+            this.workspaceLoading.set(false);
+            this.workspaceError.set('Канал недоступен. Проверьте ссылку или попросите приглашение.');
+            return;
+          }
+
           if (!directSpaces.length && !groupSpaces.length && !platformSpaces.length) {
             this.appEvents.setActiveServer(null);
             this.stopMemberPolling();
@@ -9011,6 +9066,11 @@ export class AppComponent {
         error: (error) => {
           this.friendRequestsLoading.set(false);
           this.stopMemberPolling();
+          if (!this.isUnauthorizedError(error)) {
+            this.workspaceLoading.set(false);
+            this.workspaceError.set(this.extractErrorMessage(error, 'Не удалось загрузить чат. Обновите страницу, чтобы повторить.'));
+            return;
+          }
           this.stopVoicePresencePolling();
           this.stopMessageAutoRefreshPolling();
           this.stopVoiceJoinInboxPolling();

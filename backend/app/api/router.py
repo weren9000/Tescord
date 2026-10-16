@@ -12,6 +12,7 @@ from app.api.routes.events import router as events_router
 from app.api.routes.friends import router as friends_router
 from app.api.routes.health import router as health_router
 from app.api.routes.invites import router as invites_router
+from app.api.routes.friend_space_invites import router as friend_space_invites_router
 from app.api.routes.messages import router as messages_router
 from app.api.routes.presence import router as presence_router
 from app.api.routes.push import router as push_router
@@ -29,6 +30,7 @@ api_router.include_router(inventory_batches_router)
 api_router.include_router(wallpapers_router)
 api_router.include_router(inventory_router)
 api_router.include_router(invites_router)
+api_router.include_router(friend_space_invites_router)
 api_router.include_router(attention_router)
 api_router.include_router(auth_router)
 api_router.include_router(conversations_router)

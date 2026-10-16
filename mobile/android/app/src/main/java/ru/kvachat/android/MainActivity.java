@@ -15,8 +15,21 @@ import org.json.JSONObject;
 
 public class MainActivity extends BridgeActivity {
     private static WeakReference<MainActivity> current=new WeakReference<>(null);
-    private String target="";
+    private volatile String target="";
+    private DirectAudio directAudio;
+    private String appLink(Uri uri) {
+        if (uri == null || !"https".equals(uri.getScheme()) || !"kvachat.ru".equals(uri.getHost())
+            || (uri.getPort() != -1 && uri.getPort() != 443)) return null;
+        String path = uri.getPath();
+        if (path == null || !path.matches("/|/login/?|/invite/[A-Za-z0-9_-]+/?|/channels/[a-fA-F0-9-]+/[a-fA-F0-9-]+/?")) return null;
+        return uri.getEncodedPath() + (uri.getEncodedQuery() == null ? "" : "?" + uri.getEncodedQuery());
+    }
+    private String intentTarget(Intent intent) {
+        String link = appLink(intent.getData());
+        return link != null ? link : intent.getStringExtra("target");
+    }
     @Override protected void load(){
+        directAudio = new DirectAudio(this);
         WebView view=findViewById(com.getcapacitor.android.R.id.webview);
         view.addJavascriptInterface(new NativeBridge(),"KvaNative");
         super.load();
@@ -36,11 +49,13 @@ public class MainActivity extends BridgeActivity {
         startForegroundService(new Intent(this,ScreenService.class).putExtra("code",result.getResultCode()).putExtra("data",result.getData()));
     });
     @Override public void onCreate(Bundle state){
-        super.onCreate(state);current=new WeakReference<>(this);target=getIntent().getStringExtra("target");
+        super.onCreate(state);current=new WeakReference<>(this);target=intentTarget(getIntent());
         getBridge().getWebView().setWebViewClient(new BridgeWebViewClient(getBridge()){
             @Override public boolean shouldOverrideUrlLoading(WebView view,WebResourceRequest request){
                 Uri uri=request.getUrl();
                 if("https".equals(uri.getScheme())&&"localhost".equals(uri.getHost())&&(uri.getPort()==-1||uri.getPort()==443))return false;
+                String link = appLink(uri);
+                if (request.isForMainFrame() && link != null) {view.loadUrl("https://localhost" + link);return true;}
                 if(request.isForMainFrame()&&("https".equals(uri.getScheme())||"http".equals(uri.getScheme())))try{startActivity(new Intent(Intent.ACTION_VIEW,uri));}catch(ActivityNotFoundException ignored){}
                 return true;
             }
@@ -51,12 +66,16 @@ public class MainActivity extends BridgeActivity {
     }
     @Override public void onResume(){super.onResume();current=new WeakReference<>(this);BackgroundService.visible=true;if(SessionStore.read(this)!=null)startBackground();}
     @Override public void onPause(){BackgroundService.visible=false;super.onPause();}
-    @Override protected void onNewIntent(Intent intent){super.onNewIntent(intent);setIntent(intent);target=intent.getStringExtra("target");if(target!=null)emit("kva-open",target);}
+    @Override protected void onNewIntent(Intent intent){super.onNewIntent(intent);setIntent(intent);target=intentTarget(intent);if(target!=null)emit("kva-open",target);}
+    @Override public void onDestroy(){if(directAudio!=null)directAudio.active(false);super.onDestroy();}
     private void startBackground(){startForegroundService(new Intent(this,BackgroundService.class));}
     static void emit(String name,String detail){MainActivity activity=current.get();if(activity!=null)activity.runOnUiThread(()->{
         if(activity.getBridge()!=null)activity.getBridge().getWebView().evaluateJavascript("window.dispatchEvent(new CustomEvent("+JSONObject.quote(name)+",{detail:"+JSONObject.quote(detail)+"}))",null);
     });}
     final class NativeBridge {
+        @JavascriptInterface public void directAudio(boolean active){directAudio.active(active);}
+        @JavascriptInterface public String audioRoutes(){return directAudio.routes();}
+        @JavascriptInterface public boolean selectAudioRoute(String id){return directAudio.select(id);}
         @JavascriptInterface public String readSession(){return SessionStore.read(MainActivity.this);}
         @JavascriptInterface public boolean writeSession(String value){
             try{if(value!=null){JSONObject data=new JSONObject(value);if(value.length()>1048576||data.getString("access_token").isEmpty())return false;}}

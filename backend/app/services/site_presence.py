@@ -14,8 +14,7 @@ class SitePresenceManager:
     def mark_active(self, user_id: UUID) -> bool:
         now = monotonic()
         with self._lock:
-            self._cleanup_locked(now)
-            was_online = user_id in self._last_seen
+            was_online = now - self._last_seen.get(user_id, float('-inf')) <= self._ttl_seconds
             self._last_seen[user_id] = now
             return not was_online
 
@@ -24,8 +23,9 @@ class SitePresenceManager:
         requested_ids = set(user_ids)
 
         with self._lock:
-            self._cleanup_locked(now)
-            return {user_id for user_id in requested_ids if user_id in self._last_seen}
+            # Only the expiry sweep removes entries, so reads cannot swallow offline events.
+            return {user_id for user_id in requested_ids
+                    if now - self._last_seen.get(user_id, float('-inf')) <= self._ttl_seconds}
 
     def collect_expired_user_ids(self) -> list[UUID]:
         now = monotonic()

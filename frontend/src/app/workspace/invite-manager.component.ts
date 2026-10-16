@@ -3,13 +3,24 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { HttpErrorResponse } from '@angular/common/http';
-import { InviteSummary, InvitesApiService } from '../core/api/invites-api.service';
+import { InviteSummary, InvitesApiService, InviteFriend } from '../core/api/invites-api.service';
 
 @Component({
   selector: 'app-invite-manager', imports: [CommonModule, FormsModule],
   template: `
     <dialog #dialog aria-labelledby="invite-title" (cancel)="$event.preventDefault(); dismiss()" (keydown.escape)="$event.stopPropagation()">
       <header><div><h2 id="invite-title">Пригласить</h2><p>{{ space().name }}</p></div><button type="button" aria-label="Закрыть приглашения" (click)="dismiss()">×</button></header>
+      <div class="invite-tabs"><button type="button" [attr.aria-pressed]="tab() === 'friends'" (click)="tab.set('friends')">Друзья</button><button type="button" [attr.aria-pressed]="tab() === 'link'" (click)="tab.set('link')">По ссылке</button></div>
+      @if (tab() === 'friends') {
+        <input aria-label="Найти друга" placeholder="Найти друга" [(ngModel)]="query" />
+        <div class="list friend-choices">
+          @for (friend of filteredFriends(); track friend.user_id) {
+            <label><input type="checkbox" [checked]="selected().includes(friend.user_id)" [disabled]="busy() || friend.state !== 'available'" (change)="toggleFriend(friend.user_id)" /><span>{{ friend.nick }}</span>@if(friend.state !== 'available'){<small>{{ friend.state === 'member' ? 'Уже участник' : 'Приглашён' }}</small>}</label>
+          } @empty {<p class="hint">{{ loading() ? 'Загрузка…' : 'Друзья не найдены' }}</p>}
+        </div>
+        <button class="primary" type="button" [disabled]="busy() || !selected().length" (click)="sendFriends()">Пригласить{{ selected().length ? ' · ' + selected().length : '' }}</button>
+        @if (sent()) {<p role="status">Приглашения отправлены</p>}
+      } @else {
       <form (ngSubmit)="create()">
         <div class="options"><label>Срок действия<select name="expiry" [(ngModel)]="days"><option [ngValue]="1">1 день</option><option [ngValue]="7">7 дней</option><option [ngValue]="30">30 дней</option><option [ngValue]="null">Бессрочно</option></select></label>
         <label>Лимит вступлений<select name="uses" [(ngModel)]="limit"><option [ngValue]="null">Без ограничения</option><option [ngValue]="1">Одноразовая</option><option [ngValue]="5">5 человек</option><option [ngValue]="10">10 человек</option><option [ngValue]="100">100 человек</option></select></label></div>
@@ -30,6 +41,8 @@ import { InviteSummary, InvitesApiService } from '../core/api/invites-api.servic
           @if (invite.state === 'active') {<button type="button" [disabled]="busy()" (click)="revoke(invite.id)">Отключить</button>}</article>
         } @empty { @if (!loading()) {<p class="hint">Ссылок пока нет.</p>} }
       </div>
+      }
+      @if (tab() === 'friends' && error()) {<p class="error" role="alert">{{ error() }}</p>}
     </dialog>
   `,
   styleUrl: './invite-manager.component.scss',
@@ -43,6 +56,21 @@ export class InviteManagerComponent implements AfterViewInit {
   @ViewChild('dialog') private dialog!: ElementRef<HTMLDialogElement>;
   @ViewChild('linkInput') private linkInput?: ElementRef<HTMLInputElement>;
   readonly invites = signal<InviteSummary[]>([]);
+  readonly tab = signal<'friends' | 'link'>('friends');
+  readonly friends = signal<InviteFriend[]>([]);
+  readonly selected = signal<string[]>([]);
+  readonly sent = signal(false);
+  query = '';
+  filteredFriends() { return this.friends().filter(f => f.nick.toLocaleLowerCase().includes(this.query.trim().toLocaleLowerCase())); }
+  toggleFriend(id: string) { this.selected.update(ids => ids.includes(id) ? ids.filter(item => item !== id) : [...ids, id]); }
+  sendFriends() {
+    if (this.busy() || !this.selected().length) return;
+    this.busy.set(true); this.error.set(''); this.sent.set(false);
+    this.api.inviteFriends(this.token(), this.space().id, this.selected()).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: () => {this.busy.set(false); this.selected.set([]); this.sent.set(true); this.reload();},
+      error: e => {this.busy.set(false); this.error.set(this.message(e));}
+    });
+  }
   readonly link = signal('');
   readonly copied = signal(false);
   readonly error = signal('');
@@ -57,6 +85,7 @@ export class InviteManagerComponent implements AfterViewInit {
   dismiss(): void { this.dialog.nativeElement.close(); this.close.emit(); }
   private message(error: unknown): string { return error instanceof HttpErrorResponse && typeof error.error?.detail === 'string' ? error.error.detail : 'Не удалось выполнить действие. Попробуйте ещё раз.'; }
   private reload(): void {
+    this.api.friends(this.token(), this.space().id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({next: rows => this.friends.set(rows), error: e => this.error.set(this.message(e))});
     this.api.list(this.token(), this.space().id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({next: rows => {this.invites.set(rows); this.loading.set(false);}, error: e => {this.loading.set(false); this.error.set(this.message(e));}});
   }
   create(): void {

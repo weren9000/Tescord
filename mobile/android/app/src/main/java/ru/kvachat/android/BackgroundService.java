@@ -21,6 +21,7 @@ public class BackgroundService extends Service {
     private String token;
     private volatile int generation=0;
     private int mediaType=0;
+    private boolean callActive=false;
     private boolean stopped=false,refreshing=false,refreshAgain=false;
     private final Map<String,Integer> unread=new HashMap<>();
     private final Set<String> seen=new LinkedHashSet<>();
@@ -57,6 +58,7 @@ public class BackgroundService extends Service {
     }
     void media(boolean audio,boolean camera){
         boolean active=audio||camera;
+        callActive=active;
         try {
             int type=Build.VERSION.SDK_INT>=34?ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE:0;
             int requested=Build.VERSION.SDK_INT>=30?((audio?ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE:0)|(camera?ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA:0)):0;
@@ -67,11 +69,16 @@ public class BackgroundService extends Service {
             if(!active&&wakeLock!=null){if(wakeLock.isHeld())wakeLock.release();wakeLock=null;}
         }catch(Exception error){MainActivity.emit("kva-native-error","Не удалось продолжить звонок в фоне");}
     }
-    private void connect(){if(stopped||token==null)return;events=socket("events");calls=socket("calls");}
+    private final Runnable presence = new Runnable(){public void run(){
+        if(stopped)return;
+        if((visible||callActive)&&events!=null)events.send("{\"type\":\"activity\"}");
+        handler.postDelayed(this,25000);
+    }};
+    private void connect(){if(stopped||token==null)return;events=socket("events");calls=socket("calls");handler.post(presence);}
     private WebSocket socket(String kind){
         final int epoch=generation;
         final String credential=token;
-        return client.newWebSocket(new Request.Builder().url("wss://kvachat.ru/api/"+kind+"/ws").build(),new WebSocketListener(){
+        return client.newWebSocket(new Request.Builder().url("wss://kvachat.ru/api/"+kind+"/ws"+(kind.equals("events")?"?background=1":"")).build(),new WebSocketListener(){
             @Override public void onOpen(WebSocket socket,Response response){if(epoch!=generation){socket.cancel();return;}try{socket.send(new JSONObject().put("type","authenticate").put("token",credential).toString());}catch(Exception ignored){}}
             @Override public void onMessage(WebSocket socket,String raw){handler.post(()->{
                 if(stopped||epoch!=generation)return;

@@ -362,10 +362,16 @@ async def publish_presence_updated(user_id: UUID | str, is_online: bool = True) 
             select(ServerMember.server_id).where(ServerMember.user_id == UUID(normalized_user_id))
         ).scalars().all()
 
-    if not server_ids:
-        return
+        friends = db.scalars(select(FriendRequest).where(
+            FriendRequest.status == FriendRequestStatus.ACCEPTED,
+            (FriendRequest.requester_user_id == UUID(normalized_user_id)) |
+            (FriendRequest.target_user_id == UUID(normalized_user_id)),
+        )).all()
+        friend_ids = {row.target_user_id if str(row.requester_user_id) == normalized_user_id
+                      else row.requester_user_id for row in friends}
 
     payload = build_presence_updated_event(user_id, is_online=is_online)
+    await app_event_manager.send_to_users(friend_ids, payload)
     for server_id in server_ids:
         await app_event_manager.send_to_server(server_id, payload)
 

@@ -18,4 +18,6 @@ select,input { width: 100%; min-width: 0; padding: 10px; background: var(--palet
 .link { display: flex; align-items: flex-end; gap: 8px; margin-top: 14px; } .link button { min-height: 38px; }
 .list { max-height: 230px; overflow-y: auto; } article { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid rgb(var(--rgb-text) / 0.0431); } article div { flex: 1; min-width: 0; } article strong { display: block; font-size: 12px; font-weight: 500; } article small { display: block; margin-top: 4px; font-size: 11px; color: var(--palette-muted); overflow-wrap: anywhere; }
 .error { color: var(--palette-danger-text); font-size: 13px; }
+.invite-tabs {display:flex;gap:8px;margin:16px 0}.invite-tabs [aria-pressed=true]{background:var(--palette-primary)}
+.friend-choices {margin:12px 0}.friend-choices label{flex-direction:row;align-items:center;padding:10px 0;gap:10px}.friend-choices input{width:18px;height:18px}.friend-choices span{flex:1}.friend-choices small{color:var(--palette-muted)}
 @media(max-width:480px) { dialog { padding: 18px; } .options { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px; } button { min-height: 44px; } .link { flex-wrap: wrap; } .link label { flex-basis: 100%; } }

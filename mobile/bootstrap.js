@@ -2,21 +2,26 @@
   const native = window.KvaNative;
   if (!native) throw new Error('Android bridge unavailable');
   window.kvaDesktop = Object.freeze({
-    version: 'android-0.2.0',
+    version: 'android-0.3.0',
     readSession: () => native.readSession(),
     writeSession: value => native.writeSession(value),
     // Native background service owns notifications, avoiding duplicate web notifications.
     notify: async () => false,
     clearNotifications: target => { if (target) native.clear(target); },
     onNotificationOpen: callback => {
-      const handler = event => callback(event.detail);
+      const handler = event => {native.pendingTarget(); callback(event.detail);};
       window.addEventListener('kva-open', handler);
       const target = native.pendingTarget();
       if (target) setTimeout(() => callback(target), 1000);
       return () => window.removeEventListener('kva-open', handler);
     }
   });
-  window.kvaAndroid = {pendingCall: () => native.pendingCall()};
+  window.kvaAndroid = {
+    pendingCall: () => native.pendingCall(),
+    directAudio: active => native.directAudio?.(active),
+    audioRoutes: () => JSON.parse(native.audioRoutes?.() || '[]'),
+    selectAudioRoute: id => native.selectAudioRoute?.(id) || false
+  };
   const tracks = new Set();
   const syncMedia = () => native.media([...tracks].some(track => track.kind === 'audio'), [...tracks].some(track => track.kind === 'video'));
   const getUserMedia = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
