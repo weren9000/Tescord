@@ -29,8 +29,23 @@ with sync_playwright() as p:
   assert page.locator('.message-list').evaluate('(e)=>e.scrollWidth<=e.clientWidth+1')
   assert last.locator('.message-card__body').bounding_box()['width']<500
   expect(last.locator('.bubble-footer')).to_be_visible()
+  expect(last.locator('.message-hover-actions')).to_have_count(0)
+  last.locator('.message-card__text').click()
+  expect(page.locator('app-message-actions')).to_have_count(0)
+  last.focus()
+  page.keyboard.press('Shift+F10')
+  expect(page.get_by_role('dialog',name='Действия с сообщением')).to_be_visible()
+  page.keyboard.press('Escape')
+  avatar=last.locator('.message-card__avatar')
+  expect(avatar).to_be_visible()
+  assert abs(avatar.bounding_box()['y']+avatar.bounding_box()['height']-last.locator('.message-card__body').bounding_box()['y']-last.locator('.message-card__body').bounding_box()['height'])<2
+  assert last.evaluate("e=>getComputedStyle(e,'::after').content")=='none'
   if width>980:last.click(button='right')
-  else:last.get_by_role('button',name='Действия с сообщением',exact=True).click()
+  else:
+   box=last.locator('.message-card__text').bounding_box()
+   last.dispatch_event('pointerdown',{'pointerType':'touch','isPrimary':True,'button':0,'pointerId':1,'clientX':box['x']+5,'clientY':box['y']+5})
+   page.wait_for_timeout(550)
+   last.dispatch_event('pointerup',{'pointerType':'touch','pointerId':1})
   menu=page.get_by_role('dialog',name='Действия с сообщением');expect(menu).to_be_visible()
   r=menu.bounding_box();assert r['x']>=0 and r['y']>=0 and r['x']+r['width']<=width+1 and r['y']+r['height']<=height+1,r
   page.screenshot(path=str(out/f'menu-{width}.png'))
@@ -67,13 +82,14 @@ with sync_playwright() as p:
  send('https://kvachat.ru/ '+('Длинное сообщение без потери текста. '*20))
  last=page.locator('.message-card').last
  expect(last.locator('a.message-link')).to_have_attribute('href','https://kvachat.ru/')
- last.get_by_role('button',name='Действия с сообщением',exact=True).click()
+ last.click(button='right')
  page.get_by_role('dialog',name='Действия с сообщением').get_by_role('button',name='Сердце',exact=True).click()
  expect(last.locator('.reaction-chip--active')).to_be_visible()
  page.locator('.composer textarea').fill(('Строка\n'*20))
  assert page.locator('.composer textarea').evaluate('(e)=>e.scrollHeight>e.clientHeight&&getComputedStyle(e).overflowY==="auto"')
  page.locator('.composer textarea').fill('')
  # New messages must not pull a reader away from history.
+ page.wait_for_timeout(250)  # Let composer resize and the message viewport settle.
  page.locator('.message-list').evaluate('(e)=>e.scrollTop=160')
  expect(page.get_by_role('button',name='К последним сообщениям',exact=True)).to_be_visible()
  before=page.locator('.message-list').evaluate('(e)=>e.scrollTop')
@@ -86,7 +102,7 @@ with sync_playwright() as p:
  assert abs(page.locator('.message-list').evaluate('(e)=>e.scrollTop')-before)<3
  # A catalogue reaction reaches another browser and can be removed again.
  target=peer.locator('.message-card').filter(has_text=incoming)
- target.locator('.message-card__text').click()
+ target.locator('.message-card__text').click(button='right')
  menu=peer.get_by_role('dialog',name='Действия с сообщением')
  menu.get_by_role('button',name='Все эмодзи',exact=True).click()
  menu.get_by_role('searchbox').fill('лягушка')

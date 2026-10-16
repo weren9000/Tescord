@@ -736,10 +736,6 @@ export class AppComponent {
   messageClock(value:string):string{return this.bubbleClockFormat.format(new Date(value));}
   goToReply(message:WorkspaceMessage):void {const reply=message.reply_to;const token=this.session()?.access_token;const channel=this.activeMessagingChannel();if(!reply||!token||!channel)return;this.messageSearchFocusedMessageId.set(reply.id);if(this.messages().some(m=>m.id===reply.id)){this.openedMessageFocusKind.set('search');this.scrollMessageIntoView(reply.id);return;}this.loadMessagesForChannel(token,channel.id,undefined,{focusMessageId:reply.id,focusKind:'search',limit:MESSAGES_PAGE_SIZE,preserve:true});}
   menuImage(message:WorkspaceMessage){return message.attachments.find(a=>a.mime_type.startsWith('image/')&&!a.deleted_at);}
-  messageBubbleClick(message:WorkspaceMessage,event:MouseEvent):void {
-    if(event.defaultPrevented||window.getSelection()?.toString()||(event.target as Element).closest('button,a,input,textarea,video,audio,[role="button"]'))return;
-    this.openMessageActions(message,event);
-  }
   private messageActionsFocus: HTMLElement | null = null;
   openMessageActions(message: WorkspaceMessage, event?: Event): void {
     this.composerEmojiOpen.set(false);
@@ -914,6 +910,10 @@ export class AppComponent {
   }
   isCompactMessage(message: WorkspaceMessage, index: number): boolean {
     return !this.shouldShowUnreadDivider(message) && isMessageContinuation(message, this.messages()[index - 1]);
+  }
+  isMessageSeriesEnd(index: number): boolean {
+    const next = this.messages()[index + 1];
+    return !next || !this.isCompactMessage(next, index + 1);
   }
   jumpToLatest(): void {
     const channelId = this.selectedChannelId(), token = this.session()?.access_token;

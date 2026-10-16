@@ -1185,12 +1185,12 @@
                         class="message-card"
                         appMessageGesture
                         (replyGesture)="startReplyToMessage(message)"
-                        (click)="messageBubbleClick(message,$event)"
                         (holdGesture)="openMessageActions(message)"
                         (contextmenu)="openMessageActions(message,$event)"
                         (keydown.shift.f10)="openMessageActions(message, $event)"
                         tabindex="0"
                         [class.message-card--continuation]="isCompactMessage(message, messageIndex)"
+                        [class.message-card--series-end]="isMessageSeriesEnd(messageIndex)"
                         [attr.data-message-id]="message.id"
                         [class.message-card--self]="message.author.id === currentUser()?.id"
                         [class.message-card--direct]="!!activeDirectConversation()"
@@ -1426,25 +1426,7 @@
                                 <span class="reaction-chip__count">{{ reaction.count }}</span>
                               </button>
                             }
-                            <span class="message-hover-actions"><button
-                              class="reaction-picker-toggle"
-                              type="button"
-                              [class.reaction-picker-toggle--active]="openedMessageReactionPickerId() === message.id"
-                              title="Добавить реакцию"
-                              (click)="toggleMessageReactionPicker(message.id)"
-                            >
-                              <span>😊</span>
-                            </button>
-                            <button
-                              class="message-card__action message-card__action--reply"
-                              type="button"
-                              title="Ответить"
-                              (click)="startReplyToMessage(message)"
-                            >
-                              Ответить
-                            </button>
-                            <button type="button" class="message-card__action" aria-label="Действия с сообщением" (click)="openMessageActions(message,$event)">⋯</button>
-                            </span>
+
                           </div>
                           @if (openedMessageReactionPickerId() === message.id) {
                             <div class="reaction-picker">
