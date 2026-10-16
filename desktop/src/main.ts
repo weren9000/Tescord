@@ -124,7 +124,7 @@ else {
     const width=Number.isFinite(state.width)?Math.max(800,Math.min(3840,state.width!)):1360;
     const height=Number.isFinite(state.height)?Math.max(600,Math.min(2160,state.height!)):900;
     const position=Number.isFinite(state.x)&&Number.isFinite(state.y)&&screen.getAllDisplays().some(d=>state.x!+100>d.workArea.x&&state.x!<d.workArea.x+d.workArea.width&&state.y!+50>d.workArea.y&&state.y!<d.workArea.y+d.workArea.height)?{x:state.x,y:state.y}:{};
-    main=new BrowserWindow({width,height,...position,minWidth:800,minHeight:600,show:false,title:'Квачат',autoHideMenuBar:true,backgroundColor:'#101832',icon:path.join(web,'assets/Icons.png'),webPreferences:{preload:path.join(__dirname,'preload.js'),nodeIntegration:false,contextIsolation:true,sandbox:true,webSecurity:true,backgroundThrottling:false,spellcheck:true}});
+    main=new BrowserWindow({width,height,...position,minWidth:800,minHeight:600,show:false,title:'Квачат',autoHideMenuBar:true,backgroundColor:'#101832',icon:path.join(web,'kva-app-512.png'),webPreferences:{preload:path.join(__dirname,'preload.js'),nodeIntegration:false,contextIsolation:true,sandbox:true,webSecurity:true,backgroundThrottling:false,spellcheck:true}});
     main.webContents.on('page-title-updated',event=>event.preventDefault());
     main.on('ready-to-show',()=>{if(state.maximized)main!.maximize();main!.show();});
     main.on('resize',saveState);main.on('move',saveState);
@@ -138,7 +138,7 @@ else {
       if(!audible&&audioBlocker!==null){powerSaveBlocker.stop(audioBlocker);audioBlocker=null;}
     });
     main.webContents.on('render-process-gone',()=>{if(main&&!quitting)void dialog.showMessageBox(main,{type:'error',message:'Окно Квачат было остановлено. Перезапустить интерфейс?',buttons:['Перезапустить','Закрыть'],cancelId:1}).then(answer=>{if(answer.response===0)main?.reload();else{quitting=true;app.quit();}});});
-    const icon=nativeImage.createFromPath(path.join(web,'assets/Icons.png')).resize({width:32,height:32});
+    const icon=nativeImage.createFromPath(path.join(web,'kva-app-512.png')).resize({width:32,height:32});
     tray=new Tray(icon);tray.setToolTip('Квачат');
     tray.setContextMenu(Menu.buildFromTemplate([{label:'Открыть Квачат',click:showWindow},{label:'О приложении',click:()=>{if(main)void dialog.showMessageBox(main,{title:'Квачат',message:`Квачат ${app.getVersion()}`,detail:'Тестовая версия для Windows 10/11. Закрытие окна сворачивает приложение в трей. Для завершения используйте «Выйти».'});}},{type:'separator'},{label:'Выйти',click:()=>{quitting=true;app.quit();}}]));
     tray.on('double-click',showWindow);
