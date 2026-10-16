@@ -1,0 +1,1 @@
+{"appId":"ru.kvachat.android","appName":"KVA Chat","webDir":"web","server":{"hostname":"localhost","androidScheme":"https"},"android":{"allowMixedContent":false},"plugins":{"SplashScreen":{"launchShowDuration":0}}}

@@ -551,6 +551,13 @@ export class DirectCallService {
 
   private async handleMessage(message: IncomingDirectCallMessage): Promise<void> {
     if (message.type === 'ready') {
+      const pendingCall = window.kvaAndroid?.pendingCall();
+      if (pendingCall && this.state() === 'idle') {
+        try {
+          const incoming = JSON.parse(pendingCall) as DirectCallIncomingMessage;
+          if (incoming.type === 'incoming_call') void this.handleMessage(incoming);
+        } catch { /* A stale native notification must not prevent connection. */ }
+      }
       this.currentUserId = message.user_id;
       return;
     }

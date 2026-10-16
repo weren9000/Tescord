@@ -6,6 +6,7 @@ interface AltgrammRuntimeConfig {
 }
 
 interface Window {
+  kvaAndroid?: {pendingCall(): string | null};
   kvaDesktop?: {
     version: string; readSession(): string | null; writeSession(value: string | null): boolean;
     notify?(value: {id: string; title: string; body: string; target: string}): Promise<boolean>;
