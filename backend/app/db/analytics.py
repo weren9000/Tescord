@@ -33,3 +33,12 @@ class AnalyticsSetting(Base):
     __tablename__ = 'analytics_settings'
     key: Mapped[str] = mapped_column(String(40), primary_key=True)
     value: Mapped[str] = mapped_column(String(100))
+
+
+class AnalyticsHour(Base):
+    __tablename__ = 'analytics_hours'
+    hour: Mapped[datetime] = mapped_column(DateTime(timezone=True), primary_key=True)
+    subject: Mapped[str] = mapped_column(String(66), primary_key=True)
+    user_id: Mapped[UUID | None] = mapped_column(Uuid, ForeignKey('users.id', ondelete='CASCADE'), index=True)
+    visits: Mapped[int] = mapped_column(Integer, default=0)
+    actions: Mapped[int] = mapped_column(Integer, default=0)

@@ -5,3 +5,7 @@
 @media(max-width:650px){.admin .detail{position:fixed;inset:0;z-index:230;width:100%;height:100dvh}.admin .detail-body{flex:1}}
 :host app-admin-items{display:flex;flex:1;min-height:0;height:auto}
 @media(max-width:650px){.admin>nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.admin>nav button{min-width:0}}
+
+@media(max-width:750px){.stats-view>nav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;padding:8px}.stats-view>nav button{font-size:10px;padding:6px 3px;min-height:40px}}
+
+@media(min-width:751px){.stats-view>header,.stats-view>nav{padding-block:10px}}

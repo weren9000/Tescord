@@ -2,7 +2,7 @@
 from datetime import datetime, timedelta, timezone
 from sqlalchemy import select, text
 from sqlalchemy.dialects.postgresql import insert
-from app.db.analytics import AnalyticsDay, AnalyticsVisitor
+from app.db.analytics import AnalyticsDay, AnalyticsVisitor, AnalyticsHour
 
 
 def record_activity(db, subject, user_id=None, now=None):
@@ -16,4 +16,6 @@ def record_activity(db, subject, user_id=None, now=None):
     else:visitor.last_seen=now
     stmt=insert(AnalyticsDay).values(day=now.date(),subject=subject,user_id=user_id,visits=int(new_visit),actions=1)
     db.execute(stmt.on_conflict_do_update(index_elements=['day','subject'],set_={'visits':AnalyticsDay.visits+int(new_visit),'actions':AnalyticsDay.actions+1}))
+    hourly=insert(AnalyticsHour).values(hour=now.replace(minute=0,second=0,microsecond=0),subject=subject,user_id=user_id,visits=int(new_visit),actions=1)
+    db.execute(hourly.on_conflict_do_update(index_elements=['hour','subject'],set_={'visits':AnalyticsHour.visits+int(new_visit),'actions':AnalyticsHour.actions+1}))
     db.commit()

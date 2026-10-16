@@ -3,7 +3,7 @@ from uuid import UUID, uuid4
 from sqlalchemy import delete, select
 from app.db.session import SessionLocal
 from app.db.models import User
-from app.db.analytics import AnalyticsDay, AnalyticsVisitor, ResourceSample
+from app.db.analytics import AnalyticsDay, AnalyticsVisitor, ResourceSample, AnalyticsHour
 from app.services.analytics import record_activity
 from app.services.monitoring import host_sample, persist_sample
 from test_inventory import accounts
@@ -45,6 +45,8 @@ def test_session_deduplication_and_inactivity(accounts):
             record_activity(db,subject,uid,now+timedelta(seconds=offset))
         row=db.get(AnalyticsDay,(now.date(),subject))
         assert row.visits==2 and row.actions==4
+        hour=db.get(AnalyticsHour,(now,subject))
+        assert hour.visits==2 and hour.actions==4
 
 
 def test_guest_bot_filter_and_browser_dedup(accounts):
@@ -64,6 +66,7 @@ def test_guest_bot_filter_and_browser_dedup(accounts):
     finally:
         with SessionLocal() as db:
             db.execute(delete(AnalyticsDay).where(AnalyticsDay.subject==subject))
+            db.execute(delete(AnalyticsHour).where(AnalyticsHour.subject==subject))
             db.execute(delete(AnalyticsVisitor).where(AnalyticsVisitor.subject==subject));db.commit()
 
 
@@ -80,3 +83,24 @@ def test_resource_sampling_and_voice_estimates(accounts):
     with SessionLocal() as db:
         row=db.get(AnalyticsDay,(now.date(),'u:'+uid))
         assert row.voice_sessions==1 and row.voice_seconds==15
+
+
+def test_custom_range_and_missing_hourly_history(accounts):
+    client,people=accounts
+    headers,user,_=people[0]
+    with SessionLocal() as db:
+        db.get(User,UUID(user['id'])).is_admin=True;db.commit()
+    today=datetime.now(timezone.utc).date()
+    start=datetime(2000,1,1,tzinfo=timezone.utc).date()
+    response=client.get('/api/admin/statistics',headers=headers,params={'start_date':str(start),'end_date':str(start)})
+    assert response.status_code==200,response.text
+    data=response.json()
+    assert len(data['daily'])==1 and data['daily'][0]['day']==str(start)
+    assert data['visit_interval']=='hour' and len(data['visits_history'])==24
+    assert data['activity_available'] is False
+    assert all(row['visits'] is None for row in data['visits_history'])
+    assert all(start.isoformat() in row['at'] for row in data['visits_history'])
+    for params in [{'start_date':str(start)}, {'start_date':str(today),'end_date':str(start)},
+                   {'start_date':str(start),'end_date':str(today+timedelta(days=1))},
+                   {'start_date':str(today-timedelta(days=90)),'end_date':str(today)}]:
+        assert client.get('/api/admin/statistics',headers=headers,params=params).status_code==422

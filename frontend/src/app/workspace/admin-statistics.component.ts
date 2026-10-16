@@ -4,25 +4,33 @@ import {FormsModule} from '@angular/forms';
 import {HttpClient,HttpErrorResponse} from '@angular/common/http';
 import {Subscription} from 'rxjs';
 import {API_BASE_URL} from '../core/api/api-base';
+import {ChartRow,ChartSeries,StatisticsChartComponent,formatMetric} from './statistics-chart.component';
 interface Day {day:string;active:number;visits:number;guest_visits:number;messages:number;registrations:number;voice_seconds:number;voice_sessions:number}
-interface Resource {at:string;cpu_percent:number;cpu_count:number;memory_used:number;memory_total:number;swap_used:number;swap_total:number;disk_used:number;disk_total:number;net_in:number|null;net_out:number|null;uptime:number;backend_rss:number;services:Record<string,string>}
-interface Stats {started_at:string|null;totals:Day&{online:number;voice:number};daily:Day[];top:{id:string;name:string;kind:string;messages:number}[];resources:Resource|null;resource_history:Record<string,number|string|null>[]}
-@Component({selector:'app-admin-statistics',standalone:true,imports:[CommonModule,FormsModule],templateUrl:'./admin-statistics.component.html',styleUrl:'./admin-statistics.component.scss'})
+interface Resource {at:string;cpu_percent:number|null;cpu_count:number;memory_used:number;memory_total:number;swap_used:number;swap_total:number;disk_used:number;disk_total:number;net_in:number|null;net_out:number|null;uptime:number;backend_rss:number;active_rooms?:number;services:Record<string,string>}
+interface Stats {activity_available:boolean;generated_at:string;start_date:string;end_date:string;start_at:string;end_at:string;visit_interval:'hour'|'day';resource_interval:'minute'|'hour';hourly_started_at:string|null;started_at:string|null;totals:Day&{online:number;voice:number};daily:Day[];top:{id:string;name:string;kind:string;messages:number}[];resources:Resource|null;resource_history:ChartRow[];visits_history:ChartRow[]}
+@Component({selector:'app-admin-statistics',standalone:true,imports:[CommonModule,FormsModule,StatisticsChartComponent],templateUrl:'./admin-statistics.component.html',styleUrl:'./admin-statistics.component.scss'})
 export class AdminStatisticsComponent implements OnInit,OnDestroy{
  readonly token=input.required<string>();readonly forbidden=output<void>();
- readonly data=signal<Stats|null>(null);readonly error=signal('');readonly busy=signal(false);readonly Math=Math;
- days=1;excludeSelf=false;private timer?:ReturnType<typeof setInterval>;private sub?:Subscription;private http=inject(HttpClient);
- readonly resourceCharts=[{key:'cpu_percent',name:'Процессор, %'},{key:'memory_used',name:'Память, байт'},{key:'net_in',name:'Входящий трафик, байт/с'},{key:'net_out',name:'Исходящий трафик, байт/с'}];
- readonly activityCharts=[{key:'active',name:'Активные пользователи'},{key:'visits',name:'Посещения'},{key:'messages',name:'Сообщения'},{key:'voice_seconds',name:'Голос, пользовательские секунды'}];
- ngOnInit(){this.load();this.timer=setInterval(()=>{if(document.visibilityState==='visible'&&!this.busy())this.load();},15000);}
+ readonly data=signal<Stats|null>(null);readonly error=signal('');readonly busy=signal(false);
+ readonly tab=signal('activity');readonly history=signal(false);
+ days=1;excludeSelf=false;startDate='';endDate='';resourceKey='cpu_percent';
+ readonly today=new Date().toISOString().slice(0,10);
+ private timer?:ReturnType<typeof setInterval>;private sub?:Subscription;private http=inject(HttpClient);
+ readonly activitySeries:ChartSeries[]=[{key:'online',label:'Онлайн',color:'#a78bfa'},{key:'voice',label:'В голосе',color:'#55cbd3'}];
+ readonly visitSeries:ChartSeries[]=[{key:'active',label:'Активные',color:'#a78bfa'},{key:'visits',label:'Посещения',color:'#55cbd3'},{key:'guest_visits',label:'Гости',color:'#e7ae62'}];
+ readonly format=formatMetric;
+ ngOnInit(){this.startDate=this.today;this.endDate=this.today;this.load();this.timer=setInterval(()=>{if(document.visibilityState==='visible'&&!this.busy()&&this.days!==0)this.load();},30000);}
  ngOnDestroy(){clearInterval(this.timer);this.sub?.unsubscribe();}
- load(){this.sub?.unsubscribe();this.busy.set(true);this.error.set('');this.sub=this.http.get<Stats>(API_BASE_URL+'/api/admin/statistics',{params:{days:this.days,exclude_self:this.excludeSelf},headers:{Authorization:'Bearer '+this.token()}}).subscribe({next:d=>{this.data.set(d);this.busy.set(false);},error:e=>{this.busy.set(false);if(e instanceof HttpErrorResponse && [401,403].includes(e.status))this.forbidden.emit();this.error.set('Не удалось обновить статистику. Показанные данные могут устареть.');}});}
- bytes(n:number|null|undefined){if(n==null)return 'Нет данных';const units=['Б','КБ','МБ','ГБ','ТБ'];let i=0;while(n>=1024&&i<4){n/=1024;i++;}return n.toFixed(i?1:0)+' '+units[i];}
- percent(used:number,total:number){return total?Math.min(100,used/total*100):0;}
- hours(seconds:number){return (seconds/3600).toFixed(1);}
- stale(){const at=this.data()?.resources?.at;return !at || Date.now()-Date.parse(at)>60000;}
- state(value:string){return ({online:'Работает',offline:'Недоступен',disabled:'Не настроен',unknown:'Нет данных'} as Record<string,string>)[value]??'Нет данных';}
- points(rows:object[],key:string){const values=rows.map(r=>Number((r as Record<string,unknown>)[key])||0);const max=Math.max(1,...values);return values.map((v,i)=>(values.length>1?i/(values.length-1)*600:300)+','+(125-v/max*115)).join(' ');}
- maximum(rows:object[],key:string){return Math.max(0,...rows.map(r=>Number((r as Record<string,unknown>)[key])||0));}
- value(row:object,key:string){return Number((row as Record<string,unknown>)[key])||0;}
+ load(){
+  const params:Record<string,string|number|boolean>={days:this.days||1,exclude_self:this.excludeSelf};
+  if(this.days===0){if(!this.startDate||!this.endDate||this.startDate>this.endDate||this.endDate>this.today||(Date.parse(this.endDate)-Date.parse(this.startDate))/86400000>=90){this.error.set('Выберите до 90 дней, без будущих дат.');return;}params['start_date']=this.startDate;params['end_date']=this.endDate;}
+  this.sub?.unsubscribe();this.busy.set(true);this.error.set('');
+  this.sub=this.http.get<Stats>(API_BASE_URL+'/api/admin/statistics',{params,headers:{Authorization:'Bearer '+this.token()}}).subscribe({next:d=>{this.data.set(d);this.busy.set(false);},error:e=>{this.busy.set(false);if(e instanceof HttpErrorResponse&&[401,403].includes(e.status))this.forbidden.emit();this.error.set('Не удалось обновить статистику. Данные могут устареть.');}});
+ }
+ period(){if(this.days!==0)this.load();}
+ bytes(n:number|null|undefined){return formatMetric(n,'bytes');}
+ stale(){const at=this.data()?.resources?.at;return !at||Date.now()-Date.parse(at)>60000;}
+ state(v:string){return ({online:'Работает',offline:'Недоступен',disabled:'Не настроен',unknown:'Нет данных'} as Record<string,string>)[v]??'Нет данных';}
+ resourceSeries():ChartSeries[]{return this.resourceKey==='network'?[{key:'net_in',label:'Входящий',color:'#a78bfa'},{key:'net_out',label:'Исходящий',color:'#55cbd3'}]:[{key:this.resourceKey,label:this.resourceKey==='cpu_percent'?'CPU':'RAM',color:'#a78bfa'}];}
+ resourceUnit(){return this.resourceKey==='cpu_percent'?'percent':this.resourceKey==='network'?'rate':'bytes';}
 }

@@ -10,7 +10,7 @@ from sqlalchemy import delete, func, select, text
 from sqlalchemy.dialects.postgresql import insert
 from app.core.config import get_settings
 from app.db.session import SessionLocal
-from app.db.analytics import AnalyticsDay, AnalyticsVisitor, ResourceSample
+from app.db.analytics import AnalyticsDay, AnalyticsVisitor, ResourceSample, AnalyticsHour
 from app.db.models import User
 from app.services.site_presence import site_presence_manager
 from app.services.voice_signaling import voice_signaling_manager
@@ -52,6 +52,7 @@ def persist_sample(at,data,voices,old_voices,elapsed,cleanup=False,resource_at=N
             db.execute(insert(ResourceSample).values(at=stamp,data=data).on_conflict_do_nothing(index_elements=['at']))
         if cleanup:
             db.execute(delete(AnalyticsVisitor).where(AnalyticsVisitor.last_seen<at-timedelta(days=2)))
+            db.execute(delete(AnalyticsHour).where(AnalyticsHour.hour<at-timedelta(days=90)))
             db.execute(delete(AnalyticsDay).where(AnalyticsDay.day<(at-timedelta(days=365)).date()))
             db.execute(delete(ResourceSample).where(ResourceSample.at<at-timedelta(days=90)))
             cutoff=(at-timedelta(days=7)).replace(minute=0,second=0,microsecond=0)
@@ -100,7 +101,7 @@ async def collect_metrics():
             voice_users=set(voices)
             values.update(online=len(site_presence_manager.snapshot_user_ids()),voice=len(voice_users))
             status=await service_status()
-            latest={**values,'at':now.isoformat(),'services':status}
+            latest={**values,'at':now.isoformat(),'services':status,'active_rooms':len(set(voices.values()))}
             minute=now.replace(second=0,microsecond=0);hour=now.replace(minute=0,second=0,microsecond=0)
             aggregate=None;resource_at=last_minute
             if last_minute is not None and minute!=last_minute and buffer:

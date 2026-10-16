@@ -1,36 +1,39 @@
 <section class="statistics" aria-label="Статистика">
- <div class="filters"><label>Период <select aria-label="Период статистики" [(ngModel)]="days" (change)="load()"><option [ngValue]="1">Сегодня</option><option [ngValue]="7">7 дней</option><option [ngValue]="30">30 дней</option></select></label><label><input type="checkbox" [(ngModel)]="excludeSelf" (change)="load()"/>Исключить мою активность</label><button (click)="load()" [disabled]="busy()">Обновить</button></div>
+ <header class="filters"><label>Период<select aria-label="Период статистики" [(ngModel)]="days" (change)="period()"><option [ngValue]="1">Сегодня</option><option [ngValue]="7">7 дней</option><option [ngValue]="30">30 дней</option><option [ngValue]="0">Свой период</option></select></label>
+ @if(days===0){<label>С<input type="date" [(ngModel)]="startDate" [max]="today"/></label><label>По<input type="date" [(ngModel)]="endDate" [max]="today"/></label>}
+ <button type="button" (click)="load()" [disabled]="busy()">{{busy()?'Обновляем…':'Обновить'}}</button>
+ @if(data();as d){<span class="updated">{{d.generated_at|date:'HH:mm:ss':'UTC'}} · UTC</span>}</header>
  @if(error()){<p class="error" role="alert">{{error()}}</p>}
  @if(data();as d){
- <p class="muted">Сбор посещений и ресурсов начат {{d.started_at | date:'dd.MM.yyyy HH:mm':'UTC'}} UTC. Все периоды — по UTC.</p>
- <div class="cards">
-  <article><span>Онлайн сейчас</span><strong>{{d.totals.online}}</strong><small>Уникальные пользователи</small></article>
-  <article><span>Активны за период</span><strong>{{d.totals.active}}</strong><small>Совершили действие в обновлённом клиенте</small></article>
-  <article><span>Посещения</span><strong>{{d.totals.visits}}</strong><small>Новый сеанс после 30 минут без активности</small></article>
-  <article><span>Сообщения</span><strong>{{d.totals.messages}}</strong><small>За выбранный период</small></article>
-  <article><span>В голосе сейчас</span><strong>{{d.totals.voice}}</strong><small>По состоянию сигнальных соединений</small></article>
-  <article><span>Новые пользователи</span><strong>{{d.totals.registrations}}</strong><small>За выбранный период</small></article>
+ <div class="now"><span class="row-label">Сейчас</span><span>Онлайн <b>{{d.totals.online}}</b></span><span>В голосе <b>{{d.totals.voice}}</b></span><span>Комнат <b>{{stale()?'—':d.resources?.active_rooms ?? '—'}}</b></span></div>
+ <div class="period-caption">{{(d.start_date+'T00:00:00Z')|date:'dd.MM.yyyy':'UTC'}} — {{(d.end_date+'T00:00:00Z')|date:'dd.MM.yyyy':'UTC'}} · UTC @if(excludeSelf){· без моей активности}</div>
+ <div class="metrics"><article><span>Активные</span><b>{{d.activity_available?d.totals.active:'—'}}</b></article><article><span>Посещения</span><b>{{d.activity_available?d.totals.visits:'—'}}</b></article><article><span>Сообщения</span><b>{{d.totals.messages}}</b></article><article><span>Регистрации</span><b>{{d.totals.registrations}}</b></article></div>
+ <nav class="mobile-tabs" aria-label="Графики статистики"><button [attr.aria-pressed]="tab()==='activity'" (click)="tab.set('activity')">Активность</button><button [attr.aria-pressed]="tab()==='visits'" (click)="tab.set('visits')">Посещения</button><button [attr.aria-pressed]="tab()==='resources'" (click)="tab.set('resources')">Ресурсы</button></nav>
+ <div class="charts">
+  <article class="chart" [class.mobile-hidden]="tab()!=='activity'"><h3>Активность <small>Все пользователи · среднее за {{d.resource_interval==='minute'?'минуту':'час'}}</small></h3><app-statistics-chart label="Активность" [rows]="d.resource_history" [series]="activitySeries" [start]="d.start_at" [end]="d.end_at" [interval]="d.resource_interval" /></article>
+  <article class="chart" [class.mobile-hidden]="tab()!=='visits'"><h3>Посещения <small>{{d.visit_interval==='hour'?'По часам':'По дням'}}</small></h3><app-statistics-chart label="Посещения" [rows]="d.visits_history" [series]="visitSeries" [start]="d.start_at" [end]="d.end_at" [interval]="d.visit_interval" /></article>
  </div>
- <div class="summary"><span>Гостевых посещений: <b>{{d.totals.guest_visits}}</b></span><span>Участий в голосе: <b>≈ {{d.totals.voice_sessions}}</b></span><span>Голос: <b>≈ {{hours(d.totals.voice_seconds)}} пользовательских ч.</b></span></div>
- <p class="muted">Голос оценивается с шагом 15 секунд. Два участника за час дают два пользовательских часа. Фоновая вкладка не создаёт постоянную активность. Старый .exe учитывается в сообщениях, онлайне и голосе, но не в новых счётчиках действий.</p>
- <div class="charts">@for(chart of activityCharts;track chart.key){<article><h3>{{chart.name}}</h3><small>Максимум за день: {{maximum(d.daily,chart.key)|number:'1.0-0'}}</small><svg viewBox="0 0 600 140" role="img" [attr.aria-label]="chart.name"><line x1="0" y1="125" x2="600" y2="125"/><polyline [attr.points]="points(d.daily,chart.key)"/>@for(row of d.daily;track row.day;let i=$index){<circle [attr.cx]="d.daily.length>1?i/(d.daily.length-1)*600:300" [attr.cy]="125-value(row,chart.key)/Math.max(1,maximum(d.daily,chart.key))*115" r="4"><title>{{row.day}}: {{value(row,chart.key)}}</title></circle>}</svg><div class="axis"><span>{{d.daily[0].day}}</span><span>{{d.daily[d.daily.length-1].day}}</span></div></article>}</div>
- <h2>Ресурсы сервера</h2>
- @if(d.resources;as r){
- <p class="muted">Последний замер: {{r.at|date:'dd.MM HH:mm:ss':'UTC'}} UTC · Обновление примерно каждые 15 секунд</p>
- @if(stale()){<p class="error" role="status">Замеры устарели. Текущее состояние неизвестно.</p>}
- <div class="cards">
-  <article><span>Процессор</span><strong>{{r.cpu_percent==null?'Нет данных':(r.cpu_percent|number:'1.0-1')+'%'}}</strong><progress max="100" [value]="r.cpu_percent"></progress><small>{{r.cpu_count}} vCPU</small></article>
-  <article><span>Оперативная память</span><strong>{{bytes(r.memory_used)}}</strong><progress max="100" [value]="percent(r.memory_used,r.memory_total)"></progress><small>из {{bytes(r.memory_total)}}</small></article>
-  <article><span>Диск</span><strong>{{bytes(r.disk_used)}}</strong><progress max="100" [value]="percent(r.disk_used,r.disk_total)"></progress><small>из {{bytes(r.disk_total)}} · свободно {{bytes(r.disk_total-r.disk_used)}}</small></article>
-  <article><span>Swap</span><strong>{{bytes(r.swap_used)}}</strong><small>из {{bytes(r.swap_total)}}</small></article>
-  <article><span>Сеть</span><strong>↓ {{bytes(r.net_in)}}/с</strong><small>↑ {{bytes(r.net_out)}}/с</small></article>
-  <article><span>Время работы VPS</span><strong>{{hours(r.uptime)}} ч.</strong><small>Память процесса API (RSS): {{bytes(r.backend_rss)}}</small></article>
- </div>
- <div class="services">@for(s of r.services|keyvalue;track s.key){<span [class.bad]="s.value==='offline'">{{s.key}}: {{stale()?'Нет свежих данных':state(s.value)}}</span>}</div>
- }@else{<p>Нет данных о ресурсах. Ожидаем первый замер.</p>}
- @if(d.resource_history.length){<div class="charts">@for(chart of resourceCharts;track chart.key){<article><h3>{{chart.name}}</h3><small>Максимум: {{chart.key==='cpu_percent'?(maximum(d.resource_history,chart.key)|number:'1.0-1'):bytes(maximum(d.resource_history,chart.key))}}</small><svg viewBox="0 0 600 140" role="img" [attr.aria-label]="chart.name"><line x1="0" y1="125" x2="600" y2="125"/><polyline [attr.points]="points(d.resource_history,chart.key)"/></svg><div class="axis"><span>{{$any(d.resource_history[0]['at'])|date:'dd.MM HH:mm':'UTC'}}</span><span>{{$any(d.resource_history[d.resource_history.length-1]['at'])|date:'dd.MM HH:mm':'UTC'}}</span></div></article>}</div>}
- <h2>Активные группы и площадки</h2><p class="muted">По количеству сообщений за период. Личные беседы не включены.</p>
- <div class="ranking">@for(space of d.top;track space.id){<div><span>{{space.name}}</span><small>{{space.kind==='workspace'?'Площадка':'Группа'}}</small><strong>{{space.messages}}</strong></div>}@empty{<p>За этот период сообщений нет.</p>}</div>
- <details><summary>Данные активности по дням</summary><div class="table"><table><thead><tr><th>Дата UTC</th><th>Активны</th><th>Посещения</th><th>Гости</th><th>Сообщения</th><th>Регистрации</th></tr></thead><tbody>@for(row of d.daily;track row.day){<tr><td>{{row.day}}</td><td>{{row.active}}</td><td>{{row.visits}}</td><td>{{row.guest_visits}}</td><td>{{row.messages}}</td><td>{{row.registrations}}</td></tr>}</tbody></table></div></details>
+ <section class="resources" [class.mobile-hidden]="tab()!=='resources'" aria-label="Ресурсы сервера">
+  <div class="section-title"><h3>Ресурсы сервера</h3><button type="button" (click)="history.set(!history())" [attr.aria-expanded]="history()">{{history()?'Скрыть историю':'История'}}</button></div>
+  @if(d.resources;as r){
+   @if(stale()){<p class="error" role="status">Замеры устарели · {{r.at|date:'dd.MM HH:mm:ss':'UTC'}} UTC</p>}
+   <div class="resource-grid"><div><span>CPU · {{r.cpu_count}} ядер</span><b>{{format(r.cpu_percent,'percent')}}</b></div><div><span>RAM</span><b>{{bytes(r.memory_used)}} / {{bytes(r.memory_total)}}</b></div><div><span>Диск</span><b>{{bytes(r.disk_used)}} / {{bytes(r.disk_total)}}</b></div><div><span>Сеть ↓ / ↑</span><b>{{format(r.net_in,'rate')}} / {{format(r.net_out,'rate')}}</b></div></div>
+  }@else{<p class="muted">Нет замеров ресурсов</p>}
+  @if(history()){
+   <label class="resource-picker">Показатель<select [(ngModel)]="resourceKey"><option value="cpu_percent">CPU</option><option value="memory_used">RAM</option><option value="network">Сеть</option></select><small>Среднее за {{d.resource_interval==='minute'?'минуту':'час'}} · UTC</small></label>
+   <app-statistics-chart label="Ресурсы сервера" [rows]="d.resource_history" [series]="resourceSeries()" [unit]="resourceUnit()" [start]="d.start_at" [end]="d.end_at" [interval]="d.resource_interval"/>
+  }
+ </section>
+ <div class="extra">
+ <details><summary>Группы и площадки · по сообщениям</summary><div class="ranking">@for(s of d.top;track s.id){<div><span>{{s.name}}</span><small>{{s.kind==='workspace'?'Площадка':'Группа'}}</small><b>{{s.messages}}</b></div>}@empty{<p>Нет сообщений за период</p>}</div></details>
+ <details><summary>Подробности и определения</summary>
+  <label class="exclude"><input type="checkbox" [(ngModel)]="excludeSelf" (change)="load()"/>Исключить мою активность из счётчиков и посещений</label>
+  <p>Активные — уникальные авторизованные пользователи, совершившие действие. Посещение — сеанс после 30 минут без активности. Гости учитываются отдельно. Счётчики действий доступны в обновлённом клиенте.</p>
+  <p>График активности показывает среднее число подключённых пользователей, а не уникальных посетителей. История активности и ресурсы включают всех пользователей.</p>
+  <p>Сбор посещений: {{d.started_at|date:'dd.MM.yyyy HH:mm':'UTC'}} UTC. Почасовой сбор: {{d.hourly_started_at|date:'dd.MM.yyyy HH:mm':'UTC'}} UTC. Первый и текущий интервалы могут быть неполными. Пустые участки — нет замеров.</p>
+  @if(d.activity_available){<p>Гостевых посещений: {{d.totals.guest_visits}} · Участий в голосе: ≈ {{d.totals.voice_sessions}} · Голос: ≈ {{d.totals.voice_seconds/3600|number:'1.1-1'}} пользовательских ч. Голос оценивается с шагом 15 секунд.</p>}
+  @if(d.resources;as r){<p>Замер: {{r.at|date:'dd.MM.yyyy HH:mm:ss':'UTC'}} UTC · Swap {{bytes(r.swap_used)}} / {{bytes(r.swap_total)}} · API {{bytes(r.backend_rss)}} · Время работы {{r.uptime/3600|number:'1.1-1'}} ч.</p><div class="services">@for(s of r.services|keyvalue;track s.key){<span [class.error]="s.value==='offline'">{{s.key}}: {{stale()?'Нет свежих данных':state(s.value)}}</span>}</div>}
+  <div class="table"><table><thead><tr><th>Дата UTC</th><th>Активные</th><th>Посещения</th><th>Гости</th><th>Сообщения</th><th>Регистрации</th></tr></thead><tbody>@for(row of d.daily;track row.day){<tr><td>{{row.day}}</td><td>{{d.started_at && row.day>=d.started_at.slice(0,10)?row.active:'—'}}</td><td>{{d.started_at && row.day>=d.started_at.slice(0,10)?row.visits:'—'}}</td><td>{{d.started_at && row.day>=d.started_at.slice(0,10)?row.guest_visits:'—'}}</td><td>{{row.messages}}</td><td>{{row.registrations}}</td></tr>}</tbody></table></div>
+ </details></div>
  }@else if(busy()){<p role="status">Загружаем статистику…</p>}
 </section>

@@ -1,4 +1,4 @@
-<section class="admin" aria-label="Админка" (keydown)="keydown($event)">
+<section class="admin" [class.stats-view]="statsActive()" aria-label="Админка" (keydown)="keydown($event)">
  <header><div><h1>Админка</h1></div><button type="button" (click)="close.emit()">Вернуться к чатам</button></header>
  <nav aria-label="Разделы админки">@if(systemAdmin()){<button type="button" [attr.aria-pressed]="statsActive()" (click)="closeDetail();itemsActive.set(false);statsActive.set(true)">&#1057;&#1090;&#1072;&#1090;&#1080;&#1089;&#1090;&#1080;&#1082;&#1072;</button>@for(t of tabs;track t.id){<button type="button" [attr.aria-pressed]="!statsActive() && !itemsActive() && tab()===t.id" (click)="switchTab(t.id)">{{t.label}} <span>{{counts()?.[t.id] ?? '—'}}</span></button>}}<button type="button" [attr.aria-pressed]="itemsActive()" (click)="closeDetail();statsActive.set(false);itemsActive.set(true)">Предметы</button>@if(systemAdmin()){<button type="button" (click)="voiceAccess.emit()">Доступ к голосу</button>}</nav>
  @if(itemsActive()){<app-admin-items [token]="token()" [actorId]="actorId()" [avatarUrl]="avatarUrl()" (changed)="changed.emit()"/>}
