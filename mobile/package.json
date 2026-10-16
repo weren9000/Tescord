@@ -1,1 +1,15 @@
-{"name":"kvachat-android","version":"0.1.0","private":true,"scripts":{"sync":"cap sync android"},"dependencies":{"@capacitor/core":"8.5.3","@capacitor/android":"8.5.3"},"devDependencies":{"@capacitor/cli":"8.5.3"}}
+{
+  "name": "kvachat-android",
+  "version": "0.1.1",
+  "private": true,
+  "scripts": {
+    "sync": "cap sync android"
+  },
+  "dependencies": {
+    "@capacitor/core": "8.5.3",
+    "@capacitor/android": "8.5.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.5.3"
+  }
+}

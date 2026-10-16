@@ -1,7 +1,23 @@
 const {chromium}=require('../desktop/node_modules/playwright');
 const fs=require('node:fs');
 const fixture=JSON.parse(fs.readFileSync(process.env.KVA_TEST_FIXTURE,'utf8'));
-(async()=>{const browser=await chromium.launch({executablePath:process.env.KVA_CHROME||'C:/Users/admin/AppData/Local/ms-playwright/chromium-1223/chrome-win64/chrome.exe',headless:true,args:['--disable-features=LocalNetworkAccessChecks','--use-fake-device-for-media-stream','--use-fake-ui-for-media-stream','--autoplay-policy=no-user-gesture-required']});try{
+async function launch() {
+ const args=['--disable-features=LocalNetworkAccessChecks','--use-fake-device-for-media-stream','--use-fake-ui-for-media-stream','--autoplay-policy=no-user-gesture-required'];
+ if(process.env.KVA_TEST_ELECTRON==='1') {
+  const {_electron}=require('../desktop/node_modules/playwright'),os=require('node:os'),path=require('node:path'),apps=[];
+  return {
+   async newContext(){
+    const env={...process.env,KVA_DESKTOP_TEST:'1',KVA_DESKTOP_TEST_URL:'http://localhost:4200/login',KVA_DESKTOP_PROFILE:fs.mkdtempSync(path.join(os.tmpdir(),'kva-direct-call-'))};
+    delete env.ELECTRON_RUN_AS_NODE;
+    const app=await _electron.launch({args:[path.resolve(__dirname,'../desktop'),...args],env});apps.push(app);
+    return {async newPage(){const page=await app.firstWindow();await page.getByLabel('Email',{exact:true}).waitFor();return page;}};
+   },
+   async close(){for(const app of apps)await app.close();}
+  };
+ }
+ return chromium.launch({executablePath:process.env.KVA_CHROME||'C:/Users/admin/AppData/Local/ms-playwright/chromium-1223/chrome-win64/chrome.exe',headless:true,args});
+}
+(async()=>{const browser=await launch();try{
  const pages=[];
  for(let i=0;i<2;i++){
   const context=await browser.newContext();const page=await context.newPage();pages.push(page);
@@ -14,7 +30,7 @@ const fixture=JSON.parse(fs.readFileSync(process.env.KVA_TEST_FIXTURE,'utf8'));
   },{delay:i===1?2000:0});
   page.on('pageerror',e=>console.log('PAGE ERROR',i,e.message));
   page.on('websocket',ws=>{if(ws.url().includes('/calls/ws'))ws.on('framereceived',frame=>{try{const v=JSON.parse(frame.payload);console.log('SIGNAL',i,v.type,v.detail||'');}catch{}});});
-  await page.goto('http://localhost:4200/login');await page.getByLabel('Email',{exact:true}).fill(fixture.users[i].form.email);await page.getByLabel('Пароль',{exact:true}).fill(fixture.users[i].form.password);await page.getByRole('button',{name:'Войти',exact:true}).click();await page.locator('app-section-navigation').waitFor();
+  await page.goto('http://localhost:4200/login',{waitUntil:'domcontentloaded'});await page.getByLabel('Email',{exact:true}).fill(fixture.users[i].form.email);await page.getByLabel('Пароль',{exact:true}).fill(fixture.users[i].form.password);await page.getByRole('button',{name:'Войти',exact:true}).click();await page.locator('app-section-navigation').waitFor();
  }
  const [a,b]=pages;await a.locator('app-section-navigation').getByRole('button',{name:'Друзья',exact:true}).click();await a.locator('app-conversation-list').getByRole('button',{name:fixture.users[1].user.nick,exact:true}).click();await a.getByRole('button',{name:'Позвонить',exact:true}).first().click();
  await b.getByRole('button',{name:'Ответить',exact:true}).first().waitFor();

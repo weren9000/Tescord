@@ -20,7 +20,7 @@ const fs=require('node:fs'),path=require('node:path'),assert=require('node:asser
     });
     await page.goto('https://localhost/');
     await page.getByLabel('Email',{exact:true}).waitFor();
-    assert.equal(await page.evaluate(()=>window.kvaDesktop.version),'android-0.1.0');
+    assert.equal(await page.evaluate(()=>window.kvaDesktop.version),'android-0.1.1');
     assert.equal(await page.evaluate(async()=>(await fetch('https://kvachat.ru/api/health')).status),200);
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'Mobile horizontal overflow');
     const screen=await page.evaluate(async()=>{

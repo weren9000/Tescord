@@ -40,6 +40,7 @@ async function launch() {
   await page.waitForFunction(() => window.clickedNotification === 'test-chat');
   assert.equal(await app.evaluate(({BrowserWindow}) => BrowserWindow.getAllWindows()[0].isVisible()), true);
   await app.evaluate(({BrowserWindow}) => BrowserWindow.getAllWindows()[0].focus());
+  await page.waitForFunction(() => document.hasFocus());
   assert.equal(await page.evaluate(item => window.kvaDesktop.notify({...item, id: 'focused'}), item), false);
   await app.evaluate(({BrowserWindow}) => BrowserWindow.getAllWindows()[0].hide());
   assert.equal(await page.evaluate(() => window.kvaDesktop.notify({id: 'call-1', title: 'Входящий звонок', body: 'Тест', target: 'call'})), true);
