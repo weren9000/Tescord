@@ -8,6 +8,11 @@ test -f "$release/backend/requirements.lock"
 test -f "$release/frontend/dist/frontend/browser/index.html"
 test -f /srv/tescord/shared/backend.env
 test -d /srv/tescord/shared/storage
+available=$(df --output=avail -B1 /srv/tescord | tail -1)
+if [ "$available" -lt 1073741824 ]; then
+    echo 'Deployment requires at least 1 GiB of free space.' >&2
+    exit 1
+fi
 exec 9>/run/lock/kva-deploy.lock
 flock -n 9
 cd "$release"
@@ -44,4 +49,9 @@ test "$healthy" = true
 nginx -t
 systemctl reload nginx
 trap - ERR
+if [ -f "$release/scripts/prune-releases.py" ]; then
+    python3 "$release/scripts/prune-releases.py" "$previous" --apply || echo 'Release cleanup failed; check disk space.' >&2
+elif [ -f /usr/local/sbin/kva-prune-releases ]; then
+    python3 /usr/local/sbin/kva-prune-releases "$previous" --apply || echo 'Release cleanup failed; check disk space.' >&2
+fi
 echo "Active release: $release"
