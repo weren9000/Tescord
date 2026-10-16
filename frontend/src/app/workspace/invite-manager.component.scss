@@ -1,4 +1,5 @@
 @use '../../palette';
+* { box-sizing: border-box; }
 
 
 dialog { width: 520px; max-width: calc(100vw - 24px); max-height: 88dvh; box-sizing: border-box; padding: 24px; border: 1px solid rgb(var(--rgb-text) / 0.1255); border-radius: 14px; background: var(--palette-surface); color: var(--palette-text); box-shadow: 0 24px 100px rgb(var(--rgb-shadow) / 0.5333); }

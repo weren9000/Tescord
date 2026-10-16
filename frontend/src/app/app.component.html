@@ -1,3 +1,18 @@
+<ng-template #workspaceQuickActions let-menu="menu">
+  @if (isChatsMode() && activeDirectPeer()) {
+    <button class="workspace-call" type="button" aria-label="Позвонить" title="Позвонить" (click)="closeWorkspaceActionMenus(); openActiveDirectPeerCall()"><app-ui-icon name="phone" />@if(menu){Позвонить}</button>
+  }
+  @if (canUseActiveChannelChat()) {
+    <button class="workspace-search" type="button" aria-label="Поиск сообщений" title="Поиск сообщений" (click)="closeWorkspaceActionMenus(); toggleMessageSearchPanel()"><app-ui-icon name="search" />@if(menu){Поиск сообщений}</button>
+    <button type="button" aria-label="Файлы беседы" title="Файлы беседы" (click)="closeWorkspaceActionMenus(); openChatFilesModal()"><app-ui-icon name="files" />@if(menu){Файлы беседы}</button>
+  }
+  @if (!isChatsMode()) {
+    @if (canManageActiveGroup()) {
+      <button class="workspace-invite" type="button" aria-label="Пригласить по ссылке" title="Пригласить по ссылке" (click)="closeWorkspaceActionMenus(); openInvites()"><app-ui-icon name="friends" />@if(menu){Пригласить по ссылке}</button>
+    }
+    <button type="button" aria-label="Участники беседы" title="Участники беседы" (click)="closeWorkspaceActionMenus(); openGroupMembersPanel()"><app-ui-icon name="groups" />@if(menu){Участники беседы}</button>
+  }
+</ng-template>
 <ng-template #inviteNotice>
   <section class="invite-entry" aria-label="Приглашение">
     @if (invitePreview(); as invite) {
@@ -489,6 +504,9 @@
         @if (callMenuPage() === 'more') {
           <section>
             <button type="button" (click)="callMenuPage.set('audio')"><app-ui-icon name="sound" />Звук и устройства</button>
+            <button type="button" [disabled]="!activeCallCanUseCamera()" (click)="toggleActiveCallCamera($event)"><app-ui-icon name="camera" />{{activeCallCameraEnabled() ? 'Выключить камеру' : 'Включить камеру'}}</button>
+            <button type="button" [disabled]="!activeCallCanShareScreen()" (click)="toggleActiveCallScreenShare($event)"><app-ui-icon name="screen" />{{activeCallScreenSharing() ? 'Остановить показ экрана' : 'Показать экран'}}</button>
+            @if(activeCallSurface()?.kind === 'direct' ? !directCallScreenSupported() : !voiceScreenShareSupported()) {<p class="menu-note">Этот браузер не поддерживает показ вашего экрана. Смотреть трансляции участников можно.</p>}
             @if (activeCallSurface()?.kind === 'direct') {<button type="button" (click)="callMenuPage.set('output')">Звук собеседника</button>}
             @if (callWindowExpanded()) {<button type="button" (click)="minimizeCallWindow()"><app-ui-icon name="minimize" />Вернуться к переписке</button>}
             @else {<button type="button" (click)="callAudioSettingsOpen.set(false); expandCallWindow()">Развернуть звонок</button>}
@@ -583,8 +601,9 @@
         @if(channel.topic){<p class="menu-note">{{channel.topic}}</p>}
         @if(managementError()){<p class="menu-note" role="alert">{{managementError()}}</p>}
         <section><button type="button" (click)="openChannelFromMenu(channel)"><app-ui-icon [name]="channel.type==='voice' ? 'sound' : 'hash'" />Открыть канал</button>
-          @if(selectedChannelId()===channel.id && canUseActiveChannelChat()){<button type="button" (click)="channelActionTarget.set(null); openChatFilesModal()"><app-ui-icon name="files" />Файлы канала</button>}
         </section>
+        @if(selectedChannelId()===channel.id){<section><ng-container *ngTemplateOutlet="workspaceQuickActions; context: {menu: true}" /></section>}
+        <section><button type="button" (click)="openConversationInfo()"><app-ui-icon name="info" />Информация о площадке</button></section>
         @if(channel.type==='voice' && canManagePlatformVoiceChannel(channel)){<section><button type="button" (click)="openChannelSettings(channel)"><app-ui-icon name="settings" />Доступ к голосовому каналу</button></section>}
         @if(canDeleteWorkspaceChannel(channel)){<section><button type="button" class="danger" [disabled]="isDeletingChannel(channel.id)" (click)="deleteChannel(channel)"><app-ui-icon name="trash" />Удалить канал</button></section>}
       </app-action-menu>
@@ -749,11 +768,7 @@
 
               <div class="conversation-head__menu">
                 <div class="workspace-tools">
-                  @if (isChatsMode() && activeDirectPeer()) {<button class="workspace-call" type="button" aria-label="Позвонить" title="Позвонить" (click)="openActiveDirectPeerCall()"><app-ui-icon name="phone" /></button>}
-                  <button class="workspace-search" type="button" aria-label="Поиск сообщений" title="Поиск в беседе" (click)="toggleMessageSearchPanel()"><app-ui-icon name="search" /></button>
-                  <button type="button" aria-label="Файлы беседы" title="Файлы беседы" (click)="openChatFilesModal()"><app-ui-icon name="files" /></button>
-                  @if (!isChatsMode() && canManageActiveGroup()) {<button class="workspace-invite" type="button" aria-label="Пригласить по ссылке" title="Пригласить по ссылке" (click)="openInvites()"><app-ui-icon name="friends" /></button>}
-                  @if (!isChatsMode()) {<button type="button" aria-label="Участники беседы" title="Участники беседы" (click)="openGroupMembersPanel()"><app-ui-icon name="groups" /></button>}
+                  <ng-container *ngTemplateOutlet="workspaceQuickActions; context: {menu: false}" />
                 </div>
                 <button
                   class="secondary-button conversation-head__action conversation-head__action--icon conversation-head__settings-toggle"
@@ -772,16 +787,10 @@
 
                 @if (conversationActionMenuOpen()) {
 <app-action-menu label="Действия беседы" (close)="closeConversationActionMenu()">
+<section><ng-container *ngTemplateOutlet="workspaceQuickActions; context: {menu: true}" /></section>
 <section><button type="button" (click)="openConversationInfo()"><app-ui-icon name="info" />Информация о беседе</button></section>
                     @if (pinError()) { <p class="menu-note" role="alert">{{ pinError() }}</p> }
                     @if (pushFeedback(); as feedback) { <p class="menu-note" role="status">{{ feedback.message }}</p> }
-@if (canUseActiveChannelChat()) { <section><p class="menu-heading">Материалы</p>                    @if (canUseActiveChannelChat()) {
-                      <button  type="button" (click)="closeConversationActionMenu(); openChatFilesModal()">
-                        <app-ui-icon name="files" />
-                        Файлы беседы
-                      </button>
-                    }
-</section> }
 <section><p class="menu-heading">Личные настройки</p>                    @if (activeConversation(); as conversation) {
                       <button  type="button" [disabled]="pinPending().includes(conversation.id)" (click)="toggleConversationPin(conversation.id)">
                         <app-ui-icon name="pin" />{{ pinPending().includes(conversation.id) ? 'Сохраняем…' : conversation.pinned ? 'Открепить беседу' : 'Закрепить беседу' }}
@@ -1739,8 +1748,8 @@
         [class.conversation-sidebar__tab--active]="isMobileFooterWorkspaceModeActive('platforms')"
         [class.mobile-mode-footer__button--active]="isMobileFooterWorkspaceModeActive('platforms')"
         type="button"
-        aria-label="Площадка"
-        title="Площадка"
+        aria-label="Площадки"
+        title="Площадки"
         (click)="openMobileWorkspaceMode('platforms')"
       >
         <app-ui-icon name="platforms" /><span>Площадки</span>
@@ -3524,7 +3533,7 @@
 
 @if (groupMembersModalOpen()) {
   <div class="modal-backdrop" (click)="closeGroupMembersPanel()">
-    <section class="modal modal--wide modal--conversation-create modal--group-members" (click)="$event.stopPropagation()">
+    <section class="modal modal--wide modal--conversation-create modal--group-members" role="dialog" aria-modal="true" aria-label="Участники беседы" (click)="$event.stopPropagation()">
       <div class="modal__header">
         <div>
           <p class="eyebrow">{{ isPlatformsMode() ? 'Площадка' : 'Группа' }}</p>

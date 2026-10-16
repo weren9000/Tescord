@@ -18,4 +18,11 @@
   .messenger-shell.mobile-keyboard-open .mobile-mode-footer{display:none}
   .messenger-shell.mobile-keyboard-open{padding-bottom:0}
   .messenger-shell .conversation-sidebar--mobile-open{top:env(safe-area-inset-top);bottom:calc(60px + env(safe-area-inset-bottom))}
+  .messenger-shell .message-card__text{font-size:var(--message-text-size,15px)}
+}
+// Touch users should not have to discover a long press to access message actions.
+@media(max-width:980px),(hover:none){
+  .message-hover-actions{position:static;margin-left:auto;opacity:1;pointer-events:auto;background:transparent;border:0;padding:0}
+  .message-hover-actions>button:not([aria-label='Действия с сообщением']){display:none}
+  .message-hover-actions>button[aria-label='Действия с сообщением']{display:grid;place-items:center;min-width:44px;min-height:44px;font-size:22px}
 }

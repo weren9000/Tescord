@@ -1642,7 +1642,7 @@ export class AppComponent {
     return this.voiceChannels().some((channel) => channel.voice_access_role === 'owner');
   });
 
-  readonly canEditActiveServerIcon = computed(() => this.canManageActiveGroup() && !this.isCompactVoiceWorkspaceViewport());
+  readonly canEditActiveServerIcon = computed(() => this.canManageActiveGroup());
   readonly canCreateConversationGroup = computed(() =>
     this.createConversationForm.name.trim().length >= 2
     && !this.createConversationLoading()
@@ -3932,6 +3932,11 @@ export class AppComponent {
   readonly conversationInfoOpen = signal(false);
   readonly platformActionMenuOpen = signal(false);
   readonly channelActionTarget = signal<WorkspaceChannel | null>(null);
+  closeWorkspaceActionMenus(): void {
+    this.closeConversationActionMenu();
+    this.channelActionTarget.set(null);
+    this.platformActionMenuOpen.set(false);
+  }
   readonly channelSettingsOnly = signal(false);
   readonly infoMemberQuery = signal('');
   readonly conversationInfoDescription = computed(() => this.servers().find(space => space.id === this.selectedServerId())?.description ?? (this.isPlatformsMode() ? this.activeServer()?.description : null));
@@ -4928,7 +4933,7 @@ export class AppComponent {
   }
 
   openServerIconPicker(): void {
-    if (!this.canManageActiveGroup() || this.isCompactVoiceWorkspaceViewport() || !this.activeServer()) {
+    if (!this.canManageActiveGroup() || !this.activeServer()) {
       return;
     }
 

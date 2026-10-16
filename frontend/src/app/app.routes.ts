@@ -1,3 +1,7 @@
 import { Routes } from '@angular/router';
 
-export const routes: Routes = [{path: 'channels/:spaceId/:channelId', children: []}];
+// AppComponent handles invitation preview/authentication; accept its URL on initial navigation.
+export const routes: Routes = [
+  {path: 'invite/:code', children: []},
+  {path: 'channels/:spaceId/:channelId', children: []},
+];

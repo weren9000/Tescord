@@ -17,7 +17,7 @@ import { InviteSummary, InvitesApiService } from '../core/api/invites-api.servic
         <button class="primary" type="submit" [disabled]="busy()">{{ busy() ? 'Подождите…' : 'Создать ссылку' }}</button>
       </form>
       @if (link()) {
-        <div class="link"><label>Ссылка приглашения<input #linkInput readonly [value]="link()" (click)="linkInput.select()" /></label><button type="button" (click)="copy()">{{ copied() ? 'Скопировано' : 'Копировать' }}</button></div>
+        <div class="link"><label>Ссылка приглашения<input #linkInput readonly [value]="link()" (click)="linkInput.select()" /></label><button type="button" (click)="copy()">{{ copied() ? 'Скопировано' : 'Копировать' }}</button>@if(canShare){<button type="button" [disabled]="sharing()" (click)="share()">Поделиться</button>}</div>
         <p class="hint">Сохраните ссылку сейчас: после закрытия окна её текст не отображается повторно.</p>
       }
       @if (error()) {<p class="error" role="alert">{{ error() }}</p>}
@@ -49,6 +49,8 @@ export class InviteManagerComponent implements AfterViewInit {
   readonly error = signal('');
   readonly busy = signal(false);
   readonly loading = signal(true);
+  readonly canShare = typeof navigator.share === 'function';
+  readonly sharing = signal(false);
   private linkId = '';
   days: number | null = 7;
   limit: number | null = null;
@@ -74,6 +76,13 @@ export class InviteManagerComponent implements AfterViewInit {
   async copy(): Promise<void> {
     try { await navigator.clipboard.writeText(this.link()); this.copied.set(true); }
     catch { this.linkInput?.nativeElement.select(); this.error.set('Выделили ссылку — скопируйте её вручную.'); }
+  }
+  async share(): Promise<void> {
+    if (!this.link() || this.sharing()) return;
+    this.sharing.set(true); this.error.set('');
+    try { await navigator.share({title: this.space().name, url: this.link()}); }
+    catch (error) { if (!(error instanceof DOMException && error.name === 'AbortError')) this.error.set('Не удалось поделиться. Скопируйте ссылку.'); }
+    finally { this.sharing.set(false); }
   }
   stateLabel(state: InviteSummary['state']): string { return {active: 'Активна', revoked: 'Отключена', expired: 'Истекла', exhausted: 'Лимит исчерпан'}[state]; }
 }
