@@ -102,3 +102,5 @@
   .call-controls-divider { display: none; }
   .call-audio-settings { padding: 14px 16px; grid-template-columns: minmax(0,1fr); }
 }
+
+.audio-settings-modal .settings-grid{gap:14px}.audio-help{font-size:12px;color:var(--palette-muted)}.audio-help summary{cursor:pointer;min-height:44px;display:flex;align-items:center;text-decoration:underline;text-underline-offset:3px}.audio-help p{margin:0 0 8px;line-height:1.5}.audio-help summary:focus-visible{outline:2px solid var(--palette-primary)}

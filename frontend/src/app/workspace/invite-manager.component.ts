@@ -9,19 +9,18 @@ import { InviteSummary, InvitesApiService } from '../core/api/invites-api.servic
   selector: 'app-invite-manager', imports: [CommonModule, FormsModule],
   template: `
     <dialog #dialog aria-labelledby="invite-title" (cancel)="$event.preventDefault(); dismiss()" (keydown.escape)="$event.stopPropagation()">
-      <header><div><h2 id="invite-title">Пригласить по ссылке</h2><p>{{ space().name }}</p></div><button type="button" aria-label="Закрыть приглашения" (click)="dismiss()">×</button></header>
-      <p class="hint">Человек с этой ссылкой вступит автоматически после входа или регистрации.</p>
+      <header><div><h2 id="invite-title">Пригласить</h2><p>{{ space().name }}</p></div><button type="button" aria-label="Закрыть приглашения" (click)="dismiss()">×</button></header>
       <form (ngSubmit)="create()">
         <div class="options"><label>Срок действия<select name="expiry" [(ngModel)]="days"><option [ngValue]="1">1 день</option><option [ngValue]="7">7 дней</option><option [ngValue]="30">30 дней</option><option [ngValue]="null">Бессрочно</option></select></label>
-        <label>Число вступлений<select name="uses" [(ngModel)]="limit"><option [ngValue]="null">Без ограничения</option><option [ngValue]="1">Одноразовая</option><option [ngValue]="5">5 человек</option><option [ngValue]="10">10 человек</option><option [ngValue]="100">100 человек</option></select></label></div>
+        <label>Лимит вступлений<select name="uses" [(ngModel)]="limit"><option [ngValue]="null">Без ограничения</option><option [ngValue]="1">Одноразовая</option><option [ngValue]="5">5 человек</option><option [ngValue]="10">10 человек</option><option [ngValue]="100">100 человек</option></select></label></div>
         <button class="primary" type="submit" [disabled]="busy()">{{ busy() ? 'Подождите…' : 'Создать ссылку' }}</button>
       </form>
       @if (link()) {
         <div class="link"><label>Ссылка приглашения<input #linkInput readonly [value]="link()" (click)="linkInput.select()" /></label><button type="button" (click)="copy()">{{ copied() ? 'Скопировано' : 'Копировать' }}</button>@if(canShare){<button type="button" [disabled]="sharing()" (click)="share()">Поделиться</button>}</div>
-        <p class="hint">Сохраните ссылку сейчас: после закрытия окна её текст не отображается повторно.</p>
+        <p class="hint">Скопируйте ссылку: после закрытия её текст недоступен.</p>
       }
       @if (error()) {<p class="error" role="alert">{{ error() }}</p>}
-      <h3>Приглашения</h3>
+      <h3>Созданные ссылки</h3>
       @if (loading()) {<p class="hint" role="status">Загрузка…</p>}
       <div class="list">
         @for (invite of invites(); track invite.id) {

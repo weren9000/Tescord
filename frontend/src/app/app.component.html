@@ -3,14 +3,14 @@
     <button class="workspace-call" type="button" aria-label="Позвонить" title="Позвонить" (click)="closeWorkspaceActionMenus(); openActiveDirectPeerCall()"><app-ui-icon name="phone" />@if(menu){Позвонить}</button>
   }
   @if (canUseActiveChannelChat()) {
-    <button class="workspace-search" type="button" aria-label="Поиск сообщений" title="Поиск сообщений" (click)="closeWorkspaceActionMenus(); toggleMessageSearchPanel()"><app-ui-icon name="search" />@if(menu){Поиск сообщений}</button>
-    <button type="button" aria-label="Файлы беседы" title="Файлы беседы" (click)="closeWorkspaceActionMenus(); openChatFilesModal()"><app-ui-icon name="files" />@if(menu){Файлы беседы}</button>
+    <button class="workspace-search" type="button" aria-label="Поиск сообщений" title="Поиск сообщений" (click)="closeWorkspaceActionMenus(); toggleMessageSearchPanel()"><app-ui-icon name="search" />@if(menu){Поиск}</button>
+    <button type="button" aria-label="Файлы беседы" title="Файлы беседы" (click)="closeWorkspaceActionMenus(); openChatFilesModal()"><app-ui-icon name="files" />@if(menu){Файлы}</button>
   }
   @if (!isChatsMode()) {
     @if (canManageActiveGroup()) {
-      <button class="workspace-invite" type="button" aria-label="Пригласить по ссылке" title="Пригласить по ссылке" (click)="closeWorkspaceActionMenus(); openInvites()"><app-ui-icon name="friends" />@if(menu){Пригласить по ссылке}</button>
+      <button class="workspace-invite" type="button" aria-label="Пригласить по ссылке" title="Пригласить по ссылке" (click)="closeWorkspaceActionMenus(); openInvites()"><app-ui-icon name="friends" />@if(menu){Пригласить}</button>
     }
-    <button type="button" aria-label="Участники беседы" title="Участники беседы" (click)="closeWorkspaceActionMenus(); openGroupMembersPanel()"><app-ui-icon name="groups" />@if(menu){Участники беседы}</button>
+    <button type="button" aria-label="Участники беседы" title="Участники беседы" (click)="closeWorkspaceActionMenus(); openGroupMembersPanel()"><app-ui-icon name="groups" />@if(menu){Участники}</button>
   }
 </ng-template>
 <ng-template #inviteNotice>
@@ -512,7 +512,7 @@
             @else {<button type="button" (click)="callAudioSettingsOpen.set(false); expandCallWindow()">Развернуть звонок</button>}
           </section>
           @if (activeCallCanOpenSettings()) {
-            <section><p class="menu-heading">Управление каналом</p><button type="button" (click)="callAudioSettingsOpen.set(false); openActiveCallSettings($event)"><app-ui-icon name="groups" />Доступ и участники</button></section>
+            <section><button type="button" (click)="callAudioSettingsOpen.set(false); openActiveCallSettings($event)"><app-ui-icon name="groups" />Доступ и участники</button></section>
           }
         } @else {
           <button type="button" (click)="callMenuPage.set('more')">← Меню звонка</button>
@@ -545,7 +545,7 @@
           <button type="button" [attr.aria-pressed]="groupVoiceParticipantVolume(participant) === 0" (click)="toggleParticipantLocalMute(participant.user_id)"><app-ui-icon [name]="groupVoiceParticipantVolume(participant) === 0 ? 'soundOff' : 'sound'" />{{ groupVoiceParticipantVolume(participant) === 0 ? 'Вернуть прежнюю громкость' : 'Заглушить для меня' }}</button>
         </section>
         @if (canManageCallParticipant(participant.user_id)) {
-          <section><p class="menu-heading">Управление каналом</p><button type="button" (click)="manageCallParticipant(participant.user_id)">Доступ и микрофон участника</button></section>
+          <section><button type="button" (click)="manageCallParticipant(participant.user_id)">Доступ и микрофон участника</button></section>
         }
       </app-action-menu>
     }
@@ -570,7 +570,7 @@
     @if(pwa.helpOpen()){
       <app-action-menu label="Квачат на главном экране" (close)="pwa.helpOpen.set(false)">
         <p class="menu-note">Откройте меню браузера и выберите «Установить приложение» или «Добавить на главный экран». На iPhone — «Поделиться» → «На экран Домой».</p>
-        <p class="menu-note">Запускайте Квачат с новой иконки. Если браузер поддерживает установку приложения, адресная строка не будет занимать место. Для переписки нужен интернет.</p>
+
         <button type="button" (click)="pwa.helpOpen.set(false)">Понятно</button>
       </app-action-menu>
     }
@@ -584,10 +584,10 @@
     }
     @if (platformActionMenuOpen() && activeServer(); as platform) {
       <app-action-menu [label]="'Площадка · ' + platform.name" (close)="platformActionMenuOpen.set(false)">
-        <section><button type="button" (click)="openConversationInfo()"><app-ui-icon name="info" />Информация о площадке</button></section>
+        <section><button type="button" (click)="openConversationInfo()"><app-ui-icon name="info" />О площадке</button></section>
         @if(canManageActiveGroup()){
           <section>
-            <button type="button" (click)="platformActionMenuOpen.set(false); openInvites()"><app-ui-icon name="plus" />Пригласить по ссылке</button>
+            <button type="button" (click)="platformActionMenuOpen.set(false); openInvites()"><app-ui-icon name="plus" />Пригласить</button>
             <button type="button" (click)="platformActionMenuOpen.set(false); openCreateChannelModal('text')"><app-ui-icon name="hash" />Создать текстовый канал</button>
             <button type="button" (click)="platformActionMenuOpen.set(false); openCreateChannelModal('voice')"><app-ui-icon name="sound" />Создать голосовой канал</button>
           </section>
@@ -603,7 +603,7 @@
         <section><button type="button" (click)="openChannelFromMenu(channel)"><app-ui-icon [name]="channel.type==='voice' ? 'sound' : 'hash'" />Открыть канал</button>
         </section>
         @if(selectedChannelId()===channel.id){<section><ng-container *ngTemplateOutlet="workspaceQuickActions; context: {menu: true}" /></section>}
-        <section><button type="button" (click)="openConversationInfo()"><app-ui-icon name="info" />Информация о площадке</button></section>
+        <section><button type="button" (click)="openConversationInfo()"><app-ui-icon name="info" />О площадке</button></section>
         @if(channel.type==='voice' && canManagePlatformVoiceChannel(channel)){<section><button type="button" (click)="openChannelSettings(channel)"><app-ui-icon name="settings" />Доступ к голосовому каналу</button></section>}
         @if(canDeleteWorkspaceChannel(channel)){<section><button type="button" class="danger" [disabled]="isDeletingChannel(channel.id)" (click)="deleteChannel(channel)"><app-ui-icon name="trash" />Удалить канал</button></section>}
       </app-action-menu>
@@ -788,10 +788,10 @@
                 @if (conversationActionMenuOpen()) {
 <app-action-menu label="Действия беседы" (close)="closeConversationActionMenu()">
 <section><ng-container *ngTemplateOutlet="workspaceQuickActions; context: {menu: true}" /></section>
-<section><button type="button" (click)="openConversationInfo()"><app-ui-icon name="info" />Информация о беседе</button></section>
+<section><button type="button" (click)="openConversationInfo()"><app-ui-icon name="info" />{{isChatsMode() ? 'О собеседнике' : 'О группе'}}</button></section>
                     @if (pinError()) { <p class="menu-note" role="alert">{{ pinError() }}</p> }
                     @if (pushFeedback(); as feedback) { <p class="menu-note" role="status">{{ feedback.message }}</p> }
-<section><p class="menu-heading">Личные настройки</p>                    @if (activeConversation(); as conversation) {
+<section>                    @if (activeConversation(); as conversation) {
                       <button  type="button" [disabled]="pinPending().includes(conversation.id)" (click)="toggleConversationPin(conversation.id)">
                         <app-ui-icon name="pin" />{{ pinPending().includes(conversation.id) ? 'Сохраняем…' : conversation.pinned ? 'Открепить беседу' : 'Закрепить беседу' }}
                       </button>
@@ -811,7 +811,7 @@
                     }
 </section>
 
-<section><p class="menu-heading">{{ isChatsMode() ? 'Контакт' : 'Завершение участия' }}</p>                    @if (isChatsMode() && activeDirectPeer(); as directPeer) {
+<section>                    @if (isChatsMode() && activeDirectPeer(); as directPeer) {
                       <button class="danger" type="button" [disabled]="isFriendManagementPending(directPeer.user_id)" (click)="removeActiveFriend()">
                         <app-ui-icon name="trash" />
                         Убрать из друзей
@@ -1671,10 +1671,10 @@
               <button type="button" (click)="closeConversationInfo(); openActiveDirectPeerCall()"><app-ui-icon name="phone" />Позвонить</button>
             </section>
           }
-          <section class="info-section"><h4>Общие материалы</h4>
+          <section class="info-section">
             @if(canUseActiveChannelChat()){<button type="button" (click)="closeConversationInfo(); openChatFilesModal()"><app-ui-icon name="files" />{{isPlatformsMode() ? 'Файлы текущего канала' : 'Файлы беседы'}}</button>}
           </section>
-          <section class="info-section"><h4>Личные настройки</h4>
+          <section class="info-section">
             @if(activeConversation()){
               <button type="button" [disabled]="isActiveConversationPushPending()" (click)="toggleActiveConversationPush()"><app-ui-icon name="bell" />{{isActiveConversationPushPending() ? 'Сохраняем…' : activeConversationPushActionLabel()}}</button>
               @if(pushFeedback();as feedback){<p role="status">{{feedback.message}}</p>}
@@ -1684,7 +1684,7 @@
           @if (!isChatsMode()) {
             <section class="info-section"><h4>Участники · {{activeGroupMemberCount()}}</h4>
               @if(canManageActiveGroup()){
-                <button type="button" (click)="closeConversationInfo(); openInvites()"><app-ui-icon name="plus" />Пригласить по ссылке</button>
+                <button type="button" (click)="closeConversationInfo(); openInvites()"><app-ui-icon name="plus" />Пригласить</button>
                 <button type="button" (click)="closeConversationInfo(); openAddGroupMemberModal()"><app-ui-icon name="groups" />Добавить участника</button>
               }
               <input type="search" aria-label="Найти участника" placeholder="Найти участника" [ngModel]="infoMemberQuery()" (ngModelChange)="infoMemberQuery.set($event)" />
@@ -1894,7 +1894,6 @@
     <section class="modal modal--compact modal--friend-requests" (click)="$event.stopPropagation()">
       <div class="modal__header">
         <div>
-          <p class="eyebrow">Уведомления</p>
           <h3>Центр внимания</h3>
         </div>
         <button class="icon-button" type="button" (click)="closeFriendRequestsModal()">×</button>
@@ -2144,7 +2143,6 @@
     <section class="modal modal--wide modal--conversation-create" (click)="$event.stopPropagation()">
       <div class="modal__header">
         <div>
-          <p class="eyebrow">Управление {{ activeManagedSpaceLabel() }}</p>
           <h3>{{ activeServer()?.name ?? ('Текущая ' + activeManagedSpaceLabel()) }}</h3>
         </div>
         <button class="icon-button" type="button" (click)="closeGroupOwnershipModal()">×</button>
@@ -2213,7 +2211,6 @@
     <section class="modal modal--wide modal--chat-files" (click)="$event.stopPropagation()">
       <div class="modal__header">
         <div>
-          <p class="eyebrow">Медиа</p>
           <h3>{{ activeServer()?.name ?? 'Текущий чат' }}</h3>
         </div>
         <button class="icon-button" type="button" (click)="closeChatFilesModal()">×</button>
@@ -2366,7 +2363,6 @@
     <section class="modal modal--compact" (click)="$event.stopPropagation()">
       <div class="modal__header">
         <div>
-          <p class="eyebrow">Голосовой канал</p>
           <h3>{{ pendingJoin.channelName }}</h3>
         </div>
         <button class="icon-button" type="button" (click)="closePendingVoiceJoin()">✕</button>
@@ -2389,7 +2385,6 @@
     <section class="modal modal--compact" (click)="$event.stopPropagation()">
       <div class="modal__header">
         <div>
-          <p class="eyebrow">Голосовой канал</p>
           <h3>{{ blockedNotice.channelName }}</h3>
         </div>
         <button class="icon-button" type="button" (click)="closeBlockedVoiceJoinNotice()">✕</button>
@@ -2412,7 +2407,6 @@
     <section class="modal modal--compact" (click)="$event.stopPropagation()">
       <div class="modal__header">
         <div>
-          <p class="eyebrow">Запрос на вход</p>
           <h3>{{ displayNick(activeRequest.requester_nick) }}</h3>
         </div>
         <button class="icon-button" type="button" (click)="closeActiveOwnerRequest()">✕</button>
@@ -2490,7 +2484,6 @@
     <section class="modal audio-settings-modal" role="dialog" aria-modal="true" aria-label="Звук и микрофон" (click)="$event.stopPropagation()">
       <div class="modal__header">
         <div>
-          <p class="eyebrow">Настройки</p>
           <h3>Звук и микрофон</h3>
         </div>
         <button class="icon-button" type="button" (click)="closeVoiceSettings()">✕</button>
@@ -2503,7 +2496,7 @@
           </button>
         </div>
 
-        <div class="settings-grid">@if(settingsDeviceChanging()){<p role="status" class="modal-note">Переключаем устройство…</p>}<h4 class="audio-section-heading">Устройства</h4>
+        <div class="settings-grid">@if(settingsDeviceChanging()){<p role="status" class="modal-note">Переключаем устройство…</p>}
           <label class="field">
             <span>Микрофон</span>
             <app-audio-device-picker label="Микрофон" [value]="voiceSettings().inputDeviceId" [devices]="inputDevices()" [disabled]="devicesLoading() || !!settingsDeviceChanging()" (changed)="changeInputDevice($event)"/>
@@ -2514,7 +2507,7 @@
             <app-audio-device-picker label="Устройство вывода" [value]="voiceSettings().outputDeviceId" [devices]="outputDevices()" [disabled]="devicesLoading() || !!settingsDeviceChanging() || !outputDeviceSupported()" (changed)="changeOutputDevice($event)"/>
           </label>
 
-          <h4 class="audio-section-heading">Микрофон</h4>
+
           <label class="range-field">
             <span>Усиление микрофона</span>
             <div class="range-field__control">
@@ -2529,7 +2522,7 @@
               />
               <strong>{{ voiceSettings().microphoneGain }}%</strong>
             </div>
-            <small>Увеличивает громкость вашего микрофона для других участников.</small>
+
           </label>
 
           <label class="range-field">
@@ -2546,10 +2539,10 @@
               />
               <strong>{{ voiceSettings().sensitivity }}%</strong>
             </div>
-            <small>Чем выше значение, тем раньше голос считается активным.</small>
+
           </label>
 
-          <h4 class="audio-section-heading">Воспроизведение</h4>
+
           <label class="range-field">
             <span>Общая громкость</span>
             <div class="range-field__control">
@@ -2570,6 +2563,7 @@
         @if (!outputDeviceSupported()) {
           <p class="modal-note">Этот браузер не поддерживает выбор устройства вывода звука.</p>
         }
+        <details class="audio-help"><summary>О настройках микрофона</summary><p>Усиление меняет громкость вашего голоса для участников. Чем выше чувствительность, тем тише может быть голос для активации микрофона.</p></details>
 
         @if (settingsNotice()) {
           <p class="modal-note">{{ settingsNotice() }}</p>
@@ -2588,7 +2582,6 @@
     <section class="modal modal--wide" (click)="$event.stopPropagation()">
       <div class="modal__header">
         <div>
-          <p class="eyebrow">Админ</p>
           <h3>Доступ к голосовым каналам</h3>
         </div>
         <button class="icon-button" type="button" (click)="closeVoiceAdminPanel()">✕</button>
@@ -2807,7 +2800,6 @@
     <section class="modal modal--wide modal--conversation-create modal--entity-create" (click)="$event.stopPropagation()">
       <div class="modal__header">
         <div>
-          <p class="eyebrow">{{ conversationCreateTab() === 'direct' ? 'Друг' : 'Мини-группа' }}</p>
           <h3>{{ conversationCreateTab() === 'direct' ? 'Добавить друга' : 'Новая мини-группа' }}</h3>
         </div>
         <button class="icon-button" type="button" (click)="closeCreateConversationModal()">×</button>
@@ -2964,7 +2956,6 @@
     <section class="modal modal--wide modal--conversation-create modal--entity-create" (click)="$event.stopPropagation()">
       <div class="modal__header">
         <div>
-          <p class="eyebrow">{{ isPlatformsMode() ? 'Площадка' : 'Группа' }}</p>
           <h3>Добавить участника</h3>
         </div>
         <button class="icon-button" type="button" (click)="closeAddGroupMemberModal()">×</button>
@@ -3044,7 +3035,6 @@
     <section class="modal modal--wide modal--entity-create" (click)="$event.stopPropagation()">
       <div class="modal__header">
         <div>
-          <p class="eyebrow">Группа</p>
           <h3>Новая группа</h3>
         </div>
         <button class="icon-button" type="button" (click)="closeCreateGroupModal()">✕</button>
@@ -3111,7 +3101,6 @@
     <section class="modal modal--compact modal--entity-create" (click)="$event.stopPropagation()">
       <div class="modal__header">
         <div>
-          <p class="eyebrow">Площадка</p>
           <h3>Новая площадка</h3>
         </div>
         <button class="icon-button" type="button" (click)="closeCreatePlatformModal()">✕</button>
@@ -3152,7 +3141,6 @@
     <section class="modal modal--compact" (click)="$event.stopPropagation()">
       <div class="modal__header">
         <div>
-          <p class="eyebrow">Канал</p>
           <h3>{{ createChannelForm.type === 'voice' ? 'Создать голосовой канал' : 'Создать текстовый канал' }}</h3>
         </div>
         <button class="icon-button" type="button" (click)="closeCreateChannelModal()">✕</button>
@@ -3198,7 +3186,6 @@
     <section class="modal modal--wide modal--platform-settings" (click)="$event.stopPropagation()">
       <div class="modal__header">
         <div>
-          <p class="eyebrow">Площадка</p>
           <h3>{{channelSettingsOnly() ? 'Доступ к каналу · ' + platformVoiceSettingsChannel()?.name : 'Настройки площадки'}}</h3>
         </div>
         <button class="icon-button" type="button" (click)="closePlatformSettingsModal()">×</button>
@@ -3536,7 +3523,6 @@
     <section class="modal modal--wide modal--conversation-create modal--group-members" role="dialog" aria-modal="true" aria-label="Участники беседы" (click)="$event.stopPropagation()">
       <div class="modal__header">
         <div>
-          <p class="eyebrow">{{ isPlatformsMode() ? 'Площадка' : 'Группа' }}</p>
           <h3>Пользователи</h3>
         </div>
         <button class="icon-button" type="button" (click)="closeGroupMembersPanel()">×</button>
@@ -3591,7 +3577,6 @@
     <section class="modal modal--compact call-switch-modal" (click)="$event.stopPropagation()">
       <div class="modal__header">
         <div>
-          <p class="eyebrow">Голосовой чат</p>
           <h3>Перейти в другой звонок?</h3>
         </div>
       </div>
@@ -3627,7 +3612,6 @@
     <section class="modal modal--compact" (click)="$event.stopPropagation()">
       <div class="modal__header">
         <div>
-          <p class="eyebrow">Переход между группами</p>
           <h3>Подтвердите переход</h3>
         </div>
       </div>
@@ -3651,7 +3635,6 @@
     <section class="modal modal--compact" (click)="$event.stopPropagation()">
       <div class="modal__header">
         <div>
-          <p class="eyebrow">Участник</p>
           <h3>{{ displayNick(member.nick) }}</h3>
         </div>
         <button class="icon-button" type="button" (click)="closeMemberVolume()">✕</button>
@@ -3732,7 +3715,7 @@
           } @else if (selectedMemberHasOtherDirectCall()) {
             <p class="modal-note">Сейчас уже идет личный звонок с {{ directCallPeerLabel() }}.</p>
           } @else if (selectedMemberDirectCallActive()) {
-            <p class="modal-note">Личный звонок открыт отдельно и не зависит от окна участника.</p>
+
             <div class="modal-toolbar">
               @if (directCallState() === 'incoming') {
                 <button class="secondary-button" type="button" (click)="acceptDirectCall(); closeMemberVolume()">Ответить</button>

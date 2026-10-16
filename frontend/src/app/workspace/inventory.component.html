@@ -17,7 +17,7 @@
    </div>
    <div class="inventory-scroll">
    @if(error()){<p role="alert" class="error">{{error()}}</p>}@if(success()){<p class="notice" role="status">{{success()}}</p>}
-   @if(mode()==='inventory'&&tab()==='theme'){<p>Темы меняют оформление интерфейса только для вас. <button [disabled]="busy()" (click)="resetTheme()">Базовая тема</button></p>}
+   @if(mode()==='inventory'&&tab()==='theme'){<p><button [disabled]="busy()" (click)="resetTheme()">Базовая тема</button></p>}
    @if(mode()==='inventory') {
     <div class="grid">@for(item of items();track item.id){
      <div class="tile" [class.wallpaper-tile]="item.kind==='wallpaper'" [class.equipped]="item.equipped" [attr.title]="item.name+(item.equipped?' · Используется':'')"><button class="item-open" type="button" [attr.aria-label]="'О предмете: ' + item.name" (click)="showHistory(item)"><app-asset-preview [src]="image(item.catalog_id, true)" [retry]="previewRetry()" (error)="previewErrors.set(true)"/></button>@if(item.equipped){<span class="check" aria-label="Используется">✓</span>}<button class="dots" [attr.aria-label]="'Действия: '+item.name" [attr.aria-expanded]="menu()?.id===item.id" [disabled]="busy()" (click)="toggleMenu(item,$event)">⋯</button></div>
@@ -28,7 +28,7 @@
     <div class="issued-list">@for(item of issued();track item.id){<div class="issued"><app-asset-preview [src]="image(item.catalog_id, true)" [retry]="previewRetry()" (error)="previewErrors.set(true)"/><div><strong>{{item.name}}</strong><small>{{item.owner?.nick ?? 'Аккаунт удалён'}} · № {{item.id.slice(0,8)}}</small></div><small class="item-status">{{itemStatus(item)}}<span>{{item.created_at | date:'dd.MM.yyyy'}}</span></small><button class="row-dots" [attr.aria-label]="'Действия: '+item.name" (click)="toggleMenu(item,$event)">⋯</button></div>}</div>
    }
    @if(previewErrors()){<button type="button" class="preview-retry" (click)="retryPreviews()">Не все превью загрузились · Повторить</button>}
-   @if(!total()&&!loading()){<div class="empty">{{filter?'Ничего не найдено':'Пока нет предметов'}}<small>{{mode()==='admin'?'Добавьте предмет или измените условия поиска.':'Здесь появятся выданные и подаренные предметы.'}}</small></div>}
+   @if(!total()&&!loading()){<div class="empty">{{filter?'Ничего не найдено':'Пока нет предметов'}}</div>}
    @if(loading()){<p role="status">Загрузка…</p>}
    </div>
    <div class="pagination" aria-label="Страницы предметов"><small aria-live="polite">Всего: {{total()}}</small><button aria-label="Предыдущая страница" [disabled]="currentPage()===1||loading()||busy()" (click)="goPage(currentPage()-1)">‹</button>@for(n of pageNumbers();track n){<button [class.active]="currentPage()===n" [attr.aria-current]="currentPage()===n?'page':null" [attr.aria-label]="'Страница '+n" [disabled]="loading()||busy()" (click)="goPage(n)">{{n}}</button>}<button aria-label="Следующая страница" [disabled]="currentPage()===pageCount()||loading()||busy()" (click)="goPage(currentPage()+1)">›</button></div>
@@ -68,8 +68,8 @@
   }
   @if(themePreview();as item){<div class="panel-shade"><section class="subpanel" role="dialog" aria-modal="true" [attr.aria-label]="item.kind==='frame'?'Предпросмотр рамки':'Предпросмотр темы'"><header><h3>{{item.name}}</h3><button aria-label="Закрыть предпросмотр" [disabled]="busy()" (click)="closePanel()">×</button></header><div class="panel-body">@if(error()){<p class="error" role="alert">{{error()}}</p>}@if(item.kind==='frame'){
       <div class="frame-samples">@for(size of [44,88,160];track size){<div><div class="frame-preview" [style.width.px]="size" [style.height.px]="size"><img class="frame-base" [src]="rawAvatar()" alt="Ваш аватар"/><img class="frame-overlay" [src]="image(item.catalog_id)" [alt]="item.name"/></div><small>{{size}} px</small></div>}</div>
-      <p>Рамка на вашем аватаре. Применится после подтверждения.</p>
-    } @else {<img class="theme-preview" [src]="image(item.catalog_id)" [alt]="item.name"/><p>Цвета чатов, меню и окон. Ваши обои сохранятся.</p>}<button class="primary full" [disabled]="busy()" (click)="equip(item)">{{busy()?'Применяем…':item.kind==='frame'?(item.equipped?'Снять рамку':'Использовать рамку'):(item.equipped?'Вернуться к базовой':'Использовать тему')}}</button></div></section></div>}
+
+    } @else {<img class="theme-preview" [src]="image(item.catalog_id)" [alt]="item.name"/>}<button class="primary full" [disabled]="busy()" (click)="equip(item)">{{busy()?'Применяем…':item.kind==='frame'?(item.equipped?'Снять рамку':'Использовать рамку'):(item.equipped?'Вернуться к базовой':'Использовать тему')}}</button></div></section></div>}
   @if(uploadOpen()){
    <div class="panel-shade"><section class="subpanel upload-panel" role="dialog" aria-modal="true" aria-label="Добавить предмет"><header><h3>Добавить {{uploadKind==='wallpaper'?'обои':uploadKind==='frame'?'рамку':'аватарку'}}</h3><button aria-label="Закрыть загрузку" [disabled]="busy()" (click)="closePanel()">×</button></header><form class="panel-body upload-form" (ngSubmit)="saveUpload()">
     @if(error()){<p class="error" role="alert">{{error()}}</p>}

@@ -61,7 +61,7 @@ with sync_playwright() as p:
         actions.get_by_role('button', name='Закрыть меню').click()
     page.set_viewport_size({'width':390,'height':844})
     actions = menu(page); actions.get_by_role('button', name='Пригласить по ссылке', exact=True).click()
-    invite = page.get_by_role('dialog', name='Пригласить по ссылке', exact=True)
+    invite = page.get_by_role('dialog', name='Пригласить', exact=True)
     expect(invite).to_be_visible(); within(page, invite)
     invite.get_by_role('button', name='Создать ссылку', exact=True).click()
     link_input = invite.get_by_label('Ссылка приглашения', exact=True)
@@ -92,7 +92,7 @@ with sync_playwright() as p:
     page.get_by_placeholder('Поиск по сообщениям').fill('Соберу')
     expect(page.locator('.message-search__result').first).to_be_visible()
     page.locator('.message-search__close').click()
-    menu(page).get_by_role('button', name='Информация о беседе', exact=True).click()
+    menu(page).get_by_role('button', name='О группе', exact=True).click()
     info = page.locator('app-info-panel dialog')
     with page.expect_file_chooser():
         info.get_by_role('button', name='Изменить иконку', exact=True).click()
@@ -154,7 +154,7 @@ with sync_playwright() as p:
     expect(actions.get_by_role('button', name='Пригласить по ссылке', exact=True)).to_have_count(0)
     expect(actions.get_by_role('button', name='Участники беседы', exact=True)).to_be_visible()
     actions.get_by_role('button', name='Закрыть меню').click()
-    menu(page).get_by_role('button', name='Информация о беседе', exact=True).click()
+    menu(page).get_by_role('button', name='О группе', exact=True).click()
     expect(page.locator('app-info-panel').get_by_role('button', name='Изменить иконку', exact=True)).to_have_count(0)
     assert not errors, errors
     browser.close()

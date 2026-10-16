@@ -19,7 +19,7 @@
  }@else{
   <h3>{{step()==='review'?'Подтверждение выдачи':'Результат операции'}}</h3>
   @if(result();as r){<p class="summary">{{step()==='review'?'К выдаче: '+r.ready:'Выдано: '+r.granted}} · Пропущено: {{r.skipped}} · Ошибок: {{r.failed}}</p>
-   @if(step()==='review'){<p>{{isRetry()?'Повторяем только неудачные выдачи предыдущей операции.':'Каждый выбранный пользователь получит по экземпляру каждого выбранного предмета.'}} При выполнении доступность и наличие проверяются повторно.</p>}
+   @if(step()==='review'){<p>{{isRetry()?'Повторяем только неудачные выдачи предыдущей операции.':'Каждый выбранный пользователь получит по экземпляру каждого выбранного предмета.'}}</p>}
    @if(r.request_id){<p class="operation">Номер операции: {{r.request_id}}</p>}
    <details [open]="!!r.failed"><summary>Все результаты · {{r.total}}</summary>@for(row of r.rows;track $index){<div class="result-row"><span>{{row.name}} → {{row.nick}}</span><strong>{{status(row.status)}}</strong>@if(row.reason){<small>{{row.reason}}</small>}</div>}</details>
   }@else if(pending){<p>Номер незавершённой операции: {{pending.request_id}}</p><button (click)="recover()">Проверить результат</button>}

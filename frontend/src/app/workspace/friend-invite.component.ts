@@ -10,7 +10,7 @@ interface Preview {nick:string;state:'login'|'ready'|'self'|'friends'|'outgoing'
   @if(error()){<p role="alert">{{error()}}</p><button type="button" (click)="load()" [disabled]="busy()">Повторить</button>}
   @if(preview();as person){
     <strong>{{person.nick}}</strong>
-    <p role="status">{{labels[person.state]}}</p>
+    @if(labels[person.state]){<p role="status">{{labels[person.state]}}</p>}
     @if(person.state==='ready'){<button class="primary" type="button" [disabled]="busy()" (click)="send()">{{busy()?'Отправляем…':'Добавить в друзья'}}</button>}
     @if(person.state==='incoming'){<button type="button" (click)="requests.emit()">Открыть заявки</button>}
   }
@@ -21,7 +21,7 @@ interface Preview {nick:string;state:'login'|'ready'|'self'|'friends'|'outgoing'
 export class FriendInviteComponent {
  readonly userId=input.required<string>();readonly token=input('');readonly close=output<void>();readonly requests=output<void>();
  readonly preview=signal<Preview|null>(null);readonly loading=signal(true);readonly busy=signal(false);readonly error=signal('');
- readonly labels={login:'Войдите или зарегистрируйтесь ниже, чтобы отправить заявку.',ready:'Отправьте заявку, чтобы начать общение.',self:'Это ваша ссылка.',friends:'Вы уже в друзьях.',outgoing:'Заявка отправлена. Ожидаем подтверждения.',incoming:'Этот пользователь уже отправил вам заявку.'};
+ readonly labels={login:'Войдите или зарегистрируйтесь.',ready:'',self:'Это ваша ссылка.',friends:'Вы уже в друзьях.',outgoing:'Заявка отправлена.',incoming:'У вас входящая заявка.'};
  private readonly http=inject(HttpClient);private version=0;
  constructor(){effect(()=>{this.userId();this.token();void this.load();});}
  private headers():Record<string,string>{return this.token()?{Authorization:'Bearer '+this.token()}:{};}
