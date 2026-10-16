@@ -1171,6 +1171,14 @@ export class AppComponent {
   readonly callInputDeviceId = computed(() => this.activeCallSurface()?.kind === 'direct' ? this.directCall.inputDeviceId() : this.voiceSettings().inputDeviceId);
   readonly callOutputDeviceId = computed(() => this.activeCallSurface()?.kind === 'direct' ? this.directCall.outputDeviceId() : this.voiceSettings().outputDeviceId);
 
+  readonly callCameraDevices = signal<MediaDeviceInfo[]>([]);
+  readonly callCameraDeviceId = computed(() => (this.activeCallSurface()?.kind === 'direct' ? this.directCall : this.voiceRoom).cameraDeviceId());
+  async changeCallCamera(deviceId: string): Promise<void> {
+    if(this.callDeviceChanging()) return;
+    this.callDeviceChanging.set(true);
+    try { await (this.activeCallSurface()?.kind === 'direct' ? this.directCall : this.voiceRoom).setCameraDevice(deviceId || null); }
+    finally { this.callDeviceChanging.set(false); this.refreshVoiceDevices(); }
+  }
   openCallMenu(page: 'more' | 'input' | 'output' | 'audio'): void {
     this.callMenuPage.set(page);
     this.callAudioSettingsOpen.set(true);
@@ -1216,10 +1224,10 @@ export class AppComponent {
   }
 
   toggleCallAudioSettings(): void {
-    this.openCallMenu('more');
+    this.openCallMenu('audio');
   }
   openCallAudioSettings(): void {
-    this.openCallMenu('more');
+    this.openCallMenu('audio');
   }
   readonly activeCallWarning = computed(() => this.activeCallSurface()?.kind === 'direct'
     ? this.directCallError()
@@ -3784,6 +3792,7 @@ export class AppComponent {
     this.closeMobilePanel();
     this.settingsPanelOpen.set(true);
     void this.voiceRoom.refreshDevices();
+    void navigator.mediaDevices?.enumerateDevices().then(devices => this.callCameraDevices.set(devices.filter(d => d.kind === 'videoinput'))).catch(() => this.callCameraDevices.set([]));
   }
 
   openProfileEditor(): void {
@@ -6823,6 +6832,7 @@ export class AppComponent {
 
   refreshVoiceDevices(): void {
     void this.voiceRoom.refreshDevices();
+    void navigator.mediaDevices?.enumerateDevices().then(devices => this.callCameraDevices.set(devices.filter(d => d.kind === 'videoinput'))).catch(() => this.callCameraDevices.set([]));
   }
 
   changeOutputDevice(deviceId: string): void {

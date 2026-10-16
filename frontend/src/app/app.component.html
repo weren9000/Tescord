@@ -202,15 +202,15 @@
                   <button class="call-tray__answer" type="button" (click)="acceptDirectCall()"><app-ui-icon name="phone" />Ответить</button>
                   <button class="call-control-button call-control-button--danger" type="button" aria-label="Отклонить звонок" title="Отклонить звонок" (click)="rejectDirectCall()"><app-ui-icon name="hangup" /></button>
                 } @else {
-<div class="call-device-control">                  <button class="call-control-button" type="button" [class.call-control-button--muted]="activeCallMuted()" [attr.aria-pressed]="activeCallMuted()" [disabled]="call.kind !== 'direct' && voiceOwnerMuted()" [attr.title]="activeCallMuteLabel()" [attr.aria-label]="activeCallMuteLabel()" (click)="toggleActiveCallMute($event)"><app-ui-icon [name]="activeCallMuted() ? 'micOff' : 'mic'" /></button><button class="call-device-toggle" type="button" aria-label="Выбрать микрофон" title="Выбрать микрофон" aria-haspopup="dialog" (click)="openCallMenu('input')">⌃</button></div>
+<button class="call-control-button" type="button" [class.call-control-button--muted]="activeCallMuted()" [attr.aria-pressed]="activeCallMuted()" [disabled]="call.kind !== 'direct' && voiceOwnerMuted()" [attr.title]="activeCallMuteLabel()" [attr.aria-label]="activeCallMuteLabel()" (click)="toggleActiveCallMute($event)"><app-ui-icon [name]="activeCallMuted() ? 'micOff' : 'mic'" /></button>
 
                   @if (shouldShowWindowMediaControls()) {
                     <button class="call-control-button" type="button" [class.call-control-button--active]="activeCallCameraEnabled()" [attr.aria-pressed]="activeCallCameraEnabled()" [disabled]="!activeCallCanUseCamera()" [attr.title]="activeCallCameraEnabled() ? 'Выключить камеру' : 'Включить камеру'" [attr.aria-label]="activeCallCameraEnabled() ? 'Выключить камеру' : 'Включить камеру'" (click)="toggleActiveCallCamera($event)"><app-ui-icon name="camera" /></button>
                     <button class="call-control-button" type="button" [class.call-control-button--active]="activeCallScreenSharing()" [attr.aria-pressed]="activeCallScreenSharing()" [disabled]="!activeCallCanShareScreen()" [attr.title]="activeCallScreenSharing() ? 'Остановить показ экрана' : 'Показать экран'" [attr.aria-label]="activeCallScreenSharing() ? 'Остановить показ экрана' : 'Показать экран'" (click)="toggleActiveCallScreenShare($event)"><app-ui-icon name="screen" /></button>
                   }
-                  <button class="call-control-button" type="button" [class.call-control-button--active]="callAudioSettingsOpen()" [attr.aria-expanded]="callAudioSettingsOpen()" title="Меню звонка" aria-label="Меню звонка" aria-haspopup="dialog" (click)="toggleCallAudioSettings()"><app-ui-icon name="more" /></button>
+
                   @if(call.kind !== 'direct'){<button class="call-control-button" type="button" aria-label="Участники" title="Участники" [attr.aria-expanded]="conferenceRosterOpen()" (click)="conferenceRosterOpen.set(!conferenceRosterOpen())"><app-ui-icon name="groups" /></button>}
-                  <button class="call-control-button" type="button" aria-label="Свернуть звонок" title="Вернуться к чату" (click)="minimizeCallWindow($event)"><app-ui-icon name="minimize" /></button>
+                  <button class="call-control-button" type="button" aria-label="Настройки звонка" title="Настройки звонка" aria-haspopup="dialog" [attr.aria-expanded]="callAudioSettingsOpen()" (click)="openCallAudioSettings()"><app-ui-icon name="callSettings" /></button>
                   <span class="call-controls-divider"></span>
                   <button class="call-control-button call-control-button--danger" type="button" title="Завершить звонок" aria-label="Завершить звонок" (click)="endActiveCall($event)"><app-ui-icon name="hangup" /></button>
                 }
@@ -414,23 +414,9 @@
     }
 
     @if (callAudioSettingsOpen() && activeCallSurface() && !isIncomingDirectCall()) {
-      <app-action-menu [label]="callMenuPage() === 'input' ? 'Микрофон' : callMenuPage() === 'output' ? 'Звук и устройство вывода' : callMenuPage() === 'audio' ? 'Настройки звука' : 'Меню звонка'" (close)="callAudioSettingsOpen.set(false)">
-        @if (callMenuPage() === 'more') {
-          <section>
-            <button type="button" (click)="callMenuPage.set('audio')"><app-ui-icon name="sound" />Звук и устройства</button>
-            <button type="button" [disabled]="!activeCallCanUseCamera()" (click)="toggleActiveCallCamera($event)"><app-ui-icon name="camera" />{{activeCallCameraEnabled() ? 'Выключить камеру' : 'Включить камеру'}}</button>
-            <button type="button" [disabled]="!activeCallCanShareScreen()" (click)="toggleActiveCallScreenShare($event)"><app-ui-icon name="screen" />{{activeCallScreenSharing() ? 'Остановить показ экрана' : 'Показать экран'}}</button>
-            @if(activeCallSurface()?.kind === 'direct' ? !directCallScreenSupported() : !voiceScreenShareSupported()) {<p class="menu-note">Этот браузер не поддерживает показ вашего экрана. Смотреть трансляции участников можно.</p>}
-            @if (activeCallSurface()?.kind === 'direct') {<button type="button" (click)="callMenuPage.set('output')">Звук собеседника</button>}
-            @if (callWindowExpanded()) {<button type="button" (click)="minimizeCallWindow()"><app-ui-icon name="minimize" />Вернуться к переписке</button>}
-            @else {<button type="button" (click)="callAudioSettingsOpen.set(false); expandCallWindow()">Развернуть звонок</button>}
-          </section>
-          @if (activeCallCanOpenSettings()) {
-            <section><button type="button" (click)="callAudioSettingsOpen.set(false); openActiveCallSettings($event)"><app-ui-icon name="groups" />Доступ и участники</button></section>
-          }
-        } @else {
-          <button type="button" (click)="callMenuPage.set('more')">← Меню звонка</button>
+      <app-action-menu label="Настройки звонка" (close)="callAudioSettingsOpen.set(false)">
           <section class="call-device-settings">
+            <label>Камера<select aria-label="Камера звонка" [value]="callCameraDeviceId() ?? ''" [disabled]="callDeviceChanging() || !activeCallMediaControlsVisible()" (change)="changeCallCamera($any($event.target).value)"><option value="">По умолчанию</option>@for(device of callCameraDevices();track device.deviceId){<option [value]="device.deviceId">{{device.label || 'Камера ' + ($index + 1)}}</option>}</select></label>
             @if (callMenuPage() !== 'input') {
               <label>Громкость: {{ activeCallVolume() }}%<input type="range" aria-label="Громкость звонка" [min]="activeCallVolumeMin()" max="100" [value]="activeCallVolume()" (input)="changeActiveCallVolume($any($event.target).value)" /></label>
               <button type="button" [attr.aria-pressed]="activeCallOutputMuted()" (click)="toggleActiveCallOutput()"><app-ui-icon [name]="activeCallOutputMuted() ? 'soundOff' : 'sound'" />{{ activeCallOutputMuted() ? 'Включить звук звонка' : 'Заглушить для меня' }}</button>
@@ -448,7 +434,6 @@
             @if (!activeCallMediaControlsVisible()) {<p class="menu-note">Выбор устройств доступен после подключения.</p>}
             <button type="button" [disabled]="devicesLoading() || callDeviceChanging()" (click)="refreshVoiceDevices()">Обновить список устройств</button>
           </section>
-        }
       </app-action-menu>
     }
     @if (callParticipant(); as participant) {
@@ -685,6 +670,7 @@
                 }
               </div>
 
+              @if(callWindowExpanded()){<button class="call-control-button" type="button" aria-label="Свернуть звонок" title="Вернуться к чату" (click)="minimizeCallWindow($event)"><app-ui-icon name="minimize" /></button>}
               <div class="conversation-head__menu">
                 <div class="workspace-tools">
                   <ng-container *ngTemplateOutlet="workspaceQuickActions; context: {menu: false}" />

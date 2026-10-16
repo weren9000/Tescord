@@ -29,7 +29,7 @@ export async function requestCameraStream(preferredConstraints: MediaTrackConstr
   ];
 
   let lastError: unknown = null;
-  for (const constraints of attempts) {
+  for (const constraints of preferredConstraints.deviceId ? attempts.slice(0, 1) : attempts) {
     try {
       return await navigator.mediaDevices.getUserMedia(constraints);
     } catch (error) {

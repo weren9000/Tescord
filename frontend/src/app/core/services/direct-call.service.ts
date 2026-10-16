@@ -322,6 +322,14 @@ export class DirectCallService {
     this.applyRemoteVolume();
   }
 
+  readonly cameraDeviceId = signal<string | null>(null);
+  async setCameraDevice(deviceId: string | null): Promise<void> {
+    const enabled = this.isCameraEnabled();
+    if (enabled) await this.stopCamera();
+    this.cameraDeviceId.set(deviceId);
+    if (enabled) await this.startCamera();
+  }
+
   async startCamera(): Promise<void> {
     if (!this.cameraSupported()) {
       this.error.set('Браузер не поддерживает доступ к камере');
@@ -344,6 +352,7 @@ export class DirectCallService {
 
     try {
       const stream = await requestCameraStream({
+        ...(this.cameraDeviceId() ? {deviceId: {exact: this.cameraDeviceId()!}} : {}),
         width: { ideal: 1280, max: 1920 },
         height: { ideal: 720, max: 1080 },
         frameRate: { ideal: 24, max: 30 },

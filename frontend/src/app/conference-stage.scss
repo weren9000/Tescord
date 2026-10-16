@@ -1,4 +1,12 @@
 /* The call is part of the conversation layout, never a floating window. */
+.messenger-shell .call-window__controls .call-control-button,.messenger-shell--call-window-open .conversation-head .call-control-button{display:grid;place-items:center;padding:0;margin:0;border:0;box-shadow:none;background:transparent;color:var(--palette-muted);width:44px;min-width:44px;height:44px;border-radius:10px}
+.messenger-shell .call-window__controls .call-control-button:hover,.messenger-shell--call-window-open .conversation-head .call-control-button:hover{background:var(--palette-hover);color:var(--palette-text)}
+.messenger-shell .call-window__controls .call-control-button:focus-visible,.messenger-shell--call-window-open .conversation-head .call-control-button:focus-visible{outline:2px solid var(--palette-primary);outline-offset:2px}
+.messenger-shell .call-window__controls .call-control-button app-ui-icon{width:20px;height:20px;display:flex;align-items:center;justify-content:center}
+.messenger-shell .call-window__controls .call-control-button--active{background:var(--palette-selected);color:var(--palette-primary-text)}
+.messenger-shell .call-window__controls .call-control-button--muted{background:var(--palette-hover);color:var(--palette-muted)}
+.messenger-shell .call-window__controls .call-control-button--danger{background:var(--palette-danger-surface);color:var(--palette-danger-text)}
+.messenger-shell .call-window__controls .call-control-button--danger:hover{background:var(--palette-danger);color:white}
 .messenger-shell--call-window-open .conversation-head__avatar,.messenger-shell--call-window-open .conversation-head__menu,.messenger-shell--call-window-open .conversation-head .space-channel-icon{display:none}
 .messenger-shell--call-window-open .conversation-head__identity{display:flex;flex:1;min-width:0}
 .messenger-shell--call-window-open .conversation-head__summary{flex:1;min-width:0;width:auto}
@@ -66,3 +74,5 @@
  .messenger-shell .call-device-toggle{width:16px;min-width:16px}
  .conference-stage--presentation .conference-grid{flex-basis:72px}.conference-stage--presentation .conference-tile{flex-basis:108px}
 }
+
+.messenger-shell--call-window-open .conversation-head .call-control-button{margin-left:auto;flex:none}

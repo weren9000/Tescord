@@ -434,6 +434,31 @@ export class VoiceRoomService {
     });
   }
 
+  readonly cameraDeviceId = signal<string | null>(null);
+  async setCameraDevice(deviceId: string | null): Promise<void> {
+    if (!this.localVideoTrack) { this.cameraDeviceId.set(deviceId); return; }
+    let stream: MediaStream | null = null;
+    try {
+      stream = await requestCameraStream(deviceId ? {deviceId:{exact:deviceId}} : {facingMode:'user'});
+      const track = stream.getVideoTracks()[0];
+      const published = this.localVideoTrack;
+      if (!published || !track) { stream.getTracks().forEach(t=>t.stop()); return; }
+      const oldStream = this.localVideoStreamInternal;
+      if (this.localVideoTrackMedia) this.localVideoTrackMedia.onended = null;
+      await published.replaceTrack(track, true);
+      this.localVideoTrackMedia = track;
+      this.localVideoStreamInternal = stream;
+      this.localVideoStream.set(stream);
+      this.cameraDeviceId.set(deviceId);
+      track.onended = () => { if(this.localVideoTrackMedia===track) void this.stopCamera(); };
+      oldStream?.getTracks().forEach(t=>t.stop());
+      this.settingsNotice.set(null);
+    } catch(error) {
+      stream?.getTracks().forEach(t=>t.stop());
+      this.settingsNotice.set(this.describeError(error,'Не удалось переключить камеру'));
+    }
+  }
+
   async startCamera(): Promise<void> {
     if (!this.cameraSupported()) {
       this.settingsNotice.set('Браузер не поддерживает доступ к камере');
@@ -456,6 +481,7 @@ export class VoiceRoomService {
 
     try {
       const stream = await requestCameraStream({
+        ...(this.cameraDeviceId() ? {deviceId: {exact: this.cameraDeviceId()!}} : {}),
         width: { ideal: 960, max: 1280 },
         height: { ideal: 540, max: 720 },
         frameRate: { ideal: 20, max: 24 },

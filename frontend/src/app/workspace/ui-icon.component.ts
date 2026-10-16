@@ -1,6 +1,7 @@
 import { Component, input } from '@angular/core';
 
 const paths: Record<string, string> = {
+  callSettings: 'M9 3h6l.5 2.5 2 1.2 2.4-.8 2 3.4-1.9 1.7v2l1.9 1.7-2 3.4-2.4-.8-2 1.2L15 21H9l-.5-2.5-2-1.2-2.4.8-2-3.4L4 13v-2L2.1 9.3l2-3.4 2.4.8 2-1.2zM15 12a3 3 0 1 0-6 0 3 3 0 0 0 6 0',
   gift: 'M3 8h18v4H3zM5 12v9h14v-9M12 8v13M12 8C3 8 5 1 9 3l3 5M12 8c9 0 7-7 3-5z',
   info: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18M12 11v6M12 7h.01',
   profile: 'M20 21v-2a7 7 0 0 0-14 0v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8',
