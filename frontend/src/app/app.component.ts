@@ -1,3 +1,5 @@
+import {MobileViewportDirective} from './workspace/mobile-viewport.directive';
+import {PwaInstallService} from './core/services/pwa-install.service';
 import {PlatformListComponent} from './workspace/platform-list.component';
 import {AdminDirectoryComponent} from './workspace/admin-directory.component';
 import {AudioDevicePickerComponent} from './workspace/audio-device-picker.component';
@@ -633,11 +635,12 @@ const DEFAULT_SERVER_ICON_ASSET_BY_NAME: Record<string, string> = {
 @Component({
   providers: [AuthFormStore],
     selector: 'app-root',
-    imports: [PlatformListComponent, AdminDirectoryComponent, AvatarPickerComponent, AudioDevicePickerComponent, InfoPanelComponent, ActionMenuComponent, CommonModule, FormsModule, MediaStreamSrcDirective, SectionNavigationComponent, UiIconComponent, ConversationListComponent, QuickSwitchComponent, InviteManagerComponent, InventoryComponent, WallpapersComponent, ThemeControllerComponent, MessageGestureDirective, MessageActionsComponent, DesktopPreferencesComponent, SidebarResizeDirective],
+    imports: [MobileViewportDirective, PlatformListComponent, AdminDirectoryComponent, AvatarPickerComponent, AudioDevicePickerComponent, InfoPanelComponent, ActionMenuComponent, CommonModule, FormsModule, MediaStreamSrcDirective, SectionNavigationComponent, UiIconComponent, ConversationListComponent, QuickSwitchComponent, InviteManagerComponent, InventoryComponent, WallpapersComponent, ThemeControllerComponent, MessageGestureDirective, MessageActionsComponent, DesktopPreferencesComponent, SidebarResizeDirective],
     templateUrl: './app.component.html',
-    styleUrls: ['./app.component.scss', './app-layout.scss', './call-workspace.scss', './platform-workspace.scss', './invite-entry.scss', './palette-theme.scss', './auth-workspace.scss', './avatar-presets.scss']
+    styleUrls: ['./app.component.scss', './app-layout.scss', './call-workspace.scss', './platform-workspace.scss', './invite-entry.scss', './palette-theme.scss', './auth-workspace.scss', './avatar-presets.scss', './mobile-workspace.scss']
 })
 export class AppComponent {
+  readonly pwa=inject(PwaInstallService);
   readonly adminDirectoryOpen = signal(false);
   openAdminDirectory(): void { if(this.isAdmin()||this.currentUser()?.is_avatar_admin){this.closeSideMenu();this.adminDirectoryOpen.set(true);} }
   private readonly invitesApi = inject(InvitesApiService);

@@ -1,0 +1,16 @@
+{
+  "id": "/",
+  "name": "Квачат",
+  "short_name": "Квачат",
+  "description": "Своё болото. Свои люди.",
+  "lang": "ru",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#10121c",
+  "theme_color": "#101931",
+  "icons": [
+    {"src": "/kva-app-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "/kva-app-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"}
+  ]
+}

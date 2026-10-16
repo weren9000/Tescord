@@ -146,7 +146,7 @@
   </div>
 } @else {
   <div
-    class="messenger-shell"
+    class="messenger-shell" appMobileViewport
     [class.messenger-shell--call-active]="hasActiveCallSurface()"
     [class.messenger-shell--call-window-open]="callWindowExpanded()"
     [class.messenger-shell--side-menu-open]="sideMenuOpen()"
@@ -538,6 +538,7 @@
           <button type="button" (click)="closeSideMenu(); appearanceOpen.set(true)"><app-ui-icon name="appearance" />Оформление</button>
           <button type="button" (click)="closeSideMenu(); openVoiceSettings()"><app-ui-icon name="sound" />Звук и устройства</button>
           <button type="button" (click)="openBlockedFriendsModal()"><app-ui-icon name="block" />Блокировки</button>
+          @if(!pwa.installed()){<button class="mobile-install" type="button" [disabled]="pwa.busy()" (click)="closeSideMenu(); pwa.open()"><app-ui-icon name="plus" />На главный экран</button>}
           @if (isAdmin() || currentUser()?.is_avatar_admin) { <button type="button" (click)="openAdminDirectory()"><app-ui-icon name="avatarAdmin" />Админка</button> }
         </section>
         <section><button type="button" (click)="closeSideMenu(); logout()"><app-ui-icon name="logout" />Выход</button></section>
@@ -545,6 +546,13 @@
     }
     @if (appearanceOpen()) {
       <app-desktop-preferences [openImmediately]="true" [token]="session()!.access_token" (closed)="appearanceOpen.set(false)" (changed)="refreshInventoryProfile()" />
+    }
+    @if(pwa.helpOpen()){
+      <app-action-menu label="Квачат на главном экране" (close)="pwa.helpOpen.set(false)">
+        <p class="menu-note">Откройте меню браузера и выберите «Установить приложение» или «Добавить на главный экран». На iPhone — «Поделиться» → «На экран Домой».</p>
+        <p class="menu-note">Запускайте Квачат с новой иконки. Если браузер поддерживает установку приложения, адресная строка не будет занимать место. Для переписки нужен интернет.</p>
+        <button type="button" (click)="pwa.helpOpen.set(false)">Понятно</button>
+      </app-action-menu>
     }
 
     @if (mobilePanel() === 'servers') {
