@@ -1,3 +1,5 @@
+import {FriendLinkComponent} from './workspace/friend-link.component';
+import {FriendInviteComponent} from './workspace/friend-invite.component';
 import {MobileViewportDirective} from './workspace/mobile-viewport.directive';
 import {PwaInstallService} from './core/services/pwa-install.service';
 import {PlatformListComponent} from './workspace/platform-list.component';
@@ -635,7 +637,7 @@ const DEFAULT_SERVER_ICON_ASSET_BY_NAME: Record<string, string> = {
 @Component({
   providers: [AuthFormStore],
     selector: 'app-root',
-    imports: [MobileViewportDirective, PlatformListComponent, AdminDirectoryComponent, AvatarPickerComponent, AudioDevicePickerComponent, InfoPanelComponent, ActionMenuComponent, CommonModule, FormsModule, MediaStreamSrcDirective, SectionNavigationComponent, UiIconComponent, ConversationListComponent, QuickSwitchComponent, InviteManagerComponent, InventoryComponent, WallpapersComponent, ThemeControllerComponent, MessageGestureDirective, MessageActionsComponent, DesktopPreferencesComponent, SidebarResizeDirective],
+    imports: [FriendLinkComponent, FriendInviteComponent, MobileViewportDirective, PlatformListComponent, AdminDirectoryComponent, AvatarPickerComponent, AudioDevicePickerComponent, InfoPanelComponent, ActionMenuComponent, CommonModule, FormsModule, MediaStreamSrcDirective, SectionNavigationComponent, UiIconComponent, ConversationListComponent, QuickSwitchComponent, InviteManagerComponent, InventoryComponent, WallpapersComponent, ThemeControllerComponent, MessageGestureDirective, MessageActionsComponent, DesktopPreferencesComponent, SidebarResizeDirective],
     templateUrl: './app.component.html',
     styleUrls: ['./app.component.scss', './app-layout.scss', './call-workspace.scss', './platform-workspace.scss', './invite-entry.scss', './palette-theme.scss', './auth-workspace.scss', './avatar-presets.scss', './mobile-workspace.scss']
 })
@@ -664,6 +666,8 @@ export class AppComponent {
       });
   }
   readonly inviteManagerSpace = signal<{id: string; name: string} | null>(null);
+  readonly pendingFriendInvite=signal(new URLSearchParams(window.location.search).get('friend'));
+  dismissFriendInvite():void{this.pendingFriendInvite.set(null);const url=new URL(window.location.href);url.searchParams.delete('friend');window.history.replaceState({},'',url.pathname+url.search+url.hash);}
   readonly pendingInviteCode = signal(/^\/invite\/([^/]+)\/?$/.exec(window.location.pathname)?.[1] ?? null);
   readonly invitePreview = signal<InvitePreview | null>(null);
   readonly inviteError = signal('');
@@ -864,7 +868,7 @@ export class AppComponent {
   }
   private rememberChannelVisit(channelId: string): void {
     this.messageActionsTarget.set(null);
-    if (this.pendingInviteCode()) return;
+    if (this.pendingInviteCode() || this.pendingFriendInvite()) return;
     const spaceId = this.selectedServerId();
     if (!spaceId) return;
     this.workspaceMemory.visit(spaceId, channelId);

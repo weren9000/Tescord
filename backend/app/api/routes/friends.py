@@ -4,10 +4,11 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session, joinedload
 
-from app.api.dependencies.auth import get_current_user
+from app.api.dependencies.auth import get_current_user, bearer_scheme, resolve_user_from_token
 from app.db.models import Attachment, Channel, FriendBlock, FriendRequest, FriendRequestStatus, Message, User
 from app.db.session import get_db
 from app.schemas.friends import (
@@ -23,6 +24,49 @@ from app.services.direct_conversations import ensure_direct_conversation, load_d
 from app.services.site_presence import site_presence_manager
 
 router = APIRouter(prefix="/friends", tags=["friends"])
+
+
+def _invite_summary(user_id: UUID, viewer: User | None, db: Session) -> dict:
+    target = db.get(User, user_id)
+    if target is None:
+        raise HTTPException(404, 'Приглашение недоступно')
+    state = 'login' if viewer is None else 'ready'
+    if viewer is not None:
+        if viewer.id == target.id:
+            state = 'self'
+        elif _has_friend_block(db, viewer.id, target.id):
+            raise HTTPException(404, 'Приглашение недоступно')
+        elif load_direct_conversation(db, viewer.id, target.id) is not None:
+            state = 'friends'
+        else:
+            requests = db.scalars(select(FriendRequest).where(_pair_filter(viewer.id, target.id))).all()
+            if any(r.status == FriendRequestStatus.ACCEPTED for r in requests):
+                state = 'friends'
+            else:
+                pending = next((r for r in requests if r.status == FriendRequestStatus.PENDING), None)
+                if pending:
+                    state = 'outgoing' if pending.requester_user_id == viewer.id else 'incoming'
+    # Public invitation data deliberately excludes email and the full user schema.
+    return {'nick': target.username, 'state': state}
+
+
+@router.get('/invites/{user_id}')
+def preview_friend_invite(user_id: UUID, response: Response,
+                          credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+                          db: Session = Depends(get_db)):
+    response.headers['Cache-Control'] = 'no-store'
+    response.headers['X-Robots-Tag'] = 'noindex, nofollow'
+    viewer = resolve_user_from_token(credentials.credentials, db) if credentials else None
+    return _invite_summary(user_id, viewer, db)
+
+
+@router.post('/invites/{user_id}')
+def send_friend_invite_request(user_id: UUID, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    summary = _invite_summary(user_id, current_user, db)
+    if summary['state'] == 'ready':
+        create_friend_request(CreateFriendRequestRequest(user_id=user_id), current_user, db)
+        summary = _invite_summary(user_id, current_user, db)
+    return summary
 
 
 def _utc_now() -> datetime:
