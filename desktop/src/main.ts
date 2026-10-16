@@ -1,4 +1,4 @@
-import {app, BrowserWindow, Menu, Tray, nativeImage, session, net, ipcMain, safeStorage, shell, dialog, screen, desktopCapturer, powerSaveBlocker} from 'electron';
+import {app, BrowserWindow, Menu, Tray, Notification, nativeImage, session, net, ipcMain, safeStorage, shell, dialog, screen, desktopCapturer, powerSaveBlocker} from 'electron';
 import type {DesktopCapturerSource, IpcMainEvent} from 'electron';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -17,8 +17,15 @@ let picker: BrowserWindow | null = null;
 let captureSources: DesktopCapturerSource[] = [];
 let finishCapture: ((id?: string, audio?: boolean) => void) | null = null;
 let audioBlocker: number | null = null;
+const notifications = new Map<string, Notification>();
+const seenNotifications = new Set<string>();
+let notificationsEnabled = true;
+function clearNotifications() {
+  for (const item of notifications.values()) item.close();
+  notifications.clear();
+}
 const trusted = (url: string) => { try {const origin=new URL(url).origin;return origin === ORIGIN || (developmentTest && origin === 'http://localhost:4200');} catch {return false;} };
-const isMain = (event: IpcMainEvent) => !!main && event.sender === main.webContents && event.senderFrame === main.webContents.mainFrame && trusted(event.senderFrame.url);
+const isMain = (event: IpcMainEvent | Electron.IpcMainInvokeEvent) => !!main && event.sender === main.webContents && event.senderFrame === main.webContents.mainFrame && trusted(event.senderFrame.url);
 const isPicker = (event: Electron.IpcMainEvent | Electron.IpcMainInvokeEvent) => !!picker && event.sender === picker.webContents && event.senderFrame === picker.webContents.mainFrame;
 const stateFile = () => path.join(app.getPath('userData'), 'window.json');
 const sessionFile = () => path.join(app.getPath('userData'), 'session.bin');
@@ -47,6 +54,31 @@ else {
   app.on('window-all-closed', () => {if (quitting) app.quit();});
   app.whenReady().then(async () => {
     Menu.setApplicationMenu(null);
+    try { notificationsEnabled = JSON.parse(fs.readFileSync(path.join(app.getPath('userData'), 'notifications.json'), 'utf8')).enabled !== false; } catch {}
+    ipcMain.handle('notification:show', (event, value: unknown) => {
+      if (!isMain(event) || !value || typeof value !== 'object') return false;
+      const item = value as Record<string, unknown>;
+      if (typeof item.id !== 'string' || item.id.length > 200 || typeof item.title !== 'string' || typeof item.body !== 'string' || typeof item.target !== 'string' || item.target.length > 100) return false;
+      if (seenNotifications.has(item.id)) return false;
+      seenNotifications.add(item.id);
+      if (seenNotifications.size > 1000) seenNotifications.delete(seenNotifications.values().next().value!);
+      if (!notificationsEnabled || !Notification.isSupported() || main?.isFocused()) return false;
+      const key = item.target;
+      notifications.get(key)?.close();
+      const notification = new Notification({title: item.title.slice(0, 120), body: item.body.slice(0, 240), icon: path.join(web, 'kva-app-512.png')});
+      notifications.set(key, notification);
+      const forget = () => {if (notifications.get(key) === notification) notifications.delete(key);};
+      notification.on('close', forget);
+      notification.on('failed', forget);
+      notification.on('click', () => {showWindow(); main?.webContents.send('notification:open', key); notification.close();});
+      notification.show();
+      return true;
+    });
+    ipcMain.on('notification:clear', (event, target: unknown) => {
+      if (!isMain(event)) return;
+      if (typeof target === 'string') {notifications.get(target)?.close(); notifications.delete(target);}
+      else clearNotifications();
+    });
     const appSession = session.defaultSession;
     // Serve the bundled UI at its real HTTPS origin; API/media requests retain
     // normal TLS validation and existing server CORS/WebSocket rules.
@@ -86,7 +118,7 @@ else {
       let success=false;
       try {
         if (!isMain(event)) return;
-        if (value === null) {fs.rmSync(sessionFile(),{force:true}); success=true;return;}
+        if (value === null) {fs.rmSync(sessionFile(),{force:true}); clearNotifications(); seenNotifications.clear(); success=true;return;}
         if (typeof value!=='string' || value.length>1024*1024 || !safeStorage.isEncryptionAvailable()) return;
         const parsed=JSON.parse(value);
         if (typeof parsed.access_token!=='string' || !parsed.user) return;
@@ -140,7 +172,7 @@ else {
     main.webContents.on('render-process-gone',()=>{if(main&&!quitting)void dialog.showMessageBox(main,{type:'error',message:'Окно Квачат было остановлено. Перезапустить интерфейс?',buttons:['Перезапустить','Закрыть'],cancelId:1}).then(answer=>{if(answer.response===0)main?.reload();else{quitting=true;app.quit();}});});
     const icon=nativeImage.createFromPath(path.join(web,'kva-app-512.png')).resize({width:32,height:32});
     tray=new Tray(icon);tray.setToolTip('Квачат');
-    tray.setContextMenu(Menu.buildFromTemplate([{label:'Открыть Квачат',click:showWindow},{label:'О приложении',click:()=>{if(main)void dialog.showMessageBox(main,{title:'Квачат',message:`Квачат ${app.getVersion()}`,detail:'Тестовая версия для Windows 10/11. Закрытие окна сворачивает приложение в трей. Для завершения используйте «Выйти».'});}},{type:'separator'},{label:'Выйти',click:()=>{quitting=true;app.quit();}}]));
+    tray.setContextMenu(Menu.buildFromTemplate([{label:'\u0423\u0432\u0435\u0434\u043e\u043c\u043b\u0435\u043d\u0438\u044f',type:'checkbox',checked:notificationsEnabled,click:(item)=>{notificationsEnabled=item.checked;fs.writeFileSync(path.join(app.getPath('userData'),'notifications.json'),JSON.stringify({enabled:item.checked}));if(!item.checked)clearNotifications();}},{type:'separator'},{label:'Открыть Квачат',click:showWindow},{label:'О приложении',click:()=>{if(main)void dialog.showMessageBox(main,{title:'Квачат',message:`Квачат ${app.getVersion()}`,detail:'Тестовая версия для Windows 10/11. Закрытие окна сворачивает приложение в трей. Для завершения используйте «Выйти».'});}},{type:'separator'},{label:'Выйти',click:()=>{quitting=true;app.quit();}}]));
     tray.on('double-click',showWindow);
     const testUrl=developmentTest?process.env.KVA_DESKTOP_TEST_URL:undefined;
     if(testUrl) {

@@ -10,6 +10,7 @@ from uuid import UUID, uuid4
 from anyio import from_thread
 from starlette.websockets import WebSocketState
 from fastapi import WebSocket
+from fastapi.encoders import jsonable_encoder
 from sqlalchemy import func, select
 
 from app.db.models import FriendRequest, FriendRequestStatus, ServerMember
@@ -193,6 +194,7 @@ class AppEventManager:
         recipients: list[tuple[str, str, WebSocket]],
         payload: dict[str, Any],
     ) -> None:
+        payload = jsonable_encoder(payload)
         semaphore = asyncio.Semaphore(64)
 
         async def deliver(user_id: str, connection_id: str, websocket: WebSocket) -> None:

@@ -2744,6 +2744,11 @@ export class AppComponent {
       }
     });
     this.bindActionPipelines();
+    const stopDesktopNotifications = window.kvaDesktop?.onNotificationOpen?.((target) => {
+      if (target === 'call') { if (this.directCallState() === 'incoming') this.expandCallWindow(); }
+      else this.handlePushConversationRequest(target);
+    });
+    if (stopDesktopNotifications) this.destroyRef.onDestroy(stopDesktopNotifications);
     this.browserPush.navigationRequests$
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((conversationId) => this.handlePushConversationRequest(conversationId));
@@ -8012,7 +8017,7 @@ export class AppComponent {
         const token = this.session()?.access_token;
         if (token) {
           await this.refreshServersList(token);
-          await this.refreshConversationsList(token);
+          await this.refreshConversationsList(token, event.reason === 'message_created');
           await this.refreshAttentionInboxIfOpen();
         }
         return;
@@ -8088,6 +8093,10 @@ export class AppComponent {
   }
 
   private handleMessageCreatedEvent(event: AppMessageCreatedEvent): void {
+    const conversation = this.conversations().find(item => item.id === event.server_id);
+    if (conversation?.push_enabled && event.message.author.id !== this.currentUser()?.id) {
+      void window.kvaDesktop?.notify?.({id: event.message.id, title: conversation.title, body: this.buildConversationListPreview(event.message), target: conversation.id});
+    }
     const preview = this.buildConversationListPreview(event.message);
     this.conversations.update((conversations) =>
       conversations.map((conversation) =>
@@ -8506,7 +8515,7 @@ export class AppComponent {
       });
   }
 
-  private async refreshConversationsList(token: string): Promise<void> {
+  private async refreshConversationsList(token: string, notifyDesktop = false): Promise<void> {
     const previousSelectedServerId = this.selectedServerId();
 
     this.workspaceApi
@@ -8514,6 +8523,14 @@ export class AppComponent {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (conversations) => {
+          if (notifyDesktop) {
+            for (const item of conversations) {
+              const previous = this.conversations().find(old => old.id === item.id);
+              if (item.push_enabled && item.unread_count > (previous?.unread_count ?? 0)) {
+                void window.kvaDesktop?.notify?.({id: `${item.id}:${item.unread_count}:${Date.now()}`, title: item.title, body: item.subtitle || 'Новое сообщение', target: item.id});
+              }
+            }
+          }
           const mergedConversations = this.mergeConversationsById(conversations);
           this.conversations.set(mergedConversations);
           this.tryOpenPendingPushConversation(token);

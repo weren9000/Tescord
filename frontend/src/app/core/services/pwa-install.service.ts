@@ -16,7 +16,7 @@ export class PwaInstallService {
     window.addEventListener('beforeinstallprompt',capture);window.addEventListener('appinstalled',installed);
     inject(DestroyRef).onDestroy(()=>{window.removeEventListener('beforeinstallprompt',capture);window.removeEventListener('appinstalled',installed);});
     // Reuse the notification worker; do not create a competing scope or cache private chat data.
-    if('serviceWorker' in navigator && window.isSecureContext)void navigator.serviceWorker.register('/push-sw.js').catch(()=>{});
+    if(!window.kvaDesktop && 'serviceWorker' in navigator && window.isSecureContext)void navigator.serviceWorker.register('/push-sw.js').catch(()=>{});
   }
   async open(){
     if(this.busy())return;

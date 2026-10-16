@@ -25,6 +25,17 @@ export class BrowserPushService {
   readonly navigationRequests$ = this.navigationRequestsSubject.asObservable();
 
   async initialize(token: string): Promise<void> {
+    if (window.kvaDesktop?.notify) {
+      if ('serviceWorker' in navigator) {
+        for (const registration of await navigator.serviceWorker.getRegistrations()) {
+          if (registration.active?.scriptURL.endsWith('/push-sw.js')) {
+            await (await registration.pushManager.getSubscription())?.unsubscribe();
+            await registration.unregister();
+          }
+        }
+      }
+      return;
+    }
     this.bindServiceWorkerMessages();
     this.emitConversationFromLocation();
 
@@ -63,6 +74,10 @@ export class BrowserPushService {
   }
 
   async enableConversationPush(token: string, conversationId: string): Promise<BrowserPushEnableResult> {
+    if (window.kvaDesktop?.notify) {
+      await firstValueFrom(this.workspaceApi.updateConversationPushSetting(token, conversationId, {push_enabled: true}));
+      return {warning: null};
+    }
     const config = await this.getPushConfig(token);
     if (!config.enabled || !config.vapid_public_key) {
       throw new Error('Push-уведомления еще не настроены на сервере');

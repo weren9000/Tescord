@@ -565,6 +565,7 @@ export class DirectCallService {
     }
 
     if (message.type === 'incoming_call') {
+      void window.kvaDesktop?.notify?.({id: message.call_id, title: 'Входящий звонок', body: message.peer.nick, target: 'call'});
       this.activeCallId = message.call_id;
       this.peer.set(message.peer);
       this.state.set('incoming');
@@ -574,6 +575,7 @@ export class DirectCallService {
     }
 
     if (message.type === 'call_accepted') {
+      window.kvaDesktop?.clearNotifications?.('call');
       this.activeCallId = message.call_id;
       this.peer.set(message.peer);
       this.state.set('connecting');
@@ -603,12 +605,14 @@ export class DirectCallService {
     }
 
     if (message.type === 'call_rejected') {
+      window.kvaDesktop?.clearNotifications?.('call');
       this.resetCallState();
       this.error.set(message.detail);
       return;
     }
 
     if (message.type === 'call_ended') {
+      window.kvaDesktop?.clearNotifications?.('call');
       this.resetCallState();
       this.notice.set(message.detail);
       return;
