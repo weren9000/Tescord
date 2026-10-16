@@ -640,7 +640,7 @@ const DEFAULT_SERVER_ICON_ASSET_BY_NAME: Record<string, string> = {
     selector: 'app-root',
     imports: [FriendLinkComponent, FriendInviteComponent, MobileViewportDirective, PlatformListComponent, AdminDirectoryComponent, AvatarPickerComponent, AudioDevicePickerComponent, InfoPanelComponent, ActionMenuComponent, CommonModule, FormsModule, MediaStreamSrcDirective, SectionNavigationComponent, UiIconComponent, ConversationListComponent, QuickSwitchComponent, InviteManagerComponent, InventoryComponent, WallpapersComponent, ThemeControllerComponent, MessageGestureDirective, MessageActionsComponent, EmojiPickerComponent, DesktopPreferencesComponent, SidebarResizeDirective],
     templateUrl: './app.component.html',
-    styleUrls: ['./app.component.scss', './app-layout.scss', './call-workspace.scss', './platform-workspace.scss', './invite-entry.scss', './palette-theme.scss', './auth-workspace.scss', './avatar-presets.scss', './mobile-workspace.scss', './chat-bubbles.scss']
+    styleUrls: ['./app.component.scss', './app-layout.scss', './call-workspace.scss', './platform-workspace.scss', './invite-entry.scss', './palette-theme.scss', './auth-workspace.scss', './avatar-presets.scss', './mobile-workspace.scss', './chat-bubbles.scss', './conference-stage.scss']
 })
 export class AppComponent {
   readonly pwa=inject(PwaInstallService);
@@ -1827,6 +1827,9 @@ export class AppComponent {
     };
   });
   readonly hasActiveCallSurface = computed(() => this.activeCallSurface() !== null);
+  readonly conferenceRosterOpen = signal(false);
+  readonly conferenceCameraTiles = computed(() => this.buildVoiceVideoTiles(this.activeCallVoiceParticipants(), 'camera'));
+  conferenceCamera(userId: string) { return this.conferenceCameraTiles().find(tile => tile.userId === userId); }
   readonly callWindowExpanded = computed(() => this.hasActiveCallSurface() && this.callWindowMode() === 'expanded');
   readonly callDockParticipantLabel = computed(() => {
     const surface = this.activeCallSurface();
@@ -2682,7 +2685,8 @@ export class AppComponent {
         this.callAudioSettingsOpen.set(false);
         this.callParticipantId.set(null);
         this.lastActiveCallSurfaceId = surfaceId;
-        this.callWindowMode.set('minimized');
+        this.conferenceRosterOpen.set(false);
+        this.callWindowMode.set('expanded');
         this.callDockVolumeOpen.set(false);
       }
     });
@@ -5562,7 +5566,7 @@ export class AppComponent {
     this.pendingCallSwitch.set(null);
     await this.stopCallByDescriptor(pendingSwitch.current);
     await pendingSwitch.action();
-    this.callWindowMode.set('minimized');
+    this.callWindowMode.set('expanded');
   }
 
   private guardCallStart(target: CallSwitchDescriptor, action: () => void | Promise<void>): boolean {
@@ -5677,7 +5681,7 @@ export class AppComponent {
 
   private startDirectCall(peer: DirectCallPeer): void {
     this.directCall.openCall(peer);
-    this.callWindowMode.set('minimized');
+    this.callWindowMode.set('expanded');
     this.closeMemberVolume();
   }
 
@@ -5703,7 +5707,7 @@ export class AppComponent {
 
     this.callDockVolumeOpen.set(false);
     this.callWindowMode.set('expanded');
-    requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('.call-window__header-actions button[aria-label="Свернуть звонок"]')?.focus({preventScroll: true}));
+    requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('.call-window__controls button[aria-label="Свернуть звонок"]')?.focus({preventScroll: true}));
   }
 
   toggleActiveCallMute(event?: Event): void {
@@ -5905,7 +5909,7 @@ export class AppComponent {
     if (peer) {
       const action = () => {
         this.directCall.acceptIncoming();
-        this.callWindowMode.set('minimized');
+        this.callWindowMode.set('expanded');
       };
 
       if (!this.guardCallStart(this.directCallDescriptor(peer, 'Входящий звонок'), action)) {
@@ -5917,7 +5921,7 @@ export class AppComponent {
     }
 
     this.directCall.acceptIncoming();
-    this.callWindowMode.set('minimized');
+    this.callWindowMode.set('expanded');
   }
 
   rejectDirectCall(): void {
@@ -9127,7 +9131,6 @@ export class AppComponent {
     if (this.isPlatformsMode()) {
       this.platformExpandedVoiceChannelId.set(channel.id);
     }
-    this.callWindowMode.set('minimized');
     this.pendingVoiceJoin.set(null);
     this.stopVoiceJoinRequestPolling();
     if (this.currentUser()?.is_admin || this.canManageActiveGroup() || channel.voice_access_role === 'owner') {
