@@ -19,7 +19,7 @@ async def connect_app_events(websocket: WebSocket) -> None:
         return
 
     connection_id = await app_event_manager.connect(websocket, current_user.id)
-    became_online = False if websocket.query_params.get('background') == '1' else site_presence_manager.mark_active(current_user.id)
+    became_online = site_presence_manager.mark_active(current_user.id)
     await websocket.send_json(
         {
             "type": "ready",
@@ -35,6 +35,10 @@ async def connect_app_events(websocket: WebSocket) -> None:
             message_type = payload.get("type")
 
             if message_type == "ping":
+                # A live authenticated client is online even when its window is hidden.
+                became_online = site_presence_manager.mark_active(current_user.id)
+                if became_online:
+                    await publish_presence_updated(current_user.id)
                 await websocket.send_json({"type": "pong"})
                 continue
 

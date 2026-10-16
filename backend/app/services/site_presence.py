@@ -6,7 +6,7 @@ from uuid import UUID
 
 
 class SitePresenceManager:
-    def __init__(self, ttl_seconds: float = 60.0) -> None:
+    def __init__(self, ttl_seconds: float = 180.0) -> None:
         self._ttl_seconds = ttl_seconds
         self._last_seen: dict[UUID, float] = {}
         self._lock = Lock()

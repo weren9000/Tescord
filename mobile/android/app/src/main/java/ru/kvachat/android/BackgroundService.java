@@ -18,6 +18,7 @@ public class BackgroundService extends Service {
     private final Handler handler=new Handler(Looper.getMainLooper());
     private final OkHttpClient client=new OkHttpClient.Builder().pingInterval(25,TimeUnit.SECONDS).build();
     private WebSocket events,calls;
+    private boolean eventsReady=false;
     private String token;
     private volatile int generation=0;
     private int mediaType=0;
@@ -71,11 +72,12 @@ public class BackgroundService extends Service {
     }
     private final Runnable presence = new Runnable(){public void run(){
         if(stopped)return;
-        if((visible||callActive)&&events!=null)events.send("{\"type\":\"activity\"}");
-        handler.postDelayed(this,25000);
+        if(eventsReady&&events!=null)events.send("{\"type\":\"activity\"}");
+        handler.postDelayed(this,60000);
     }};
     private void connect(){if(stopped||token==null)return;events=socket("events");calls=socket("calls");handler.post(presence);}
     private WebSocket socket(String kind){
+        if(kind.equals("events"))eventsReady=false;
         final int epoch=generation;
         final String credential=token;
         return client.newWebSocket(new Request.Builder().url("wss://kvachat.ru/api/"+kind+"/ws"+(kind.equals("events")?"?background=1":"")).build(),new WebSocketListener(){
@@ -84,6 +86,7 @@ public class BackgroundService extends Service {
                 if(stopped||epoch!=generation)return;
                 try{
                     JSONObject event=new JSONObject(raw);String type=event.optString("type");
+                    if(kind.equals("events")&&type.equals("ready")){eventsReady=true;socket.send("{\"type\":\"activity\"}");}
                     if(kind.equals("events")&&(type.equals("ready")||type.equals("servers_changed")||type.equals("resync_required")))refresh();
                     if(type.equals("incoming_call")){
                         pendingCall=raw;show(event.getString("call_id"),"Входящий звонок",event.getJSONObject("peer").optString("nick"),"call");

@@ -30,7 +30,7 @@ const root=path.resolve(__dirname,'..'),base='http://localhost:4200';
    await page.goto(base+'/login');await page.getByLabel('Email',{exact:true}).fill(fixture.users[0].form.email);await page.getByLabel('Пароль',{exact:true}).fill(fixture.users[0].form.password);await page.getByRole('button',{name:'Войти',exact:true}).click();await page.locator('app-section-navigation').waitFor();await page.goto(base);await page.locator('app-section-navigation').waitFor();assert.equal(await page.locator('app-landing').count(),0);
   }
   const staticPage=await browser.newPage({javaScriptEnabled:false});await staticPage.goto(base);assert.equal(await staticPage.locator('h1').count(),1);assert.equal(await staticPage.locator('.landing-download').count(),2);
-  for(const filename of ['KvaChat-Setup-0.5.0-x64.exe','KvaChat-0.3.0-android.apk']){
+  for(const filename of ['KvaChat-Setup-0.5.1-x64.exe','KvaChat-0.3.1-android.apk']){
    const response=await page.request.get(base+'/downloads/'+filename);assert(response.ok());const bytes=await response.body();
    const checksum=fs.readFileSync(path.join(root,'frontend/public/downloads',filename+'.sha256'),'utf8').split(/\s/)[0];assert.equal(crypto.createHash('sha256').update(bytes).digest('hex'),checksum);
   }

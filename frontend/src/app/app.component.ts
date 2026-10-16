@@ -543,7 +543,7 @@ const MAX_PROFILE_AVATAR_DIMENSION = 300;
 const MAX_PROFILE_AVATAR_UPLOAD_BYTES = 2 * 1024 * 1024;
 const MAX_PROFILE_AVATAR_SOURCE_BYTES = 8 * 1024 * 1024;
 const PRESENCE_ACTIVITY_THROTTLE_MS = 30000;
-const PRESENCE_KEEPALIVE_INTERVAL_MS = 45000;
+const PRESENCE_KEEPALIVE_INTERVAL_MS = 60000;
 const MESSAGE_REACTION_OPTIONS: readonly MessageReactionOption[] = [
   { code: 'heart', emoji: '❤️', label: 'Сердечко' },
   { code: 'like', emoji: '👍', label: 'Лайк' },
@@ -7632,10 +7632,6 @@ export class AppComponent {
 
     this.stopPresenceKeepalive();
     this.presenceKeepaliveIntervalId = window.setInterval(() => {
-      if (typeof document !== 'undefined' && document.visibilityState === 'hidden' && !this.hasActiveCallSurface()) {
-        return;
-      }
-
       this.schedulePresenceHeartbeat(true);
     }, PRESENCE_KEEPALIVE_INTERVAL_MS);
   }
