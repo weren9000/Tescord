@@ -639,7 +639,7 @@ const DEFAULT_SERVER_ICON_ASSET_BY_NAME: Record<string, string> = {
     selector: 'app-root',
     imports: [FriendLinkComponent, FriendInviteComponent, MobileViewportDirective, PlatformListComponent, AdminDirectoryComponent, AvatarPickerComponent, AudioDevicePickerComponent, InfoPanelComponent, ActionMenuComponent, CommonModule, FormsModule, MediaStreamSrcDirective, SectionNavigationComponent, UiIconComponent, ConversationListComponent, QuickSwitchComponent, InviteManagerComponent, InventoryComponent, WallpapersComponent, ThemeControllerComponent, MessageGestureDirective, MessageActionsComponent, DesktopPreferencesComponent, SidebarResizeDirective],
     templateUrl: './app.component.html',
-    styleUrls: ['./app.component.scss', './app-layout.scss', './call-workspace.scss', './platform-workspace.scss', './invite-entry.scss', './palette-theme.scss', './auth-workspace.scss', './avatar-presets.scss', './mobile-workspace.scss']
+    styleUrls: ['./app.component.scss', './app-layout.scss', './call-workspace.scss', './platform-workspace.scss', './invite-entry.scss', './palette-theme.scss', './auth-workspace.scss', './avatar-presets.scss', './mobile-workspace.scss', './chat-bubbles.scss']
 })
 export class AppComponent {
   readonly pwa=inject(PwaInstallService);
@@ -723,10 +723,24 @@ export class AppComponent {
     if (document.visibilityState === 'hidden') this.rememberMessagePosition();
   };
   readonly messageActionsTarget = signal<WorkspaceMessage | null>(null);
+  readonly messageActionsAnchor=signal<{x:number;y:number}|null>(null);
+  readonly composerEmojiOpen=signal(false);
+  private readonly bubbleDayFormat=new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',year:'numeric'});
+  private readonly bubbleClockFormat=new Intl.DateTimeFormat('ru-RU',{hour:'2-digit',minute:'2-digit'});
+  messageLinks(text:string):{text:string;url:string|null}[]{return text.split(/(https?:\/\/[^\s<>]+)/g).filter(Boolean).flatMap(part=>{if(!/^https?:\/\//i.test(part))return [{text:part,url:null}];const clean=part.replace(/[.,!?]+$/,'');try{const url=new URL(clean);if(!['http:','https:'].includes(url.protocol))return [{text:part,url:null}];return [{text:clean,url:clean},...(clean.length<part.length?[{text:part.slice(clean.length),url:null}]:[])];}catch{return [{text:part,url:null}];}});}
+  readonly composerEmojis=['😀','😊','😂','🥰','😎','🤔','😢','😮','👍','👎','❤️','🔥','🎉','🐸','👀','🙏','💚','💯','✅','👋','😴','🤝','💪','🍿'];
+  insertComposerEmoji(emoji:string):void {const field=this.messageTextareaRef?.nativeElement;const draft=this.messageDraft();const at=field?.selectionStart??draft.length;const end=field?.selectionEnd??at;this.onMessageDraftChange(draft.slice(0,at)+emoji+draft.slice(end));this.composerEmojiOpen.set(false);requestAnimationFrame(()=>{field?.focus();field?.setSelectionRange(at+emoji.length,at+emoji.length);});}
+  reactFromMenu(code:WorkspaceMessageReactionCode):void {const target=this.messageActionsTarget();this.closeMessageActions();if(target)this.toggleMessageReaction(target,code);}
+  messageDay(value:string):string{return this.bubbleDayFormat.format(new Date(value));}
+  startsMessageDay(message:WorkspaceMessage,index:number):boolean{return index===0||new Date(message.created_at).toDateString()!==new Date(this.messages()[index-1].created_at).toDateString();}
+  messageClock(value:string):string{return this.bubbleClockFormat.format(new Date(value));}
+  goToReply(message:WorkspaceMessage):void {const reply=message.reply_to;const token=this.session()?.access_token;const channel=this.activeMessagingChannel();if(!reply||!token||!channel)return;this.messageSearchFocusedMessageId.set(reply.id);if(this.messages().some(m=>m.id===reply.id)){this.openedMessageFocusKind.set('search');this.scrollMessageIntoView(reply.id);return;}this.loadMessagesForChannel(token,channel.id,undefined,{focusMessageId:reply.id,focusKind:'search',limit:MESSAGES_PAGE_SIZE,preserve:true});}
   private messageActionsFocus: HTMLElement | null = null;
   openMessageActions(message: WorkspaceMessage, event?: Event): void {
+    this.composerEmojiOpen.set(false);
     event?.preventDefault();
     this.messageActionsFocus = this.messageListRef?.nativeElement.querySelector<HTMLElement>(`[data-message-id="${message.id}"]`) ?? null;
+    const rect=this.messageActionsFocus?.getBoundingClientRect();this.messageActionsAnchor.set(event instanceof MouseEvent?{x:event.clientX,y:event.clientY}:rect?{x:rect.left+45,y:rect.top+20}:null);
     this.messageActionsTarget.set(message);
   }
   closeMessageActions(): void {
@@ -9173,7 +9187,7 @@ export class AppComponent {
     token: string,
     channelId: string,
     before?: string | null,
-    options: { focusMessageId?: string | null; limit?: number; focusKind?: MessageFocusKind } = {},
+    options: { focusMessageId?: string | null; limit?: number; focusKind?: MessageFocusKind; preserve?:boolean } = {},
   ): void {
     const requestId = ++this.messageLoadId;
     const isLoadingMore = Boolean(before);
@@ -9189,8 +9203,7 @@ export class AppComponent {
       this.messagesLoadingMore.set(true);
     } else {
       this.messagesLoading.set(true);
-      this.messages.set([]);
-      this.clearAttachmentPreviews();
+      if(!options.preserve){this.messages.set([]);this.clearAttachmentPreviews();}
       this.messagesHasMore.set(false);
       this.messagesCursor.set(null);
       this.messageError.set(null);
@@ -9728,10 +9741,10 @@ export class AppComponent {
         return;
       }
 
-      const maxHeight = typeof window !== 'undefined' && window.innerWidth <= 640 ? 120 : 168;
+      const maxHeight = typeof window !== 'undefined' && window.innerWidth <= 640 ? 120 : 144;
       textarea.style.height = '0px';
 
-      const nextHeight = Math.min(Math.max(textarea.scrollHeight, 44), maxHeight);
+      const nextHeight = Math.min(Math.max(textarea.scrollHeight, 38), maxHeight);
       textarea.style.height = `${nextHeight}px`;
       textarea.style.overflowY = textarea.scrollHeight > maxHeight ? 'auto' : 'hidden';
     });

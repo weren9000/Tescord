@@ -1173,6 +1173,7 @@
 
                   @if (messages().length) {
                     @for (message of messages(); track message.id; let messageIndex = $index) {
+                      @if(startsMessageDay(message,messageIndex)){<div class="chat-day"><span>{{messageDay(message.created_at)}}</span></div>}
                       @if (shouldShowUnreadDivider(message)) {
                         <div class="message-divider message-divider--unread">
                           <span class="message-divider__line"></span>
@@ -1185,11 +1186,13 @@
                         appMessageGesture
                         (replyGesture)="startReplyToMessage(message)"
                         (holdGesture)="openMessageActions(message)"
+                        (contextmenu)="openMessageActions(message,$event)"
                         (keydown.shift.f10)="openMessageActions(message, $event)"
                         tabindex="0"
                         [class.message-card--continuation]="isCompactMessage(message, messageIndex)"
                         [attr.data-message-id]="message.id"
                         [class.message-card--self]="message.author.id === currentUser()?.id"
+                        [class.message-card--direct]="!!activeDirectConversation()"
                         [class.message-card--mention]="messageMentionsCurrentUser(message)"
                         [class.message-card--search-focused]="isSearchFocusedMessage(message)"
                       >
@@ -1211,10 +1214,9 @@
                                 <span class="message-card__mention-badge">&#64; вас</span>
                               }
                             </div>
-                            <time>{{ formatMessageTime(message.created_at) }}</time>
                           </div>
                           @if (message.reply_to; as replyTo) {
-                            <button class="message-card__reply-preview" type="button" (click)="startReplyToMessage(message)">
+                            <button class="message-card__reply-preview" type="button" (click)="goToReply(message)">
                               <span class="message-card__reply-label">
                                 Ответ на {{ displayNick(replyTo.author.nick) }}
                               </span>
@@ -1244,7 +1246,7 @@
                                     @if (chunk.highlighted) {
                                       <mark class="message-card__highlight">{{ chunk.text }}</mark>
                                     } @else {
-                                      <span>{{ chunk.text }}</span>
+                                      @for(part of messageLinks(chunk.text);track $index){@if(part.url){<a class="message-link" [href]="part.url" target="_blank" rel="noopener noreferrer">{{part.text}}</a>}@else{<span>{{part.text}}</span>}}
                                     }
                                   }
                                 }
@@ -1401,7 +1403,8 @@
                               }
                             </div>
                           }
-                          <div class="message-reactions">
+                          <div class="bubble-footer"><time [attr.datetime]="message.created_at" [title]="formatMessageTime(message.created_at)">@if(message.edited_at){<span>изменено · </span>}{{messageClock(message.created_at)}}</time>@if(message.author.id===currentUser()?.id && message.read_by.length){<span class="bubble-read" [title]="messageReadReceiptLabel(message)" [attr.aria-label]="messageReadReceiptLabel(message)">✓✓</span>}</div>
+                          <div class="message-reactions" [class.message-reactions--empty]="!message.reactions.length">
                             @for (reaction of message.reactions; track reaction.code) {
                               <button
                                 class="reaction-chip"
@@ -1440,7 +1443,7 @@
                             >
                               Ответить
                             </button>
-                            <button type="button" class="message-card__action" aria-label="Действия с сообщением" (click)="openMessageActions(message)">⋯</button>
+                            <button type="button" class="message-card__action" aria-label="Действия с сообщением" (click)="openMessageActions(message,$event)">⋯</button>
                             </span>
                           </div>
                           @if (openedMessageReactionPickerId() === message.id) {
@@ -1482,7 +1485,7 @@
               }
             </div>
 
-            @if (showJumpToLatest()) { <button class="jump-to-latest" type="button" (click)="jumpToLatest()">↓ К последним сообщениям</button> }
+            @if (showJumpToLatest()) { <button class="jump-to-latest" type="button" aria-label="К последним сообщениям" title="К последним сообщениям" (click)="jumpToLatest()">↓ @if(activeMessagingChannel();as channel){@if(channelUnreadCount(channel)>0){<small>{{channelUnreadCount(channel)}}</small>}}</button> }
             <section class="composer">
               @if (canUseActiveChannelChat()) {
                 <input #attachmentInput hidden type="file" multiple (change)="onAttachmentSelection($event)" />
@@ -1614,6 +1617,7 @@
                     }
                   </label>
 
+                  <div class="composer-emoji"><button type="button" aria-label="Эмодзи" [attr.aria-expanded]="composerEmojiOpen()" (click)="composerEmojiOpen.set(!composerEmojiOpen())" [disabled]="messageSubmitting()">☺</button>@if(composerEmojiOpen()){<div class="composer-emoji__panel" role="group" aria-label="Выбор эмодзи" (keydown.escape)="composerEmojiOpen.set(false)">@for(emoji of composerEmojis;track emoji){<button type="button" (mousedown)="$event.preventDefault()" (click)="insertComposerEmoji(emoji)">{{emoji}}</button>}</div>}</div>
                   <button
                     class="primary-button composer__submit"
                     type="button"
@@ -1626,7 +1630,7 @@
                     @if (messageSubmitting()) {
                       ×
                     } @else {
-                      <img src="/assets/Enter.svg" alt="" />
+                      <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="m4 3 17 9-17 9 3-9Z M7 12h14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
                     }
                   </button>
                 </div>
@@ -3768,5 +3772,5 @@
 }
 
 @if (messageActionsTarget(); as target) {
-  <app-message-actions [text]="target.content" (choose)="chooseMessageAction($event)" (close)="closeMessageActions()" />
+  <app-message-actions [text]="target.content" [anchor]="messageActionsAnchor()" (react)="reactFromMenu($event)" (choose)="chooseMessageAction($event)" (close)="closeMessageActions()" />
 }

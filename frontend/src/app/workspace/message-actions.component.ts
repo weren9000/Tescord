@@ -1,9 +1,11 @@
 import {AfterViewInit, Component, ElementRef, OnDestroy, ViewChild, input, output, signal} from '@angular/core';
+import {WorkspaceMessageReactionCode} from '../core/models/workspace.models';
 
 @Component({
   selector:'app-message-actions',standalone:true,
   template:`<dialog #dialog aria-labelledby="message-actions-title" (cancel)="close.emit()" (pointerdown)="backdropDown = $event.target === dialog" (click)="backdrop($event)">
     <h2 id="message-actions-title">Действия с сообщением</h2>
+    <div class="quick-reactions">@for(item of reactions;track item.code){<button type="button" [attr.aria-label]="item.label" (click)="react.emit(item.code)">{{item.emoji}}</button>}</div>
     <button type="button" (click)="choose.emit('reply')">Ответить</button>
     @if (text()) { <button type="button" (click)="copy()">Скопировать текст</button> }
     <button type="button" (click)="choose.emit('reaction')">Добавить реакцию</button>
@@ -12,22 +14,26 @@ import {AfterViewInit, Component, ElementRef, OnDestroy, ViewChild, input, outpu
   </dialog>`,
   styles:[`
     dialog { width:min(360px,calc(100vw - 24px));box-sizing:border-box;padding:16px;border:1px solid var(--palette-border);border-radius:16px;background:var(--palette-surface);color:var(--palette-text); }
-    dialog::backdrop { background:rgb(0 0 0 / .5); }
-    h2 {font-family:inherit;font-weight:600;line-height:1.4;margin:0 0 12px;font-size:16px;}
+    dialog::backdrop { background:rgb(0 0 0 / .12); }
+    h2 {position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
     button {display:block;width:100%;min-height:44px;margin-top:4px;padding:10px 12px;text-align:left;border:0;border-radius:8px;background:transparent;color:inherit;font:inherit;cursor:pointer;}
     button:hover,button:focus-visible {background:var(--palette-hover);outline:2px solid var(--palette-primary);outline-offset:-2px;}
     p {font-size:13px;}
-    @media(max-width:640px){dialog{margin:auto 0 0;width:100%;max-width:100%;border-radius:16px 16px 0 0;padding-bottom:calc(16px + env(safe-area-inset-bottom));}}
+    .quick-reactions{display:flex;border-bottom:1px solid var(--palette-border);padding-bottom:8px;gap:2px}.quick-reactions button{padding:4px;min-width:0;text-align:center;font-size:22px}
+    dialog{padding:8px;width:min(300px,calc(100vw - 16px));box-shadow:0 12px 40px #0004;max-height:calc(100dvh - 16px);overflow:auto}
   `],
 })
 export class MessageActionsComponent implements AfterViewInit, OnDestroy {
   readonly text=input('');
+  readonly anchor=input<{x:number;y:number}|null>(null);
+  readonly react=output<WorkspaceMessageReactionCode>();
+  readonly reactions:{code:WorkspaceMessageReactionCode;emoji:string;label:string}[]=[{code:'heart',emoji:'❤️',label:'Сердце'},{code:'like',emoji:'👍',label:'Нравится'},{code:'laugh',emoji:'😂',label:'Смешно'},{code:'fire',emoji:'🔥',label:'Огонь'},{code:'wow',emoji:'😮',label:'Удивление'}];
   readonly choose=output<'reply'|'reaction'>();
   readonly close=output<void>();
   readonly error=signal('');
   backdropDown=false;
   @ViewChild('dialog',{static:true}) dialog!:ElementRef<HTMLDialogElement>;
-  ngAfterViewInit():void {this.dialog.nativeElement.showModal();}
+  ngAfterViewInit():void {const dialog=this.dialog.nativeElement;dialog.showModal();const point=this.anchor();if(point){const rect=dialog.getBoundingClientRect();dialog.style.margin='0';dialog.style.left=Math.max(8,Math.min(point.x,innerWidth-rect.width-8))+'px';dialog.style.top=Math.max(8,Math.min(point.y,innerHeight-rect.height-8))+'px';}}
   ngOnDestroy():void {this.dialog.nativeElement.close();}
   backdrop(event:MouseEvent):void {
     const startedOnBackdrop=this.backdropDown;this.backdropDown=false;
