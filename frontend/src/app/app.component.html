@@ -1198,7 +1198,6 @@
                       >
                         <div
                           class="message-card__avatar"
-                          [style.--avatar-accent]="message.author.id === currentUser()?.id ? '#69dbb4' : '#7aa8ff'"
                         >
                           @if (userAvatarUrl(message.author.id, message.author.avatar_updated_at); as avatarUrl) {
                             <img [src]="avatarUrl" [alt]="displayNick(message.author.nick)" loading="lazy" />
