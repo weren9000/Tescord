@@ -15,7 +15,7 @@ interface Entry {
   icon_asset?: string; icon_url?: string; icon_updated_at?: string; description?: string; kind?: string; role?: string; type?: string;
 }
 interface Page {items: Entry[]; total: number; page: number; pages: number}
-interface Filter {q: string; owner: string; role: string; sort: string; page: number; size: number; scroll: number}
+interface Filter {q: string; owner: string; role: string; sort: string; page: number; size: number; scroll: number; sortBy:string; direction:'asc'|'desc'; columns:Record<string,string>}
 const emptyPage = (): Page => ({items: [], total: 0, page: 1, pages: 1});
 
 @Component({selector:'app-admin-directory', standalone:true, imports:[CommonModule, FormsModule, AdminItemsComponent, AdminStatisticsComponent],
@@ -58,7 +58,10 @@ export class AdminDirectoryComponent implements OnInit, OnDestroy {
   private focusTimer?: ReturnType<typeof setTimeout>;
   private opener?: HTMLElement;
   private detailKey = '';
-  private readonly filters: Record<Tab,Filter> = Object.fromEntries(['users','groups','platforms'].map(k=>[k,{q:'',owner:'',role:'all',sort:'new',page:1,size:24,scroll:0}])) as Record<Tab,Filter>;
+  private readonly filters: Record<Tab,Filter> = Object.fromEntries(['users','groups','platforms'].map(k=>[k,{q:'',owner:'',role:'all',sort:'new',page:1,size:24,scroll:0,sortBy:'created_at',direction:'desc',columns:{}}])) as Record<Tab,Filter>;
+  get columns(){return this.tab()==='users'?[{key:'name',label:'Пользователь',type:'text'},{key:'public_id',label:'ID',type:'number'},{key:'role',label:'Роль',type:'role'},{key:'created_at',label:'Регистрация · UTC',type:'date'}]:[{key:'name',label:'Название',type:'text'},{key:'owner',label:'Владелец',type:'text'},{key:'members',label:'Участники',type:'range'},...(this.tab()==='platforms'?[{key:'channels',label:'Каналы',type:'range'}]:[]),{key:'created_at',label:'Создано · UTC',type:'date'}];}
+  sortColumn(key:string){this.filter.direction=this.filter.sortBy===key&&this.filter.direction==='asc'?'desc':'asc';this.filter.sortBy=key;this.change();}
+  sortState(key:string){return this.filter.sortBy===key?(this.filter.direction==='asc'?'ascending':'descending'):'none';}
   @ViewChild('list') list?: ElementRef<HTMLElement>;
   get filter(){return this.filters[this.tab()];}
   ngOnInit(){if(this.systemAdmin())this.refresh();else {this.statsActive.set(false);this.itemsActive.set(true);}}
@@ -69,13 +72,19 @@ export class AdminDirectoryComponent implements OnInit, OnDestroy {
   switchTab(tab:Tab){if(!this.systemAdmin())return;if(tab===this.tab()&&!this.itemsActive()&&!this.statsActive())return;this.statsActive.set(false);this.itemsActive.set(false);this.filter.scroll=this.list?.nativeElement.scrollTop??this.filter.scroll;clearTimeout(this.timer);this.closeDetail();this.tab.set(tab);this.load(true);}
   search(){clearTimeout(this.timer);this.timer=setTimeout(()=>this.change(),300);}
   change(){clearTimeout(this.timer);this.filter.page=1;this.filter.scroll=0;this.load();}
-  reset(){Object.assign(this.filter,{q:'',owner:'',role:'all',sort:'new',page:1,scroll:0});this.load();}
+  reset(){Object.assign(this.filter,{q:'',owner:'',role:'all',sort:'new',page:1,scroll:0,sortBy:'created_at',direction:'desc',columns:{}});this.load();}
   go(page:number){this.filter.page=page;this.filter.scroll=0;this.load();}
   load(restore=false){
+    this.listSub?.unsubscribe();this.loading.set(false);
+    const fields=this.filter.columns;
+    const present=(key:string)=>fields[key]!=null&&fields[key]!=='';
+    if(['public_id','members_min','members_max','channels_min','channels_max'].some(k=>present(k)&&(!Number.isSafeInteger(Number(fields[k]))||Number(fields[k])<(k==='public_id'?1:0)))){this.error.set('Укажите целые неотрицательные числа; ID должен быть больше нуля.');return;}
+    if((fields['created_from']&&fields['created_to']&&fields['created_from']>fields['created_to'])||['members','channels'].some(k=>present(k+'_min')&&present(k+'_max')&&Number(fields[k+'_min'])>Number(fields[k+'_max']))){this.error.set('Начало диапазона должно быть не больше конца.');return;}
     this.listSub?.unsubscribe();this.loading.set(true);this.error.set('');
     const f=this.filter, tab=this.tab();
-    const params:Record<string,string|number>={q:f.q,sort:f.sort,page:f.page,size:f.size};
+    const params:Record<string,string|number>={q:f.q,sort:f.sort,page:f.page,size:f.size,sort_by:f.sortBy,direction:f.direction};
     if(tab==='users')params['role']=f.role;else params['owner']=f.owner;
+    for(const [key,value] of Object.entries(f.columns)){if(value!==''&&value!=null)params[key]=value;}
     this.listSub=this.get<Page>(tab==='users'?'/users':'/spaces/'+tab,params).subscribe({next:data=>{
       this.result.set(data);f.page=data.page;this.loading.set(false);
       clearTimeout(this.focusTimer);this.focusTimer=setTimeout(()=>{if(this.list)this.list.nativeElement.scrollTop=restore?f.scroll:0;});

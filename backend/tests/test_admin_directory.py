@@ -69,6 +69,18 @@ def test_directory_spaces_relations_and_stable_pages(accounts):
     related=client.get(root+'/users/'+user['id']+'/spaces',headers=admin).json()
     assert ids[26] not in {x['id'] for x in related['items']}
     assert client.get(root+'/spaces/groups',headers=admin,params={'q':prefix,'page':999}).json()['page']==2
+    # Sort the full result before pagination; combine column filters with AND.
+    filtered=client.get(root+'/spaces/groups',headers=admin,params={'name':prefix,'owner':str(user['public_id']),'members_min':1,'members_max':1,'channels_min':1,'sort_by':'name','direction':'desc','size':1}).json()
+    assert filtered['total']==25 and filtered['items'][0]['name']==prefix+'-24'
+    assert client.get(root+'/spaces/groups',headers=admin,params={'name':prefix,'members_min':2}).json()['total']==0
+    assert client.get(root+'/spaces/groups',headers=admin,params={'members_min':2,'members_max':1}).status_code==422
+    assert client.get(root+'/spaces/groups',headers=admin,params={'created_from':'2026-02-02','created_to':'2026-01-01'}).status_code==422
+    assert client.get(root+'/spaces/groups',headers=admin,params={'sort_by':'email'}).status_code==422
+    filtered=client.get(root+'/users',headers=admin,params={'public_id':user['public_id'],'role':'regular','sort_by':'public_id','direction':'desc'}).json()
+    assert filtered['total']==1 and filtered['items'][0]['id']==user['id']
+    assert client.get(root+'/users',headers=admin,params={'public_id':user['public_id'],'role':'admin'}).json()['total']==0
+    assert client.get(root+'/users',headers=admin,params={'public_id':user['public_id'],'created_to':'2000-01-01'}).json()['total']==0
+    assert client.get(root+'/users',headers=admin,params={'name':'%'}).json()['total']==0
 
 
 def test_directory_thumbnails_keep_originals(accounts):

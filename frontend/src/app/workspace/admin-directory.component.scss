@@ -4,6 +4,26 @@
 @media(max-width:650px){header,nav,.tools,footer{padding:12px;gap:6px}header h1{font-size:20px}header .muted{display:none}header button{font-size:11px}nav button{flex:1;padding:10px 4px;font-size:12px}nav span{margin-left:3px}.tools input,.tools select{flex:1;max-width:100%;width:40%}.tools>input:first-child{flex-basis:100%}.tools button{font-size:12px}.list{padding:12px}.cards{grid-template-columns:1fr;gap:8px}.card,.skeleton{height:112px}.detail{width:100%;border:0}footer{flex-wrap:wrap}footer select{font-size:11px;padding:8px}footer button{padding:8px 10px}}
 @media(max-width:650px){.admin .detail{position:fixed;inset:0;z-index:230;width:100%;height:100dvh}.admin .detail-body{flex:1}}
 :host app-admin-items{display:flex;flex:1;min-height:0;height:auto}
+.table-list{padding:0 24px 12px;overflow:auto;overscroll-behavior:contain}
+.directory-table{width:100%;min-width:760px;border-collapse:separate;border-spacing:0;table-layout:fixed;font-size:13px}
+.directory-table thead{position:sticky;top:0;z-index:3;background:var(--palette-surface)}
+.directory-table th:first-child,.directory-table td:first-child{position:sticky;left:0;z-index:1;background:var(--palette-surface);box-shadow:1px 0 var(--palette-border)}
+.directory-table tbody tr:hover td:first-child,.directory-table tr.selected td:first-child{background:var(--palette-selected)}
+.directory-table th,.directory-table td{padding:9px 10px;text-align:left;border-bottom:1px solid var(--palette-border);overflow-wrap:anywhere}
+.directory-table th:first-child{width:26%}.directory-table th:last-child{width:210px}
+.directory-table .sort-button{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;border:0;background:transparent;padding:4px 0;font-weight:600;text-align:left;border-radius:3px;min-height:32px}
+.sort-button span{color:var(--palette-muted)}.directory-table th[aria-sort=ascending] span,.directory-table th[aria-sort=descending] span{color:var(--palette-primary)}
+.column-filters input,.column-filters select{width:100%;padding:7px 6px;font-size:12px;border-radius:6px;min-height:34px;font-weight:400}
+.range{display:flex;gap:4px}.range input{min-width:0;flex:1}.column-filters input[type=date]{font-size:10px}
+.directory-table tbody tr:hover,.directory-table tr.selected{background:var(--palette-selected)}
+.directory-table .record-name{display:flex;gap:9px;align-items:center;width:100%;background:transparent;border:0;text-align:left;padding:0;min-height:34px}
+.record-name strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:500}
+.directory-table .avatar,.directory-table .avatar img{width:32px;height:32px}.directory-table .avatar{flex-basis:32px;border-radius:8px;font-size:11px}
+.directory-table .numeric{font-variant-numeric:tabular-nums}.created{white-space:nowrap;font-size:12px}.created small{margin-left:5px;font-size:11px}
+.updating{opacity:.5;pointer-events:none}.table-error{padding:12px;color:var(--palette-danger)}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+.detail{z-index:4}
+@media(max-width:650px){.table-list{padding:0 8px 8px}.directory-table{min-width:760px}.directory-table th,.directory-table td{padding:8px}.column-filters input,.column-filters select,.directory-table .sort-button{min-height:40px}.tools{padding-block:8px}.tools .muted{margin-left:auto}.directory-table .record-name{min-height:40px}}
 @media(max-width:650px){.admin>nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.admin>nav button{min-width:0}}
 
 @media(max-width:750px){.stats-view>nav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;padding:8px}.stats-view>nav button{font-size:10px;padding:6px 3px;min-height:40px}}
