@@ -178,7 +178,7 @@ async def upload_catalog(name: str = Form(max_length=80), kind: Literal['avatar'
 
 
 @router.get('/assets/{catalog_id}')
-def asset(catalog_id: str, request: Request, motion: bool = True, preview: bool = False, live: bool = False, db: Session = Depends(get_db)):
+def asset(catalog_id: str, request: Request, motion: bool = True, preview: bool = False, live: bool = False, db: Session = Depends(get_db, scope="function")):
     if not db.get(InventoryCatalog, catalog_id): raise HTTPException(404, 'Предмет не найден')
     from app.services.living_wallpaper import CATALOG_ID, marsh_svg
     from app.services.valheim_wallpaper import valheim_svg

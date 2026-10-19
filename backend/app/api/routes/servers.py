@@ -5,6 +5,8 @@ import re
 from urllib.parse import quote
 from uuid import UUID
 
+from starlette.concurrency import run_in_threadpool
+
 from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
@@ -362,7 +364,7 @@ async def upload_server_icon_file(
 
 
 @router.get("/{server_id}/icon-file")
-def read_server_icon_file(server_id: UUID, preview: bool = False, db: Session = Depends(get_db)) -> Response:
+def read_server_icon_file(server_id: UUID, preview: bool = False, db: Session = Depends(get_db, scope="function")) -> Response:
     server = db.get(Server, server_id)
     if server is None or server.icon_content is None or server.icon_mime_type is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Иконка группы не найдена")
@@ -626,12 +628,7 @@ async def block_server(
     )
 
 
-@router.get("/{server_id}/voice-presence", response_model=list[VoiceChannelPresenceSummary])
-async def list_server_voice_presence(
-    server_id: UUID,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-) -> list[VoiceChannelPresenceSummary]:
+def _load_visible_voice_channels(server_id: UUID, current_user: User, db: Session):
     server, membership = get_accessible_server(db, server_id, current_user)
     if server.kind == ServerKind.GROUP_CHAT:
         ensure_group_chat_defaults(db, server)
@@ -651,6 +648,20 @@ async def list_server_voice_presence(
         for channel in voice_channels
         if can_view_voice_channel(voice_access_map.get(channel.id), membership.role if membership is not None else None)
     ]
+
+    # Materialize ORM data and release the connection before awaiting signaling.
+    db.expunge_all()
+    db.close()
+    return visible_voice_channels
+
+
+@router.get("/{server_id}/voice-presence", response_model=list[VoiceChannelPresenceSummary])
+async def list_server_voice_presence(
+    server_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> list[VoiceChannelPresenceSummary]:
+    visible_voice_channels = await run_in_threadpool(_load_visible_voice_channels, server_id, current_user, db)
 
     if not visible_voice_channels:
         return []

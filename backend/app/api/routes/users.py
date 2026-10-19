@@ -148,7 +148,7 @@ async def update_current_user_profile(
 
 
 @router.get("/users/{user_id}/avatar")
-def read_user_avatar(user_id: UUID, motion: bool = True, include_frame: bool = True, preview: bool = False, db: Session = Depends(get_db)) -> Response:
+def read_user_avatar(user_id: UUID, motion: bool = True, include_frame: bool = True, preview: bool = False, db: Session = Depends(get_db, scope="function")) -> Response:
     user = db.get(User, user_id)
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Аватарка не найдена")
