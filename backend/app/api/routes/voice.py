@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+
 from app.api.dependencies.websocket_auth import authenticate_websocket, receive_authenticated_json
 
 from datetime import timedelta
@@ -365,7 +367,7 @@ async def _load_channel_access_entries(db: Session, channel_id: UUID) -> list[Vo
     ).scalars().all()
     access_by_user_id = {access.user_id: access for access in access_rows}
 
-    online_user_ids = site_presence_manager.online_user_ids([user.id for _, user in member_rows])
+    online_user_ids = await asyncio.to_thread(site_presence_manager.online_user_ids, [user.id for _, user in member_rows])
     channel_snapshot = await voice_signaling_manager.snapshot_rooms({str(channel_id)})
     participants = channel_snapshot.get(str(channel_id), [])
     participants_by_user_id = {

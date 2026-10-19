@@ -60,8 +60,10 @@ sudo -u tescord .venv/bin/python -m app.reset_admin_password weren9000@kva-chat.
 
 В production обязательны `DEBUG=false`, `SEED_DEMO_DATA=false`, сильный `SECRET_KEY`,
 `RATE_LIMITS_ENABLED=true` и `REDIS_URL`. Redis обслуживает лимиты и доставку событий чатов
-между процессами. Голосовой и прямой signaling пока хранит состояние в памяти, поэтому
-рабочий systemd-сервис запускается с **одним worker**.
+между процессами. Голосовой и прямой signaling используют общее состояние Redis
+и атомарную запись событий в Redis Stream; WebSocket остаётся в принявшем его процессе.
+Рабочий systemd-сервис поддерживает **`--workers 4`**. Подробности проверок,
+границы отказоустойчивости и откат описаны в `backend/MULTIPROCESS.md`.
 Для голоса HTTP-порт LiveKit 7880 слушает только loopback; nginx проверяет текущие права
 и сессию до подключения. TCP 7881 и UDP media-порты остаются доступны для WebRTC.
 

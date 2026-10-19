@@ -1,5 +1,6 @@
 """LiveKit rooms scoped to an accepted personal call, never a public channel."""
 import json
+import asyncio
 import logging
 from datetime import timedelta
 
@@ -30,7 +31,7 @@ async def issue_call_token(call_id: str, user_id: str, nick: str, session_id: st
     settings = get_settings()
     if not settings.livekit_enabled:
         raise HTTPException(503, 'Сервер звонков недоступен')
-    if not direct_call_signaling_manager.media_allowed(call_id, user_id, client_id):
+    if not await asyncio.to_thread(direct_call_signaling_manager.media_allowed, call_id, user_id, client_id):
         raise HTTPException(403, 'Нет доступа к этому звонку')
     room = 'direct-' + call_id
     try:
@@ -39,7 +40,7 @@ async def issue_call_token(call_id: str, user_id: str, nick: str, session_id: st
     except Exception as exc:
         raise HTTPException(503, 'Не удалось подготовить звонок') from exc
     # The call may have ended while the media server was responding.
-    if not direct_call_signaling_manager.media_allowed(call_id, user_id, client_id):
+    if not await asyncio.to_thread(direct_call_signaling_manager.media_allowed, call_id, user_id, client_id):
         await delete_call_room(call_id)
         raise HTTPException(403, 'Звонок уже завершён')
     token = (api.AccessToken(settings.livekit_api_key, settings.livekit_api_secret)

@@ -49,3 +49,42 @@ class SitePresenceManager:
 
 
 site_presence_manager = SitePresenceManager()
+
+
+class SharedSitePresenceManager:
+    """The latest heartbeat from ANY device keeps a user online across workers."""
+    def __init__(self, ttl_seconds=180):
+        self.ttl = ttl_seconds
+
+    def mark_active(self, user_id):
+        from app.services.cluster import client, PREFIX
+        script = """
+        local now = tonumber(redis.call('TIME')[1])
+        local old = tonumber(redis.call('ZSCORE',KEYS[1],ARGV[1]) or '0')
+        redis.call('ZADD',KEYS[1],now+tonumber(ARGV[2]),ARGV[1])
+        if old <= now then return 1 else return 0 end
+        """
+        return bool(client().eval(script, 1, PREFIX + 'presence', str(user_id), self.ttl))
+
+    def snapshot_user_ids(self):
+        from app.services.cluster import client, PREFIX
+        script = "return redis.call('ZRANGEBYSCORE',KEYS[1],'('..redis.call('TIME')[1],'+inf')"
+        return {UUID(uid) for uid in client().eval(script, 1, PREFIX + 'presence')}
+
+    def online_user_ids(self, user_ids):
+        return self.snapshot_user_ids().intersection(user_ids)
+
+    def collect_expired_user_ids(self):
+        from app.services.cluster import client, PREFIX
+        script = """
+        local now=redis.call('TIME')[1]
+        local ids=redis.call('ZRANGEBYSCORE',KEYS[1],'-inf',now)
+        redis.call('ZREMRANGEBYSCORE',KEYS[1],'-inf',now)
+        return ids
+        """
+        return [UUID(uid) for uid in client().eval(script, 1, PREFIX + 'presence')]
+
+
+from app.core.config import get_settings
+if get_settings().redis_url:
+    site_presence_manager = SharedSitePresenceManager()

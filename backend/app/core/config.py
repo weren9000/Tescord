@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     environment: Literal["development", "staging", "production"] = "development"
     debug: bool = True
     database_url: str = "postgresql+psycopg://tescord:tescord@localhost:5432/tescord"
+    db_pool_size: int = 5
+    db_max_overflow: int = 5
+    db_pool_timeout: float = 5
     cors_origins: list[str] = ["http://localhost:4200"]
     allowed_hosts: list[str] = ["localhost", "127.0.0.1", "testserver"]
     secret_key: str = "tescord-dev-secret-key"

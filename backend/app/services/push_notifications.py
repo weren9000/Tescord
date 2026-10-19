@@ -166,6 +166,9 @@ async def publish_message_push_notifications(
         return
 
     active_user_ids = await app_event_manager.get_server_subscriber_user_ids(server_id)
+    if get_settings().redis_url:
+        from app.services.cluster import active_subscribers
+        active_user_ids = await asyncio.to_thread(active_subscribers, server_id)
     with SessionLocal() as db:
         server, targets = _collect_push_targets(
             db,

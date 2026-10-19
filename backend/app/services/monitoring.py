@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import json
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -22,6 +23,17 @@ voice_users: set[str] = set()
 FIELDS=['cpu_percent','cpu_count','memory_used','memory_total','swap_used','swap_total','disk_used','disk_total','net_in','net_out','uptime','backend_rss','online','voice']
 
 
+def backend_memory():
+    process = psutil.Process()
+    try:
+        parent = process.parent()
+        if parent and 'uvicorn' in ' '.join(parent.cmdline()) and '--workers' in parent.cmdline():
+            return sum(p.memory_info().rss for p in [parent, *parent.children()] if p.is_running())
+    except (psutil.NoSuchProcess, psutil.AccessDenied):
+        pass
+    return process.memory_info().rss
+
+
 def host_sample(previous):
     now=time.monotonic();net=psutil.net_io_counters();memory=psutil.virtual_memory();swap=psutil.swap_memory()
     path=Path(get_settings().uploads_dir).resolve()
@@ -31,7 +43,7 @@ def host_sample(previous):
     idle=cpu.idle+getattr(cpu,'iowait',0)
     cpu_percent=None
     if previous and total>previous[3]:cpu_percent=max(0,min(100,100*(1-(idle-previous[4])/(total-previous[3]))))
-    values=dict(cpu_percent=cpu_percent,cpu_count=psutil.cpu_count(),memory_used=memory.total-memory.available,memory_total=memory.total,swap_used=swap.used,swap_total=swap.total,disk_used=disk.used,disk_total=disk.total,uptime=time.time()-psutil.boot_time(),backend_rss=psutil.Process().memory_info().rss,net_in=None,net_out=None)
+    values=dict(cpu_percent=cpu_percent,cpu_count=psutil.cpu_count(),memory_used=memory.total-memory.available,memory_total=memory.total,swap_used=swap.used,swap_total=swap.total,disk_used=disk.used,disk_total=disk.total,uptime=time.time()-psutil.boot_time(),backend_rss=backend_memory(),net_in=None,net_out=None)
     if previous:
         elapsed=max(.1,now-previous[0]);values.update(net_in=max(0,net.bytes_recv-previous[1])/elapsed,net_out=max(0,net.bytes_sent-previous[2])/elapsed)
     return values,(now,net.bytes_recv,net.bytes_sent,total,idle)
@@ -39,7 +51,7 @@ def host_sample(previous):
 
 def persist_sample(at,data,voices,old_voices,elapsed,cleanup=False,resource_at=None):
     with SessionLocal() as db:
-        # The application and collector run in one production worker.
+        # Extra guard in addition to the renewable collector leader lease.
         if not db.scalar(text('SELECT pg_try_advisory_xact_lock(743190037)')):return
         known={str(u) for u in db.scalars(select(User.id).where(User.id.in_([UUID(u) for u in voices])))} if voices else set()
         for uid in known:
@@ -99,9 +111,12 @@ async def collect_metrics():
             voices={p['user_id']:'room:'+room for room,people in rooms.items() for p in people}
             voices.update({u:'call:'+c for u,c in (await direct_call_signaling_manager.analytics_participants()).items()})
             voice_users=set(voices)
-            values.update(online=len(site_presence_manager.snapshot_user_ids()),voice=len(voice_users))
+            values.update(online=len(await asyncio.to_thread(site_presence_manager.snapshot_user_ids)),voice=len(voice_users))
             status=await service_status()
             latest={**values,'at':now.isoformat(),'services':status,'active_rooms':len(set(voices.values()))}
+            if get_settings().redis_url:
+                from app.services.cluster import client, PREFIX
+                await asyncio.to_thread(client().set, PREFIX+'metrics', json.dumps({'latest': latest, 'voice_users': list(voice_users)}), ex=60)
             minute=now.replace(second=0,microsecond=0);hour=now.replace(minute=0,second=0,microsecond=0)
             aggregate=None;resource_at=last_minute
             if last_minute is not None and minute!=last_minute and buffer:
@@ -113,3 +128,11 @@ async def collect_metrics():
         except asyncio.CancelledError:raise
         except Exception:logger.exception('Monitoring sample failed')
         await asyncio.sleep(15)
+
+
+def current_snapshot():
+    if get_settings().redis_url:
+        from app.services.cluster import client, PREFIX
+        data = json.loads(client().get(PREFIX+'metrics') or '{}')
+        return data.get('latest'), set(data.get('voice_users', []))
+    return latest or None, voice_users.copy()

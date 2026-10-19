@@ -1,4 +1,5 @@
 from __future__ import annotations
+import os
 
 from fastapi import APIRouter, Response, status
 from sqlalchemy import text
@@ -12,9 +13,11 @@ router = APIRouter(tags=["system"])
 
 @router.get("/health", response_model=HealthResponse, status_code=status.HTTP_200_OK)
 def read_health(response: Response) -> HealthResponse:
+    response.headers['X-Kva-Worker'] = str(os.getpid())
     settings = get_settings()
     database_status = "offline"
     app_status = "ok"
+    redis_status = 'disabled'
 
     try:
         with engine.connect() as connection:
@@ -24,9 +27,20 @@ def read_health(response: Response) -> HealthResponse:
         app_status = "degraded"
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
 
+    if settings.redis_url:
+        try:
+            from app.services.cluster import client
+            client().ping()
+            redis_status = 'online'
+        except Exception:
+            redis_status = 'offline'
+            app_status = 'degraded'
+            response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+
     return HealthResponse(
         service=settings.app_name,
         status=app_status,
         environment=settings.environment,
         database=database_status,
+        redis=redis_status,
     )

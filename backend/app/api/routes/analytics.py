@@ -66,7 +66,8 @@ def statistics(response:Response,days:int=Query(1),exclude_self:bool=False,start
     active=db.scalar(select(func.count(func.distinct(AnalyticsDay.user_id))).where(*terms,AnalyticsDay.actions>0))
     totals={key:sum(row[key] for row in rows.values()) for key in ['visits','guest_visits','messages','registrations','voice_seconds','voice_sessions']}
     totals['active']=active
-    online=site_presence_manager.snapshot_user_ids();voice=set(monitoring.voice_users)
+    resources,voice=monitoring.current_snapshot()
+    online=site_presence_manager.snapshot_user_ids()
     if exclude_self:online.discard(actor.id);voice.discard(str(actor.id))
     totals.update(online=len(online),voice=len(voice))
     top=select(Server.id,Server.name,Server.kind,func.count(Message.id).label('messages')).join(Channel,Channel.server_id==Server.id).join(Message,Message.channel_id==Channel.id).where(Server.kind.in_([ServerKind.GROUP_CHAT,ServerKind.WORKSPACE]),Message.created_at>=start_at,Message.created_at<end_at)
@@ -99,4 +100,4 @@ def statistics(response:Response,days:int=Query(1),exclude_self:bool=False,start
         began=datetime.fromisoformat(tracked.value) if tracked else now
         visit_rows=[dict(at=r['day']+'T00:00:00+00:00',**{k:r[k] if date.fromisoformat(r['day'])>=began.date() else None for k in ['active','visits','guest_visits']}) for r in visit_rows]
     activity_available=bool(tracked and end_at>datetime.fromisoformat(tracked.value))
-    return dict(generated_at=now,start_date=start,end_date=end,start_at=start_at,end_at=end_at,activity_available=activity_available,resource_interval=interval,visit_interval=visit_interval,visits_history=visit_rows,hourly_started_at=hourly_started.value if hourly_started else None,started_at=tracked.value if tracked else None,timezone='UTC',days=days,totals=totals,daily=list(rows.values()),top=[dict(r) for r in top_rows],resources=monitoring.latest or None,resource_history=[dict(r) for r in resource_rows],voice_estimated=True)
+    return dict(generated_at=now,start_date=start,end_date=end,start_at=start_at,end_at=end_at,activity_available=activity_available,resource_interval=interval,visit_interval=visit_interval,visits_history=visit_rows,hourly_started_at=hourly_started.value if hourly_started else None,started_at=tracked.value if tracked else None,timezone='UTC',days=days,totals=totals,daily=list(rows.values()),top=[dict(r) for r in top_rows],resources=resources,resource_history=[dict(r) for r in resource_rows],voice_estimated=True)

@@ -72,6 +72,8 @@ class AppEventManager:
             user_connections.pop(connection_id, None)
             if not user_connections:
                 self._connections.pop(normalized_user_id, None)
+        from app.services.cluster import sync_subscriptions
+        await sync_subscriptions()
 
     async def set_active_server(
         self,
@@ -95,7 +97,9 @@ class AppEventManager:
                 return False
 
             connection.active_server_id = normalized_server_id if permitted else None
-            return permitted
+        from app.services.cluster import sync_subscriptions
+        await sync_subscriptions()
+        return permitted
 
     async def broadcast(self, payload: dict[str, Any]) -> None:
         async with self._lock:
@@ -496,15 +500,17 @@ async def publish_voice_presence_updated(server_id: UUID | str) -> None:
     if not subscriber_user_ids:
         return
 
-    server_uuid = UUID(normalized_server_id)
-    payloads_by_user_id: dict[str, dict[str, Any]] = {}
-    with SessionLocal() as db:
-        for user_id in subscriber_user_ids:
-            voice_presence = [
-                item.model_dump(mode="json")
-                for item in await list_server_voice_presence_for_user(db, server_uuid, UUID(user_id))
-            ]
-            payloads_by_user_id[user_id] = build_voice_presence_updated_event(normalized_server_id, voice_presence)
+    from app.services.voice_signaling import voice_signaling_manager
+    snapshot = await voice_signaling_manager.snapshot_rooms()
+    def load():
+        payloads = {}
+        with SessionLocal() as db:
+            for user_id in subscriber_user_ids:
+                presence = [item.model_dump(mode='json') for item in
+                            list_server_voice_presence_for_user(db, UUID(normalized_server_id), UUID(user_id), snapshot)]
+                payloads[user_id] = build_voice_presence_updated_event(normalized_server_id, presence)
+        return payloads
+    payloads_by_user_id = await asyncio.to_thread(load)
 
     for user_id, payload in payloads_by_user_id.items():
         await app_event_manager.send_to_user_on_server(user_id, normalized_server_id, payload)

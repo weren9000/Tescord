@@ -23,6 +23,10 @@ from app.db.models import AuthSession, OutboxEvent
 from app.api.dependencies.upload_admission import UploadAdmissionMiddleware
 from app.services.event_bus import start_event_bus, stop_event_bus
 from app.services.monitoring import collect_metrics
+from app.services import cluster
+from sqlalchemy import text
+from redis.exceptions import RedisError
+from starlette.responses import JSONResponse
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
@@ -31,14 +35,18 @@ logger = logging.getLogger(__name__)
 async def run_presence_sweeper() -> None:
     while True:
         await asyncio.sleep(10)
-        expired_user_ids = site_presence_manager.collect_expired_user_ids()
-        for user_id in expired_user_ids:
-            await publish_presence_updated(user_id, is_online=False)
+        try:
+            expired_user_ids = await asyncio.to_thread(site_presence_manager.collect_expired_user_ids)
+            for user_id in expired_user_ids:
+                await publish_presence_updated(user_id, is_online=False)
+        except Exception:
+            logger.warning('Presence sweep deferred')
 
 
 def initialize_database():
-    ensure_development_seed_data()
     with SessionLocal() as db:
+        db.execute(text('SELECT pg_advisory_xact_lock(743190038)'))
+        ensure_development_seed_data()
         db.execute(select(AuthSession.id).limit(0))
         db.execute(select(OutboxEvent.id).limit(0))
         ensure_workspace_defaults_for_all(db)
@@ -49,15 +57,17 @@ def initialize_database():
 async def lifespan(_: FastAPI):
     await asyncio.to_thread(initialize_database)
     event_bus_task = await start_event_bus()
+    cluster_tasks = await cluster.start()
     presence_sweeper_task = asyncio.create_task(run_presence_sweeper())
     outbox_task = asyncio.create_task(run_message_outbox())
-    media_task = asyncio.create_task(reconcile_media_permissions())
-    monitoring_task = asyncio.create_task(collect_metrics())
+    media_task = asyncio.create_task(cluster.singleton('media', reconcile_media_permissions))
+    monitoring_task = asyncio.create_task(cluster.singleton('monitoring', collect_metrics))
     try:
         yield
     finally:
         monitoring_task.cancel()
         await asyncio.gather(monitoring_task, return_exceptions=True)
+        await cluster.stop(cluster_tasks)
         await stop_event_bus(event_bus_task)
         media_task.cancel()
         await asyncio.gather(media_task, return_exceptions=True)
@@ -75,6 +85,18 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+
+
+@app.exception_handler(RedisError)
+async def redis_unavailable(request, exc):
+    if request.scope['type'] == 'websocket':
+        try:
+            await request.close(code=1013, reason='Service temporarily unavailable')
+        except RuntimeError:
+            pass
+        return
+    return JSONResponse({'detail': 'Service temporarily unavailable; retry shortly'},
+                        status_code=503, headers={'Retry-After': '5'})
 
 app.add_middleware(
     CORSMiddleware,

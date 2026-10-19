@@ -263,3 +263,8 @@ class VoiceSignalingManager:
 
 
 voice_signaling_manager = VoiceSignalingManager()
+
+from app.core.config import get_settings
+if get_settings().redis_url:
+    from app.services.cluster_signaling import ClusterVoiceSignalingManager
+    voice_signaling_manager = ClusterVoiceSignalingManager()

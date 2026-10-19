@@ -328,3 +328,8 @@ class DirectCallSignalingManager:
 
 
 direct_call_signaling_manager = DirectCallSignalingManager()
+
+from app.core.config import get_settings
+if get_settings().redis_url:
+    from app.services.cluster_signaling import ClusterDirectCallSignalingManager
+    direct_call_signaling_manager = ClusterDirectCallSignalingManager()

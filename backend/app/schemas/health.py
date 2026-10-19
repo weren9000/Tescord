@@ -6,3 +6,4 @@ class HealthResponse(BaseModel):
     status: str
     environment: str
     database: str
+    redis: str = 'disabled'

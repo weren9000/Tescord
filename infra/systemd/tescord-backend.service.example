@@ -1,14 +1,15 @@
 [Unit]
 Description=Altgramm FastAPI backend
-After=network.target postgresql.service
-Wants=postgresql.service
+After=network.target postgresql.service redis-server.service
+Wants=postgresql.service redis-server.service
 
 [Service]
-User=www-data
-Group=www-data
-WorkingDirectory=/srv/tescord/backend
-EnvironmentFile=/srv/tescord/backend/.env
-ExecStart=/srv/tescord/backend/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000 --proxy-headers
+User=tescord
+Group=tescord
+WorkingDirectory=/srv/tescord/current/backend
+EnvironmentFile=/srv/tescord/shared/backend.env
+ExecStart=/srv/tescord/current/backend/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000 --proxy-headers --forwarded-allow-ips 127.0.0.1 --workers 4 --ws-max-size 65536 --no-access-log --timeout-graceful-shutdown 15 --log-config /srv/tescord/current/infra/logging.json
+TimeoutStopSec=25
 Restart=always
 RestartSec=5
 

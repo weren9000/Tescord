@@ -1,7 +1,7 @@
 """Redis fan-out for application events across backend processes.
 
 Database-backed message recovery remains the source of truth after disconnection.
-The media/control signaling managers still require a single production worker.
+Media/control signaling uses the separate atomic state/stream transport.
 """
 import asyncio
 from contextvars import ContextVar
@@ -9,6 +9,7 @@ from functools import wraps
 import json
 import logging
 from uuid import uuid4
+from collections import OrderedDict
 
 from app.core.config import get_settings
 
@@ -17,6 +18,7 @@ _local_delivery = ContextVar('local_event_delivery', default=False)
 _origin = uuid4().hex
 _handlers = {}
 _client = None
+_seen = OrderedDict()
 CHANNEL = f'kva:app-events:{get_settings().environment}:v1'
 
 
@@ -33,7 +35,7 @@ def distributed_event(function):
     @wraps(function)
     async def publish(*args, **kwargs):
         if not _local_delivery.get() and _client is not None:
-            await _client.publish(CHANNEL, json.dumps({'origin': _origin, 'name': name, 'args': args, 'kwargs': kwargs}, default=_json_default))
+            await _client.publish(CHANNEL, json.dumps({'id': uuid4().hex, 'origin': _origin, 'name': name, 'args': args, 'kwargs': kwargs}, default=_json_default))
         token = _local_delivery.set(True)
         try:
             return await function(*args, **kwargs)
@@ -66,9 +68,16 @@ async def start_event_bus():
                     payload = json.loads(message['data'])
                     if payload.get('origin') == _origin or payload.get('name') not in _handlers:
                         continue
+                    event_id = payload.get('id')
+                    if event_id and event_id in _seen:
+                        continue
                     token = _local_delivery.set(True)
                     try:
                         await _handlers[payload['name']](*payload['args'], **payload['kwargs'])
+                        if event_id:
+                            _seen[event_id] = True
+                            if len(_seen) > 10000:
+                                _seen.popitem(last=False)
                     finally:
                         _local_delivery.reset(token)
                 except asyncio.CancelledError:

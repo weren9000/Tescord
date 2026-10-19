@@ -26,7 +26,7 @@ let instance;
   assert.equal(await page.evaluate(()=>localStorage.getItem('tescord.session')),null);
   await page.evaluate(()=>window.kvaDesktop.writeSession(null));
   assert(!fs.existsSync(path.join(profile,'session.bin')));
-  const image=await page.locator('.auth-logo').evaluate(img=>({loaded:img.complete&&img.naturalWidth>0}));assert(image.loaded);
+  const image=await page.locator('app-guest-header img').evaluate(img=>({loaded:img.complete&&img.naturalWidth>0}));assert(image.loaded);
   // Show the real capture chooser, then cancel without granting any source.
   await instance.evaluate(({dialog})=>{dialog.showMessageBox=async()=>({response:0,checkboxChecked:false});});
   const pickerPromise=instance.waitForEvent('window',{timeout:20000});

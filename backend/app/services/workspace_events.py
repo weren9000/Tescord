@@ -259,10 +259,11 @@ def list_server_members_for_user(db: Session, server_id: UUID) -> list[ServerMem
     ]
 
 
-async def list_server_voice_presence_for_user(
+def list_server_voice_presence_for_user(
     db: Session,
     server_id: UUID,
     user_id: UUID,
+    snapshot: dict,
 ) -> list[VoiceChannelPresenceSummary]:
     membership_role = db.execute(
         select(ServerMember.role).where(ServerMember.server_id == server_id, ServerMember.user_id == user_id)
@@ -280,8 +281,6 @@ async def list_server_voice_presence_for_user(
     ]
     if not visible_voice_channels:
         return []
-
-    snapshot = await voice_signaling_manager.snapshot_rooms({str(channel.id) for channel in visible_voice_channels})
 
     return [
         _build_voice_channel_presence_summary(channel, snapshot[str(channel.id)])

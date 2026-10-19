@@ -8096,6 +8096,9 @@ export class AppComponent {
       return;
     }
 
+    this.refreshInventoryProfile();
+    await this.walletService.refresh();
+
     await this.refreshServersList(token);
     await this.refreshConversationsList(token);
 

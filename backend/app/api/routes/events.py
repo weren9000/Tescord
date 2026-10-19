@@ -1,4 +1,5 @@
 from __future__ import annotations
+import asyncio
 
 from app.api.dependencies.websocket_auth import authenticate_websocket, receive_authenticated_json
 
@@ -19,7 +20,7 @@ async def connect_app_events(websocket: WebSocket) -> None:
         return
 
     connection_id = await app_event_manager.connect(websocket, current_user.id)
-    became_online = site_presence_manager.mark_active(current_user.id)
+    became_online = await asyncio.to_thread(site_presence_manager.mark_active, current_user.id)
     await websocket.send_json(
         {
             "type": "ready",
@@ -36,14 +37,14 @@ async def connect_app_events(websocket: WebSocket) -> None:
 
             if message_type == "ping":
                 # A live authenticated client is online even when its window is hidden.
-                became_online = site_presence_manager.mark_active(current_user.id)
+                became_online = await asyncio.to_thread(site_presence_manager.mark_active, current_user.id)
                 if became_online:
                     await publish_presence_updated(current_user.id)
                 await websocket.send_json({"type": "pong"})
                 continue
 
             if message_type == "activity":
-                became_online = site_presence_manager.mark_active(current_user.id)
+                became_online = await asyncio.to_thread(site_presence_manager.mark_active, current_user.id)
                 if became_online:
                     await publish_presence_updated(current_user.id)
                 continue
