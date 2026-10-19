@@ -1,3 +1,4 @@
+import {ShopComponent} from './workspace/shop.component';
 import {UserCardDirective} from './workspace/user-card.directive';
 import {UserCardService} from './workspace/user-card.service';
 import {UserCardComponent} from './workspace/user-card.component';
@@ -647,7 +648,7 @@ const DEFAULT_SERVER_ICON_ASSET_BY_NAME: Record<string, string> = {
 @Component({
   providers: [AuthFormStore],
     selector: 'app-root',
-    imports: [UserCardDirective, UserCardComponent, WalletDialogComponent, WalletBalanceComponent, AndroidCallOutputComponent, GuestHeaderComponent, LandingComponent, FriendLinkComponent, FriendInviteComponent, MobileViewportDirective, PlatformListComponent, AdminDirectoryComponent, AvatarPickerComponent, AudioDevicePickerComponent, InfoPanelComponent, ActionMenuComponent, CommonModule, FormsModule, MediaStreamSrcDirective, SectionNavigationComponent, UiIconComponent, ConversationListComponent, QuickSwitchComponent, InviteManagerComponent, InventoryComponent, WallpapersComponent, ThemeControllerComponent, MessageGestureDirective, MessageActionsComponent, EmojiPickerComponent, DesktopPreferencesComponent, SidebarResizeDirective],
+    imports: [ShopComponent, UserCardDirective, UserCardComponent, WalletDialogComponent, WalletBalanceComponent, AndroidCallOutputComponent, GuestHeaderComponent, LandingComponent, FriendLinkComponent, FriendInviteComponent, MobileViewportDirective, PlatformListComponent, AdminDirectoryComponent, AvatarPickerComponent, AudioDevicePickerComponent, InfoPanelComponent, ActionMenuComponent, CommonModule, FormsModule, MediaStreamSrcDirective, SectionNavigationComponent, UiIconComponent, ConversationListComponent, QuickSwitchComponent, InviteManagerComponent, InventoryComponent, WallpapersComponent, ThemeControllerComponent, MessageGestureDirective, MessageActionsComponent, EmojiPickerComponent, DesktopPreferencesComponent, SidebarResizeDirective],
     templateUrl: './app.component.html',
     styleUrls: ['./app.component.scss', './app-layout.scss', './call-workspace.scss', './platform-workspace.scss', './invite-entry.scss', './palette-theme.scss', './auth-workspace.scss', './avatar-presets.scss', './mobile-workspace.scss', './chat-bubbles.scss', './conference-stage.scss']
 })
@@ -1315,8 +1316,10 @@ export class AppComponent {
   readonly fullscreenMediaControlsVisible = signal(true);
 
   readonly session = signal<AuthSessionResponse | null>(null);
+  readonly shopOpen = signal(false);
   readonly inventoryMode = signal<'inventory' | 'admin' | null>(null);
   readonly inventoryUnread = signal(0);
+  readonly wallpaperSuggestedItem=signal<string|null>(null);
   readonly wallpaperOpen = signal(false);
   readonly wallpaperRevision = signal(0);
   readonly wallpaperStyle = signal<WallpaperStyle>({image:'none',size:'auto'});
@@ -7071,6 +7074,7 @@ export class AppComponent {
     this.lastPresenceHeartbeatAt = 0;
     this.session.set(null);
     this.userCards.close();
+    this.shopOpen.set(false);
     this.currentUser.set(null);
     this.pinError.set(null);
     this.pinPending.set([]);

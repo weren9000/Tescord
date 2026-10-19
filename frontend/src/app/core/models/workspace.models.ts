@@ -2,6 +2,7 @@ export interface CurrentUserResponse {
   avatar_preset?: string;
   has_uploaded_avatar?: boolean;
   is_avatar_admin?: boolean;
+  is_shop_admin?: boolean;
   avatar_item_id?: string | null;
   id: string;
   public_id: number;

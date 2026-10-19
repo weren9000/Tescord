@@ -24,7 +24,7 @@ router = APIRouter(prefix='/admin/directory', tags=['admin'], dependencies=[Depe
 Kind = Literal['groups', 'platforms']
 KINDS = {'groups': ServerKind.GROUP_CHAT, 'platforms': ServerKind.WORKSPACE}
 USER_FIELDS = (User.id, User.public_id, User.username.label('name'), User.is_admin,
-               User.is_avatar_admin, User.avatar_updated_at, User.created_at)
+               User.is_avatar_admin, User.is_shop_admin, User.avatar_updated_at, User.created_at)
 SPACE_FIELDS = (Server.id, Server.name, Server.kind, Server.owner_id, Server.icon_asset,
                 Server.icon_updated_at, Server.created_at, User.username.label('owner_name'))
 member_count = select(func.count(ServerMember.id)).where(ServerMember.server_id == Server.id).correlate(Server).scalar_subquery()

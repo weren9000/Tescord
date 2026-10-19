@@ -111,6 +111,7 @@ class User(TimestampMixin, Base):
     avatar_content: Mapped[bytes | None] = deferred(mapped_column(LargeBinary, nullable=True))
     avatar_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, server_default="false")
+    is_shop_admin: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, server_default="false")
     is_avatar_admin: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, server_default="false")
 
     owned_servers: Mapped[list["Server"]] = relationship(back_populates="owner", passive_deletes=True)

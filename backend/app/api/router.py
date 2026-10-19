@@ -1,3 +1,4 @@
+from app.api.routes.shop import router as shop_router
 from fastapi import APIRouter
 from app.api.routes.wallets import router as wallets_router
 from app.api.routes.analytics import router as analytics_router
@@ -49,3 +50,5 @@ api_router.include_router(search_router)
 api_router.include_router(servers_router)
 api_router.include_router(messages_router)
 api_router.include_router(voice_router)
+
+api_router.include_router(shop_router)

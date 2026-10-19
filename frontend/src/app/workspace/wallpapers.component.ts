@@ -15,6 +15,7 @@ type Target = 'personal'|'shared'|'profile';
 export class WallpapersComponent implements OnDestroy {
  readonly previewErrors=signal(false); readonly previewRetry=signal(0);
  retryPreviews(){this.previewErrors.set(false);this.previewRetry.update(v=>v+1);}
+ readonly suggestedItem=input<string|null>(null);
  readonly token=input.required<string>(); readonly open=input(false); readonly revision=input(0); readonly serverId=input<string|null>(null);
  readonly close=output<void>(); readonly applied=output<WallpaperStyle>();
  readonly http=inject(HttpClient); readonly element=inject<ElementRef<HTMLElement>>(ElementRef);
@@ -34,7 +35,7 @@ export class WallpapersComponent implements OnDestroy {
   effect(()=>{this.motion();this.visible();this.reduced();const choice=this.data()?.context?.effective;
    this.applied.emit(choice?this.assetStyle(choice.asset,choice.scale,choice.dim):{image:'none',size:'auto'});
   });
-  effect(cleanup=>{const token=this.token(),serverId=this.serverId();this.revision();const open=this.open();
+  effect(cleanup=>{const token=this.token(),serverId=this.serverId();this.revision();const open=this.open();this.suggestedItem();
    const key=token+'|'+serverId;
    if(key!==this.contextKey){this.contextKey=key;this.data.set(null);this.error.set('');this.target=serverId?'personal':'profile';this.applied.emit({image:'none',size:'auto'});}
    if(open)this.data.set(null);
@@ -68,6 +69,7 @@ export class WallpapersComponent implements OnDestroy {
   const selection=this.target==='profile'?data:this.target==='shared'?data.context!.shared:data.context!.override;
   this.inherit=this.target==='personal'&&!selection;
   this.selected=selection?.selected??null;this.scale=selection?.scale??100;this.dim=selection?.dim??35;
+  const suggested=this.suggestedItem();if(this.open()&&suggested&&data.items.some(i=>i.id==='item:'+suggested)){this.selected='item:'+suggested;this.inherit=false;}
  }
  inheritedLabel(){return this.data()?.context?.kind==='direct'?'Обои собеседника':'Выбор владельца';}
  sourceLabel(){return this.data()?.context?.source==='personal'?'Ваши обои':this.inheritedLabel();}

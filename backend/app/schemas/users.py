@@ -15,6 +15,7 @@ class CurrentUserResponse(BaseModel):
     avatar_preset: str
     has_uploaded_avatar: bool
     is_admin: bool
+    is_shop_admin: bool = False
     is_avatar_admin: bool
     avatar_item_id: UUID | None = None
     created_at: datetime
@@ -30,6 +31,7 @@ class CurrentUserResponse(BaseModel):
             avatar_preset=getattr(user, "avatar_preset"),
             has_uploaded_avatar=getattr(user, "avatar_filename") is not None,
             is_admin=getattr(user, "is_admin"),
+            is_shop_admin=getattr(user, "is_shop_admin", False),
             is_avatar_admin=getattr(user, "is_avatar_admin"),
             created_at=getattr(user, "created_at"),
         )

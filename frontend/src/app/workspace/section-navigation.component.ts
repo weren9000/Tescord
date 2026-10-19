@@ -15,6 +15,7 @@ export type WorkspaceSection = 'chats' | 'groups' | 'platforms';
             <app-ui-icon [name]="section.icon" /><span>{{ section.label }}</span>
           </button>
         }
+        <button type="button" (click)="shop.emit()"><app-ui-icon name="shop"/><span>Магазин</span></button>
         <button type="button" (click)="inventory.emit('inventory')"><app-ui-icon name="inventory"/><span>Инвентарь @if(inventoryUnread()){ · {{inventoryUnread()}} }</span></button>
         @if(isSystemAdmin() || isAvatarAdmin()){<button type="button" [class.active]="adminSelected()" [attr.aria-current]="adminSelected()?'page':null" (click)="admin.emit()"><app-ui-icon name="avatarAdmin"/><span>Админка</span></button>}
       </div>
@@ -49,6 +50,7 @@ export class SectionNavigationComponent {
   readonly adminSelected = input(false);
   readonly admin = output<void>();
   readonly isAvatarAdmin = input(false);
+  readonly shop = output<void>();
   readonly inventoryUnread = input(0);
   readonly inventory = output<'inventory' | 'admin'>();
   readonly initials = input('Я');

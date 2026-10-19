@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from sqlalchemy import select, or_, func, update
 from sqlalchemy.orm import Session
 from app.api.dependencies.auth import get_current_user
-from app.db.models import User
+from app.db.models import User, Server, ServerMember
 from app.db.inventory import InventoryItem, InventoryEvent, InventoryCatalog
 from app.db.session import get_db
 from app.services.inventory import asset_path, catalog_data, lock_inventory
@@ -35,23 +35,53 @@ def item_data(db, item):
             'owner': person(db, item.owner_id)}
 
 
+def usage_expression(user):
+    # Wallpaper references are item:<uuid>; only the owner's personal/shared choices count.
+    reference = func.concat('item:', InventoryItem.id)
+    return or_(InventoryItem.equipped.is_(True), reference == user.chat_wallpaper,
+        select(Server.id).where(Server.owner_id == user.id, Server.chat_wallpaper == reference).exists(),
+        select(ServerMember.id).where(ServerMember.user_id == user.id,
+            ServerMember.wallpaper_override.is_(True), ServerMember.chat_wallpaper == reference).exists())
+
+
 @router.get('')
 def inventory(page: int = Query(1, ge=1), kind: Literal['avatar', 'frame', 'wallpaper', 'theme'] | None = None,
+              grouped: bool = False, equipped_only: bool = False,
+              sort: Literal['new', 'old', 'name'] = 'new',
               q: str = Query('', max_length=80), user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     query = select(InventoryItem).join(InventoryCatalog, InventoryCatalog.id == InventoryItem.catalog_id).where(
         InventoryItem.owner_id == user.id, InventoryItem.revoked.is_(False))
     if kind: query = query.where(InventoryItem.kind == kind)
     if q.strip(): query = query.where(InventoryCatalog.name.ilike(search_pattern(q), escape='\\'))
-    result = paginate(db, query, page, InventoryItem.created_at.desc(), InventoryItem.id)
+    acquired = func.coalesce(select(func.max(InventoryEvent.created_at)).where(InventoryEvent.item_id == InventoryItem.id,
+        InventoryEvent.recipient_id == user.id, InventoryEvent.action.in_(['grant', 'gift', 'purchase'])).correlate(InventoryItem).scalar_subquery(), InventoryItem.created_at)
+    used = usage_expression(user)
+    order = {'new': acquired.desc(), 'old': acquired, 'name': InventoryCatalog.name}[sort]
+    groups = {}
+    if grouped:
+        # Group before pagination: copies never split across pages. Prefer equipped for display.
+        ranked = query.with_only_columns(InventoryItem.id,
+            used.label('in_use'), acquired.label('received_at'),
+            func.row_number().over(partition_by=InventoryItem.catalog_id, order_by=[used.desc(), acquired.desc(), InventoryItem.id]).label('rank'),
+            func.count().over(partition_by=InventoryItem.catalog_id).label('copies'),
+            func.first_value(InventoryItem.id).over(partition_by=InventoryItem.catalog_id, order_by=[used, acquired, InventoryItem.id]).label('gift_id')).subquery()
+        query = query.join(ranked, ranked.c.id == InventoryItem.id).where(ranked.c.rank == 1)
+        if equipped_only: query = query.where(ranked.c.in_use.is_(True))
+        result = paginate(db, query, page, order, InventoryItem.id)
+        ids = [i.id for i in result['items']]
+        if ids: groups = {r.id: r for r in db.execute(select(ranked).where(ranked.c.id.in_(ids)))}
+    else:
+        if equipped_only: query = query.where(used)
+        result = paginate(db, query, page, order, InventoryItem.id)
     events = db.scalars(select(InventoryEvent).where(InventoryEvent.recipient_id == user.id,
-                           InventoryEvent.action.in_(['grant', 'gift', 'revoke']))
+                           InventoryEvent.action.in_(['grant', 'gift', 'revoke', 'purchase']))
                            .order_by(InventoryEvent.created_at.desc()).limit(50)).all()
     unread = db.scalar(select(func.count()).select_from(InventoryEvent).where(
         InventoryEvent.recipient_id == user.id, InventoryEvent.read_at.is_(None),
-        InventoryEvent.action.in_(['grant', 'gift', 'revoke'])))
+        InventoryEvent.action.in_(['grant', 'gift', 'revoke', 'purchase'])))
     equipped = db.scalars(select(InventoryItem.id).where(InventoryItem.owner_id == user.id,
         InventoryItem.equipped.is_(True), InventoryItem.revoked.is_(False))).all()
-    return {**result, 'items': [item_data(db, i) for i in result['items']], 'unread': unread,
+    return {**result, 'items': [{**item_data(db, i), **({'copies': groups[i.id].copies, 'gift_item_id': str(groups[i.id].gift_id), 'in_use': groups[i.id].in_use, 'received_at': groups[i.id].received_at} if i.id in groups else {})} for i in result['items']], 'unread': unread,
             'equipped_ids': sorted(str(i) for i in equipped),
             'notifications': [{'id': str(e.id), 'action': e.action, 'created_at': e.created_at,
                                'name': catalog_data(db, db.get(InventoryItem, e.item_id).catalog_id)['name'],

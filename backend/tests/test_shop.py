@@ -1,0 +1,128 @@
+from concurrent.futures import ThreadPoolExecutor
+from uuid import UUID, uuid4
+import pytest
+from sqlalchemy import select, delete
+from app.db.models import User, WalletOperation
+from app.db.shop import ShopOffer, ShopPurchase, ShopAudit
+from app.db.inventory import InventoryCatalog, InventoryItem, InventoryEvent
+from app.db.session import SessionLocal
+from test_inventory import accounts
+
+
+@pytest.fixture
+def store(accounts):
+    c, users = accounts
+    catalog_id = 'test-shop-'+uuid4().hex
+    with SessionLocal() as db:
+        db.get(User, UUID(users[0][1]['id'])).is_admin = True
+        db.get(User, UUID(users[1][1]['id'])).crystals = 250
+        db.add(InventoryCatalog(id=catalog_id, name='Test Shop', kind='avatar', builtin=True))
+        db.commit()
+    try: yield c, users, catalog_id
+    finally:
+        with SessionLocal() as db:
+            db.execute(delete(ShopPurchase).where(ShopPurchase.catalog_id == catalog_id))
+            db.execute(delete(ShopAudit).where(ShopAudit.actor_id.in_([UUID(u[1]['id']) for u in users])))
+            db.execute(delete(ShopOffer).where(ShopOffer.catalog_id == catalog_id))
+            items=select(InventoryItem.id).where(InventoryItem.catalog_id==catalog_id)
+            db.execute(delete(InventoryEvent).where(InventoryEvent.item_id.in_(items)))
+            db.execute(delete(InventoryItem).where(InventoryItem.catalog_id==catalog_id))
+            db.execute(delete(InventoryCatalog).where(InventoryCatalog.id==catalog_id))
+            db.commit()
+
+
+def offer(c, headers, key, **kw):
+    return c.put('/api/shop/admin/offers/'+key, headers=headers,
+        json=dict(price=100, status='published', position=0, recommended=False, version=0, **kw))
+
+
+def buy(key, **kw):
+    return dict(request_id=str(uuid4()), catalog_id=key, expected_price=100, offer_version=1, **kw)
+
+
+def test_permissions_publication_audit_and_price_validation(store):
+    c,users,key=store;a=users[0][0];b=users[1][0];d=users[2][0]
+    assert c.get('/api/shop').status_code==401
+    assert offer(c,b,key).status_code==403
+    assert c.put('/api/shop/admin/managers/'+users[2][1]['id'],headers=b,json={'enabled':True}).status_code==403
+    assert c.put('/api/shop/admin/managers/'+users[2][1]['id'],headers=a,json={'enabled':True}).status_code==200
+    assert c.get('/api/me',headers=d).json()['is_shop_admin']
+    assert offer(c,d,key).status_code==200
+    assert c.get('/api/shop',headers=b,params={'q':'Test Shop'}).json()['total']==1
+    payload=dict(price=0,status='draft',position=0,version=1)
+    for invalid in (0,-1,True,1.5):
+        assert c.put('/api/shop/admin/offers/'+key,headers=d,json={**payload,'price':invalid}).status_code==422
+    assert offer(c,d,key).status_code==409
+    assert c.get('/api/shop/admin/audit',headers=d).json()['total']>=2
+    assert c.get('/api/admin/wallets/'+users[1][1]['id'],headers=d).status_code==403
+
+
+def test_atomic_purchase_retry_history_gift_and_grouping(store):
+    c,users,key=store;a=users[0][0];b=users[1][0];d=users[2][0]
+    assert offer(c,a,key).status_code==200
+    payload=buy(key)
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        responses=list(pool.map(lambda _:c.post('/api/shop/purchases',headers=b,json=payload),range(3)))
+    assert all(r.status_code==200 for r in responses)
+    assert sum(not r.json()['replayed'] for r in responses)==1
+    first=responses[0].json()
+    assert first['balance_after']==150
+    assert c.get('/api/shop/purchases/'+payload['request_id'],headers=d).status_code==404
+    assert c.get('/api/shop/purchases/'+payload['request_id'],headers=b).json()['item_id']==first['item_id']
+    assert c.post('/api/shop/purchases',headers=d,json=payload).status_code==409
+    assert c.post('/api/shop/purchases',headers=b,json={**payload,'expected_price':99}).status_code==409
+    second=c.post('/api/shop/purchases',headers=b,json=buy(key));assert second.status_code==200
+    inv=c.get('/api/inventory',headers=b,params={'grouped':True}).json()
+    assert inv['total']==1 and inv['items'][0]['copies']==2
+    assert any(n['action']=='purchase' for n in inv['notifications'])
+    gift=c.post('/api/inventory/items/'+second.json()['item_id']+'/gift',headers=b,json={'request_id':str(uuid4()),'recipient_id':users[2][1]['id']})
+    assert gift.status_code==200
+    assert c.get('/api/inventory',headers=d).json()['items'][0]['id']==second.json()['item_id']
+    wallet=c.get('/api/wallet',headers=b).json()
+    assert wallet['crystals']==50 and wallet['total']==2
+    assert all(r['currency']=='crystals' and r['delta']==-100 for r in wallet['items'])
+    assert c.post('/api/shop/purchases',headers=b,json=buy(key)).status_code==409
+
+
+def test_changed_price_withdrawal_and_concurrent_balance(store):
+    c,users,key=store;a=users[0][0];b=users[1][0]
+    assert offer(c,a,key).status_code==200
+    update={'price':200,'status':'published','position':0,'version':1}
+    assert c.put('/api/shop/admin/offers/'+key,headers=a,json=update).status_code==200
+    assert c.post('/api/shop/purchases',headers=b,json=buy(key)).status_code==409
+    payload={**buy(key),'expected_price':200,'offer_version':2}
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        responses=list(pool.map(lambda _:c.post('/api/shop/purchases',headers=b,json={**payload,'request_id':str(uuid4())}),range(2)))
+    assert sorted(r.status_code for r in responses)==[200,409]
+    assert c.get('/api/wallet',headers=b).json()['crystals']==50
+    assert c.put('/api/shop/admin/offers/'+key,headers=a,json={**update,'version':2,'status':'withdrawn'}).status_code==200
+    assert c.get('/api/shop',headers=b,params={'q':'Test Shop'}).json()['total']==0
+    assert c.get('/api/inventory',headers=b).json()['total']==1
+    assert c.post('/api/shop/purchases',headers=b,json=payload).status_code==409
+
+
+def test_wallet_adjustment_and_purchase_share_balance_lock(store):
+    c,users,key=store;a=users[0][0];b=users[1][0]
+    assert offer(c,a,key).status_code==200
+    def purchase():return c.post('/api/shop/purchases',headers=b,json=buy(key))
+    def debit():return c.post('/api/admin/wallets/'+users[1][1]['id']+'/adjust',headers=a,json={
+        'request_id':str(uuid4()),'currency':'crystals','action':'debit','amount':200,'expected_balance':250,'reason':'Concurrent debit'})
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        responses=[f.result() for f in [pool.submit(purchase),pool.submit(debit)]]
+    assert sorted(r.status_code for r in responses)==[200,409]
+    assert c.get('/api/wallet',headers=b).json()['crystals'] in (50,150)
+
+
+def test_grouped_inventory_does_not_split_copies_and_tracks_wallpapers(store):
+    c,users,key=store;b=users[1][0];user_id=UUID(users[1][1]['id'])
+    with SessionLocal() as db:
+        entry=db.get(InventoryCatalog,key);entry.kind='wallpaper'
+        copies=[InventoryItem(catalog_id=key,kind='wallpaper',owner_id=user_id) for _ in range(24)]
+        db.add_all(copies);db.flush()
+        used=str(copies[0].id);db.get(User,user_id).chat_wallpaper='item:'+used;db.commit()
+    data=c.get('/api/inventory',headers=b,params={'grouped':True,'equipped_only':True}).json()
+    assert data['total']==data['pages']==1
+    item=data['items'][0]
+    assert item['copies']==24 and item['in_use'] and item['id']==used
+    assert item['gift_item_id']!=used
+    assert c.get('/api/inventory',headers=b,params={'grouped':True,'q':'no-match'}).json()['total']==0

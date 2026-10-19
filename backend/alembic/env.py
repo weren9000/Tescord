@@ -8,7 +8,7 @@ from sqlalchemy import engine_from_config, pool
 from app.core.config import get_settings
 from app.db.models import Base
 from app.db import inventory  # Register collectible tables in migration metadata.
-from app.db import analytics
+from app.db import analytics, shop
 
 config = context.config
 settings = get_settings()

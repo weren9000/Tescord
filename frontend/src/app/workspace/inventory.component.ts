@@ -1,3 +1,4 @@
+import {CollectiblePreviewComponent} from './collectible-preview.component';
 import {UserCardDirective} from './user-card.directive';
 import {AssetPreviewComponent} from './asset-preview.component';
 import {WalletBalanceComponent} from './wallet-balance.component';
@@ -11,7 +12,7 @@ import { firstValueFrom } from 'rxjs';
 import { API_BASE_URL } from '../core/api/api-base';
 
 interface Person { id: string; nick: string; public_id: number; avatar_updated_at: string | null; }
-interface Item { created_at: string; id: string; catalog_id: string; name: string; kind: string; equipped: boolean; revoked: boolean; owner: Person | null; }
+interface Item { in_use?: boolean; received_at?: string; copies?: number; gift_item_id?: string; created_at: string; id: string; catalog_id: string; name: string; kind: string; equipped: boolean; revoked: boolean; owner: Person | null; }
 interface Notice { id: string; action: string; name: string; actor: Person | null; created_at: string; unread: boolean; }
 interface Event { action: string; actor: Person | null; recipient: Person | null; created_at: string; }
 interface Page<T> { items: T[]; total: number; page: number; pages: number; }
@@ -20,7 +21,7 @@ interface Catalog { id: string; name: string; kind: string; hidden: boolean; }
 interface Pending { action: string; item: Item | null; recipient: Person | null; request_id: string; catalog_id?: string; }
 
 @Component({
- selector: 'app-inventory', standalone: true, imports: [UserCardDirective, WalletBalanceComponent, AssetPreviewComponent, CommonModule, FormsModule, ActionMenuComponent, UiIconComponent],
+ selector: 'app-inventory', standalone: true, imports: [CollectiblePreviewComponent, UserCardDirective, WalletBalanceComponent, AssetPreviewComponent, CommonModule, FormsModule, ActionMenuComponent, UiIconComponent],
  templateUrl: './inventory.component.html', styleUrl: './inventory.component.scss'
 })
 export class InventoryComponent implements OnDestroy {
@@ -36,6 +37,7 @@ export class InventoryComponent implements OnDestroy {
  readonly mode = input<'inventory' | 'admin' | null>(null);
  readonly isAdmin = input(false);
  readonly close = output<void>();
+ readonly shop = output<void>(); readonly wallpaper = output<string>();
  readonly walletOpen = output<void>();
  readonly changed = output<void>();
  readonly unread = output<number>();
@@ -56,13 +58,14 @@ export class InventoryComponent implements OnDestroy {
  readonly searched = signal(false);
  readonly error = signal('');
  readonly success = signal('');
- readonly tab = signal('avatar');
+ readonly tab = signal('all');
  readonly adminTab = signal<'avatar' | 'frame' | 'wallpaper' | 'theme' | 'issued'>('avatar');
  readonly uploadOpen = signal(false);
  readonly editing = signal<Catalog | null>(null);
  readonly total = signal(0);
  readonly currentPage = signal(1);
  readonly pageCount = signal(1);
+ sort='new'; equippedOnly=false;
  filter = ''; issuedKind = ''; uploadName = ''; editName = '';
  uploadKind = 'avatar'; uploadFile: File | null = null; previewUrl = '';
  cropX=50; cropY=50; zoom=1; imageWidth=1; imageHeight=1;
@@ -113,7 +116,7 @@ export class InventoryComponent implements OnDestroy {
  catalogName(id: string) { return this.catalog().find(c=>c.id===id)?.name ?? id; }
  private searchVersion = 0;
  private equipmentSnapshot: string | null = null;
- readonly labels: Record<string, string> = {grant:'Выдача',gift:'Подарок',revoke:'Отзыв',equip:'Использование',unequip:'Снятие'};
+ readonly labels: Record<string, string> = {purchase:'Покупка',grant:'Выдача',gift:'Подарок',revoke:'Отзыв',equip:'Использование',unequip:'Снятие'};
 
  constructor() {
   effect(onCleanup=>{
@@ -130,7 +133,7 @@ export class InventoryComponent implements OnDestroy {
    const focusTimer=mode && !this.embedded() ? setTimeout(()=>this.element.nativeElement.querySelector<HTMLButtonElement>('header button')?.focus()) : undefined;
    onCleanup(()=>{clearTimeout(focusTimer);if(mode)previousFocus?.focus();});
    this.pending.set(null); this.giftItem.set(null); this.grantOpen.set(false); this.recipient.set(null);
-   this.menu.set(null);this.catalogMenu.set(null);++this.historyVersion;this.detail.set(null);this.themePreview.set(null);this.eventsOpen.set(false);this.adminTab.set(this.initialTab());this.tab.set('avatar');this.uploadOpen.set(false);this.editing.set(null);this.resetUpload();
+   this.menu.set(null);this.catalogMenu.set(null);++this.historyVersion;this.detail.set(null);this.themePreview.set(null);this.eventsOpen.set(false);this.adminTab.set(this.initialTab());this.tab.set('all');this.uploadOpen.set(false);this.editing.set(null);this.resetUpload();
    this.history.set(null); this.people.set([]); this.searched.set(false); this.query='';this.filter='';this.selectedCatalog='';this.currentPage.set(1);++this.loadVersion;++this.searchVersion;
    this.error.set(''); this.success.set('');
    if (!token) return;
@@ -157,7 +160,8 @@ export class InventoryComponent implements OnDestroy {
   const version=++this.loadVersion;if(!silent)this.loading.set(true);
   const mode=this.mode(), tab=mode==='admin'?this.adminTab():this.tab();
   const params=new URLSearchParams({page:String(this.currentPage()),q:this.filter});
-  if(tab!=='issued')params.set('kind',tab);else if(this.issuedKind)params.set('kind',this.issuedKind);
+  if(tab!=='issued'&&tab!=='all')params.set('kind',tab);else if(this.issuedKind)params.set('kind',this.issuedKind);
+  if(mode==='inventory'){params.set('grouped','true');params.set('sort',this.sort);params.set('equipped_only',String(this.equippedOnly));}
   try {
    const data=await this.request<Collection>(mode==='inventory'?'?'+params:'');
    if(version!==this.loadVersion)return;
@@ -181,7 +185,7 @@ export class InventoryComponent implements OnDestroy {
  async choose(person: Person) {
   this.recipient.set(person);this.people.set([]);
  }
- startGift(item: Item) {this.menu.set(null);this.giftItem.set(item);this.recipient.set(null);this.people.set([]);this.searched.set(false);this.query='';this.history.set(null);}
+ startGift(item: Item) {if(item.gift_item_id&&item.gift_item_id!==item.id)item={...item,id:item.gift_item_id,equipped:false};this.detail.set(null);this.menu.set(null);this.giftItem.set(item);this.recipient.set(null);this.people.set([]);this.searched.set(false);this.query='';this.history.set(null);}
  confirm(action: string, item: Item | null) {
   if(this.busy())return;
   this.menu.set(null);
@@ -207,7 +211,7 @@ export class InventoryComponent implements OnDestroy {
  preview(item: Item){this.menu.set(null);this.detail.set(null);this.error.set('');this.themePreview.set(item);}
  requestEquip(item: Item){if(item.kind==='wallpaper')return;if(!item.equipped && ['frame','theme'].includes(item.kind))this.preview(item);else void this.equip(item);}
  rawAvatar(){const url=this.avatarUrl();return url ? url+(url.includes('?')?'&':'?')+'include_frame=false' : this.presetImage('cat');}
- itemStatus(item: Item){return item.revoked ? 'Отозван' : item.equipped ? 'Используется' : 'В инвентаре';}
+ itemStatus(item: Item){return item.revoked ? 'Отозван' : (item.in_use??item.equipped) ? 'Используется' : 'В инвентаре';}
  openCatalogMenu(entry: Catalog,event: MouseEvent){event.stopPropagation();this.catalogMenu.set(entry);}
  beginGrant(entry: Catalog){
   if(this.busy()||entry.hidden)return;
