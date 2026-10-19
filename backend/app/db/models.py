@@ -4,7 +4,7 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Index, Integer, LargeBinary, String, Text, Uuid, UniqueConstraint, func
+from sqlalchemy import BigInteger, CheckConstraint, Boolean, DateTime, Enum, ForeignKey, Index, Integer, LargeBinary, String, Text, Uuid, UniqueConstraint, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, deferred, mapped_column, relationship
 from app.services.avatar_presets import random_avatar_preset
 
@@ -89,8 +89,13 @@ class TimestampMixin:
 
 class User(TimestampMixin, Base):
     __tablename__ = "users"
+    __table_args__ = (CheckConstraint('coins >= 0 AND coins <= 9000000000000 AND crystals >= 0 AND crystals <= 9000000000000', name='ck_user_wallet_bounds'),)
+    coins: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0, server_default='0')
+    crystals: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0, server_default='0')
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    friend_invite_code: Mapped[uuid.UUID | None] = mapped_column(Uuid, unique=True)
+    friend_invite_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     chat_wallpaper: Mapped[str | None] = mapped_column(String(64))
     personal_wallpaper: Mapped[str | None] = mapped_column(String(36))
     wallpaper_scale: Mapped[int] = mapped_column(Integer, nullable=False, default=100, server_default='100')
@@ -304,6 +309,29 @@ class FriendRequest(TimestampMixin, Base):
         foreign_keys=[target_user_id],
         back_populates="received_friend_requests",
     )
+
+
+class WalletOperation(TimestampMixin, Base):
+    __tablename__ = 'wallet_operations'
+    __table_args__ = (
+        CheckConstraint("currency IN ('coins', 'crystals') AND delta != 0 AND balance_after >= 0", name='ck_wallet_operation'),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('users.id', ondelete='CASCADE'), index=True)
+    actor_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('users.id', ondelete='SET NULL'))
+    actor_name: Mapped[str] = mapped_column(String(32))
+    currency: Mapped[str] = mapped_column(String(16))
+    delta: Mapped[int] = mapped_column(BigInteger)
+    balance_after: Mapped[int] = mapped_column(BigInteger)
+    reason: Mapped[str] = mapped_column(String(240))
+
+
+class FriendNotice(TimestampMixin, Base):
+    __tablename__ = "friend_notices"
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    peer_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    reason: Mapped[str] = mapped_column(String(16))
 
 
 class FriendBlock(TimestampMixin, Base):

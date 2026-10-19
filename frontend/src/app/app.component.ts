@@ -1,4 +1,7 @@
 import {AndroidCallOutputComponent} from './workspace/android-call-output.component';
+import {WalletDialogComponent} from './workspace/wallet-dialog.component';
+import {WalletBalanceComponent} from './workspace/wallet-balance.component';
+import {WalletService} from './workspace/wallet.service';
 import {GuestHeaderComponent} from './landing/guest-header.component';
 import {LandingComponent} from './landing/landing.component';
 import {FriendLinkComponent} from './workspace/friend-link.component';
@@ -641,7 +644,7 @@ const DEFAULT_SERVER_ICON_ASSET_BY_NAME: Record<string, string> = {
 @Component({
   providers: [AuthFormStore],
     selector: 'app-root',
-    imports: [AndroidCallOutputComponent, GuestHeaderComponent, LandingComponent, FriendLinkComponent, FriendInviteComponent, MobileViewportDirective, PlatformListComponent, AdminDirectoryComponent, AvatarPickerComponent, AudioDevicePickerComponent, InfoPanelComponent, ActionMenuComponent, CommonModule, FormsModule, MediaStreamSrcDirective, SectionNavigationComponent, UiIconComponent, ConversationListComponent, QuickSwitchComponent, InviteManagerComponent, InventoryComponent, WallpapersComponent, ThemeControllerComponent, MessageGestureDirective, MessageActionsComponent, EmojiPickerComponent, DesktopPreferencesComponent, SidebarResizeDirective],
+    imports: [WalletDialogComponent, WalletBalanceComponent, AndroidCallOutputComponent, GuestHeaderComponent, LandingComponent, FriendLinkComponent, FriendInviteComponent, MobileViewportDirective, PlatformListComponent, AdminDirectoryComponent, AvatarPickerComponent, AudioDevicePickerComponent, InfoPanelComponent, ActionMenuComponent, CommonModule, FormsModule, MediaStreamSrcDirective, SectionNavigationComponent, UiIconComponent, ConversationListComponent, QuickSwitchComponent, InviteManagerComponent, InventoryComponent, WallpapersComponent, ThemeControllerComponent, MessageGestureDirective, MessageActionsComponent, EmojiPickerComponent, DesktopPreferencesComponent, SidebarResizeDirective],
     templateUrl: './app.component.html',
     styleUrls: ['./app.component.scss', './app-layout.scss', './call-workspace.scss', './platform-workspace.scss', './invite-entry.scss', './palette-theme.scss', './auth-workspace.scss', './avatar-presets.scss', './mobile-workspace.scss', './chat-bubbles.scss', './conference-stage.scss']
 })
@@ -671,6 +674,46 @@ export class AppComponent {
   }
   readonly inviteManagerSpace = signal<{id: string; name: string} | null>(null);
   readonly pendingFriendInvite=signal(new URLSearchParams(window.location.search).get('friend'));
+  readonly walletOpen=signal(false);
+  private readonly walletService=inject(WalletService);
+  private readonly walletConnection=effect(()=>{this.walletService.connect(this.session()?.access_token??'');if(!this.session())this.walletOpen.set(false);});
+  readonly friendNotices=signal<{id:string;user_id:string;nick:string;reason:string}[]>([]);
+  readonly memberFriendBusy=signal(false);
+  readonly memberFriendError=signal('');
+  memberFriendLabel(userId:string):string {
+    if(this.findDirectConversationByUserId(userId))return 'Написать сообщение';
+    if(this.incomingFriendRequests().some(r=>r.user.user_id===userId))return 'Принять заявку';
+    if(this.outgoingFriendRequests().some(r=>r.user.user_id===userId))return 'Заявка отправлена · отменить';
+    return 'Добавить в друзья';
+  }
+  async memberFriendAction(userId:string):Promise<void>{
+    const token=this.session()?.access_token;
+    if(!token||userId===this.currentUser()?.id||this.memberFriendBusy())return;
+    const conversation=this.findDirectConversationByUserId(userId);
+    if(conversation){this.closeMemberVolume();this.closeGroupMembersPanel();this.closeConversationInfo();this.closeFriendRequestsModal();this.workspaceMode.set('chats');this.loadServerWorkspace(token,conversation.id);return;}
+    this.memberFriendBusy.set(true);this.memberFriendError.set('');
+    const incoming=this.incomingFriendRequests().find(r=>r.user.user_id===userId);
+    const outgoing=this.outgoingFriendRequests().find(r=>r.user.user_id===userId);
+    try{
+      if(incoming)await firstValueFrom(this.workspaceApi.acceptFriendRequest(token,incoming.id));
+      else if(outgoing)await firstValueFrom(this.profileHttp.post(API_BASE_URL+'/api/friends/requests/'+outgoing.id+'/cancel',{},{headers:{Authorization:'Bearer '+token}}));
+      else await firstValueFrom(this.workspaceApi.createFriendRequest(token,{user_id:userId}));
+      await this.refreshFriendRequests(token);
+      if(incoming)await this.refreshConversationsList(token);
+    }catch(error){this.memberFriendError.set(this.extractErrorMessage(error,'Не удалось обработать заявку'));await this.refreshFriendRequests(token);}
+    finally{this.memberFriendBusy.set(false);}
+  }
+  async friendLinkJoined(serverId:string):Promise<void>{
+    const token=this.session()?.access_token;if(!token)return;
+    this.dismissFriendInvite();this.workspaceMode.set('chats');
+    await this.refreshConversationsList(token);
+    this.loadServerWorkspace(token,serverId);
+  }
+  async dismissFriendNotice(id:string):Promise<void>{
+    const token=this.session()?.access_token;if(!token)return;
+    try{await firstValueFrom(this.profileHttp.delete(API_BASE_URL+'/api/friends/notices/'+id,{headers:{Authorization:'Bearer '+token}}));this.friendNotices.update(rows=>rows.filter(n=>n.id!==id));}
+    catch{this.friendRequestsError.set('Не удалось скрыть уведомление');}
+  }
   dismissFriendInvite():void{this.pendingFriendInvite.set(null);const url=new URL(window.location.href);url.searchParams.delete('friend');window.history.replaceState({},'',url.pathname+url.search+url.hash);}
   readonly pendingInviteCode = signal(/^\/invite\/([^/]+)\/?$/.exec(window.location.pathname)?.[1] ?? null);
   readonly invitePreview = signal<InvitePreview | null>(null);
@@ -1412,7 +1455,7 @@ export class AppComponent {
     this.servers().reduce((total, server) => total + Math.max(0, server.mention_unread_count ?? 0), 0)
   );
   readonly notificationAlertCount = computed(
-    () => this.spaceInvitations().length + this.pendingFriendRequestCount() + this.ownerVoiceRequests().length + this.conversationMentionTotalCount() + this.serverMentionTotalCount()
+    () => this.friendNotices().length + this.spaceInvitations().length + this.pendingFriendRequestCount() + this.ownerVoiceRequests().length + this.conversationMentionTotalCount() + this.serverMentionTotalCount()
   );
   readonly friendRequestBadgeVisible = computed(() => this.notificationAlertCount() > 0);
   readonly isActiveGroupOwner = computed(() => {
@@ -4015,6 +4058,7 @@ export class AppComponent {
   });
   openConversationInfo(): void {
     if(!this.activeServer())return;
+    this.memberFriendError.set('');
     this.closeConversationActionMenu();this.platformActionMenuOpen.set(false);this.channelActionTarget.set(null);
     this.infoMemberQuery.set('');this.conversationInfoOpen.set(true);
   }
@@ -5560,31 +5604,6 @@ export class AppComponent {
     return this.canManageActiveGroup() && !this.isProtectedWorkspaceChannel(channel);
   }
 
-  openDirectChatWithSelectedMember(): void {
-    const token = this.session()?.access_token;
-    const member = this.selectedMember();
-    if (!token || !member || member.isSelf) {
-      return;
-    }
-
-    const existingConversation = this.findDirectConversationByUserId(member.userId);
-    if (existingConversation) {
-      this.closeMemberVolume();
-      this.workspaceMode.set('chats');
-      this.loadServerWorkspace(token, existingConversation.id);
-      return;
-    }
-
-    this.createConversationLoading.set(true);
-    this.managementError.set(null);
-    this.sendFriendRequestTrigger$.next({
-      token,
-      payload: { user_id: member.userId },
-      successMessage: `Запрос в друзья отправлен пользователю ${this.displayNick(member.nick)}`,
-      closeModal: true,
-    });
-  }
-
   closeMemberVolume(): void {
     this.selectedMemberUserId.set(null);
     this.selectedVoiceMemberChannelId.set(null);
@@ -7052,6 +7071,8 @@ export class AppComponent {
     this.conversations.set([]);
     this.conversationDirectory.set([]);
     this.incomingFriendRequests.set([]);
+    this.friendNotices.set([]);
+    this.memberFriendError.set('');
     this.outgoingFriendRequests.set([]);
     this.attentionMentions.set([]);
     this.blockedFriends.set([]);
@@ -8608,6 +8629,10 @@ export class AppComponent {
   }
 
   private async refreshFriendRequests(token: string): Promise<void> {
+    try{
+      const notices=await firstValueFrom(this.profileHttp.get<{id:string;user_id:string;nick:string;reason:string}[]>(API_BASE_URL+'/api/friends/notices',{headers:{Authorization:'Bearer '+token}}));
+      if(token===this.session()?.access_token)this.friendNotices.set(notices);
+    }catch{/* Existing request loading remains available if notices fail. */}
     this.invitesApi.inbox(token).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: rows => {if (this.session()?.access_token === token) this.spaceInvitations.set(rows);},
       error: () => {}
@@ -8617,6 +8642,7 @@ export class AppComponent {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (overview) => {
+          if(token!==this.session()?.access_token)return;
           this.incomingFriendRequests.set(overview.incoming);
           this.outgoingFriendRequests.set(overview.outgoing);
           this.pendingFriendRequestCount.set(overview.incoming.length);

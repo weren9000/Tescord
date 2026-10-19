@@ -254,7 +254,7 @@
   </section>
 </ng-template>
 @if (pendingInviteCode() && isAuthenticated()) {<div class="invite-entry-layer"><ng-container *ngTemplateOutlet="inviteNotice" /></div>}
-@if(pendingFriendInvite() && isAuthenticated()) {<div class="invite-entry-layer" role="dialog" aria-modal="true" aria-label="Приглашение в друзья"><app-friend-invite [userId]="pendingFriendInvite()!" [token]="session()!.access_token" (close)="dismissFriendInvite()" (requests)="dismissFriendInvite(); openFriendRequestsModal()" /></div>}
+@if(pendingFriendInvite() && isAuthenticated()) {<div class="invite-entry-layer" role="dialog" aria-modal="true" aria-label="Приглашение в друзья"><app-friend-invite [userId]="pendingFriendInvite()!" [token]="session()!.access_token" (close)="dismissFriendInvite()" (joined)="friendLinkJoined($event)" /></div>}
 @if (inviteManagerSpace(); as space) {<app-invite-manager [space]="space" [token]="session()?.access_token ?? ''" (close)="closeInvites()" />}
 @if (showLanding()) {
   @defer (on immediate) {<app-landing />}
@@ -446,6 +446,7 @@
       <app-action-menu label="Меню" (close)="closeSideMenu()">
         <section>
           <button type="button" (click)="closeSideMenu(); openProfileEditor()"><app-ui-icon name="profile" />Мой профиль</button>
+          <app-wallet-balance [token]="session()!.access_token" (open)="closeSideMenu();walletOpen.set(true)"/>
           <button type="button" (click)="closeSideMenu(); inventoryMode.set('inventory')"><app-ui-icon name="inventory" />Инвентарь @if(inventoryUnread()){ · {{inventoryUnread()}} }</button>
           <button type="button" (click)="closeSideMenu(); appearanceOpen.set(true)"><app-ui-icon name="appearance" />Оформление</button>
           <button type="button" (click)="closeSideMenu(); openVoiceSettings()"><app-ui-icon name="sound" />Звук и устройства</button>
@@ -1577,7 +1578,9 @@
                 <button class="info-member" type="button" (click)="closeConversationInfo(); openGroupMemberFromPanel(member)">
                   <img [src]="userAvatarUrl(member.userId,member.avatarUpdatedAt)" alt="" /><span><strong>{{displayNick(member.nick)}}</strong><small>{{member.roleLabel}} · {{member.isOnline ? 'В сети' : 'Не в сети'}}</small></span>
                 </button>
+                @if(member.userId !== currentUser()?.id){<button type="button" [disabled]="memberFriendBusy()" (click)="memberFriendAction(member.userId)">{{memberFriendLabel(member.userId)}}</button>}
               } @empty {<p>Участники не найдены</p>}
+              @if(memberFriendError()){<p role="alert">{{memberFriendError()}}</p>}
             </section>
             @if(canManageActiveGroup() || (isPlatformsMode() && canOpenPlatformSettings())){
               <section class="info-section"><h4>Управление</h4>
@@ -1765,7 +1768,7 @@
      @if(effectiveProfileAvatarUrl();as url){<img [src]="url" alt=""/>}@else{<span>{{displayNickInitials(currentUser()?.nick ?? '')}}</span>}
     </button><div><strong>{{displayNick(currentUser()?.nick ?? '')}}</strong><button class="secondary-button" type="button" [disabled]="profileSaving()" (click)="profileAvatarChooserOpen.set(true)">Изменить аватар</button></div></div>
     <dl class="profile-card__details"><div><dt>Email</dt><dd>{{currentUser()?.email}}</dd></div><div><dt>ID</dt><dd>{{currentUser()?.public_id}}</dd></div></dl>
-    <app-friend-link [userId]="currentUser()!.id" />
+    <app-friend-link [token]="session()!.access_token" />
     <div class="profile-card__feedback" aria-live="polite">@if(profileError()){<p class="modal-note modal-note--error">{{profileError()}}</p>}</div>
    </div>
    <div class="modal__actions"><button class="secondary-button" type="button" [disabled]="profileSaving()" (click)="closeProfileEditor()">Отмена</button><button class="primary-button" type="button" [disabled]="!canSubmitProfile()" (click)="submitProfileChanges()">{{profileSaving()?'Сохраняем…':'Сохранить'}}</button></div>
@@ -1795,8 +1798,19 @@
         @if (friendRequestsLoading() || attentionInboxLoading()) {
           <p class="modal-note">Загружаем уведомления...</p>
         } @else {
-          @if (attentionMentions().length || ownerVoiceRequests().length || incomingFriendRequests().length || spaceInvitations().length) {
+          @if (friendNotices().length || attentionMentions().length || ownerVoiceRequests().length || incomingFriendRequests().length || spaceInvitations().length) {
             <div class="notification-sections">
+              @if(friendNotices().length){
+                <section class="notification-section">
+                  <div class="notification-section__head"><strong>Новые друзья</strong></div>
+                  @for(notice of friendNotices();track notice.id){
+                    <div class="friend-request-row"><div class="friend-request-row__copy"><strong>{{notice.nick}}</strong><small>{{notice.reason==='link'?'Добавился в друзья по вашей ссылке':'Принял вашу заявку в друзья'}}</small></div>
+                      @if(findDirectConversationByUserId(notice.user_id)){<button type="button" class="secondary-button" (click)="memberFriendAction(notice.user_id)">Написать</button>}
+                      <button type="button" class="secondary-button" (click)="dismissFriendNotice(notice.id)">Скрыть</button>
+                    </div>
+                  }
+                </section>
+              }
               @if (spaceInvitations().length) {
                 <section class="notification-section">
                   <div class="notification-section__head"><strong>Приглашения</strong></div>
@@ -3197,6 +3211,7 @@
                     </button>
 
                     <div class="platform-settings-row__actions">
+                      @if(!member.isSelf){<button type="button" class="secondary-button" [disabled]="memberFriendBusy()" (click)="memberFriendAction(member.userId)">{{memberFriendLabel(member.userId)}}</button>}
                       @if (member.isSelf) {
                         <span class="platform-settings-row__badge">Вы</span>
                       }
@@ -3218,6 +3233,7 @@
                   <p class="modal-note">На площадке пока нет участников.</p>
                 }
               </div>
+              @if(memberFriendError()){<p class="modal-note modal-note--error" role="alert">{{memberFriendError()}}</p>}
             </section>
 
             <section class="platform-settings-section">
@@ -3453,11 +3469,13 @@
                   ×
                 </button>
               }
+              @if(!member.isSelf){<button type="button" class="secondary-button" [disabled]="memberFriendBusy()" (click)="memberFriendAction(member.userId)">{{memberFriendLabel(member.userId)}}</button>}
             </div>
           } @empty {
             <div class="rail-empty">{{ isPlatformsMode() ? 'На площадке пока нет участников' : 'В группе пока нет участников' }}</div>
           }
         </div>
+        @if(memberFriendError()){<p class="modal-note modal-note--error" role="alert">{{memberFriendError()}}</p>}
       </div>
 
       <div class="modal__actions">
@@ -3623,13 +3641,11 @@
               <button
                 class="secondary-button"
                 type="button"
-                [disabled]="member.isSelf || createConversationLoading()"
-                (click)="openDirectChatWithSelectedMember()"
+                [disabled]="member.isSelf || memberFriendBusy()"
+                (click)="memberFriendAction(member.userId)"
               >
                 {{
-                  createConversationLoading()
-                    ? (selectedMemberDirectConversation() ? 'Открываем чат...' : 'Отправляем запрос...')
-                    : (selectedMemberDirectConversation() ? 'Открыть чат' : 'Добавить в друзья')
+                  memberFriendBusy() ? 'Подождите…' : memberFriendLabel(member.userId)
                 }}
               </button>
               <button class="primary-button direct-call-button" type="button" (click)="startDirectCallToSelectedMember()" [disabled]="!canStartDirectCallToSelectedMember()">
@@ -3644,6 +3660,7 @@
           } @else if (directCallNotice() && !selectedMemberHasOtherDirectCall()) {
             <p class="modal-note">{{ directCallNotice() }}</p>
           }
+          @if(memberFriendError()){<p class="modal-note modal-note--error" role="alert">{{memberFriendError()}}</p>}
         }
       </div>
 
@@ -3659,7 +3676,8 @@
 @if(session(); as auth) {
  <app-theme-controller [token]="auth.access_token" [revision]="wallpaperRevision()" />
  <app-wallpapers [token]="auth.access_token" [serverId]="selectedServerId()" [open]="wallpaperOpen()" [revision]="wallpaperRevision()" (close)="wallpaperOpen.set(false)" (applied)="wallpaperStyle.set($event)" />
- <app-inventory [avatarUrl]="currentUserAvatarUrl()" [token]="auth.access_token" [mode]="inventoryMode()" [isAdmin]="isAdmin() || !!currentUser()?.is_avatar_admin" (close)="inventoryMode.set(null)" (changed)="refreshInventoryProfile()" (unread)="inventoryUnread.set($event)" />
+ @if(walletOpen()){@defer(on immediate){<app-wallet-dialog [token]="auth.access_token" (close)="walletOpen.set(false)"/>}@placeholder{<p role="status">Загружаем кошелёк…</p>}}
+ <app-inventory [avatarUrl]="currentUserAvatarUrl()" [token]="auth.access_token" [mode]="inventoryMode()" [isAdmin]="isAdmin() || !!currentUser()?.is_avatar_admin" (walletOpen)="walletOpen.set(true)" (close)="inventoryMode.set(null)" (changed)="refreshInventoryProfile()" (unread)="inventoryUnread.set($event)" />
 }
 
 @if (messageActionsTarget(); as target) {

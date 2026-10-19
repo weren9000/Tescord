@@ -6,6 +6,7 @@ import {Subscription} from 'rxjs';
 import {API_BASE_URL} from '../core/api/api-base';
 import {AdminStatisticsComponent} from './admin-statistics.component';
 import {AdminItemsComponent} from './admin-items.component';
+import {WalletComponent} from './wallet.component';
 
 type Tab = 'users' | 'groups' | 'platforms';
 interface Entry {
@@ -18,7 +19,7 @@ interface Page {items: Entry[]; total: number; page: number; pages: number}
 interface Filter {q: string; owner: string; role: string; sort: string; page: number; size: number; scroll: number; sortBy:string; direction:'asc'|'desc'; columns:Record<string,string>}
 const emptyPage = (): Page => ({items: [], total: 0, page: 1, pages: 1});
 
-@Component({selector:'app-admin-directory', standalone:true, imports:[CommonModule, FormsModule, AdminItemsComponent, AdminStatisticsComponent],
+@Component({selector:'app-admin-directory', standalone:true, imports:[WalletComponent, CommonModule, FormsModule, AdminItemsComponent, AdminStatisticsComponent],
   templateUrl:'./admin-directory.component.html', styleUrl:'./admin-directory.component.scss'})
 export class AdminDirectoryComponent implements OnInit, OnDestroy {
   readonly token = input.required<string>();
@@ -28,6 +29,7 @@ export class AdminDirectoryComponent implements OnInit, OnDestroy {
   readonly changed=output<void>();
   readonly voiceAccess=output<void>();
   readonly itemsActive=signal(false);
+  readonly walletActive=signal(false);
   readonly statsActive=signal(true);
   readonly close = output<void>();
   readonly forbidden = output<void>();
@@ -69,7 +71,7 @@ export class AdminDirectoryComponent implements OnInit, OnDestroy {
   private get<T>(path:string, params:Record<string,string|number>={}){return this.http.get<T>(API_BASE_URL+'/api/admin/directory'+path,{params,headers:{Authorization:'Bearer '+this.token()}});}
   private message(e:unknown){if(e instanceof HttpErrorResponse && (e.status===403 || e.status===401)){this.forbidden.emit();return 'Доступ к админке закрыт.';}return e instanceof HttpErrorResponse && e.status===404?'Запись больше недоступна.':'Не удалось загрузить данные. Повторите попытку.';}
   refresh(){this.countSub?.unsubscribe();this.countSub=this.get<Record<Tab,number>>('/counts').subscribe({next:x=>this.counts.set(x),error:e=>this.message(e)});this.load();}
-  switchTab(tab:Tab){if(!this.systemAdmin())return;if(tab===this.tab()&&!this.itemsActive()&&!this.statsActive())return;this.statsActive.set(false);this.itemsActive.set(false);this.filter.scroll=this.list?.nativeElement.scrollTop??this.filter.scroll;clearTimeout(this.timer);this.closeDetail();this.tab.set(tab);this.load(true);}
+  switchTab(tab:Tab){if(!this.systemAdmin())return;if(tab===this.tab()&&!this.itemsActive()&&!this.statsActive()&&!this.walletActive())return;this.walletActive.set(false);this.statsActive.set(false);this.itemsActive.set(false);this.filter.scroll=this.list?.nativeElement.scrollTop??this.filter.scroll;clearTimeout(this.timer);this.closeDetail();this.tab.set(tab);this.load(true);}
   search(){clearTimeout(this.timer);this.timer=setTimeout(()=>this.change(),300);}
   change(){clearTimeout(this.timer);this.filter.page=1;this.filter.scroll=0;this.load();}
   reset(){Object.assign(this.filter,{q:'',owner:'',role:'all',sort:'new',page:1,scroll:0,sortBy:'created_at',direction:'desc',columns:{}});this.load();}

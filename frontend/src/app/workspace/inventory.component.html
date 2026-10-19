@@ -4,6 +4,7 @@
  <section class="inventory" [attr.role]="embedded()?'region':'dialog'" [attr.aria-modal]="embedded()?null:true" aria-label="Предметы" (click)="$event.stopPropagation();menu.set(null)" (keydown)="keydown($event)">
   <header><h2 id="inventory-title">{{mode()==='admin'?'Админ-Аватарок':'Инвентарь'}}</h2><div class="header-actions">@if(mode()==='inventory'){<button (click)="eventsOpen.set(true)">@if(unreadCount()){<span class="count">{{unreadCount()}}</span>} События</button>}<button aria-label="Закрыть инвентарь" [disabled]="busy()" (click)="dismiss()">×</button></div></header>
   <div class="body" [attr.inert]="pending()||giftItem()||themePreview()||detail()||eventsOpen()||uploadOpen()||editing()||grantOpen() ? '' : null">
+   @if(mode()==='inventory'){<app-wallet-balance [token]="token()" (open)="walletOpen.emit()"/>}
    <nav aria-label="Типы предметов">
     <button [class.active]="(mode()==='admin'?adminTab():tab())==='avatar'" [disabled]="busy()" (click)="switchTab('avatar')">Аватарки</button>
     <button [class.active]="(mode()==='admin'?adminTab():tab())==='frame'" [disabled]="busy()" (click)="switchTab('frame')">Рамки</button>

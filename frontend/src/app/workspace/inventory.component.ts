@@ -1,4 +1,5 @@
 import {AssetPreviewComponent} from './asset-preview.component';
+import {WalletBalanceComponent} from './wallet-balance.component';
 import { ActionMenuComponent } from './action-menu.component';
 import { UiIconComponent } from './ui-icon.component';
 import { Component, ElementRef, effect, inject, input, output, signal, untracked, OnDestroy } from '@angular/core';
@@ -18,7 +19,7 @@ interface Catalog { id: string; name: string; kind: string; hidden: boolean; }
 interface Pending { action: string; item: Item | null; recipient: Person | null; request_id: string; catalog_id?: string; }
 
 @Component({
- selector: 'app-inventory', standalone: true, imports: [AssetPreviewComponent, CommonModule, FormsModule, ActionMenuComponent, UiIconComponent],
+ selector: 'app-inventory', standalone: true, imports: [WalletBalanceComponent, AssetPreviewComponent, CommonModule, FormsModule, ActionMenuComponent, UiIconComponent],
  templateUrl: './inventory.component.html', styleUrl: './inventory.component.scss'
 })
 export class InventoryComponent implements OnDestroy {
@@ -34,6 +35,7 @@ export class InventoryComponent implements OnDestroy {
  readonly mode = input<'inventory' | 'admin' | null>(null);
  readonly isAdmin = input(false);
  readonly close = output<void>();
+ readonly walletOpen = output<void>();
  readonly changed = output<void>();
  readonly unread = output<number>();
  readonly http = inject(HttpClient);

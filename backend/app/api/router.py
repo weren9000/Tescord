@@ -1,4 +1,5 @@
 from fastapi import APIRouter
+from app.api.routes.wallets import router as wallets_router
 from app.api.routes.analytics import router as analytics_router
 from app.api.routes.admin_directory import router as admin_directory_router
 from app.api.routes.inventory_batches import router as inventory_batches_router
@@ -9,6 +10,7 @@ from app.api.routes.auth import router as auth_router
 from app.api.routes.conversations import router as conversations_router
 from app.api.routes.direct_calls import router as direct_calls_router
 from app.api.routes.events import router as events_router
+from app.api.routes.friend_links import router as friend_links_router
 from app.api.routes.friends import router as friends_router
 from app.api.routes.health import router as health_router
 from app.api.routes.invites import router as invites_router
@@ -24,6 +26,7 @@ from app.api.routes.voice import router as voice_router
 from app.api.routes.wallpapers import router as wallpapers_router
 
 api_router = APIRouter()
+api_router.include_router(wallets_router)
 api_router.include_router(analytics_router)
 api_router.include_router(admin_directory_router)
 api_router.include_router(inventory_batches_router)
@@ -36,6 +39,7 @@ api_router.include_router(auth_router)
 api_router.include_router(conversations_router)
 api_router.include_router(direct_calls_router)
 api_router.include_router(events_router)
+api_router.include_router(friend_links_router)
 api_router.include_router(friends_router)
 api_router.include_router(health_router)
 api_router.include_router(users_router)
