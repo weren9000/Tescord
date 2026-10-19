@@ -23,7 +23,7 @@
     </th>}
    </tr></thead><tbody [class.updating]="loading()">
     @for(row of result().items;track row.id){<tr [class.selected]="detailOpen() && detail()?.id===row.id">
-     <td><button class="record-name" (click)="open(row)" [attr.aria-label]="'Подробнее: '+row.name"><span class="avatar">@if(image(row,tab());as url){@if(!failedImages().has(url)){<img [src]="url" alt="" width="32" height="32" loading="lazy" (error)="imageFailed(url)"/>}@else{ {{row.name.slice(0,2)}} }}@else{ {{row.name.slice(0,2)}} }</span><strong [title]="row.name">{{row.name}}</strong></button></td>
+     <td><button class="record-name" (click)="open(row)" [attr.aria-label]="'Подробнее: '+row.name"><span class="avatar" [appUserCard]="tab()==='users' ? row.id : null">@if(image(row,tab());as url){@if(!failedImages().has(url)){<img [src]="url" alt="" width="32" height="32" loading="lazy" (error)="imageFailed(url)"/>}@else{ {{row.name.slice(0,2)}} }}@else{ {{row.name.slice(0,2)}} }</span><strong [title]="row.name">{{row.name}}</strong></button></td>
      @if(tab()==='users'){<td class="numeric">{{row.public_id}}</td><td><span class="badge">{{roles(row)}}</span></td>}
      @else{<td>{{row.owner_name}}</td><td class="numeric">{{row.members_count}}</td>@if(tab()==='platforms'){<td class="numeric">{{row.channels_count}}</td>}}
      <td class="created">{{row.created_at|date:'dd.MM.yyyy':'UTC'}} <small>{{row.created_at|date:'HH:mm':'UTC'}}</small></td>

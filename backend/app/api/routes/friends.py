@@ -151,7 +151,7 @@ def _has_friend_block(db: Session, left_user_id: UUID, right_user_id: UUID) -> b
                     ),
                 )
             )
-        ).scalar_one_or_none()
+        ).scalars().first()
         is not None
     )
 

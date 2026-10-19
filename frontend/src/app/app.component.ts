@@ -1,3 +1,6 @@
+import {UserCardDirective} from './workspace/user-card.directive';
+import {UserCardService} from './workspace/user-card.service';
+import {UserCardComponent} from './workspace/user-card.component';
 import {AndroidCallOutputComponent} from './workspace/android-call-output.component';
 import {WalletDialogComponent} from './workspace/wallet-dialog.component';
 import {WalletBalanceComponent} from './workspace/wallet-balance.component';
@@ -644,7 +647,7 @@ const DEFAULT_SERVER_ICON_ASSET_BY_NAME: Record<string, string> = {
 @Component({
   providers: [AuthFormStore],
     selector: 'app-root',
-    imports: [WalletDialogComponent, WalletBalanceComponent, AndroidCallOutputComponent, GuestHeaderComponent, LandingComponent, FriendLinkComponent, FriendInviteComponent, MobileViewportDirective, PlatformListComponent, AdminDirectoryComponent, AvatarPickerComponent, AudioDevicePickerComponent, InfoPanelComponent, ActionMenuComponent, CommonModule, FormsModule, MediaStreamSrcDirective, SectionNavigationComponent, UiIconComponent, ConversationListComponent, QuickSwitchComponent, InviteManagerComponent, InventoryComponent, WallpapersComponent, ThemeControllerComponent, MessageGestureDirective, MessageActionsComponent, EmojiPickerComponent, DesktopPreferencesComponent, SidebarResizeDirective],
+    imports: [UserCardDirective, UserCardComponent, WalletDialogComponent, WalletBalanceComponent, AndroidCallOutputComponent, GuestHeaderComponent, LandingComponent, FriendLinkComponent, FriendInviteComponent, MobileViewportDirective, PlatformListComponent, AdminDirectoryComponent, AvatarPickerComponent, AudioDevicePickerComponent, InfoPanelComponent, ActionMenuComponent, CommonModule, FormsModule, MediaStreamSrcDirective, SectionNavigationComponent, UiIconComponent, ConversationListComponent, QuickSwitchComponent, InviteManagerComponent, InventoryComponent, WallpapersComponent, ThemeControllerComponent, MessageGestureDirective, MessageActionsComponent, EmojiPickerComponent, DesktopPreferencesComponent, SidebarResizeDirective],
     templateUrl: './app.component.html',
     styleUrls: ['./app.component.scss', './app-layout.scss', './call-workspace.scss', './platform-workspace.scss', './invite-entry.scss', './palette-theme.scss', './auth-workspace.scss', './avatar-presets.scss', './mobile-workspace.scss', './chat-bubbles.scss', './conference-stage.scss']
 })
@@ -675,6 +678,10 @@ export class AppComponent {
   readonly inviteManagerSpace = signal<{id: string; name: string} | null>(null);
   readonly pendingFriendInvite=signal(new URLSearchParams(window.location.search).get('friend'));
   readonly walletOpen=signal(false);
+  readonly userCards=inject(UserCardService);
+  readonly userCardVoiceControls=computed(()=>{const id=this.userCards.selected()?.id;return !!id&&this.activeCallVoiceParticipants().some(p=>p.user_id===id);});
+  openUserCardVoice(id:string):void{this.callParticipantId.set(id);}
+  openUserCardChat(id:string):void{const token=this.session()?.access_token;if(!token)return;this.closeConversationInfo();this.closeGroupMembersPanel();this.closeFriendRequestsModal();this.workspaceMode.set('chats');this.loadServerWorkspace(token,id);}
   private readonly walletService=inject(WalletService);
   private readonly walletConnection=effect(()=>{this.walletService.connect(this.session()?.access_token??'');if(!this.session())this.walletOpen.set(false);});
   readonly friendNotices=signal<{id:string;user_id:string;nick:string;reason:string}[]>([]);
@@ -861,7 +868,7 @@ export class AppComponent {
     .filter(c => c.kind === (this.isGroupsMode() ? 'group_chat' : 'direct') && c.title.toLocaleLowerCase('ru').includes(this.sidebarQuery().trim().toLocaleLowerCase('ru')))
     .sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned))
     .map(conversation => ({
-    id: conversation.id, name: conversation.title, subtitle: this.conversationMetaLabel(conversation),
+    userId: this.conversationPeer(conversation)?.user_id, id: conversation.id, name: conversation.title, subtitle: this.conversationMetaLabel(conversation),
     pinned: !!conversation.pinned,
     icon: this.conversationIconUrl(conversation), group: conversation.kind === 'group_chat',
     online: conversation.kind === 'direct' ? this.conversationPeer(conversation)?.is_online : undefined,
@@ -7063,6 +7070,7 @@ export class AppComponent {
     this.voiceRoom.leave();
     this.lastPresenceHeartbeatAt = 0;
     this.session.set(null);
+    this.userCards.close();
     this.currentUser.set(null);
     this.pinError.set(null);
     this.pinPending.set([]);
@@ -8771,6 +8779,7 @@ export class AppComponent {
   }
 
   private async handleFriendRequestsChangedEvent(event: AppFriendRequestsChangedEvent): Promise<void> {
+    this.userCards.revision.update(v=>v+1);
     this.pendingFriendRequestCount.set(event.pending_incoming_count);
     const token = this.session()?.access_token;
     if (!token) {

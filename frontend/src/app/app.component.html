@@ -108,7 +108,7 @@
                     <div class="call-window__empty-stage">
                       <div class="call-window__avatar">
                         @if (userAvatarUrl(peer.user_id, peer.avatar_updated_at); as avatarUrl) {
-                          <img [src]="avatarUrl" [alt]="displayNick(peer.nick)" loading="lazy" />
+                          <img [appUserCard]="peer.user_id" [src]="avatarUrl" [alt]="displayNick(peer.nick)" loading="lazy" />
                         } @else {
                           <span>{{ displayNickInitials(peer.nick) }}</span>
                         }
@@ -143,7 +143,7 @@
                         @if(conferenceCamera(participant.user_id); as camera){
                           <video autoplay playsinline [appMediaStreamSrc]="camera.stream" [appMediaStreamMuted]="camera.isSelf"></video>
                         }@else{
-                          @if(userAvatarUrl(participant.user_id,participant.avatar_updated_at); as avatar){<img class="conference-avatar" [src]="avatar" [alt]="displayNick(participant.nick)" />}
+                          @if(userAvatarUrl(participant.user_id,participant.avatar_updated_at); as avatar){<img [appUserCard]="participant.user_id" class="conference-avatar" [src]="avatar" [alt]="displayNick(participant.nick)" />}
                           @else{<span class="conference-initials">{{displayNickInitials(participant.nick)}}</span>}
                         }
                         <span class="conference-name">{{displayNick(participant.nick)}} @if(participant.muted || participant.owner_muted){<app-ui-icon name="micOff" />}</span>
@@ -167,7 +167,7 @@
                         <div class="group-voice-roster__member">
                           <div class="group-voice-roster__avatar">
                             @if (userAvatarUrl(participant.user_id, participant.avatar_updated_at); as avatarUrl) {
-                              <img [src]="avatarUrl" [alt]="displayNick(participant.nick)" loading="lazy" />
+                              <img [appUserCard]="participant.user_id" [src]="avatarUrl" [alt]="displayNick(participant.nick)" loading="lazy" />
                             } @else {
                               <span>{{ displayNickInitials(participant.nick) }}</span>
                             }
@@ -502,8 +502,8 @@
       </app-action-menu>
     }
     <div class="messenger-layout" [class.messenger-layout--admin]="adminDirectoryOpen() && (isAdmin() || !!currentUser()?.is_avatar_admin)" [class.messenger-layout--info]="conversationInfoOpen()" [class.messenger-layout--platform]="isPlatformsMode()" [class.platforms-list-collapsed]="desktopPreferences.value().platformsCollapsed" [attr.data-density]="desktopPreferences.value().density" [class.messenger-layout--sidebar-collapsed]="desktopPreferences.value().collapsed" [style.--sidebar-width]="desktopPreferences.value().width + 'px'" [style.--message-text-size]="desktopPreferences.value().textSize + 'px'">
-      <app-section-navigation [isSystemAdmin]="isAdmin()" [adminSelected]="adminDirectoryOpen() && (isAdmin() || !!currentUser()?.is_avatar_admin)" (admin)="openAdminDirectory()" [isAvatarAdmin]="!!currentUser()?.is_avatar_admin" [inventoryUnread]="inventoryUnread()" (inventory)="inventoryMode.set($event)" [avatarUrl]="currentUserAvatarUrl()" [selected]="workspaceMode()" [initials]="displayNickInitials(currentUser()?.nick ?? 'Я')" [hasNotifications]="friendRequestBadgeVisible()" (selectSection)="selectWorkspaceMode($event)" (menu)="toggleSideMenu()" (search)="openQuickSwitch()" (profile)="toggleSideMenu()" (notifications)="openFriendRequestsModal()" />
-      @if(adminDirectoryOpen() && (isAdmin() || !!currentUser()?.is_avatar_admin)){<app-admin-directory (voiceAccess)="openVoiceAdminPanel()" [systemAdmin]="isAdmin()" [actorId]="currentUser()!.id" [avatarUrl]="currentUserAvatarUrl()" (changed)="refreshInventoryProfile()" [token]="session()!.access_token" (close)="adminDirectoryOpen.set(false)" (forbidden)="adminDirectoryOpen.set(false)"/>}
+      <app-section-navigation [userId]="currentUser()?.id ?? null" [isSystemAdmin]="isAdmin()" [adminSelected]="adminDirectoryOpen() && (isAdmin() || !!currentUser()?.is_avatar_admin)" (admin)="openAdminDirectory()" [isAvatarAdmin]="!!currentUser()?.is_avatar_admin" [inventoryUnread]="inventoryUnread()" (inventory)="inventoryMode.set($event)" [avatarUrl]="currentUserAvatarUrl()" [selected]="workspaceMode()" [initials]="displayNickInitials(currentUser()?.nick ?? 'Я')" [hasNotifications]="friendRequestBadgeVisible()" (selectSection)="selectWorkspaceMode($event)" (menu)="toggleSideMenu()" (search)="openQuickSwitch()" (profile)="toggleSideMenu()" (notifications)="openFriendRequestsModal()" />
+      @if(adminDirectoryOpen() && (isAdmin() || !!currentUser()?.is_avatar_admin)){@defer(on immediate){<app-admin-directory (voiceAccess)="openVoiceAdminPanel()" [systemAdmin]="isAdmin()" [actorId]="currentUser()!.id" [avatarUrl]="currentUserAvatarUrl()" (changed)="refreshInventoryProfile()" [token]="session()!.access_token" (close)="adminDirectoryOpen.set(false)" (forbidden)="adminDirectoryOpen.set(false)"/>}@placeholder{<p role="status">Загружаем админку…</p>}}
       @if(isPlatformsMode()){<app-platform-list [spaces]="platformChoices()" [selected]="selectedServerId()" [collapsed]="desktopPreferences.value().platformsCollapsed" [class.platform-list-mobile-open]="mobilePanel()==='servers' && platformBrowserStage()==='spaces'" (select)="selectPlatformFromPicker($event)" (create)="openCreatePlatformShortcut()" (toggle)="desktopPreferences.update({platformsCollapsed:!desktopPreferences.value().platformsCollapsed})"/>}
       <aside class="conversation-sidebar" [class.conversation-sidebar--mobile-open]="mobilePanel() === 'servers' && (!isPlatformsMode() || platformBrowserStage()==='channels')">
         <div class="desktop-sidebar-toolbar">
@@ -583,9 +583,9 @@
                       </button><button class="channel-menu-trigger" type="button" [attr.aria-label]="'Действия канала: ' + channel.name" [attr.title]="'Действия канала: ' + channel.name" aria-haspopup="dialog" (click)="openChannelActions(channel)"><app-ui-icon name="more" /></button></div>
                       @if (platformVoiceParticipants(channel.id).length) {
                         <button class="space-roster-toggle" type="button" [attr.aria-expanded]="expandedPlatformRosters().has(channel.id)" [attr.aria-controls]="'room-roster-' + channel.id" [attr.aria-label]="(expandedPlatformRosters().has(channel.id) ? 'Скрыть участников: ' : 'Показать участников: ') + channel.name" (click)="togglePlatformRoster(channel.id)">
-                          <span class="space-roster-avatars" aria-hidden="true">
+                          <span class="space-roster-avatars">
                             @for (participant of platformVoiceParticipants(channel.id).slice(0, 3); track participant.user_id) {
-                              <span class="space-person__avatar">@if (userAvatarUrl(participant.user_id, participant.avatar_updated_at); as avatar) {<img [src]="avatar" alt="" />} @else { {{ displayNickInitials(participant.nick) }} }</span>
+                              <span class="space-person__avatar">@if (userAvatarUrl(participant.user_id, participant.avatar_updated_at); as avatar) {<img [appUserCard]="participant.user_id" [src]="avatar" alt="" />} @else { {{ displayNickInitials(participant.nick) }} }</span>
                             }
                           </span>
                           <span>{{ expandedPlatformRosters().has(channel.id) ? 'Скрыть' : 'Участники · ' + platformVoiceParticipants(channel.id).length }}</span><app-ui-icon name="down" />
@@ -594,7 +594,7 @@
                         <div class="space-people" [id]="'room-roster-' + channel.id">
                           @for (participant of platformVoiceParticipants(channel.id); track participant.user_id) {
                             <button class="space-person" type="button" [class.space-person--speaking]="participant.speaking" [attr.title]="displayNick(participant.nick)" (click)="openVoiceParticipantControls(participant.user_id, channel.id)">
-                              <span class="space-person__avatar">@if (userAvatarUrl(participant.user_id, participant.avatar_updated_at); as avatar) {<img [src]="avatar" alt="" />} @else { {{ displayNickInitials(participant.nick) }} }</span>
+                              <span class="space-person__avatar">@if (userAvatarUrl(participant.user_id, participant.avatar_updated_at); as avatar) {<img [appUserCard]="participant.user_id" [src]="avatar" alt="" />} @else { {{ displayNickInitials(participant.nick) }} }</span>
                               <span class="space-person__name">{{ displayNick(participant.nick) }}</span>
                               <span class="space-person__status">{{ participant.muted || participant.owner_muted ? 'Микр. выкл.' : participant.speaking ? 'Говорит' : 'В голосе' }}</span>
                               @if (participant.muted || participant.owner_muted) {<app-ui-icon name="micOff" aria-label="Микрофон выключен" />}
@@ -642,7 +642,8 @@
                 [class.conversation-head__avatar--group]="!isChatsMode()"
                 [class.conversation-head__avatar--editable]="!isChatsMode() && canEditActiveServerIcon()"
                 type="button"
-                [disabled]="!(!isChatsMode() && canEditActiveServerIcon()) || serverIconSaving()"
+                [appUserCard]="isChatsMode() ? activeDirectPeer()?.user_id : null"
+                [disabled]="(!isChatsMode() && !canEditActiveServerIcon()) || serverIconSaving()"
                 [attr.title]="!isChatsMode() && canEditActiveServerIcon() ? 'Загрузить иконку пространства' : null"
                 [attr.aria-label]="!isChatsMode() && canEditActiveServerIcon() ? 'Загрузить иконку пространства' : null"
                 (click)="!isChatsMode() && canEditActiveServerIcon() ? openServerIconPicker() : null"
@@ -928,7 +929,7 @@
                               <div class="group-voice-roster__member">
                                 <div class="group-voice-roster__avatar">
                                   @if (userAvatarUrl(participant.user_id, participant.avatar_updated_at); as avatarUrl) {
-                                    <img [src]="avatarUrl" [alt]="displayNick(participant.nick)" loading="lazy" />
+                                    <img [appUserCard]="participant.user_id" [src]="avatarUrl" [alt]="displayNick(participant.nick)" loading="lazy" />
                                   } @else {
                                     <span>{{ displayNickInitials(participant.nick) }}</span>
                                   }
@@ -1101,7 +1102,7 @@
                           class="message-card__avatar"
                         >
                           @if (userAvatarUrl(message.author.id, message.author.avatar_updated_at); as avatarUrl) {
-                            <img [src]="avatarUrl" [alt]="displayNick(message.author.nick)" loading="lazy" />
+                            <img [appUserCard]="message.author.id" [src]="avatarUrl" [alt]="displayNick(message.author.nick)" loading="lazy" />
                           } @else {
                             <span>{{ displayNickInitials(message.author.nick) }}</span>
                           }
@@ -1480,7 +1481,7 @@
                           >
                             <div class="composer__mention-avatar">
                               @if (userAvatarUrl(candidate.userId, candidate.avatarUpdatedAt); as avatarUrl) {
-                                <img class="composer__mention-avatar-image" [src]="avatarUrl" [alt]="composerMentionLabel(candidate)" loading="lazy" />
+                                <img [appUserCard]="candidate.userId" class="composer__mention-avatar-image" [src]="avatarUrl" [alt]="composerMentionLabel(candidate)" loading="lazy" />
                               } @else {
                                 <span>{{ displayNickInitials(candidate.nick) }}</span>
                               }
@@ -1544,7 +1545,7 @@
       @if (conversationInfoOpen() && activeServer(); as space) {
         <app-info-panel [label]="isChatsMode() ? 'О собеседнике' : isPlatformsMode() ? 'О площадке' : 'О группе'" (close)="closeConversationInfo()">
           <div class="info-identity">
-            @if (activeSpaceIconUrl(); as icon) { <img class="info-avatar" [src]="icon" alt="" /> } @else { <span class="info-avatar">{{ displayNickInitials(space.name) }}</span> }
+            @if (activeSpaceIconUrl(); as icon) { <img class="info-avatar" [appUserCard]="isChatsMode() ? activeDirectPeer()?.user_id : null" [src]="icon" alt="" /> } @else { <span class="info-avatar" [appUserCard]="isChatsMode() ? activeDirectPeer()?.user_id : null">{{ displayNickInitials(space.name) }}</span> }
             <h3>{{ space.name }}</h3>
             @if (activeDirectPeer(); as peer) { <p>{{ peer.is_online ? 'В сети' : 'Не в сети' }} · ID {{ formatPublicUserId(peer.public_id) }}</p> }
             @else { <p>{{ activeGroupMemberCount() }} участников</p>@if(conversationInfoDescription();as description){<p>{{description}}</p>} }
@@ -1576,7 +1577,7 @@
               <input type="search" aria-label="Найти участника" placeholder="Найти участника" [ngModel]="infoMemberQuery()" (ngModelChange)="infoMemberQuery.set($event)" />
               @for(member of infoMembers();track member.userId){
                 <button class="info-member" type="button" (click)="closeConversationInfo(); openGroupMemberFromPanel(member)">
-                  <img [src]="userAvatarUrl(member.userId,member.avatarUpdatedAt)" alt="" /><span><strong>{{displayNick(member.nick)}}</strong><small>{{member.roleLabel}} · {{member.isOnline ? 'В сети' : 'Не в сети'}}</small></span>
+                  <img [appUserCard]="member.userId" [src]="userAvatarUrl(member.userId,member.avatarUpdatedAt)" alt="" /><span><strong>{{displayNick(member.nick)}}</strong><small>{{member.roleLabel}} · {{member.isOnline ? 'В сети' : 'Не в сети'}}</small></span>
                 </button>
                 @if(member.userId !== currentUser()?.id){<button type="button" [disabled]="memberFriendBusy()" (click)="memberFriendAction(member.userId)">{{memberFriendLabel(member.userId)}}</button>}
               } @empty {<p>Участники не найдены</p>}
@@ -1861,7 +1862,7 @@
                       <div class="friend-request-row">
                         <div class="friend-request-row__avatar">
                           @if (userAvatarUrl(request.requester_user_id, request.requester_avatar_updated_at); as avatarUrl) {
-                            <img [src]="avatarUrl" [alt]="displayNick(request.requester_nick)" loading="lazy" />
+                            <img [appUserCard]="request.requester_user_id" [src]="avatarUrl" [alt]="displayNick(request.requester_nick)" loading="lazy" />
                           } @else {
                             <span>{{ displayNickInitials(request.requester_nick) }}</span>
                           }
@@ -1899,7 +1900,7 @@
                       <div class="friend-request-row">
                         <div class="friend-request-row__avatar">
                           @if (userAvatarUrl(request.user.user_id, request.user.avatar_updated_at); as avatarUrl) {
-                            <img [src]="avatarUrl" [alt]="displayNick(request.user.nick)" loading="lazy" />
+                            <img [appUserCard]="request.user.user_id" [src]="avatarUrl" [alt]="displayNick(request.user.nick)" loading="lazy" />
                           } @else {
                             <span>{{ displayNickInitials(request.user.nick) }}</span>
                           }
@@ -1976,7 +1977,7 @@
               <div class="friend-request-row">
                 <div class="friend-request-row__avatar">
                   @if (userAvatarUrl(blockedUser.user_id, blockedUser.avatar_updated_at); as avatarUrl) {
-                    <img [src]="avatarUrl" [alt]="displayNick(blockedUser.nick)" loading="lazy" />
+                    <img [appUserCard]="blockedUser.user_id" [src]="avatarUrl" [alt]="displayNick(blockedUser.nick)" loading="lazy" />
                   } @else {
                     <span>{{ displayNickInitials(blockedUser.nick) }}</span>
                   }
@@ -2073,7 +2074,7 @@
               >
                 <span class="conversation-picker-row__avatar">
                   @if (userAvatarUrl(member.userId, member.avatarUpdatedAt); as avatarUrl) {
-                    <img [src]="avatarUrl" [alt]="displayNick(member.nick)" loading="lazy" />
+                    <img [appUserCard]="member.userId" [src]="avatarUrl" [alt]="displayNick(member.nick)" loading="lazy" />
                   } @else {
                     <span>{{ displayNickInitials(member.nick) }}</span>
                   }
@@ -2809,7 +2810,7 @@
                     />
                     <span class="conversation-picker-row__avatar">
                       @if (userAvatarUrl(user.user_id, user.avatar_updated_at); as avatarUrl) {
-                        <img [src]="avatarUrl" [alt]="displayNick(user.nick)" loading="lazy" />
+                        <img [appUserCard]="user.user_id" [src]="avatarUrl" [alt]="displayNick(user.nick)" loading="lazy" />
                       } @else {
                         <span>{{ displayNickInitials(user.nick) }}</span>
                       }
@@ -2899,7 +2900,7 @@
               >
                 <span class="conversation-picker-row__avatar">
                   @if (userAvatarUrl(user.user_id, user.avatar_updated_at); as avatarUrl) {
-                    <img [src]="avatarUrl" [alt]="displayNick(user.nick)" loading="lazy" />
+                    <img [appUserCard]="user.user_id" [src]="avatarUrl" [alt]="displayNick(user.nick)" loading="lazy" />
                   } @else {
                     <span>{{ displayNickInitials(user.nick) }}</span>
                   }
@@ -2978,7 +2979,7 @@
                 />
                 <span class="conversation-picker-row__avatar">
                   @if (userAvatarUrl(user.user_id, user.avatar_updated_at); as avatarUrl) {
-                    <img [src]="avatarUrl" [alt]="displayNick(user.nick)" loading="lazy" />
+                    <img [appUserCard]="user.user_id" [src]="avatarUrl" [alt]="displayNick(user.nick)" loading="lazy" />
                   } @else {
                     <span>{{ displayNickInitials(user.nick) }}</span>
                   }
@@ -3198,7 +3199,7 @@
                     >
                       <span class="conversation-picker-row__avatar platform-settings-row__avatar">
                         @if (userAvatarUrl(member.userId, member.avatarUpdatedAt); as avatarUrl) {
-                          <img [src]="avatarUrl" [alt]="displayNick(member.nick)" loading="lazy" />
+                          <img [appUserCard]="member.userId" [src]="avatarUrl" [alt]="displayNick(member.nick)" loading="lazy" />
                         } @else {
                           <span>{{ displayNickInitials(member.nick) }}</span>
                         }
@@ -3353,7 +3354,7 @@
                         <div class="platform-voice-request-row__identity">
                           <span class="platform-voice-request-row__avatar">
                             @if (userAvatarUrl(request.requester_user_id, request.requester_avatar_updated_at); as avatarUrl) {
-                              <img class="platform-voice-request-row__image" [src]="avatarUrl" [alt]="displayNick(request.requester_nick)" loading="lazy" />
+                              <img [appUserCard]="request.requester_user_id" class="platform-voice-request-row__image" [src]="avatarUrl" [alt]="displayNick(request.requester_nick)" loading="lazy" />
                             } @else {
                               <span>{{ displayNickInitials(request.requester_nick) }}</span>
                             }
@@ -3446,7 +3447,7 @@
               <button class="conversation-picker-row__main" type="button" (click)="openGroupMemberFromPanel(member)">
                 <span class="conversation-picker-row__avatar">
                   @if (userAvatarUrl(member.userId, member.avatarUpdatedAt); as avatarUrl) {
-                    <img [src]="avatarUrl" [alt]="displayNick(member.nick)" loading="lazy" />
+                    <img [appUserCard]="member.userId" [src]="avatarUrl" [alt]="displayNick(member.nick)" loading="lazy" />
                   } @else {
                     <span>{{ displayNickInitials(member.nick) }}</span>
                   }
@@ -3677,6 +3678,7 @@
  <app-theme-controller [token]="auth.access_token" [revision]="wallpaperRevision()" />
  <app-wallpapers [token]="auth.access_token" [serverId]="selectedServerId()" [open]="wallpaperOpen()" [revision]="wallpaperRevision()" (close)="wallpaperOpen.set(false)" (applied)="wallpaperStyle.set($event)" />
  @if(walletOpen()){@defer(on immediate){<app-wallet-dialog [token]="auth.access_token" (close)="walletOpen.set(false)"/>}@placeholder{<p role="status">Загружаем кошелёк…</p>}}
+ @if(userCards.selected()){@defer(on immediate){<app-user-card [token]="auth.access_token" [voiceControls]="userCardVoiceControls()" (chat)="openUserCardChat($event)" (profile)="openProfileEditor()" (voice)="openUserCardVoice($event)"/>}}
  <app-inventory [avatarUrl]="currentUserAvatarUrl()" [token]="auth.access_token" [mode]="inventoryMode()" [isAdmin]="isAdmin() || !!currentUser()?.is_avatar_admin" (walletOpen)="walletOpen.set(true)" (close)="inventoryMode.set(null)" (changed)="refreshInventoryProfile()" (unread)="inventoryUnread.set($event)" />
 }
 

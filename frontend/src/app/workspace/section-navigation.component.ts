@@ -1,10 +1,11 @@
 import { Component, input, output } from '@angular/core';
+import {UserCardDirective} from './user-card.directive';
 import { UiIconComponent } from './ui-icon.component';
 
 export type WorkspaceSection = 'chats' | 'groups' | 'platforms';
 
 @Component({
-  selector: 'app-section-navigation', standalone: true, imports: [UiIconComponent],
+  selector: 'app-section-navigation', standalone: true, imports: [UserCardDirective, UiIconComponent],
   template: `
     <nav aria-label="Основные разделы">
       <div class="brand"><img src="/assets/kva-wordmark-v2.png" alt="Квачат" width="70" height="35" /></div>
@@ -21,7 +22,7 @@ export type WorkspaceSection = 'chats' | 'groups' | 'platforms';
         <button type="button" title="Быстрый переход (Ctrl+K)" aria-label="Быстрый переход" (click)="search.emit()"><app-ui-icon name="search"/><span>Поиск</span></button>
         <button type="button" aria-label="Меню приложения" (click)="menu.emit()"><app-ui-icon name="menu"/><span>Меню</span></button>
         <button class="notification" type="button" aria-label="Уведомления" (click)="notifications.emit()"><app-ui-icon name="bell"/>@if (hasNotifications()) {<i></i>}<span>События</span></button>
-        <button class="profile" type="button" aria-label="Личное меню" aria-haspopup="dialog" title="Личное меню" (click)="profile.emit()">@if(avatarUrl()){<img class="profile-avatar" [src]="avatarUrl()" alt="" width="44" height="44" />}@else{<b>{{ initials() }}</b>}<span>Профиль</span></button>
+        <button class="profile" type="button" aria-label="Личное меню" aria-haspopup="dialog" title="Личное меню" (click)="profile.emit()">@if(avatarUrl()){<img [appUserCard]="userId()" class="profile-avatar" [src]="avatarUrl()" alt="" width="44" height="44" />}@else{<b [appUserCard]="userId()">{{ initials() }}</b>}<span>Профиль</span></button>
       </div>
     </nav>`,
   styles: [`
@@ -51,6 +52,7 @@ export class SectionNavigationComponent {
   readonly inventoryUnread = input(0);
   readonly inventory = output<'inventory' | 'admin'>();
   readonly initials = input('Я');
+  readonly userId=input<string|null>(null);
   readonly avatarUrl = input<string | null>(null);
   readonly hasNotifications = input(false);
   readonly selectSection = output<WorkspaceSection>();

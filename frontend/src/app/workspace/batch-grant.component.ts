@@ -1,3 +1,4 @@
+import {UserCardDirective} from './user-card.directive';
 import {Component, OnInit, OnDestroy, inject, input, output, signal} from '@angular/core';
 import {CommonModule} from '@angular/common';
 import {FormsModule} from '@angular/forms';
@@ -11,7 +12,7 @@ interface Person {id:string;nick:string;public_id:number}
 interface Page<T>{items:T[];page:number;pages:number;total:number}
 interface Payload {request_id:string;catalog_ids:string[];recipient_ids:string[];skip_existing:boolean;retry_of?:string}
 interface Result {request_id?:string;total:number;ready:number;granted:number;skipped:number;failed:number;rows:{catalog_id:string;recipient_id:string;name:string;nick:string;status:string;reason?:string}[]}
-@Component({selector:'app-batch-grant',standalone:true,imports:[CommonModule,FormsModule,AssetPreviewComponent],templateUrl:'./batch-grant.component.html',styleUrl:'./batch-grant.component.scss'})
+@Component({selector:'app-batch-grant',standalone:true,imports: [UserCardDirective, CommonModule,FormsModule,AssetPreviewComponent],templateUrl:'./batch-grant.component.html',styleUrl:'./batch-grant.component.scss'})
 export class BatchGrantComponent implements OnInit,OnDestroy{
  readonly token=input.required<string>();readonly actorId=input.required<string>();readonly issued=output<void>();
  readonly step=signal<'items'|'people'|'review'|'result'>('items');

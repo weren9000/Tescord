@@ -1,16 +1,17 @@
+import {UserCardDirective} from './user-card.directive';
 import { Component, input, output } from '@angular/core';
 
-export interface ConversationLink { id: string; name: string; subtitle: string; icon: string | null; group: boolean; unread: number; mentions: number; online?: boolean; pinned?: boolean; }
+export interface ConversationLink { userId?:string; id: string; name: string; subtitle: string; icon: string | null; group: boolean; unread: number; mentions: number; online?: boolean; pinned?: boolean; }
 
 @Component({
-  selector: 'app-conversation-list', standalone: true, host: {'[class.compact]':'compact()'},
+  selector: 'app-conversation-list', standalone: true, imports:[UserCardDirective], host: {'[class.compact]':'compact()'},
   template: `
     @for (entry of entries(); track entry.id; let first = $first; let index = $index) {
       @if (entry.pinned && first) { <h3>Закреплённые</h3> }
       @if (!entry.pinned && index > 0 && entries()[index - 1].pinned) { <h3>Все беседы</h3> }
       <div class="entry-row">
       <button class="entry" [title]="entry.name" [attr.aria-label]="entry.name" [class.selected]="selected() === entry.id" [attr.aria-current]="selected() === entry.id ? 'page' : null" (click)="open.emit(entry.id)">
-        <span class="avatar" [class.group]="entry.group">@if(entry.icon){<img [src]="entry.icon" alt="" />}@else{ {{ entry.name.slice(0,2).toUpperCase() }} }@if(!entry.group){<i class="presence" [class.online]="entry.online" [attr.title]="entry.online ? 'В сети' : 'Не в сети'"></i>}</span>
+        <span class="avatar" [appUserCard]="entry.group ? null : entry.userId" [class.group]="entry.group">@if(entry.icon){<img [src]="entry.icon" alt="" />}@else{ {{ entry.name.slice(0,2).toUpperCase() }} }@if(!entry.group){<i class="presence" [class.online]="entry.online" [attr.title]="entry.online ? 'В сети' : 'Не в сети'"></i>}</span>
         <span class="copy"><strong>{{ entry.name }}</strong><span>{{ entry.subtitle || (entry.group ? 'Групповой чат' : 'Личная переписка') }}</span></span>
         @if(entry.mentions){<small class="mention">&#64;{{ entry.mentions }}</small>}@else if(entry.unread){<small>{{ entry.unread > 99 ? '99+' : entry.unread }}</small>}
       </button>

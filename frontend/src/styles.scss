@@ -111,3 +111,4 @@ body {
   opacity: .85;
 }
 :root[data-ui-scheme='light'] .composer__submit img {filter: brightness(.35);}
+.user-card-trigger{cursor:pointer!important}.user-card-trigger:focus-visible{outline:2px solid var(--palette-primary);outline-offset:3px}

@@ -1,3 +1,4 @@
+import {UserCardDirective} from './user-card.directive';
 import {Component, ElementRef, OnDestroy, OnInit, ViewChild, inject, input, output, signal} from '@angular/core';
 import {CommonModule} from '@angular/common';
 import {FormsModule} from '@angular/forms';
@@ -19,7 +20,7 @@ interface Page {items: Entry[]; total: number; page: number; pages: number}
 interface Filter {q: string; owner: string; role: string; sort: string; page: number; size: number; scroll: number; sortBy:string; direction:'asc'|'desc'; columns:Record<string,string>}
 const emptyPage = (): Page => ({items: [], total: 0, page: 1, pages: 1});
 
-@Component({selector:'app-admin-directory', standalone:true, imports:[WalletComponent, CommonModule, FormsModule, AdminItemsComponent, AdminStatisticsComponent],
+@Component({selector:'app-admin-directory', standalone:true, imports: [UserCardDirective, WalletComponent, CommonModule, FormsModule, AdminItemsComponent, AdminStatisticsComponent],
   templateUrl:'./admin-directory.component.html', styleUrl:'./admin-directory.component.scss'})
 export class AdminDirectoryComponent implements OnInit, OnDestroy {
   readonly token = input.required<string>();

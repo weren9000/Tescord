@@ -11,10 +11,35 @@ from app.api.dependencies.auth import get_current_user, bearer_scheme, resolve_u
 from app.api.routes.friends import _has_friend_block, _lock_friendships, _pair_filter, _load_request_or_404
 from app.db.models import User, FriendRequest, FriendRequestStatus, FriendNotice
 from app.db.session import get_db
-from app.services.direct_conversations import ensure_direct_conversation
+from app.services.direct_conversations import ensure_direct_conversation, load_direct_conversation
 from app.services.app_events import publish_friend_requests_changed_from_sync, publish_servers_changed_from_sync
 
 router = APIRouter(prefix='/friends', tags=['friends'])
+
+
+@router.get('/users/{user_id}')
+def user_card(user_id: UUID, response: Response, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    response.headers['Cache-Control'] = 'no-store'
+    peer = db.get(User, user_id)
+    if peer is None:
+        raise HTTPException(404, 'Пользователь недоступен')
+    result = {'user_id': peer.id, 'nick': peer.username, 'public_id': peer.public_id,
+              'avatar_updated_at': peer.avatar_updated_at, 'request_id': None, 'server_id': None}
+    if user.id == peer.id:
+        return {**result, 'state': 'self'}
+    if _has_friend_block(db, user.id, peer.id):
+        # Do not disclose who blocked whom.
+        return {**result, 'state': 'unavailable'}
+    direct = load_direct_conversation(db, user.id, peer.id)
+    if direct:
+        return {**result, 'state': 'friends', 'server_id': direct.id}
+    requests = db.scalars(select(FriendRequest).where(_pair_filter(user.id, peer.id))).all()
+    pending = next((r for r in requests if r.status == FriendRequestStatus.PENDING), None)
+    if pending:
+        return {**result, 'state': 'outgoing' if pending.requester_user_id == user.id else 'incoming', 'request_id': pending.id}
+    if any(r.status == FriendRequestStatus.ACCEPTED for r in requests):
+        return {**result, 'state': 'friends'}
+    return {**result, 'state': 'ready'}
 
 
 class LinkLifetime(BaseModel):

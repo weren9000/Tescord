@@ -1,3 +1,4 @@
+import {UserCardDirective} from './user-card.directive';
 import {AssetPreviewComponent} from './asset-preview.component';
 import {WalletBalanceComponent} from './wallet-balance.component';
 import { ActionMenuComponent } from './action-menu.component';
@@ -19,7 +20,7 @@ interface Catalog { id: string; name: string; kind: string; hidden: boolean; }
 interface Pending { action: string; item: Item | null; recipient: Person | null; request_id: string; catalog_id?: string; }
 
 @Component({
- selector: 'app-inventory', standalone: true, imports: [WalletBalanceComponent, AssetPreviewComponent, CommonModule, FormsModule, ActionMenuComponent, UiIconComponent],
+ selector: 'app-inventory', standalone: true, imports: [UserCardDirective, WalletBalanceComponent, AssetPreviewComponent, CommonModule, FormsModule, ActionMenuComponent, UiIconComponent],
  templateUrl: './inventory.component.html', styleUrl: './inventory.component.scss'
 })
 export class InventoryComponent implements OnDestroy {
