@@ -20,17 +20,16 @@ async def connect_app_events(websocket: WebSocket) -> None:
         return
 
     connection_id = await app_event_manager.connect(websocket, current_user.id)
-    became_online = await asyncio.to_thread(site_presence_manager.mark_active, current_user.id)
-    await websocket.send_json(
-        {
-            "type": "ready",
-            "user_id": str(current_user.id),
-        }
-    )
-    if became_online:
-        await publish_presence_updated(current_user.id)
-
     try:
+        became_online = await asyncio.to_thread(site_presence_manager.mark_active, current_user.id)
+        await websocket.send_json(
+            {
+                "type": "ready",
+                "user_id": str(current_user.id),
+            }
+        )
+        if became_online:
+            await publish_presence_updated(current_user.id)
         while True:
             payload = await receive_authenticated_json(websocket)
             message_type = payload.get("type")

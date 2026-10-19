@@ -16,6 +16,7 @@ from redis import Redis
 from redis.exceptions import WatchError
 from redis.retry import Retry
 from redis.backoff import NoBackoff
+from starlette.websockets import WebSocketState
 from app.core.config import get_settings
 
 log = logging.getLogger(__name__)
@@ -25,6 +26,14 @@ STATE = PREFIX + 'signaling'
 STREAM = PREFIX + 'events'
 LEASE_SECONDS = 30
 local_sockets = {}
+
+
+def live_local_ids():
+    # Also collect sockets whose route failed between accept and its finally block.
+    for cid, ws in list(local_sockets.items()):
+        if ws.application_state == WebSocketState.DISCONNECTED or ws.client_state == WebSocketState.DISCONNECTED:
+            local_sockets.pop(cid, None)
+    return set(local_sockets)
 
 
 @lru_cache
@@ -146,6 +155,7 @@ async def deliver(event):
                 else:
                     await ws.send_json(event['payload'])
         except Exception:
+            local_sockets.pop(cid, None)
             try:
                 await close_socket(ws)
             except Exception:
@@ -166,7 +176,7 @@ async def start():
                 if not await asyncio.to_thread(client().exists, PREFIX + 'worker:' + WORKER):
                     await close_local_sockets()
                 await asyncio.to_thread(client().set, PREFIX + 'worker:' + WORKER, str(os.getpid()), ex=LEASE_SECONDS)
-                await asyncio.to_thread(sweep, set(local_sockets))
+                await asyncio.to_thread(sweep, live_local_ids())
                 await sync_subscriptions()
             except asyncio.CancelledError:
                 raise

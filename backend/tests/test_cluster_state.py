@@ -103,3 +103,17 @@ def test_voice_revocation_updates_shared_state_and_targets_remote_socket(shared)
     import json
     events = [json.loads(fields['data']) for _, fields in shared.xrange(c.STREAM)]
     assert any(event.get('close', {}).get('code') == 4003 and event['ids'] == ['one'] for event in events)
+
+
+def test_socket_closed_during_initialization_is_collected(shared, monkeypatch):
+    from types import SimpleNamespace
+    from starlette.websockets import WebSocketState
+    monkeypatch.setattr(c, 'local_sockets', {
+        'closed': SimpleNamespace(application_state=WebSocketState.DISCONNECTED, client_state=WebSocketState.CONNECTED),
+        'live': SimpleNamespace(application_state=WebSocketState.CONNECTED, client_state=WebSocketState.CONNECTED),
+    })
+    def seed(state, events):
+        state['rooms']['room'] = {cid: {'worker': c.WORKER, 'participant': {'id': cid}} for cid in c.local_sockets}
+    c.transition(seed)
+    c.sweep(c.live_local_ids())
+    assert list(c.read_state()['rooms']['room']) == ['live']
