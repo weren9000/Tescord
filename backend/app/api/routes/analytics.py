@@ -1,4 +1,5 @@
 from datetime import date, datetime, timedelta, timezone
+from typing import Literal
 import hashlib
 import hmac
 from uuid import UUID
@@ -38,7 +39,7 @@ def activity(user:User=Depends(get_current_user),db:Session=Depends(get_db)):
 
 
 @router.get('/admin/statistics')
-def statistics(response:Response,days:int=Query(1),exclude_self:bool=False,start_date:date|None=None,end_date:date|None=None,actor:User=Depends(require_admin),db:Session=Depends(get_db)):
+def statistics(response:Response,days:int=Query(1),exclude_self:bool=False,view:Literal['overview','activity','server','calls']='activity',start_date:date|None=None,end_date:date|None=None,actor:User=Depends(require_admin),db:Session=Depends(get_db)):
     if days not in (1,7,30):raise HTTPException(422,'Unsupported period')
     response.headers['Cache-Control']='no-store'
     now=datetime.now(timezone.utc);today=now.date()
@@ -73,10 +74,11 @@ def statistics(response:Response,days:int=Query(1),exclude_self:bool=False,start
     top=select(Server.id,Server.name,Server.kind,func.count(Message.id).label('messages')).join(Channel,Channel.server_id==Server.id).join(Message,Message.channel_id==Channel.id).where(Server.kind.in_([ServerKind.GROUP_CHAT,ServerKind.WORKSPACE]),Message.created_at>=start_at,Message.created_at<end_at)
     if exclude_self:top=top.where(Message.author_id!=actor.id)
     top_rows=db.execute(top.group_by(Server.id).order_by(func.count(Message.id).desc(),Server.id).limit(10)).mappings()
-    interval='minute' if days==1 and start>=today-timedelta(days=6) else 'hour'
+    interval='minute' if view=='overview' or days==1 and start>=today-timedelta(days=6) else 'hour'
     bucket=func.date_trunc(interval,ResourceSample.at)
     metrics=['cpu_steal_percent', 'cpu_iowait_percent', 'backend_cpu_percent', 'api_ms', 'sql_rate', 'db_acquire_ms', 'call_rtt_ms', 'call_jitter_ms', 'call_loss_percent', 'call_connect_ms', 'call_reconnects','cpu_percent','memory_used','memory_total','disk_used','disk_total','net_in','net_out','online','voice']
-    resource_rows=db.execute(select(bucket.label('at'),*[func.avg(ResourceSample.data[k].as_float()).label(k) for k in metrics]).where(ResourceSample.at>=start_at,ResourceSample.at<end_at).group_by(bucket).order_by(bucket)).mappings().all()
+    resource_start_at=max(start_at,end_at-timedelta(hours=1)) if view=='overview' else start_at
+    resource_rows=db.execute(select(bucket.label('at'),*[func.avg(ResourceSample.data[k].as_float()).label(k) for k in metrics]).where(ResourceSample.at>=resource_start_at,ResourceSample.at<end_at).group_by(bucket).order_by(bucket)).mappings().all()
     hourly_started=db.get(AnalyticsSetting,'hourly_started_at')
     visit_rows=list(rows.values())
     visit_interval='day'
@@ -100,4 +102,4 @@ def statistics(response:Response,days:int=Query(1),exclude_self:bool=False,start
         began=datetime.fromisoformat(tracked.value) if tracked else now
         visit_rows=[dict(at=r['day']+'T00:00:00+00:00',**{k:r[k] if date.fromisoformat(r['day'])>=began.date() else None for k in ['active','visits','guest_visits']}) for r in visit_rows]
     activity_available=bool(tracked and end_at>datetime.fromisoformat(tracked.value))
-    return dict(generated_at=now,start_date=start,end_date=end,start_at=start_at,end_at=end_at,activity_available=activity_available,resource_interval=interval,visit_interval=visit_interval,visits_history=visit_rows,hourly_started_at=hourly_started.value if hourly_started else None,started_at=tracked.value if tracked else None,timezone='UTC',days=days,totals=totals,daily=list(rows.values()),top=[dict(r) for r in top_rows],resources=resources,resource_history=[dict(r) for r in resource_rows],voice_estimated=True)
+    return dict(generated_at=now,start_date=start,end_date=end,start_at=start_at,end_at=end_at,activity_available=activity_available,resource_interval=interval,resource_start_at=resource_start_at,visit_interval=visit_interval,visits_history=visit_rows,hourly_started_at=hourly_started.value if hourly_started else None,started_at=tracked.value if tracked else None,timezone='UTC',days=days,totals=totals,daily=list(rows.values()),top=[dict(r) for r in top_rows],resources=resources,resource_history=[dict(r) for r in resource_rows],voice_estimated=True)
