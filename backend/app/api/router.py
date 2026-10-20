@@ -52,3 +52,6 @@ api_router.include_router(messages_router)
 api_router.include_router(voice_router)
 
 api_router.include_router(shop_router)
+
+from app.api.routes.telemetry import router as telemetry_router
+api_router.include_router(telemetry_router)

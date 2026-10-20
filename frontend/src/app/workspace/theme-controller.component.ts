@@ -1,3 +1,4 @@
+import {ResourceRefreshService} from '../core/services/resource-refresh.service';
 import {Component, effect, inject, input, OnDestroy} from '@angular/core';
 import {HttpClient} from '@angular/common/http';
 import {firstValueFrom} from 'rxjs';
@@ -7,15 +8,14 @@ interface ThemeState {id:string|null;scheme:'light'|'dark';palette:Record<string
 @Component({selector:'app-theme-controller',standalone:true,template:''})
 export class ThemeControllerComponent implements OnDestroy {
  readonly token=input.required<string>();readonly revision=input(0);
+ private readonly refreshEvents=inject(ResourceRefreshService);
  private readonly http=inject(HttpClient);private version=0;private applied:string|null=null;private keys:string[]=[];private account='';
  constructor(){effect(cleanup=>{
   const token=this.token();this.revision();
   if(token!==this.account){this.clear();this.account=token;}
   void this.load(token);
-  const timer=setInterval(()=>void this.load(token),10000);
-  const refresh=()=>{if(document.visibilityState==='visible')void this.load(token);};
-  document.addEventListener('visibilitychange',refresh);
-  cleanup(()=>{++this.version;clearInterval(timer);document.removeEventListener('visibilitychange',refresh);});
+  const refreshSub=this.refreshEvents.changes$.subscribe(()=>{if(!document.hidden)void this.load(token);});
+  cleanup(()=>{++this.version;refreshSub.unsubscribe();});
  });}
  private async load(token:string){
   if(!token)return;const version=++this.version;

@@ -12,9 +12,13 @@ from PIL import Image, ImageOps
 from app.services.attachment_storage import _uploads_root
 
 
-def small_preview_response(content: bytes):
+def small_preview_response(content: bytes, request: Request | None = None):
     """96 px thumbnails for database-backed avatars and space icons."""
     key = hashlib.sha256(b'small-v1:96:' + content).hexdigest()
+    etag = '"' + key + '"'
+    headers = {'Cache-Control': 'public, max-age=300', 'ETag': etag, 'X-Content-Type-Options': 'nosniff'}
+    if request and etag in [tag.strip().removeprefix('W/') for tag in request.headers.get('if-none-match', '').split(',')]:
+        return Response(status_code=304, headers=headers)
     directory = _uploads_root() / 'previews'
     target = directory / (key + '.webp')
     if not target.is_file():
@@ -30,8 +34,7 @@ def small_preview_response(content: bytes):
                 os.replace(name, target)
             finally:
                 Path(name).unlink(missing_ok=True)
-    return FileResponse(target, media_type='image/webp', headers={
-        'Cache-Control': 'public, max-age=300', 'X-Content-Type-Options': 'nosniff'})
+    return FileResponse(target, media_type='image/webp', headers=headers)
 
 
 def preview_path(source: Path) -> Path:

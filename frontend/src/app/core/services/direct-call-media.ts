@@ -1,3 +1,4 @@
+import {observeCall} from './call-telemetry';
 import {computed, signal} from '@angular/core';
 import type {Room, LocalAudioTrack, LocalVideoTrack, RemoteTrack, Track} from 'livekit-client';
 import {SFU_BASE_URL, VOICE_ICE_SERVERS} from '../api/api-base';
@@ -8,6 +9,7 @@ export type DirectCallState = 'idle' | 'outgoing' | 'incoming' | 'connecting' | 
 /** LiveKit transport with the same publication sources and connection options as group calls. */
 export abstract class DirectCallMedia {
   protected room: Room | null = null;
+  private stopTelemetry: (() => void) | null = null;
   private sdk: typeof import('livekit-client') | null = null;
   protected mediaGeneration = 0;
   private localStream: MediaStream | null = null;
@@ -49,13 +51,15 @@ export abstract class DirectCallMedia {
       ...(deviceId ? {deviceId: {exact: deviceId}} : {})};
   }
 
-  protected async connectMedia(credentials: {url: string; token: string}, peerId: string): Promise<void> {
+  protected async connectMedia(credentials: {url: string; token: string}, peerId: string, telemetryToken: () => string | null): Promise<void> {
     const generation = this.mediaGeneration;
     const sdk = await import('livekit-client');
     if (generation !== this.mediaGeneration) return;
     this.sdk = sdk;
     const room = new sdk.Room({adaptiveStream: false, dynacast: true, disconnectOnPageLeave: false, stopLocalTrackOnUnpublish: false});
     this.room = room;
+    this.stopTelemetry?.();
+    this.stopTelemetry = observeCall(room, telemetryToken);
     const current = () => this.room === room && generation === this.mediaGeneration;
     room.on(sdk.RoomEvent.TrackSubscribed, (track, publication, participant) => {
       if (current() && participant.identity === peerId) this.attachTrack(track, publication.source);
@@ -199,6 +203,7 @@ export abstract class DirectCallMedia {
     if(this.remoteAudioElement){this.remoteAudioElement.pause();this.remoteAudioElement.srcObject=null;this.remoteAudioElement=null;}
   }
   protected disconnectMedia(): void {
+    this.stopTelemetry?.(); this.stopTelemetry = null;
     this.mediaGeneration++;
     const room=this.room;this.room=null;
     room?.removeAllListeners();

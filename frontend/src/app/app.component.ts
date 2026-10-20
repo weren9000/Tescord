@@ -1,3 +1,5 @@
+import {MessageTextComponent, RenderedMessageSegment} from './workspace/message-text.component';
+import {BoundedCache} from './shared/bounded-cache';
 import {ShopComponent} from './workspace/shop.component';
 import {UserCardDirective} from './workspace/user-card.directive';
 import {UserCardService} from './workspace/user-card.service';
@@ -648,7 +650,7 @@ const DEFAULT_SERVER_ICON_ASSET_BY_NAME: Record<string, string> = {
 @Component({
   providers: [AuthFormStore],
     selector: 'app-root',
-    imports: [ShopComponent, UserCardDirective, UserCardComponent, WalletDialogComponent, WalletBalanceComponent, AndroidCallOutputComponent, GuestHeaderComponent, LandingComponent, FriendLinkComponent, FriendInviteComponent, MobileViewportDirective, PlatformListComponent, AdminDirectoryComponent, AvatarPickerComponent, AudioDevicePickerComponent, InfoPanelComponent, ActionMenuComponent, CommonModule, FormsModule, MediaStreamSrcDirective, SectionNavigationComponent, UiIconComponent, ConversationListComponent, QuickSwitchComponent, InviteManagerComponent, InventoryComponent, WallpapersComponent, ThemeControllerComponent, MessageGestureDirective, MessageActionsComponent, EmojiPickerComponent, DesktopPreferencesComponent, SidebarResizeDirective],
+    imports: [MessageTextComponent, ShopComponent, UserCardDirective, UserCardComponent, WalletDialogComponent, WalletBalanceComponent, AndroidCallOutputComponent, GuestHeaderComponent, LandingComponent, FriendLinkComponent, FriendInviteComponent, MobileViewportDirective, PlatformListComponent, AdminDirectoryComponent, AvatarPickerComponent, AudioDevicePickerComponent, InfoPanelComponent, ActionMenuComponent, CommonModule, FormsModule, MediaStreamSrcDirective, SectionNavigationComponent, UiIconComponent, ConversationListComponent, QuickSwitchComponent, InviteManagerComponent, InventoryComponent, WallpapersComponent, ThemeControllerComponent, MessageGestureDirective, MessageActionsComponent, EmojiPickerComponent, DesktopPreferencesComponent, SidebarResizeDirective],
     templateUrl: './app.component.html',
     styleUrls: ['./app.component.scss', './app-layout.scss', './call-workspace.scss', './platform-workspace.scss', './invite-entry.scss', './palette-theme.scss', './auth-workspace.scss', './avatar-presets.scss', './mobile-workspace.scss', './chat-bubbles.scss', './conference-stage.scss']
 })
@@ -782,7 +784,21 @@ export class AppComponent {
   readonly composerEmojiOpen=signal(false);
   private readonly bubbleDayFormat=new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',year:'numeric'});
   private readonly bubbleClockFormat=new Intl.DateTimeFormat('ru-RU',{hour:'2-digit',minute:'2-digit'});
-  messageLinks(text:string):{text:string;url:string|null}[]{return text.split(/(https?:\/\/[^\s<>]+)/g).filter(Boolean).flatMap(part=>{if(!/^https?:\/\//i.test(part))return [{text:part,url:null}];const clean=part.replace(/[.,!?]+$/,'');try{const url=new URL(clean);if(!['http:','https:'].includes(url.protocol))return [{text:part,url:null}];return [{text:clean,url:clean},...(clean.length<part.length?[{text:part.slice(clean.length),url:null}]:[])];}catch{return [{text:part,url:null}];}});}
+  private readonly messageViewCache = new WeakMap<WorkspaceMessage, {query:string;source:MessageContentSegment[];value:RenderedMessageSegment[]}>();
+  messageTextModel(message:WorkspaceMessage):RenderedMessageSegment[]{
+    const source=this.messageContentSegments(message),query=this.messageSearchQuery();
+    const cached=this.messageViewCache.get(message);
+    if(cached&&cached.query===query&&cached.source===source)return cached.value;
+    const value=source.map(segment=>({...segment,chunks:this.messageTextHighlightChunks(segment.text).map(chunk=>({...chunk,links:!segment.mentionUserId&&!chunk.highlighted?this.messageLinks(chunk.text):[]}))}));
+    this.messageViewCache.set(message,{query,source,value});return value;
+  }
+  private readonly linkCache = new BoundedCache<{text:string;url:string|null}[]>();
+  private readonly highlightCache = new BoundedCache<TextHighlightChunk[]>();
+  private readonly previewCache = new BoundedCache<string>();
+  private segmentCache = new WeakMap<WorkspaceMessage, {content:string;mentions:string;context:object;value:MessageContentSegment[]}>();
+  private readonly mentionContext = computed(() => ({members:this.members(), conversation:this.activeConversation()?.members}));
+  messageLinks(text:string):{text:string;url:string|null}[]{return this.linkCache.get(text,()=>this.parseMessageLinks(text));}
+  private parseMessageLinks(text:string):{text:string;url:string|null}[]{return text.split(/(https?:\/\/[^\s<>]+)/g).filter(Boolean).flatMap(part=>{if(!/^https?:\/\//i.test(part))return [{text:part,url:null}];const clean=part.replace(/[.,!?]+$/,'');try{const url=new URL(clean);if(!['http:','https:'].includes(url.protocol))return [{text:part,url:null}];return [{text:clean,url:clean},...(clean.length<part.length?[{text:part.slice(clean.length),url:null}]:[])];}catch{return [{text:part,url:null}];}});}
   insertComposerEmoji(emoji:string):void {const field=this.messageTextareaRef?.nativeElement;const draft=this.messageDraft();const at=field?.selectionStart??draft.length;const end=field?.selectionEnd??at;this.onMessageDraftChange(draft.slice(0,at)+emoji+draft.slice(end));this.composerEmojiOpen.set(false);requestAnimationFrame(()=>{field?.focus();field?.setSelectionRange(at+emoji.length,at+emoji.length);});}
   reactFromMenu(code:WorkspaceMessageReactionCode):void {const target=this.messageActionsTarget();this.closeMessageActions();if(target)this.toggleMessageReaction(target,this.messageReactionOptions.find(item=>item.emoji===code)?.code??code);}
   messageDay(value:string):string{return this.bubbleDayFormat.format(new Date(value));}
@@ -10833,6 +10849,14 @@ export class AppComponent {
   }
 
   messageContentSegments(message: WorkspaceMessage): MessageContentSegment[] {
+    const content=message.content??'', mentions=message.mentioned_user_ids.join(','), context=this.mentionContext();
+    const cached=this.segmentCache.get(message);
+    if(cached&&cached.content===content&&cached.mentions===mentions&&cached.context===context)return cached.value;
+    const value=this.buildMessageContentSegments(message);
+    this.segmentCache.set(message,{content,mentions,context,value});return value;
+  }
+
+  private buildMessageContentSegments(message: WorkspaceMessage): MessageContentSegment[] {
     const content = message.content ?? '';
     if (!content || !message.mentioned_user_ids.length) {
       return [{ text: content, mentionUserId: null }];
@@ -10908,14 +10932,18 @@ export class AppComponent {
   }
 
   messageTextHighlightChunks(text: string): TextHighlightChunk[] {
-    return this.buildTextHighlightChunks(text, this.messageSearchQuery());
+    const query=this.messageSearchQuery();
+    return this.highlightCache.get(JSON.stringify([query,text]),()=>this.buildTextHighlightChunks(text,query));
   }
 
   messageSearchPreviewChunks(result: WorkspaceMessageSearchResult): TextHighlightChunk[] {
-    return this.buildTextHighlightChunks(this.messageSearchPreviewText(result), this.messageSearchQuery());
+    return this.messageTextHighlightChunks(this.messageSearchPreviewText(result));
   }
 
   messageSearchPreviewText(result: WorkspaceMessageSearchResult): string {
+    return this.previewCache.get(JSON.stringify([result.content,this.messageSearchQuery()]),()=>this.buildMessageSearchPreviewText(result));
+  }
+  private buildMessageSearchPreviewText(result: WorkspaceMessageSearchResult): string {
     const content = (result.content ?? '').trim();
     if (!content) {
       return 'Сообщение без текста';

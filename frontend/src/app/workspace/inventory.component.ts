@@ -1,3 +1,4 @@
+import {ResourceRefreshService} from '../core/services/resource-refresh.service';
 import {CollectiblePreviewComponent} from './collectible-preview.component';
 import {UserCardDirective} from './user-card.directive';
 import {AssetPreviewComponent} from './asset-preview.component';
@@ -118,6 +119,7 @@ export class InventoryComponent implements OnDestroy {
  private equipmentSnapshot: string | null = null;
  readonly labels: Record<string, string> = {purchase:'Покупка',grant:'Выдача',gift:'Подарок',revoke:'Отзыв',equip:'Использование',unequip:'Снятие'};
 
+ private readonly refreshEvents=inject(ResourceRefreshService);
  constructor() {
   effect(onCleanup=>{
    const selector=this.pending()?'.confirm':(this.giftItem()||this.themePreview()||this.detail()||this.eventsOpen()||this.uploadOpen()||this.editing()||this.grantOpen())?'.subpanel':null;
@@ -138,8 +140,8 @@ export class InventoryComponent implements OnDestroy {
    this.error.set(''); this.success.set('');
    if (!token) return;
    untracked(()=>void this.reload());
-   const timer=setInterval(()=>{if(this.element.nativeElement.offsetParent!==null&&!this.busy()&&!this.loading())void this.reload(true);},15000);
-   onCleanup(()=>{++this.loadVersion;clearInterval(timer);clearTimeout(focusTimer);if(mode)previousFocus?.focus();});
+   const sub=this.refreshEvents.changes$.subscribe(()=>{if(!document.hidden&&this.element.nativeElement.offsetParent!==null&&!this.busy()&&!this.loading())void this.reload(true);});
+   onCleanup(()=>{++this.loadVersion;sub.unsubscribe();clearTimeout(focusTimer);if(mode)previousFocus?.focus();});
   });
  }
  image(id: string, preview=false) { if(preview)return `${API_BASE_URL}/api/inventory/assets/${encodeURIComponent(id)}?preview=true`; return `${API_BASE_URL}/api/inventory/assets/${encodeURIComponent(id)}?motion=${!window.matchMedia('(prefers-reduced-motion: reduce)').matches}`; }

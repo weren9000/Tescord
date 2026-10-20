@@ -131,7 +131,7 @@ export class DirectCallService extends DirectCallMedia {
         if(!response.ok)throw Error('Не удалось получить доступ к звонку');
         const credentials=await response.json();
         if(this.activeCallId!==id || generation!==this.mediaGeneration)return;
-        await this.connectMedia(credentials,message.peer.user_id);
+        await this.connectMedia(credentials,message.peer.user_id,()=>this.currentToken);
       }catch(error){if(this.activeCallId===id && generation===this.mediaGeneration)this.mediaFailed(error instanceof Error?error.message:'Не удалось подключиться к звонку');}
       finally{clearTimeout(timeout);if(this.joinAbort===abort)this.joinAbort=null;}
       return;

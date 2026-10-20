@@ -1,4 +1,5 @@
 from __future__ import annotations
+from fastapi import Request
 
 from datetime import datetime, timezone
 from urllib.parse import quote
@@ -148,7 +149,7 @@ async def update_current_user_profile(
 
 
 @router.get("/users/{user_id}/avatar")
-def read_user_avatar(user_id: UUID, motion: bool = True, include_frame: bool = True, preview: bool = False, db: Session = Depends(get_db, scope="function")) -> Response:
+def read_user_avatar(user_id: UUID, motion: bool = True, include_frame: bool = True, preview: bool = False, request: Request = None, db: Session = Depends(get_db, scope="function")) -> Response:
     user = db.get(User, user_id)
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Аватарка не найдена")
@@ -158,7 +159,7 @@ def read_user_avatar(user_id: UUID, motion: bool = True, include_frame: bool = T
         content = asset_path(equipped.catalog_id).read_bytes() if equipped else user.avatar_content
         if content is None:
             content = (AVATAR_DIRECTORY / (user.avatar_preset+'.webp')).read_bytes()
-        return small_preview_response(content)
+        return small_preview_response(content, request)
     frame = db.scalar(select(InventoryItem).where(InventoryItem.owner_id == user.id,
         InventoryItem.kind == 'frame', InventoryItem.equipped.is_(True), InventoryItem.revoked.is_(False)))
     if frame and include_frame:

@@ -102,4 +102,15 @@ describe('AppComponent', () => {
     const fixture = TestBed.createComponent(AppComponent);
     expect(fixture.componentInstance).toBeTruthy();
   });
+  it('reuses text models across a long history and invalidates edited text and search', () => {
+    const fixture=TestBed.createComponent(AppComponent), app=fixture.componentInstance;
+    const messages=Array.from({length:1000},(_,i)=>({id:String(i),content:'Message '+i+' https://example.com',mentioned_user_ids:[]} as any));
+    const models=messages.map(m=>app.messageTextModel(m));
+    for(let pass=0;pass<3;pass++) messages.forEach((m,i)=>expect(app.messageTextModel(m)).toBe(models[i]));
+    messages[0].content='Edited';expect(app.messageTextModel(messages[0])).not.toBe(models[0]);
+    const before=app.messageTextModel(messages[1]);app.messageSearchQuery.set('Message');
+    expect(app.messageTextModel(messages[1])).not.toBe(before);
+    fixture.destroy();
+  });
+
 });

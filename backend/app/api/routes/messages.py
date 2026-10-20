@@ -740,6 +740,9 @@ async def create_channel_message(
         for upload in uploads:
             await upload.close()
 
+    from app.services.message_outbox import notify_outbox
+    await notify_outbox()
+
     created_message = _load_message(db, message.id)
     if created_message is None:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Сообщение не удалось загрузить")

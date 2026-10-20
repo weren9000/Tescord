@@ -20,7 +20,7 @@ from app.services.direct_call_signaling import direct_call_signaling_manager
 logger=logging.getLogger(__name__)
 latest: dict = {}
 voice_users: set[str] = set()
-FIELDS=['cpu_percent','cpu_count','memory_used','memory_total','swap_used','swap_total','disk_used','disk_total','net_in','net_out','uptime','backend_rss','online','voice']
+FIELDS=['cpu_steal_percent','cpu_iowait_percent','backend_cpu_percent','api_ms','sql_rate','db_acquire_ms','call_rtt_ms','call_jitter_ms','call_loss_percent','call_connect_ms','call_reconnects','cpu_percent','cpu_count','memory_used','memory_total','swap_used','swap_total','disk_used','disk_total','net_in','net_out','uptime','backend_rss','online','voice']
 
 
 def backend_memory():
@@ -32,6 +32,22 @@ def backend_memory():
     except (psutil.NoSuchProcess, psutil.AccessDenied):
         pass
     return process.memory_info().rss
+
+
+def backend_cpu_seconds():
+    process = psutil.Process()
+    parent = process.parent()
+    processes = [process]
+    if parent and 'uvicorn' in ' '.join(parent.cmdline()) and '--workers' in parent.cmdline():
+        processes = [parent, *parent.children()]
+    result = {}
+    for p in processes:
+        try:
+            t = p.cpu_times()
+            result[p.pid] = t.user + t.system
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            pass
+    return result
 
 
 def host_sample(previous):
@@ -46,7 +62,14 @@ def host_sample(previous):
     values=dict(cpu_percent=cpu_percent,cpu_count=psutil.cpu_count(),memory_used=memory.total-memory.available,memory_total=memory.total,swap_used=swap.used,swap_total=swap.total,disk_used=disk.used,disk_total=disk.total,uptime=time.time()-psutil.boot_time(),backend_rss=backend_memory(),net_in=None,net_out=None)
     if previous:
         elapsed=max(.1,now-previous[0]);values.update(net_in=max(0,net.bytes_recv-previous[1])/elapsed,net_out=max(0,net.bytes_sent-previous[2])/elapsed)
-    return values,(now,net.bytes_recv,net.bytes_sent,total,idle)
+    steal=getattr(cpu,'steal',0);iowait=getattr(cpu,'iowait',0);app_cpu=backend_cpu_seconds()
+    values.update(cpu_steal_percent=None,cpu_iowait_percent=None,backend_cpu_percent=None)
+    if previous and len(previous)>7 and total>previous[3]:
+        delta=total-previous[3]
+        values['cpu_steal_percent']=max(0,100*(steal-previous[5])/delta)
+        values['cpu_iowait_percent']=max(0,100*(iowait-previous[6])/delta)
+        values['backend_cpu_percent']=100*sum(max(0,t-previous[7].get(pid,t)) for pid,t in app_cpu.items())/delta
+    return values,(now,net.bytes_recv,net.bytes_sent,total,idle,steal,iowait,app_cpu)
 
 
 def persist_sample(at,data,voices,old_voices,elapsed,cleanup=False,resource_at=None):
@@ -112,8 +135,12 @@ async def collect_metrics():
             voices.update({u:'call:'+c for u,c in (await direct_call_signaling_manager.analytics_participants()).items()})
             voice_users=set(voices)
             values.update(online=len(await asyncio.to_thread(site_presence_manager.snapshot_user_ids)),voice=len(voice_users))
+            from app.services.performance import cluster_metrics
+            performance = await asyncio.to_thread(cluster_metrics) if get_settings().redis_url else {}
+            for field, source, stat in [('api_ms','api_ms','mean'),('sql_rate','sql_ms','per_second'),('db_acquire_ms','db_acquire_ms','mean'),('call_rtt_ms','call_rtt_ms','mean'),('call_jitter_ms','call_jitter_ms','mean'),('call_loss_percent','call_loss_percent','mean'),('call_connect_ms','call_connect_ms','mean'),('call_reconnects','call_reconnects','sum')]:
+                values[field]=performance.get(source,{}).get(stat)
             status=await service_status()
-            latest={**values,'at':now.isoformat(),'services':status,'active_rooms':len(set(voices.values()))}
+            latest={**values,'performance':performance,'at':now.isoformat(),'services':status,'active_rooms':len(set(voices.values()))}
             if get_settings().redis_url:
                 from app.services.cluster import client, PREFIX
                 await asyncio.to_thread(client().set, PREFIX+'metrics', json.dumps({'latest': latest, 'voice_users': list(voice_users)}), ex=60)

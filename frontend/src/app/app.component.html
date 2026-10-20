@@ -1126,34 +1126,8 @@
                             </button>
                           }
                           @if (message.content) {
-                            <p class="message-card__text">
-                              @for (segment of messageContentSegments(message); track $index) {
-                                @if (segment.mentionUserId) {
-                                  <button
-                                    class="message-card__mention"
-                                    type="button"
-                                    [class.message-card__mention--current]="isMentionSegmentCurrentUser(segment)"
-                                    (click)="openMentionSegmentUser(segment)"
-                                  >
-                                    @for (chunk of messageTextHighlightChunks(segment.text); track $index) {
-                                      @if (chunk.highlighted) {
-                                        <mark class="message-card__highlight">{{ chunk.text }}</mark>
-                                      } @else {
-                                        <span>{{ chunk.text }}</span>
-                                      }
-                                    }
-                                  </button>
-                                } @else {
-                                  @for (chunk of messageTextHighlightChunks(segment.text); track $index) {
-                                    @if (chunk.highlighted) {
-                                      <mark class="message-card__highlight">{{ chunk.text }}</mark>
-                                    } @else {
-                                      @for(part of messageLinks(chunk.text);track $index){@if(part.url){<a class="message-link" [href]="part.url" target="_blank" rel="noopener noreferrer">{{part.text}}</a>}@else{<span>{{part.text}}</span>}}
-                                    }
-                                  }
-                                }
-                              }
-                            </p>
+                            <p class="message-card__text" appMessageText [segments]="messageTextModel(message)"
+                              [currentUserId]="currentUser()?.id ?? null" (mention)="openMentionSegmentUser($event)"></p>
                           }
                           @if (message.attachments.length) {
                             <div class="message-attachments">

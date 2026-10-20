@@ -1,3 +1,4 @@
+import {ResourceRefreshService} from '../core/services/resource-refresh.service';
 import {AfterViewInit, Component, DestroyRef, ElementRef, ViewChild, effect, inject, input, output, signal, untracked} from '@angular/core';
 import {HttpClient, HttpErrorResponse} from '@angular/common/http';
 import {firstValueFrom} from 'rxjs';
@@ -29,8 +30,9 @@ export class UserCardComponent implements AfterViewInit {
  readonly token=input.required<string>();readonly voiceControls=input(false);readonly profile=output<void>();readonly chat=output<string>();readonly voice=output<string>();
  readonly cards=inject(UserCardService);readonly person=signal<Person|null>(null);readonly busy=signal(false);readonly loading=signal(false);readonly error=signal('');
  @ViewChild('dialog') dialog!:ElementRef<HTMLDialogElement>;
+ private readonly refreshEvents=inject(ResourceRefreshService);
  private readonly http=inject(HttpClient);private version=0;private alive=true;
- constructor(){effect(()=>{this.cards.selected();this.cards.revision();this.token();untracked(()=>void this.load());});const timer=setInterval(()=>{if(!document.hidden&&!this.busy())void this.load(true);},5000);inject(DestroyRef).onDestroy(()=>{this.alive=false;this.version++;clearInterval(timer);});}
+ constructor(){effect(()=>{this.cards.selected();this.cards.revision();this.token();untracked(()=>void this.load());});const sub=this.refreshEvents.changes$.subscribe(()=>{if(!document.hidden&&!this.busy())void this.load(true);});inject(DestroyRef).onDestroy(()=>{this.alive=false;this.version++;sub.unsubscribe();});}
  ngAfterViewInit(){this.dialog.nativeElement.showModal();this.position();}
  close(){this.dialog?.nativeElement.close();this.cards.close();}
  private position(){const node=this.dialog?.nativeElement,rect=this.cards.selected()?.rect;if(!node||!rect)return;const width=node.offsetWidth,height=node.offsetHeight;node.style.left=Math.max(12,Math.min(innerWidth-width-12,rect.right+8))+'px';node.style.top=Math.max(12,Math.min(innerHeight-height-12,rect.top))+'px';}

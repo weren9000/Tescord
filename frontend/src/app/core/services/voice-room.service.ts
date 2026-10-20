@@ -1,3 +1,4 @@
+import {observeCall} from './call-telemetry';
 import { authenticatedWebSocket } from './authenticated-websocket';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
@@ -234,6 +235,7 @@ export class VoiceRoomService {
   private sdk!: typeof import('livekit-client');
   private publishingAudio = false;
   private room: Room | null = null;
+  private stopTelemetry: (() => void) | null = null;
   private roomEventDisposers: Array<() => void> = [];
   private rawLocalStream: MediaStream | null = null;
   private localStream: MediaStream | null = null;
@@ -812,6 +814,8 @@ export class VoiceRoomService {
       stopLocalTrackOnUnpublish: false,
     });
     this.room = room;
+    this.stopTelemetry?.();
+    this.stopTelemetry = observeCall(room, () => this.lastJoinContext?.token ?? null);
     this.attachRoomListeners(room);
 
     await room.connect(sfuToken.url || SFU_BASE_URL, sfuToken.token, {
@@ -1642,6 +1646,7 @@ export class VoiceRoomService {
   }
 
   private async disconnectRoom(): Promise<void> {
+    this.stopTelemetry?.(); this.stopTelemetry = null;
     const room = this.room;
     if (!room) {
       return;

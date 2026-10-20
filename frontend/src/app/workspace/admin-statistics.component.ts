@@ -6,7 +6,7 @@ import {Subscription} from 'rxjs';
 import {API_BASE_URL} from '../core/api/api-base';
 import {ChartRow,ChartSeries,StatisticsChartComponent,formatMetric} from './statistics-chart.component';
 interface Day {day:string;active:number;visits:number;guest_visits:number;messages:number;registrations:number;voice_seconds:number;voice_sessions:number}
-interface Resource {at:string;cpu_percent:number|null;cpu_count:number;memory_used:number;memory_total:number;swap_used:number;swap_total:number;disk_used:number;disk_total:number;net_in:number|null;net_out:number|null;uptime:number;backend_rss:number;active_rooms?:number;services:Record<string,string>}
+interface Resource {cpu_steal_percent?:number|null;cpu_iowait_percent?:number|null;backend_cpu_percent?:number|null;performance?:Record<string,{mean:number;max:number;count:number;sum:number;per_second:number}>;at:string;cpu_percent:number|null;cpu_count:number;memory_used:number;memory_total:number;swap_used:number;swap_total:number;disk_used:number;disk_total:number;net_in:number|null;net_out:number|null;uptime:number;backend_rss:number;active_rooms?:number;services:Record<string,string>}
 interface Stats {activity_available:boolean;generated_at:string;start_date:string;end_date:string;start_at:string;end_at:string;visit_interval:'hour'|'day';resource_interval:'minute'|'hour';hourly_started_at:string|null;started_at:string|null;totals:Day&{online:number;voice:number};daily:Day[];top:{id:string;name:string;kind:string;messages:number}[];resources:Resource|null;resource_history:ChartRow[];visits_history:ChartRow[]}
 @Component({selector:'app-admin-statistics',standalone:true,imports:[CommonModule,FormsModule,StatisticsChartComponent],templateUrl:'./admin-statistics.component.html',styleUrl:'./admin-statistics.component.scss'})
 export class AdminStatisticsComponent implements OnInit,OnDestroy{
@@ -21,6 +21,16 @@ export class AdminStatisticsComponent implements OnInit,OnDestroy{
  private timer?:ReturnType<typeof setInterval>;private sub?:Subscription;private http=inject(HttpClient);
  readonly activitySeries:ChartSeries[]=[{key:'online',label:'Онлайн',color:'#a78bfa'},{key:'voice',label:'В голосе',color:'#55cbd3'}];
  readonly visitSeries:ChartSeries[]=[{key:'active',label:'Активные',color:'#a78bfa'},{key:'visits',label:'Посещения',color:'#55cbd3'},{key:'guest_visits',label:'Гости',color:'#e7ae62'}];
+ readonly resourceOptions=[{key:'cpu_percent',label:'CPU VPS'},{key:'backend_cpu_percent',label:'CPU приложения'},{key:'cpu_steal_percent',label:'CPU steal'},{key:'cpu_iowait_percent',label:'Ожидание диска'},{key:'api_ms',label:'Ответ API, мс'},{key:'sql_rate',label:'SQL запросов/с'},{key:'db_acquire_ms',label:'Получение соединения БД, мс'},{key:'call_rtt_ms',label:'RTT звонков, мс'},{key:'call_jitter_ms',label:'Jitter звонков, мс'},{key:'call_loss_percent',label:'Потери пакетов, %'},{key:'call_connect_ms',label:'Подключение медиа, мс'},{key:'call_reconnects',label:'Переподключения за интервал'}];
+ slowRoutes(){const data=this.data()?.resources?.performance??{};return Object.entries(data).filter(([key])=>key.startsWith('route_ms:')).sort((a,b)=>b[1].mean-a[1].mean).slice(0,5).map(([key,value])=>({route:key.slice(9),...value,sql:data['route_sql:'+key.slice(9)]?.mean}));}
+ readonly performanceFields=[
+  {key:'api_ms',label:'Ответ API',unit:'мс'}, {key:'sql_ms',label:'Выполнение SQL',unit:'мс'},
+  {key:'db_acquire_ms',label:'Получение соединения БД',unit:'мс'},
+  {key:'call_connect_ms',label:'Подключение медиасоединения',unit:'мс'},
+  {key:'call_rtt_ms',label:'RTT звонков',unit:'мс'}, {key:'call_jitter_ms',label:'Jitter звонков',unit:'мс'},
+  {key:'call_loss_percent',label:'Потери входящих пакетов',unit:'%'},
+ ];
+ metric(key:string){return this.data()?.resources?.performance?.[key];}
  readonly format=formatMetric;
  ngOnInit(){this.startDate=this.today;this.endDate=this.today;this.load();this.timer=setInterval(()=>{if(document.visibilityState==='visible'&&!this.busy()&&this.days!==0)this.load();},30000);}
  ngOnDestroy(){clearInterval(this.timer);this.sub?.unsubscribe();}
@@ -34,6 +44,6 @@ export class AdminStatisticsComponent implements OnInit,OnDestroy{
  bytes(n:number|null|undefined){return formatMetric(n,'bytes');}
  stale(){const at=this.data()?.resources?.at;return !at||Date.now()-Date.parse(at)>60000;}
  state(v:string){return ({online:'Работает',offline:'Недоступен',disabled:'Не настроен',unknown:'Нет данных'} as Record<string,string>)[v]??'Нет данных';}
- resourceSeries():ChartSeries[]{return this.resourceKey==='network'?[{key:'net_in',label:'Входящий',color:'#a78bfa'},{key:'net_out',label:'Исходящий',color:'#55cbd3'}]:[{key:this.resourceKey,label:this.resourceKey==='cpu_percent'?'CPU':'RAM',color:'#a78bfa'}];}
- resourceUnit(){return this.resourceKey==='cpu_percent'?'percent':this.resourceKey==='network'?'rate':'bytes';}
+ resourceSeries():ChartSeries[]{return this.resourceKey==='network'?[{key:'net_in',label:'Входящий',color:'#a78bfa'},{key:'net_out',label:'Исходящий',color:'#55cbd3'}]:[{key:this.resourceKey,label:this.resourceOptions.find(o=>o.key===this.resourceKey)?.label??'RAM',color:'#a78bfa'}];}
+ resourceUnit(){return this.resourceKey.endsWith('_percent')?'percent':this.resourceKey.endsWith('_ms')?'ms':this.resourceKey==='network'?'rate':this.resourceKey==='memory_used'?'bytes':'';}
 }

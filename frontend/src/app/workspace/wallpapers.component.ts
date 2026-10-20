@@ -1,3 +1,4 @@
+import {ResourceRefreshService} from '../core/services/resource-refresh.service';
 import {AssetPreviewComponent} from './asset-preview.component';
 import {Component, ElementRef, effect, inject, input, output, signal, untracked, OnDestroy} from '@angular/core';
 import {FormsModule} from '@angular/forms';
@@ -28,6 +29,7 @@ export class WallpapersComponent implements OnDestroy {
  private readonly media=window.matchMedia('(prefers-reduced-motion: reduce)');
  private readonly visibilityChanged=()=>this.visible.set(document.visibilityState==='visible');
  private readonly reducedChanged=()=>this.reduced.set(this.media.matches);
+ private readonly refreshEvents=inject(ResourceRefreshService);
  constructor(){
   try{this.motion.set(localStorage.getItem('kva-wallpaper-motion')!=='off');}catch{}
   document.addEventListener('visibilitychange',this.visibilityChanged);
@@ -41,9 +43,8 @@ export class WallpapersComponent implements OnDestroy {
    if(open)this.data.set(null);
    untracked(()=>void this.load(token,serverId));
    const refresh=()=>{if(!this.open()&&!this.busy()&&document.visibilityState==='visible')void this.load(token,serverId);};
-   const timer=setInterval(refresh,15000);
-   document.addEventListener('visibilitychange',refresh);
-   cleanup(()=>{clearInterval(timer);document.removeEventListener('visibilitychange',refresh);++this.version;});
+   const refreshSub=this.refreshEvents.changes$.subscribe(refresh);
+   cleanup(()=>{refreshSub.unsubscribe();++this.version;});
   });
   effect(cleanup=>{if(!this.open())return;const previous=document.activeElement as HTMLElement;
    const timer=setTimeout(()=>this.element.nativeElement.querySelector<HTMLButtonElement>('.close')?.focus());

@@ -14,7 +14,7 @@ export interface AppEventsReadyEvent {
 }
 
 export interface AppEventsPongEvent {
-  type: 'pong' | 'resync_required';
+  type: 'pong' | 'resync_required' | 'resources_changed';
 }
 
 export interface AppEventsErrorEvent {

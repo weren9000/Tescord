@@ -20,7 +20,22 @@
    @if(stale()){<p class="error" role="status">Замеры устарели · {{r.at|date:'dd.MM HH:mm:ss':'UTC'}} UTC</p>}
    <div class="resource-grid"><div><span>CPU · {{r.cpu_count}} ядер</span><b>{{format(r.cpu_percent,'percent')}}</b></div><div><span>RAM</span><b>{{bytes(r.memory_used)}} / {{bytes(r.memory_total)}}</b></div><div><span>Диск</span><b>{{bytes(r.disk_used)}} / {{bytes(r.disk_total)}}</b></div><div><span>Сеть ↓ / ↑</span><b>{{format(r.net_in,'rate')}} / {{format(r.net_out,'rate')}}</b></div></div>
   }@else{<p class="muted">Нет замеров ресурсов</p>}
+   @if(d.resources;as r){
+   <div class="resource-grid">
+    <div><span>CPU приложения / всего VPS</span><b>{{r.backend_cpu_percent == null ? '—' : (r.backend_cpu_percent|number:'1.1-1')+'%'}}</b></div>
+    <div><span>CPU steal</span><b>{{r.cpu_steal_percent == null ? '—' : (r.cpu_steal_percent|number:'1.1-1')+'%'}}</b></div>
+    <div><span>Ожидание диска</span><b>{{r.cpu_iowait_percent == null ? '—' : (r.cpu_iowait_percent|number:'1.1-1')+'%'}}</b></div>
+   </div>
+   <details><summary>API, SQL ? ???????? ???????</summary><p>Замеры последних интервалов. Получение соединения БД включает ожидание и создание соединения. Метрики звонков сообщаются клиентами; отсутствие данных не означает нулевую задержку.</p>
+   <div class="table"><table><thead><tr><th>Показатель</th><th>Среднее</th><th>Максимум</th><th>Замеров</th></tr></thead><tbody>
+   @for(field of performanceFields;track field.key){<tr><td>{{field.label}}</td><td>{{metric(field.key)?.mean == null ? '—' : (metric(field.key)!.mean|number:'1.1-1')+' '+field.unit}}</td><td>{{metric(field.key)?.max == null ? '—' : (metric(field.key)!.max|number:'1.1-1')+' '+field.unit}}</td><td>{{metric(field.key)?.count ?? 0}}</td></tr>}
+   </tbody></table></div>
+   <div class="table"><table><thead><tr><th>Маршрут API</th><th>Среднее / максимум, мс</th><th>SQL на запрос</th></tr></thead><tbody>@for(row of slowRoutes();track row.route){<tr><td>{{row.route}}</td><td>{{row.mean|number:'1.1-1'}} / {{row.max|number:'1.1-1'}}</td><td>{{row.sql|number:'1.1-1'}}</td></tr>}</tbody></table></div>
+   <p>SQL запросов/с: {{metric('sql_ms')?.per_second == null ? '—' : (metric('sql_ms')!.per_second|number:'1.1-1')}} · Переподключений медиа за интервал: {{metric('call_reconnects')?.sum ?? '—'}}</p>
+   </details>
+   }
   <div class="reveal" [class.is-open]="history()" [attr.inert]="history()?null:''"><div class="reveal-inner"><div class="history-content">
+   <label>Подробный показатель <select [(ngModel)]="resourceKey">@for(option of resourceOptions;track option.key){<option [value]="option.key">{{option.label}}</option>}</select></label>
    <div class="resource-picker"><div class="segments" role="group" aria-label="Показатель ресурсов"><button [attr.aria-pressed]="resourceKey==='cpu_percent'" (click)="resourceKey='cpu_percent'">CPU</button><button [attr.aria-pressed]="resourceKey==='memory_used'" (click)="resourceKey='memory_used'">RAM</button><button [attr.aria-pressed]="resourceKey==='network'" (click)="resourceKey='network'">Сеть</button></div><small>Среднее за {{d.resource_interval==='minute'?'минуту':'час'}} · UTC</small></div>
    <app-statistics-chart label="Ресурсы сервера" [rows]="d.resource_history" [series]="resourceSeries()" [unit]="resourceUnit()" [start]="d.start_at" [end]="d.end_at" [interval]="d.resource_interval"/>
   </div></div></div>

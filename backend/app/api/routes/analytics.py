@@ -75,7 +75,7 @@ def statistics(response:Response,days:int=Query(1),exclude_self:bool=False,start
     top_rows=db.execute(top.group_by(Server.id).order_by(func.count(Message.id).desc(),Server.id).limit(10)).mappings()
     interval='minute' if days==1 and start>=today-timedelta(days=6) else 'hour'
     bucket=func.date_trunc(interval,ResourceSample.at)
-    metrics=['cpu_percent','memory_used','memory_total','disk_used','disk_total','net_in','net_out','online','voice']
+    metrics=['cpu_steal_percent', 'cpu_iowait_percent', 'backend_cpu_percent', 'api_ms', 'sql_rate', 'db_acquire_ms', 'call_rtt_ms', 'call_jitter_ms', 'call_loss_percent', 'call_connect_ms', 'call_reconnects','cpu_percent','memory_used','memory_total','disk_used','disk_total','net_in','net_out','online','voice']
     resource_rows=db.execute(select(bucket.label('at'),*[func.avg(ResourceSample.data[k].as_float()).label(k) for k in metrics]).where(ResourceSample.at>=start_at,ResourceSample.at<end_at).group_by(bucket).order_by(bucket)).mappings().all()
     hourly_started=db.get(AnalyticsSetting,'hourly_started_at')
     visit_rows=list(rows.values())

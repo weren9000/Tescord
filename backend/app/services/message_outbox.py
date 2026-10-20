@@ -9,7 +9,32 @@ from sqlalchemy import select
 from app.db.models import OutboxEvent
 from app.db.session import SessionLocal
 
+from app.services.event_bus import distributed_event
+
 logger = logging.getLogger(__name__)
+_wake = None
+_notifications = set()
+
+@distributed_event
+async def wake_outbox():
+    if _wake is not None:
+        _wake.set()
+
+async def notify_outbox():
+    if _wake is not None:
+        _wake.set()
+    if _notifications:
+        return
+
+    async def notify():
+        try:
+            await asyncio.wait_for(wake_outbox(), 1)
+        except Exception:
+            logger.warning("Outbox wake unavailable; durable queue will be polled")
+    task = asyncio.create_task(notify())
+    _notifications.add(task)
+    task.add_done_callback(_notifications.discard)
+
 
 
 def _claim() -> list[UUID]:
@@ -76,9 +101,25 @@ async def dispatch_once() -> int:
 
 
 async def run_message_outbox():
-    while True:
-        try:
-            await dispatch_once()
-        except Exception:
-            logger.exception("Message outbox iteration failed")
-        await asyncio.sleep(0.25)
+    global _wake
+    wake = asyncio.Event()
+    _wake = wake
+    try:
+        while True:
+            wake.clear()
+            try:
+                if await dispatch_once():
+                    continue  # Drain queued batches without delaying message delivery.
+            except Exception:
+                logger.exception("Message outbox iteration failed")
+            try:
+                await asyncio.wait_for(wake.wait(), timeout=5)
+            except TimeoutError:
+                pass  # Recovers missed notifications, retries and expired leases.
+    finally:
+        if _wake is wake:
+            _wake = None
+        tasks = list(_notifications)
+        for task in tasks:
+            task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)

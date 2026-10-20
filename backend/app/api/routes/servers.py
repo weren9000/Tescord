@@ -1,4 +1,5 @@
-﻿from __future__ import annotations
+from __future__ import annotations
+from fastapi import Request
 
 from datetime import datetime, timezone
 import re
@@ -364,14 +365,14 @@ async def upload_server_icon_file(
 
 
 @router.get("/{server_id}/icon-file")
-def read_server_icon_file(server_id: UUID, preview: bool = False, db: Session = Depends(get_db, scope="function")) -> Response:
+def read_server_icon_file(server_id: UUID, preview: bool = False, request: Request = None, db: Session = Depends(get_db, scope="function")) -> Response:
     server = db.get(Server, server_id)
     if server is None or server.icon_content is None or server.icon_mime_type is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Иконка группы не найдена")
 
     filename = server.icon_filename or "group-icon"
     if preview:
-        return small_preview_response(server.icon_content)
+        return small_preview_response(server.icon_content, request)
     return Response(
         content=server.icon_content,
         media_type=server.icon_mime_type,

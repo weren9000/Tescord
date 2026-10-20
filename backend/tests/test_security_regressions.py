@@ -97,6 +97,44 @@ def test_message_retry_is_idempotent_and_paginated_recovery_is_complete(conversa
         assert db.scalar(select(func.count()).select_from(OutboxEvent).where(OutboxEvent.message_id == UUID(original.json()['id']))) == 1
 
 
+def test_outbox_recovers_claim_after_process_crash_without_redis(conversation):
+    import subprocess
+    import sys
+    from datetime import datetime, timedelta, timezone
+
+    client, token, _, _, chat = conversation
+    response = client.post(
+        f"/api/channels/{chat['primary_channel_id']}/messages",
+        headers={'Authorization': f'Bearer {token}'},
+        data={'content': 'survives worker restart', 'client_message_id': str(uuid4())},
+    )
+    assert response.status_code == 201
+    message_id = UUID(response.json()['id'])
+    # A separate process commits a lease, then exits without delivering or cleaning up.
+    subprocess.run([sys.executable, '-c',
+                    'from app.services.message_outbox import _claim; import os; _claim(); os._exit(0)'],
+                   check=True, timeout=10)
+    with SessionLocal() as db:
+        event = db.scalar(select(OutboxEvent).where(OutboxEvent.message_id == message_id))
+        assert event.delivered_at is None and event.attempts == 1
+        # Advance the durable lease instead of making the test sleep for a minute.
+        event.available_at = datetime.now(timezone.utc) - timedelta(seconds=1)
+        db.commit()
+    subprocess.run([sys.executable, '-c', '''
+import asyncio
+from app.services.message_outbox import run_message_outbox
+async def main():
+    try:
+        await asyncio.wait_for(run_message_outbox(), 1)
+    except TimeoutError:
+        pass
+asyncio.run(main())
+'''], check=True, timeout=10)
+    with SessionLocal() as db:
+        event = db.scalar(select(OutboxEvent).where(OutboxEvent.message_id == message_id))
+        assert event.delivered_at is not None and event.attempts == 2
+
+
 @pytest.mark.parametrize('token', ['a.b.c', '☃.e.e', 'e30.e30.a', '.', 'x' * 9000])
 def test_malformed_signed_tokens_are_controlled(token):
     with pytest.raises(TokenError):

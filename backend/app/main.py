@@ -28,6 +28,9 @@ from sqlalchemy import text
 from redis.exceptions import RedisError
 from starlette.responses import JSONResponse
 
+from app.services.performance import PerformanceMiddleware, flush_metrics
+from app.services.resource_events import ResourceEventsMiddleware
+
 settings = get_settings()
 logger = logging.getLogger(__name__)
 
@@ -58,6 +61,7 @@ async def lifespan(_: FastAPI):
     await asyncio.to_thread(initialize_database)
     event_bus_task = await start_event_bus()
     cluster_tasks = await cluster.start()
+    performance_task = asyncio.create_task(flush_metrics())
     presence_sweeper_task = asyncio.create_task(run_presence_sweeper())
     outbox_task = asyncio.create_task(run_message_outbox())
     media_task = asyncio.create_task(cluster.singleton('media', reconcile_media_permissions))
@@ -65,6 +69,8 @@ async def lifespan(_: FastAPI):
     try:
         yield
     finally:
+        performance_task.cancel()
+        await asyncio.gather(performance_task, return_exceptions=True)
         monitoring_task.cancel()
         await asyncio.gather(monitoring_task, return_exceptions=True)
         await cluster.stop(cluster_tasks)
@@ -122,3 +128,6 @@ def read_root() -> dict[str, str]:
         "health": f"{settings.api_prefix}/health",
         "docs": "/docs",
     }
+
+app.add_middleware(ResourceEventsMiddleware)
+app.add_middleware(PerformanceMiddleware)

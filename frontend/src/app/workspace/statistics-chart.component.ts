@@ -9,7 +9,7 @@ export function formatMetric(value:number|null|undefined,unit=''):string {
     while(value>=1024&&i<4){value/=1024;i++;}
     return `${value.toLocaleString('ru-RU',{maximumFractionDigits:1})} ${units[i]}${unit==='rate'?'/с':''}`;
   }
-  return value.toLocaleString('ru-RU',{maximumFractionDigits:1})+(unit==='percent'?'%':'');
+  return value.toLocaleString('ru-RU',{maximumFractionDigits:1})+(unit==='percent'?'%':unit==='ms'?' мс':'');
 }
 @Component({selector:'app-statistics-chart',standalone:true,template:`
  <div class="legend">@for(s of series();track s.key){<button type="button" [attr.aria-pressed]="!hidden().includes(s.key)" (click)="toggle(s.key)"><i [style.background]="s.color"></i>{{s.label}}</button>}</div>

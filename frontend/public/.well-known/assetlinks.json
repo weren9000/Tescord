@@ -7,7 +7,8 @@
       "namespace": "android_app",
       "package_name": "ru.kvachat.android",
       "sha256_cert_fingerprints": [
-        "BC:78:41:03:9B:69:7E:A7:FC:42:CB:CD:B4:81:4F:C7:83:92:91:EE:7A:15:4F:AF:BC:F7:61:A9:C0:91:D6:50"
+        "BC:78:41:03:9B:69:7E:A7:FC:42:CB:CD:B4:81:4F:C7:83:92:91:EE:7A:15:4F:AF:BC:F7:61:A9:C0:91:D6:50",
+        "74:94:55:5D:52:78:1F:9E:9D:B1:E8:2F:03:A6:93:32:EB:16:08:3F:A7:4A:AA:01:6A:C5:E0:4F:7E:CD:4D:3D"
       ]
     }
   }
