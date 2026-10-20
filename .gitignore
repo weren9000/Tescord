@@ -38,3 +38,6 @@ mobile/signing.properties
 /frontend/public/downloads/
 # Local integration credentials, never release inputs.
 cluster-fixture.json
+/.tools/
+/.local/
+/artifacts/
