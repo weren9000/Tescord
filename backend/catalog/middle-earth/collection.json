@@ -1,0 +1,88 @@
+{
+  "id": "32b07064-29c4-5cd0-850c-c22d7dd328fe",
+  "name": "Средиземье",
+  "description": "От зелёных холмов Шира до теней Мордора — выбери своего героя",
+  "cover_id": "c2d50035-ae0b-50ee-aec2-aaf11827d4ba",
+  "items": [
+    {
+      "id": "ea109651-21da-5979-9d7d-64df35d3a92c",
+      "slug": "aragorn",
+      "name": "Арагорн",
+      "rarity": "epic",
+      "price": 450,
+      "source_sha256": "8a7a577609263c72bbeb2e7b853a7ae7c40a0b3219bcfb896a3e3c64299643f4"
+    },
+    {
+      "id": "3924e4f5-6d11-53b0-a0fb-17498ef12773",
+      "slug": "galadriel",
+      "name": "Галадриэль",
+      "rarity": "legendary",
+      "price": 750,
+      "source_sha256": "ba7b79c8ce2f1ad65a186b07986af996da1bf72fee14a07f65616bd896e87b30"
+    },
+    {
+      "id": "c2d50035-ae0b-50ee-aec2-aaf11827d4ba",
+      "slug": "gandalf",
+      "name": "Гэндальф",
+      "rarity": "legendary",
+      "price": 800,
+      "source_sha256": "4f8b32372fe4fd513a2ab053ef9842c97c31df60f0b3cb2f5db77043b68bca30"
+    },
+    {
+      "id": "8cf60452-ee5d-5cbc-9847-acf562e453ff",
+      "slug": "gimli",
+      "name": "Гимли",
+      "rarity": "rare",
+      "price": 300,
+      "source_sha256": "2935c5e30dc7c6e7de72b45eee2d488f0be1e0101ad6427d54f16ebf5ad073a7"
+    },
+    {
+      "id": "95bad1b2-df01-5ab7-900c-be2f0388c9dd",
+      "slug": "frodo",
+      "name": "Фродо",
+      "rarity": "rare",
+      "price": 250,
+      "source_sha256": "bc9309b24f0147e9e54684e1b379f8e079afe63257a6cdd4585fc8017476f699"
+    },
+    {
+      "id": "f711131a-4242-5223-9d28-67105ae2e784",
+      "slug": "nazgul",
+      "name": "Назгул",
+      "rarity": "legendary",
+      "price": 700,
+      "source_sha256": "8921d913e503ea57cf05ab22d657307b2518eb0121fd6715c21e672904989a0e"
+    },
+    {
+      "id": "2bc8672d-12af-5bee-b84d-578b98036d92",
+      "slug": "orc",
+      "name": "Орк Мордора",
+      "rarity": "uncommon",
+      "price": 150,
+      "source_sha256": "6e93af7519987bcb1e40381a7dd3e622b8ed2a61d8717197a2cc4d20ecbd1f91"
+    },
+    {
+      "id": "9452303d-6619-59e5-9c4c-36d934ac6b90",
+      "slug": "gollum",
+      "name": "Голлум",
+      "rarity": "rare",
+      "price": 250,
+      "source_sha256": "22a8513ee60085b627043c774610e0a5216bdfae04500d306973f68f685d09d7"
+    },
+    {
+      "id": "7ee480b4-23e7-5aff-abd5-63cb68293a7e",
+      "slug": "treebeard",
+      "name": "Древобород",
+      "rarity": "epic",
+      "price": 500,
+      "source_sha256": "1c30c3ae6774f21a3903c70828f0b6e80b70e29441e4c029dba764ce68aacf92"
+    },
+    {
+      "id": "6fe89045-eb27-5342-9309-c9700956318d",
+      "slug": "arwen",
+      "name": "Арвен",
+      "rarity": "epic",
+      "price": 450,
+      "source_sha256": "79c1ab5e55bcf9a07f78e5496cfbf25ef0ab47b117f80bdaec3a692144bb1b33"
+    }
+  ]
+}
