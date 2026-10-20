@@ -154,7 +154,7 @@ export class ShopComponent implements AfterViewInit, OnDestroy {
  open(item:Offer,event:Event){this.trigger=event.currentTarget as HTMLElement;this.selected.set(item);this.result.set(null);this.confirming.set(false);this.error.set('');this.success.set('');this.price=item.price??1;this.status=item.status??'draft';this.position=item.position??0;this.recommended=item.recommended??false;this.editRarity=item.rarity??'';setTimeout(()=>this.host.nativeElement.querySelector<HTMLElement>('.back')?.focus());}
  back(){if(this.busy())return;this.selected.set(null);this.confirming.set(false);this.result.set(null);this.error.set('');setTimeout(()=>this.trigger?.isConnected&&this.trigger.focus());}
  dismiss(){if(this.busy()||this.collectionPanel?.busy()||this.inventoryPanel?.busy())return;this.close.emit();}
- inventoryNested(){const i=this.inventoryPanel;return !!(i?.pending()||i?.detail()||i?.giftItem()||i?.themePreview()||i?.eventsOpen()||i?.menu());}
+ inventoryNested(){const i=this.inventoryPanel;return !!(i?.filtersOpen()||i?.pending()||i?.detail()||i?.giftItem()||i?.themePreview()||i?.eventsOpen()||i?.menu());}
  hasNested(){const i=this.inventoryPanel;return !!(this.collectionPanel?.editing()||this.confirming()||this.selected()||this.result()||this.filtersOpen()||this.purchaseDetail()||this.roleTarget()||i?.pending()||i?.detail()||i?.giftItem()||i?.themePreview()||i?.eventsOpen()||i?.menu());}
  backStep(){
   if(this.busy()||this.collectionPanel?.busy()||this.inventoryPanel?.busy())return;

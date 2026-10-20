@@ -6,7 +6,7 @@ import shutil
 root = Path(__file__).resolve().parents[1]
 target = root / 'frontend/public/downloads'
 target.mkdir(exist_ok=True)
-files = [root / 'desktop/release/KvaChat-Setup-0.5.2-x64.exe', root / 'mobile/release/KvaChat-0.3.4-android.apk']
+files = [root / 'desktop/release/KvaChat-Setup-0.5.3-x64.exe', root / 'mobile/release/KvaChat-0.3.6-android.apk']
 for source in files:
     if not source.is_file(): raise SystemExit(f'Missing installer: {source}')
     checksum = source.with_suffix(source.suffix + '.sha256')

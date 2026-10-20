@@ -11,7 +11,7 @@ import type {Offer} from './shop.component';
  imports:[AssetPreviewComponent,DecimalPipe,RarityBadgeComponent], changeDetection:ChangeDetectionStrategy.OnPush,
  template:`
  <div class="product"><button class="card" [disabled]="disabled()" (click)="open.emit($event)" [attr.aria-label]="item().name+', '+(item().price??'Цена не задана')">
-  <div class="art">@if(item().kind==='frame'){<img class="frame-portrait" [class.circular]="circularFrames.has(item().id)" [src]="rawAvatar()" alt="" loading="lazy"/>}<app-asset-preview [src]="src()" [retry]="retry()" (error)="failed.emit()"/>
+  <div class="art"><app-asset-preview [avatar]="item().kind==='frame'?rawAvatar():null" [circular]="circularFrames.has(item().id)" [src]="src()" [retry]="retry()" (error)="failed.emit()"/>
    @if(item().rarity){<app-rarity-badge class="badge" [value]="item().rarity"/>}
   </div>
   <strong [title]="item().name">{{item().name}}</strong>@if(showKind()){<small class="kind">{{kindLabel()}}</small>}

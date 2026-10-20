@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 220">
+    <rect width="320" height="220" rx="22" fill="#eef2f7"/>
+    <rect x="12" y="12" width="65" height="196" rx="12" fill="#ffffff"/>
+    <rect x="23" y="27" width="43" height="9" rx="4" fill="#255fce"/>
+    <path d="M25 58h36M25 79h25M25 100h31" stroke="#50627c" stroke-width="5" stroke-linecap="round"/>
+    <rect x="89" y="12" width="218" height="42" rx="10" fill="#f7f9fc"/>
+    <text x="104" y="39" fill="#17243a" font-family="Arial,sans-serif" font-size="18">Светлая</text>
+    <rect x="89" y="69" width="166" height="43" rx="12" fill="#f7f9fc"/>
+    <path d="M105 87h124M105 98h80" stroke="#50627c" stroke-width="4" stroke-linecap="round"/>
+    <rect x="139" y="125" width="168" height="43" rx="12" fill="#dbe8ff"/>
+    <path d="M155 144h125M155 155h72" stroke="#214fa5" stroke-width="4" stroke-linecap="round"/>
+    <rect x="89" y="185" width="218" height="23" rx="8" fill="#ffffff"/>
+    <circle cx="293" cy="196" r="6" fill="#087487"/></svg>

@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.api.dependencies.auth import get_current_user
 from app.db.models import User, Server, ServerMember
 from app.db.inventory import InventoryItem, InventoryEvent, InventoryCatalog
+from app.db.shop import ShopFavorite
 from app.db.session import get_db
 from app.services.inventory import asset_path, catalog_data, lock_inventory
 from app.services.avatar_frames import frame_svg
@@ -38,20 +39,25 @@ def item_data(db, item):
 def usage_expression(user):
     # Wallpaper references are item:<uuid>; only the owner's personal/shared choices count.
     reference = func.concat('item:', InventoryItem.id)
-    return or_(InventoryItem.equipped.is_(True), reference == user.chat_wallpaper,
+    return func.coalesce(or_(InventoryItem.equipped.is_(True), reference == user.chat_wallpaper,
         select(Server.id).where(Server.owner_id == user.id, Server.chat_wallpaper == reference).exists(),
         select(ServerMember.id).where(ServerMember.user_id == user.id,
-            ServerMember.wallpaper_override.is_(True), ServerMember.chat_wallpaper == reference).exists())
+            ServerMember.wallpaper_override.is_(True), ServerMember.chat_wallpaper == reference).exists()), False)
 
 
 @router.get('')
 def inventory(page: int = Query(1, ge=1), kind: Literal['avatar', 'frame', 'wallpaper', 'theme'] | None = None,
               grouped: bool = False, equipped_only: bool = False,
+              usage: Literal['all', 'used', 'unused'] = 'all',
+              rarity: Literal['common', 'uncommon', 'rare', 'epic', 'legendary'] | None = None,
+              favorites: bool = False,
               sort: Literal['new', 'old', 'name'] = 'new',
               q: str = Query('', max_length=80), user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     query = select(InventoryItem).join(InventoryCatalog, InventoryCatalog.id == InventoryItem.catalog_id).where(
         InventoryItem.owner_id == user.id, InventoryItem.revoked.is_(False))
-    if kind: query = query.where(InventoryItem.kind == kind)
+    favorite_ids = select(ShopFavorite.catalog_id).where(ShopFavorite.user_id == user.id)
+    if favorites: query = query.where(InventoryItem.catalog_id.in_(favorite_ids))
+    if rarity: query = query.where(InventoryCatalog.rarity == rarity)
     if q.strip(): query = query.where(InventoryCatalog.name.ilike(search_pattern(q), escape='\\'))
     acquired = func.coalesce(select(func.max(InventoryEvent.created_at)).where(InventoryEvent.item_id == InventoryItem.id,
         InventoryEvent.recipient_id == user.id, InventoryEvent.action.in_(['grant', 'gift', 'purchase'])).correlate(InventoryItem).scalar_subquery(), InventoryItem.created_at)
@@ -66,12 +72,18 @@ def inventory(page: int = Query(1, ge=1), kind: Literal['avatar', 'frame', 'wall
             func.count().over(partition_by=InventoryItem.catalog_id).label('copies'),
             func.first_value(InventoryItem.id).over(partition_by=InventoryItem.catalog_id, order_by=[used, acquired, InventoryItem.id]).label('gift_id')).subquery()
         query = query.join(ranked, ranked.c.id == InventoryItem.id).where(ranked.c.rank == 1)
-        if equipped_only: query = query.where(ranked.c.in_use.is_(True))
+        if equipped_only or usage == 'used': query = query.where(ranked.c.in_use.is_(True))
+        elif usage == 'unused': query = query.where(ranked.c.in_use.is_(False))
+        counts = dict(db.execute(query.with_only_columns(InventoryItem.kind, func.count()).group_by(InventoryItem.kind)).all())
+        if kind: query = query.where(InventoryItem.kind == kind)
         result = paginate(db, query, page, order, InventoryItem.id)
         ids = [i.id for i in result['items']]
         if ids: groups = {r.id: r for r in db.execute(select(ranked).where(ranked.c.id.in_(ids)))}
     else:
-        if equipped_only: query = query.where(used)
+        if equipped_only or usage == 'used': query = query.where(used)
+        elif usage == 'unused': query = query.where(~used)
+        counts = dict(db.execute(query.with_only_columns(InventoryItem.kind, func.count()).group_by(InventoryItem.kind)).all())
+        if kind: query = query.where(InventoryItem.kind == kind)
         result = paginate(db, query, page, order, InventoryItem.id)
     events = db.scalars(select(InventoryEvent).where(InventoryEvent.recipient_id == user.id,
                            InventoryEvent.action.in_(['grant', 'gift', 'revoke', 'purchase']))
@@ -81,11 +93,26 @@ def inventory(page: int = Query(1, ge=1), kind: Literal['avatar', 'frame', 'wall
         InventoryEvent.action.in_(['grant', 'gift', 'revoke', 'purchase'])))
     equipped = db.scalars(select(InventoryItem.id).where(InventoryItem.owner_id == user.id,
         InventoryItem.equipped.is_(True), InventoryItem.revoked.is_(False))).all()
-    return {**result, 'items': [{**item_data(db, i), **({'copies': groups[i.id].copies, 'gift_item_id': str(groups[i.id].gift_id), 'in_use': groups[i.id].in_use, 'received_at': groups[i.id].received_at} if i.id in groups else {})} for i in result['items']], 'unread': unread,
+    # Bulk-load page and notification metadata instead of one query per card/event.
+    event_items = {i.id: i for i in db.scalars(select(InventoryItem).where(InventoryItem.id.in_([e.item_id for e in events])))}
+    catalog_ids = {i.catalog_id for i in result['items']} | {i.catalog_id for i in event_items.values()}
+    entries = {i.id: i for i in db.scalars(select(InventoryCatalog).where(InventoryCatalog.id.in_(catalog_ids)))}
+    actors = {p.id: p for p in db.scalars(select(User).where(User.id.in_([e.actor_id for e in events])))}
+    saved = set(db.scalars(favorite_ids.where(ShopFavorite.catalog_id.in_(catalog_ids))))
+    def entry_data(i):
+        entry = entries[i.catalog_id]
+        return {'id': str(i.id), 'catalog_id': i.catalog_id, 'name': entry.name, 'kind': entry.kind,
+                'rarity': entry.rarity, 'favorite': i.catalog_id in saved, 'equipped': i.equipped,
+                'revoked': i.revoked, 'created_at': i.created_at,
+                'owner': {'id': str(user.id), 'nick': user.username, 'public_id': user.public_id, 'avatar_updated_at': user.avatar_updated_at}}
+    def actor_data(key):
+        p = actors.get(key)
+        return {'id': str(p.id), 'nick': p.username, 'public_id': p.public_id, 'avatar_updated_at': p.avatar_updated_at} if p else None
+    return {**result, 'categories': counts, 'items': [{**entry_data(i), **({'copies': groups[i.id].copies, 'gift_item_id': str(groups[i.id].gift_id), 'in_use': groups[i.id].in_use, 'received_at': groups[i.id].received_at} if i.id in groups else {})} for i in result['items']], 'unread': unread,
             'equipped_ids': sorted(str(i) for i in equipped),
             'notifications': [{'id': str(e.id), 'action': e.action, 'created_at': e.created_at,
-                               'name': catalog_data(db, db.get(InventoryItem, e.item_id).catalog_id)['name'],
-                               'actor': person(db, e.actor_id), 'unread': e.read_at is None} for e in events]}
+                               'name': entries[event_items[e.item_id].catalog_id].name,
+                               'actor': actor_data(e.actor_id), 'unread': e.read_at is None} for e in events if e.item_id in event_items]}
 
 
 @router.post('/read')

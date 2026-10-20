@@ -1,5 +1,6 @@
 import {RarityBadgeComponent} from './rarity-badge.component';
 import {ResourceRefreshService} from '../core/services/resource-refresh.service';
+import {AppEventsService} from '../core/services/app-events.service';
 import {CollectiblePreviewComponent} from './collectible-preview.component';
 import {UserCardDirective} from './user-card.directive';
 import {AssetPreviewComponent} from './asset-preview.component';
@@ -10,15 +11,16 @@ import { Component, ElementRef, effect, inject, input, output, signal, untracked
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, Subject, takeUntil } from 'rxjs';
+import {CIRCULAR_FRAME_IDS} from './circular-frames';
 import { API_BASE_URL } from '../core/api/api-base';
 
 interface Person { id: string; nick: string; public_id: number; avatar_updated_at: string | null; }
-interface Item { rarity?:string|null; in_use?: boolean; received_at?: string; copies?: number; gift_item_id?: string; created_at: string; id: string; catalog_id: string; name: string; kind: string; equipped: boolean; revoked: boolean; owner: Person | null; }
+interface Item { favorite?:boolean; rarity?:string|null; in_use?: boolean; received_at?: string; copies?: number; gift_item_id?: string; created_at: string; id: string; catalog_id: string; name: string; kind: string; equipped: boolean; revoked: boolean; owner: Person | null; }
 interface Notice { id: string; action: string; name: string; actor: Person | null; created_at: string; unread: boolean; }
 interface Event { action: string; actor: Person | null; recipient: Person | null; created_at: string; }
 interface Page<T> { items: T[]; total: number; page: number; pages: number; }
-interface Collection extends Page<Item> { notifications: Notice[]; unread: number; equipped_ids: string[]; }
+interface Collection extends Page<Item> { categories?:Record<string,number>; notifications: Notice[]; unread: number; equipped_ids: string[]; }
 interface Catalog { id: string; name: string; kind: string; hidden: boolean; }
 interface Pending { action: string; item: Item | null; recipient: Person | null; request_id: string; catalog_id?: string; }
 
@@ -68,7 +70,27 @@ export class InventoryComponent implements OnDestroy {
  readonly total = signal(0);
  readonly currentPage = signal(1);
  readonly pageCount = signal(1);
+ readonly circularFrames=CIRCULAR_FRAME_IDS;
+ readonly categories=[{id:'avatar',label:'Аватарки'},{id:'frame',label:'Рамки'},{id:'wallpaper',label:'Обои'},{id:'theme',label:'Темы'}];
+ readonly rarities=[{id:'common',label:'Обычный'},{id:'uncommon',label:'Необычный'},{id:'rare',label:'Редкий'},{id:'epic',label:'Эпический'},{id:'legendary',label:'Легендарный'}];
+ readonly counts=signal<Partial<Record<string,number>>>({});
+ readonly filtersOpen=signal(false);readonly favoriteBusy=signal(new Set<string>());
+ rarity='';usage='all';favorites=false;draft={kind:'all',rarity:'',usage:'all',favorites:false};
+ private readonly cancelRead=new Subject<void>();
  sort='new'; equippedOnly=false;
+ kindLabel(kind:string){return this.categories.find(c=>c.id===kind)?.label??kind;}
+ categoryTotal(){return Object.values(this.counts()).reduce<number>((a,b)=>a+(b??0),0);}
+ openFilters(){this.draft={kind:this.tab(),rarity:this.rarity,usage:this.usage,favorites:this.favorites};this.filtersOpen.set(true);}
+ applyFilters(){this.tab.set(this.draft.kind);this.rarity=this.draft.rarity;this.usage=this.draft.usage;this.favorites=this.draft.favorites;this.filtersOpen.set(false);void this.filterChanged();}
+ resetFilters(){this.tab.set('all');this.rarity='';this.usage='all';this.favorites=false;this.filter='';this.equippedOnly=false;void this.filterChanged();}
+ async favorite(item:Item){
+  if(this.favoriteBusy().has(item.catalog_id))return;
+  this.favoriteBusy.update(s=>new Set([...s,item.catalog_id]));
+  try{await firstValueFrom(this.http.put(`${API_BASE_URL}/api/shop/favorites/${item.catalog_id}`,{enabled:!item.favorite},{headers:{Authorization:`Bearer ${this.token()}`}}));
+   this.items.update(rows=>rows.map(row=>row.catalog_id===item.catalog_id?{...row,favorite:!item.favorite}:row));if(this.favorites)await this.reload(true);
+  }catch(e){this.fail(e);}finally{this.favoriteBusy.update(s=>{const next=new Set(s);next.delete(item.catalog_id);return next;});}
+ }
+
  filter = ''; issuedKind = ''; uploadName = ''; editName = '';
  uploadKind = 'avatar'; uploadFile: File | null = null; previewUrl = '';
  cropX=50; cropY=50; zoom=1; imageWidth=1; imageHeight=1;
@@ -78,12 +100,12 @@ export class InventoryComponent implements OnDestroy {
  get previewHeight(){return this.imageHeight/Math.min(this.imageWidth,this.imageHeight)*this.zoom*100;}
  pageNumbers(){const start=Math.max(1,Math.min(this.currentPage()-2,this.pageCount()-4));return Array.from({length:Math.min(5,this.pageCount())},(_,i)=>start+i);}
  selectedEntry(){return this.catalog().find(c=>c.id===this.selectedCatalog);}
- async switchTab(value: string){if(this.busy())return;++this.searchVersion;this.menu.set(null);this.error.set('');this.success.set('');this.filter='';this.issuedKind='';this.currentPage.set(1);this.recipient.set(null);this.people.set([]);this.query='';this.searched.set(false);this.selectedCatalog='';if(this.mode()==='admin')this.adminTab.set(value as 'avatar'|'frame'|'wallpaper'|'theme'|'issued');else this.tab.set(value);await this.reload();}
+ async switchTab(value: string){if(this.busy())return;++this.searchVersion;this.menu.set(null);this.error.set('');this.success.set('');if(!this.storeLayout())this.filter='';this.issuedKind='';this.currentPage.set(1);this.recipient.set(null);this.people.set([]);this.query='';this.searched.set(false);this.selectedCatalog='';if(this.mode()==='admin')this.adminTab.set(value as 'avatar'|'frame'|'wallpaper'|'theme'|'issued');else this.tab.set(value);await this.reload();}
  async filterChanged(){this.currentPage.set(1);this.selectedCatalog='';await this.reload();}
  async goPage(value: number){this.currentPage.set(value);this.menu.set(null);this.selectedCatalog='';await this.reload();}
  openUpload(){this.resetUpload();this.uploadKind=this.adminTab()==='issued'?'avatar':this.adminTab();this.uploadOpen.set(true);this.error.set('');}
  resetUpload(){++this.fileVersion;if(this.previewUrl)URL.revokeObjectURL(this.previewUrl);this.previewUrl='';this.uploadFile=null;this.uploadName='';this.cropX=50;this.cropY=50;this.zoom=1;}
- ngOnDestroy(){this.resetUpload();++this.loadVersion;++this.historyVersion;}
+ ngOnDestroy(){this.favoriteEvents.unsubscribe();this.cancelRead.next();this.cancelRead.complete();this.resetUpload();++this.loadVersion;++this.historyVersion;}
  async fileChanged(event: globalThis.Event){
   const version=++this.fileVersion;this.error.set('');const file=(event.target as HTMLInputElement).files?.[0];this.uploadFile=null;if(this.previewUrl)URL.revokeObjectURL(this.previewUrl);this.previewUrl='';
   if(!file)return;if(file.size>10*1024*1024){this.error.set('Изображение должно быть не больше 10 МБ');return;}
@@ -112,7 +134,7 @@ export class InventoryComponent implements OnDestroy {
   this.menuTrigger=event.currentTarget as HTMLElement;
   this.menu.set(item);
  }
- closeNested(){if(this.busy())return true;if(this.menu()){this.menu.set(null);return true;}if(this.pending()||this.giftItem()||this.themePreview()||this.detail()||this.eventsOpen()){this.closePanel();return true;}return false;}
+ closeNested(){if(this.busy())return true;if(this.filtersOpen()){this.filtersOpen.set(false);return true;}if(this.menu()){this.menu.set(null);return true;}if(this.pending()||this.giftItem()||this.themePreview()||this.detail()||this.eventsOpen()){this.closePanel();return true;}return false;}
  closePanel() {if(this.busy())return;++this.historyVersion;if(this.pending())this.pending.set(null);else{this.giftItem.set(null);this.grantOpen.set(false);this.detail.set(null);this.themePreview.set(null);this.eventsOpen.set(false);this.uploadOpen.set(false);this.editing.set(null);this.resetUpload();}}
  async clearRecipient() {this.recipient.set(null);this.query='';this.people.set([]);this.searched.set(false);}
  query = '';
@@ -123,9 +145,14 @@ export class InventoryComponent implements OnDestroy {
  readonly labels: Record<string, string> = {purchase:'Покупка',grant:'Выдача',gift:'Подарок',revoke:'Отзыв',equip:'Использование',unequip:'Снятие'};
 
  private readonly refreshEvents=inject(ResourceRefreshService);
+ private readonly favoriteEvents=inject(AppEventsService).events$.subscribe(event=>{
+  if(event.type!=='shop_favorites_changed'||this.favoriteBusy().has(event.catalog_id))return;
+  this.items.update(rows=>rows.map(item=>item.catalog_id===event.catalog_id?{...item,favorite:event.favorite}:item));
+  if(this.favorites&&!document.hidden&&this.element.nativeElement.offsetParent!==null)void this.reload(true);
+ });
  constructor() {
   effect(onCleanup=>{
-   const selector=this.pending()?'.confirm':(this.giftItem()||this.themePreview()||this.detail()||this.eventsOpen()||this.uploadOpen()||this.editing()||this.grantOpen())?'.subpanel':null;
+   const selector=this.filtersOpen()?'.inventory-filters':this.pending()?'.confirm':(this.giftItem()||this.themePreview()||this.detail()||this.eventsOpen()||this.uploadOpen()||this.editing()||this.grantOpen())?'.subpanel':null;
    if(!selector)return;
    const previous=document.activeElement as HTMLElement | null;
    const timer=setTimeout(()=>this.element.nativeElement.querySelector<HTMLElement>(selector+' button')?.focus());
@@ -153,7 +180,7 @@ export class InventoryComponent implements OnDestroy {
   const snapshot=data.equipped_ids.join(',');
   if(this.equipmentSnapshot!==null && snapshot!==this.equipmentSnapshot)this.changed.emit();
   this.equipmentSnapshot=snapshot;
-  this.notices.set(data.notifications);this.unread.emit(data.unread);
+  this.counts.set(data.categories??{});this.notices.set(data.notifications);this.unread.emit(data.unread);
   this.unreadCount.set(data.unread);
  }
  avatar(p: Person) { return `${API_BASE_URL}/api/users/${p.id}/avatar?v=${encodeURIComponent(p.avatar_updated_at ?? 'default')}&motion=${!window.matchMedia('(prefers-reduced-motion: reduce)').matches}`; }
@@ -162,13 +189,13 @@ export class InventoryComponent implements OnDestroy {
  }
  private fail(e: unknown) { const detail=e instanceof HttpErrorResponse?e.error?.detail:null;this.error.set(typeof detail==='string'?detail:'Не удалось выполнить действие. Проверьте поля и попробуйте ещё раз.'); }
  async reload(silent=false) {
-  const version=++this.loadVersion;if(!silent)this.loading.set(true);
+  const version=++this.loadVersion;this.cancelRead.next();if(!silent)this.loading.set(true);
   const mode=this.mode(), tab=mode==='admin'?this.adminTab():this.tab();
   const params=new URLSearchParams({page:String(this.currentPage()),q:this.filter});
   if(tab!=='issued'&&tab!=='all')params.set('kind',tab);else if(this.issuedKind)params.set('kind',this.issuedKind);
-  if(mode==='inventory'){params.set('grouped','true');params.set('sort',this.sort);params.set('equipped_only',String(this.equippedOnly));}
+  if(mode==='inventory'){params.set('grouped','true');params.set('sort',this.sort);params.set('equipped_only',String(this.equippedOnly));params.set('usage',this.usage);params.set('favorites',String(this.favorites));if(this.rarity)params.set('rarity',this.rarity);}
   try {
-   const data=await this.request<Collection>(mode==='inventory'?'?'+params:'');
+   const data=await firstValueFrom(this.http.get<Collection>(`${API_BASE_URL}/api/inventory${mode==='inventory'?'?'+params:''}`,{headers:{Authorization:`Bearer ${this.token()}`}}).pipe(takeUntil(this.cancelRead)));
    if(version!==this.loadVersion)return;
    this.accept(data);
    if(mode==='admin' && this.isAdmin()) {
@@ -234,10 +261,10 @@ export class InventoryComponent implements OnDestroy {
  async markRead() {try{await this.request('/read','POST',{});await this.reload();}catch(e){this.fail(e);}}
  dismiss() {if(!this.busy())this.close.emit();}
  keydown(event: KeyboardEvent) {
-  if(this.embedded()&&!this.pending()&&!this.giftItem()&&!this.themePreview()&&!this.detail()&&!this.eventsOpen()&&!this.uploadOpen()&&!this.editing()&&!this.grantOpen())return;
-  if(event.key==='Escape'){event.preventDefault();event.stopPropagation();if(!this.busy()){if(this.menu()){this.menu.set(null);this.menuTrigger?.focus();}else if(this.pending()||this.giftItem()||this.themePreview()||this.detail()||this.eventsOpen()||this.uploadOpen()||this.editing()||this.grantOpen())this.closePanel();else this.dismiss();}}
+  if(this.embedded()&&!this.filtersOpen()&&!this.pending()&&!this.giftItem()&&!this.themePreview()&&!this.detail()&&!this.eventsOpen()&&!this.uploadOpen()&&!this.editing()&&!this.grantOpen())return;
+  if(event.key==='Escape'){event.preventDefault();event.stopPropagation();if(!this.busy()){if(this.filtersOpen()){this.filtersOpen.set(false);}else if(this.menu()){this.menu.set(null);this.menuTrigger?.focus();}else if(this.pending()||this.giftItem()||this.themePreview()||this.detail()||this.eventsOpen()||this.uploadOpen()||this.editing()||this.grantOpen())this.closePanel();else this.dismiss();}}
   if(event.key!=='Tab')return;
-  const root=this.element.nativeElement.querySelector(this.pending()?'.confirm':(this.giftItem()||this.themePreview()||this.detail()||this.eventsOpen()||this.uploadOpen()||this.editing()||this.grantOpen())?'.subpanel':'.inventory');
+  const root=this.element.nativeElement.querySelector(this.filtersOpen()?'.inventory-filters':this.pending()?'.confirm':(this.giftItem()||this.themePreview()||this.detail()||this.eventsOpen()||this.uploadOpen()||this.editing()||this.grantOpen())?'.subpanel':'.inventory');
   const nodes=Array.from(root?.querySelectorAll<HTMLElement>('button:not(:disabled),input,select')??[]).filter(e=>e.offsetParent!==null);
   const first=nodes[0],last=nodes[nodes.length-1];
   if(event.shiftKey && (document.activeElement===first || !root?.contains(document.activeElement))){event.preventDefault();last?.focus();}
