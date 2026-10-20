@@ -19,6 +19,10 @@ downloads = set(re.findall(r'href="(/downloads/[^"?]+)"', (build / 'index.html')
 for download in downloads:
     if not (build / download.lstrip('/')).is_file():
         raise SystemExit('Missing landing download. Run scripts/prepare-downloads.py, then rebuild frontend: ' + download)
+    staged = build / download.lstrip('/')
+    public = root / 'frontend/public' / download.lstrip('/')
+    if not public.is_file() or hashlib.sha256(staged.read_bytes()).digest() != hashlib.sha256(public.read_bytes()).digest():
+        raise SystemExit('Stale staged download. Run scripts/prepare-downloads.py: ' + download)
 source = subprocess.check_output(['git', '-c', 'core.autocrlf=false', 'archive', '--format=tar', 'HEAD'], cwd=root)
 checksums = []
 with tarfile.open(output, 'w:gz') as target:

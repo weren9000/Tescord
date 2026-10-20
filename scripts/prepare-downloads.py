@@ -19,4 +19,12 @@ for source in files:
         raise SystemExit(f'Checksum mismatch: {source.name}')
     shutil.copy2(source, target / source.name)
     (target / checksum.name).write_text(f'{digest}  {source.name}\n', encoding='ascii', newline='\n')
+    # Native packages are built after the web UI. Refresh its staged downloads
+    # without rebuilding that UI (which would otherwise create a packaging cycle).
+    build = root / 'frontend/dist/frontend/browser'
+    if (build / 'index.html').is_file():
+        staged = build / 'downloads'
+        staged.mkdir(exist_ok=True)
+        shutil.copy2(target / source.name, staged / source.name)
+        shutil.copy2(target / checksum.name, staged / checksum.name)
     print(f'{source.name}: {source.stat().st_size} bytes, verified')
