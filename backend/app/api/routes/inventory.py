@@ -108,12 +108,12 @@ def search_pattern(value):
     return '%' + value.strip().replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_') + '%'
 
 
-def paginate(db, query, page, *order):
+def paginate(db, query, page, *order, size=20):
     total = db.scalar(select(func.count()).select_from(query.subquery()))
-    pages = max(1, (total + 19) // 20)
+    pages = max(1, (total + size - 1) // size)
     page = min(page, pages)
-    return {'items': db.scalars(query.order_by(*order).offset((page-1)*20).limit(20)).all(),
-            'total': total, 'page': page, 'pages': pages, 'page_size': 20}
+    return {'items': db.scalars(query.order_by(*order).offset((page-1)*size).limit(size)).all(),
+            'total': total, 'page': page, 'pages': pages, 'page_size': size}
 
 
 def entry_data(entry):
@@ -178,7 +178,8 @@ async def upload_catalog(name: str = Form(max_length=80), kind: Literal['avatar'
 
 
 @router.get('/assets/{catalog_id}')
-def asset(catalog_id: str, request: Request, motion: bool = True, preview: bool = False, live: bool = False, db: Session = Depends(get_db, scope="function")):
+def asset(catalog_id: str, request: Request, motion: bool = True, preview: bool = False, live: bool = False, preview_size: int = Query(256, ge=128, le=512), db: Session = Depends(get_db, scope="function")):
+    if preview_size not in (128, 256, 512): raise HTTPException(422, 'Unsupported preview size')
     if not db.get(InventoryCatalog, catalog_id): raise HTTPException(404, 'Предмет не найден')
     from app.services.living_wallpaper import CATALOG_ID, marsh_svg
     from app.services.valheim_wallpaper import valheim_svg
@@ -196,7 +197,7 @@ def asset(catalog_id: str, request: Request, motion: bool = True, preview: bool 
     if not path.is_file(): raise HTTPException(404, 'Изображение не найдено')
     if preview:
         from app.services.image_previews import preview_response
-        return preview_response(path, request)
+        return preview_response(path, request, preview_size)
     return FileResponse(path, media_type='image/png' if path.suffix == '.png' else 'image/webp')
 
 

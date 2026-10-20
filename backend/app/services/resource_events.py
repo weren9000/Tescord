@@ -9,6 +9,12 @@ async def resources_changed():
     await app_event_manager.broadcast({'type': 'resources_changed'})
 
 
+@distributed_event
+async def shop_favorites_changed(user_id: str, catalog_id: str, favorite: bool):
+    from app.services.app_events import app_event_manager
+    await app_event_manager.send_to_user(user_id, {'type': 'shop_favorites_changed', 'catalog_id': catalog_id, 'favorite': favorite})
+
+
 class ResourceEventsMiddleware:
     def __init__(self, app):
         self.app = app
@@ -26,7 +32,7 @@ class ResourceEventsMiddleware:
             await send(message)
 
         await self.app(scope, receive, capture)
-        if scope['type'] == 'http' and scope['method'] in {'POST', 'PUT', 'PATCH', 'DELETE'} and relevant and changed and not path.endswith('/preview'):
+        if scope['type'] == 'http' and scope['method'] in {'POST', 'PUT', 'PATCH', 'DELETE'} and relevant and changed and not path.startswith('/api/shop/favorites/') and not path.endswith('/preview'):
             try:
                 await resources_changed()
             except Exception:

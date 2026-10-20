@@ -12,6 +12,7 @@ class ShopOffer(Base):
     price: Mapped[int] = mapped_column(BigInteger, nullable=False)
     status: Mapped[str] = mapped_column(String(16), nullable=False, default='draft')
     position: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    rarity: Mapped[str | None] = mapped_column(String(16), nullable=True)
     recommended: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -42,3 +43,27 @@ class ShopAudit(Base):
     before: Mapped[dict] = mapped_column(JSON, nullable=False)
     after: Mapped[dict] = mapped_column(JSON, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ShopFavorite(Base):
+    __tablename__ = 'shop_favorites'
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('users.id', ondelete='CASCADE'), primary_key=True)
+    catalog_id: Mapped[str] = mapped_column(ForeignKey('inventory_catalog.id', ondelete='CASCADE'), primary_key=True)
+
+
+class ShopCollection(Base):
+    __tablename__ = 'shop_collections'
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    name: Mapped[str] = mapped_column(String(80), nullable=False)
+    description: Mapped[str] = mapped_column(String(180), nullable=False, default='')
+    artwork: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    cover_id: Mapped[str] = mapped_column(ForeignKey('inventory_catalog.id', ondelete='CASCADE'))
+    published: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    position: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+
+
+class ShopCollectionItem(Base):
+    __tablename__ = 'shop_collection_items'
+    collection_id: Mapped[str] = mapped_column(ForeignKey('shop_collections.id', ondelete='CASCADE'), primary_key=True)
+    catalog_id: Mapped[str] = mapped_column(ForeignKey('inventory_catalog.id', ondelete='CASCADE'), primary_key=True)

@@ -63,4 +63,33 @@ describe('Smart catalog',()=>{
   expect(component.confirming()).toBeFalse();
   expect(component.selected()?.id).toBe('cat');
  });
+ it('keeps mobile filter edits separate until Apply',async()=>{
+  component.kind='avatar';component.priceBand='low';
+  component.openFilters();
+  http.expectOne(r=>r.url.includes('count_only=true')).flush({total:4});
+  await Promise.resolve();
+  component.setFilter('kind','frame');
+  http.expectOne(r=>r.url.includes('kind=frame')&&r.url.includes('count_only=true')).flush({total:2});
+  await Promise.resolve();
+  expect(component.kind).toBe('avatar');
+  component.filtersOpen.set(false);
+  expect(component.kind).toBe('avatar');
+  component.openFilters();
+  http.expectOne(r=>r.url.includes('count_only=true')).flush({total:4});
+  await Promise.resolve();
+  component.setFilter('rarity','rare');
+  http.expectOne(r=>r.url.includes('rarity=rare')&&r.url.includes('count_only=true')).flush({total:1});
+  await Promise.resolve();
+  component.applyDraft();
+  http.expectOne(r=>r.url.includes('rarity=rare')&&!r.url.includes('count_only')).flush(empty);
+  expect(component.rarity).toBe('rare');expect(component.filtersOpen()).toBeFalse();
+ });
+ it('serializes favorite clicks and leaves the product closed',async()=>{
+  const item={id:'cat',name:'Cat',kind:'avatar',favorite:false};component.items.set([item]);
+  const pending=component.toggleFavorite(item);await component.toggleFavorite(item);
+  const request=http.expectOne(r=>r.url.endsWith('/favorites/cat'));
+  expect(request.request.method).toBe('PUT');request.flush({favorite:true});await pending;
+  expect(component.items()[0].favorite).toBeTrue();expect(component.selected()).toBeNull();
+ });
+
 });

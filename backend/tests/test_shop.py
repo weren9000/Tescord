@@ -174,3 +174,78 @@ def test_catalog_price_recommendation_and_real_facets(store):
     assert c.post('/api/shop/purchases',headers=b,json=buy(key)).status_code==200
     assert get().json()['items'][0]['owned']==1
     assert get(unowned=True).json()['categories']=={}
+
+
+def test_favorites_private_idempotent_and_rarity_optional(store):
+    c,users,key=store;a,b,d=[u[0] for u in users]
+    assert offer(c,a,key).status_code==200
+    assert c.get('/api/shop',headers=b,params={'q':'Test Shop'}).json()['items'][0]['rarity'] is None
+    path='/api/shop/favorites/'+key
+    assert c.put(path,json={'enabled':True}).status_code==401
+    for _ in range(2):assert c.put(path,headers=b,json={'enabled':True}).json()['favorite']
+    result=c.get('/api/shop',headers=b,params={'favorites':True,'count_only':True}).json()
+    assert result['total']==1
+    assert c.get('/api/shop',headers=d,params={'favorites':True}).json()['total']==0
+    payload=dict(price=100,status='published',position=0,recommended=False,version=1,rarity='rare')
+    assert c.put('/api/shop/admin/offers/'+key,headers=b,json=payload).status_code==403
+    assert c.put('/api/shop/admin/offers/'+key,headers=a,json=payload).status_code==200
+    assert c.get('/api/shop',headers=b,params={'rarity':'rare','favorites':True}).json()['total']==1
+    assert c.get('/api/shop',headers=b,params={'rarity':'epic','favorites':True}).json()['total']==0
+    assert c.get('/api/shop',headers=b,params={'rarity':'invented'}).status_code==422
+    assert c.put(path,headers=b,json={'enabled':False}).json()['favorite'] is False
+    assert c.get('/api/shop',headers=b,params={'favorites':True}).json()['total']==0
+
+
+def test_collections_editor_permissions_versions_and_public_visibility(store):
+    from app.db.shop import ShopCollection, ShopCollectionItem
+    c,users,key=store;a,b,d=[u[0] for u in users]
+    assert offer(c,a,key).status_code==200
+    group=str(uuid4());url='/api/shop/admin/collections/'+group
+    body=dict(name='Test selection',description='Real catalog',cover_id=key,items=[key],published=False,position=1,version=0)
+    assert c.put(url,headers=b,json=body).status_code==403
+    assert c.get('/api/shop/admin/collections',headers=b).status_code==403
+    try:
+        assert c.put(url,headers=a,json=body).status_code==200
+        assert all(g['id']!=group for g in c.get('/api/shop/collections',headers=b).json())
+        assert c.get('/api/shop',headers=b,params={'collection':group}).status_code==404
+        assert c.put(url,headers=a,json=body).status_code==409
+        assert c.put(url,headers=a,json={**body,'version':1,'published':True}).status_code==200
+        groups=c.get('/api/shop/collections',headers=b).json()
+        assert next(g for g in groups if g['id']==group)['total']==1
+        assert c.get('/api/shop',headers=b,params={'collection':group,'count_only':True}).json()['total']==1
+        assert c.get('/api/shop',headers=b,params={'collection':group,'kind':'theme'}).json()['total']==0
+        assert c.put(url,headers=a,json={**body,'version':2,'cover_id':'missing'}).status_code==422
+        assert c.put(url,headers=a,json={**body,'version':2,'items':['missing']}).status_code==422
+        assert c.put('/api/shop/admin/offers/'+key,headers=a,json={'price':100,'status':'withdrawn','version':1,'position':0}).status_code==200
+        assert all(g['id']!=group for g in c.get('/api/shop/collections',headers=b).json())
+        assert next(g for g in c.get('/api/shop/admin/collections',headers=a).json() if g['id']==group)['items'][0]['id']==key
+    finally:
+        with SessionLocal() as db:
+            db.execute(delete(ShopCollectionItem).where(ShopCollectionItem.collection_id==group))
+            db.execute(delete(ShopCollection).where(ShopCollection.id==group));db.commit()
+
+
+def test_asset_preview_size_is_bounded_and_accepts_query_strings(store):
+    from PIL import Image
+    from io import BytesIO
+    c,_,_=store
+    for size in (128,256,512):
+        r=c.get('/api/inventory/assets/cyber-oni',params={'preview':True,'preview_size':size})
+        assert r.status_code==200
+        with Image.open(BytesIO(r.content)) as image:assert image.size==(size,size)
+    for size in (0,129,9999):
+        assert c.get('/api/inventory/assets/cyber-oni',params={'preview':True,'preview_size':size}).status_code==422
+
+
+def test_favorite_updates_only_owners_sessions(store, monkeypatch):
+    from app.services import resource_events
+    from app.services.app_events import app_event_manager
+    c,users,key=store
+    deliveries=[];broadcasts=[]
+    async def targeted(user_id,payload):deliveries.append((str(user_id),payload))
+    async def broadcast():broadcasts.append(True)
+    monkeypatch.setattr(app_event_manager,'send_to_user',targeted)
+    monkeypatch.setattr(resource_events,'resources_changed',broadcast)
+    assert c.put('/api/shop/favorites/'+key,headers=users[1][0],json={'enabled':True}).status_code==200
+    assert deliveries==[(users[1][1]['id'],{'type':'shop_favorites_changed','catalog_id':key,'favorite':True})]
+    assert broadcasts==[]

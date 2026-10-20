@@ -37,9 +37,9 @@ def small_preview_response(content: bytes, request: Request | None = None):
     return FileResponse(target, media_type='image/webp', headers=headers)
 
 
-def preview_path(source: Path) -> Path:
+def preview_path(source: Path, edge: int = 256) -> Path:
     stat = source.stat()
-    key = hashlib.sha256(f'v1:256:{source.resolve()}:{stat.st_size}:{stat.st_mtime_ns}'.encode()).hexdigest()
+    key = hashlib.sha256(f'v2:{edge}:{source.resolve()}:{stat.st_size}:{stat.st_mtime_ns}'.encode()).hexdigest()
     directory = _uploads_root() / 'previews'
     target = directory / (key + '.webp')
     if target.is_file():
@@ -48,7 +48,7 @@ def preview_path(source: Path) -> Path:
     with Image.open(source) as original:
         original.seek(0)
         image = ImageOps.exif_transpose(original).convert('RGBA')
-        image.thumbnail((256, 256), Image.Resampling.LANCZOS)
+        image.thumbnail((edge, edge), Image.Resampling.LANCZOS)
         # Encode before publishing so concurrent readers never see a partial image.
         fd, name = tempfile.mkstemp(prefix='preview-', suffix='.tmp', dir=directory)
         try:
@@ -60,8 +60,8 @@ def preview_path(source: Path) -> Path:
     return target
 
 
-def preview_response(source: Path, request: Request):
-    path = preview_path(source)
+def preview_response(source: Path, request: Request, edge: int = 256):
+    path = preview_path(source, edge)
     etag = '"' + path.stem + '"'
     headers = {'Cache-Control': 'public, max-age=3600', 'ETag': etag, 'X-Content-Type-Options': 'nosniff'}
     if etag in [tag.strip().removeprefix('W/') for tag in request.headers.get('if-none-match', '').split(',')]:

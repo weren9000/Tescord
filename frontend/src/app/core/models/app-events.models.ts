@@ -105,7 +105,10 @@ export interface AppFriendRequestsChangedEvent {
   pending_incoming_count: number;
 }
 
+export interface ShopFavoritesChangedEvent {type:'shop_favorites_changed';catalog_id:string;favorite:boolean}
+
 export type AppEventsMessage =
+  | ShopFavoritesChangedEvent
   | AppEventsReadyEvent
   | AppEventsPongEvent
   | AppEventsErrorEvent

@@ -1,20 +1,21 @@
 from typing import Literal
 from datetime import date, datetime, time, timedelta, timezone
 from uuid import UUID
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, Request, BackgroundTasks
 from pydantic import BaseModel, Field
-from sqlalchemy import select, func, text, or_
+from sqlalchemy import select, func, text, or_, delete
 from sqlalchemy.orm import Session
 from app.api.dependencies.auth import get_current_user
 from app.api.routes.admin_directory import require_admin
 from app.api.routes.inventory import search_pattern, paginate, usage_expression
 from app.db.models import User, WalletOperation
 from app.db.inventory import InventoryCatalog, InventoryItem, InventoryEvent
-from app.db.shop import ShopOffer, ShopPurchase, ShopAudit
+from app.db.shop import ShopOffer, ShopPurchase, ShopAudit, ShopFavorite, ShopCollection, ShopCollectionItem
 from app.db.session import get_db
 from app.services.inventory import lock_inventory
 
 router = APIRouter(prefix='/shop', tags=['shop'])
+Rarity = Literal['common', 'rare', 'epic', 'legendary']
 Kind = Literal['avatar', 'frame', 'wallpaper', 'theme']
 
 
@@ -26,7 +27,7 @@ def manager(response: Response, user: User = Depends(get_current_user)):
 
 
 def offer_data(offer):
-    return {key: getattr(offer, key) for key in ('price', 'status', 'position', 'recommended', 'version')} if offer else {}
+    return {key: getattr(offer, key) for key in ('price', 'status', 'position', 'recommended', 'version', 'rarity')} if offer else {}
 
 
 def receipt(row):
@@ -38,7 +39,8 @@ def receipt(row):
 def offers(response: Response, kind: Kind | None = None, q: str = Query('', max_length=80),
            sort: Literal['new', 'cheap', 'expensive'] = 'new', unowned: bool = False,
            min_price: int | None = Query(None, ge=0), max_price: int | None = Query(None, ge=0),
-           recommended: bool = False,
+           recommended: bool = False, favorites: bool = False, rarity: Rarity | None = None,
+           collection: str | None = Query(None, max_length=64), count_only: bool = False,
            page: int = Query(1, ge=1), user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     response.headers['Cache-Control'] = 'no-store'
     owned = select(func.count(InventoryItem.id)).where(InventoryItem.owner_id == user.id,
@@ -48,23 +50,126 @@ def offers(response: Response, kind: Kind | None = None, q: str = Query('', max_
     if unowned: query = query.where(owned == 0)
     if min_price is not None: query = query.where(ShopOffer.price >= min_price)
     if max_price is not None: query = query.where(ShopOffer.price <= max_price)
+    favorite_ids = select(ShopFavorite.catalog_id).where(ShopFavorite.user_id == user.id)
+    if favorites: query = query.where(InventoryCatalog.id.in_(favorite_ids))
+    if rarity: query = query.where(ShopOffer.rarity == rarity)
+    if collection:
+        group = db.get(ShopCollection, collection)
+        if not group or not group.published: raise HTTPException(404, 'Подборка недоступна')
+        query = query.where(InventoryCatalog.id.in_(select(ShopCollectionItem.catalog_id).where(ShopCollectionItem.collection_id == collection)))
     if recommended: query = query.where(ShopOffer.recommended.is_(True))
     if min_price is not None and max_price is not None and min_price > max_price:
         raise HTTPException(422, 'Минимальная цена больше максимальной')
     counts = dict(db.execute(query.with_only_columns(InventoryCatalog.kind, func.count()).group_by(InventoryCatalog.kind)).all())
     if kind: query = query.where(InventoryCatalog.kind == kind)
+    if count_only:
+        return {'total': db.scalar(select(func.count()).select_from(query.subquery())), 'categories': counts}
     order = {'new': InventoryCatalog.created_at.desc(), 'cheap': ShopOffer.price, 'expensive': ShopOffer.price.desc()}[sort]
-    result = paginate(db, query, page, *([ShopOffer.recommended.desc(), ShopOffer.position] if sort == 'new' else []), order, InventoryCatalog.id)
+    result = paginate(db, query, page, *([ShopOffer.recommended.desc(), ShopOffer.position] if sort == 'new' else []), order, InventoryCatalog.id, size=18)
     ids = [e.id for e in result['items']]
     prices = {e.catalog_id: e for e in db.scalars(select(ShopOffer).where(ShopOffer.catalog_id.in_(ids)))} if ids else {}
     quantities = dict(db.execute(select(InventoryItem.catalog_id, func.count()).where(
         InventoryItem.owner_id == user.id, InventoryItem.revoked.is_(False),
         InventoryItem.catalog_id.in_(ids)).group_by(InventoryItem.catalog_id)).all()) if ids else {}
-    result['items'] = [dict(id=e.id, name=e.name, kind=e.kind, **offer_data(prices[e.id]),
+    favorites_set = set(db.scalars(favorite_ids.where(ShopFavorite.catalog_id.in_(ids)))) if ids else set()
+    result['items'] = [dict(id=e.id, name=e.name, kind=e.kind, favorite=e.id in favorites_set, **offer_data(prices[e.id]),
                            owned=quantities.get(e.id, 0)) for e in result['items']]
     result['categories'] = counts
     return result
 
+
+
+class FavoriteEdit(BaseModel):
+    enabled: bool
+
+
+@router.put('/favorites/{catalog_id}')
+def favorite(catalog_id: str, body: FavoriteEdit, background_tasks: BackgroundTasks, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    from sqlalchemy.dialects.postgresql import insert
+    if not db.get(InventoryCatalog, catalog_id): raise HTTPException(404, 'Предмет не найден')
+    if body.enabled:
+        db.execute(insert(ShopFavorite).values(user_id=user.id, catalog_id=catalog_id).on_conflict_do_nothing())
+    else:
+        db.execute(delete(ShopFavorite).where(ShopFavorite.user_id == user.id, ShopFavorite.catalog_id == catalog_id))
+    db.commit()
+    from app.services.resource_events import shop_favorites_changed
+    background_tasks.add_task(shop_favorites_changed, str(user.id), catalog_id, body.enabled)
+    return {'favorite': body.enabled}
+
+
+def collection_data(db, admin=False):
+    query = select(ShopCollection).order_by(ShopCollection.position, ShopCollection.id)
+    if not admin: query = query.where(ShopCollection.published.is_(True))
+    groups = list(db.scalars(query))
+    if not groups: return []
+    entries = db.execute(select(ShopCollectionItem.collection_id, InventoryCatalog.id, InventoryCatalog.name,
+        InventoryCatalog.kind, InventoryCatalog.hidden, ShopOffer.status).select_from(ShopCollectionItem)
+        .join(InventoryCatalog).outerjoin(ShopOffer).where(ShopCollectionItem.collection_id.in_([g.id for g in groups]))).all()
+    by_group = {g.id: [] for g in groups}
+    for entry in entries:
+        if admin or (not entry.hidden and entry.status == 'published'):
+            by_group[entry.collection_id].append(dict(id=entry.id, name=entry.name, kind=entry.kind))
+    covers = {e.id: e for e in db.scalars(select(InventoryCatalog).where(InventoryCatalog.id.in_([g.cover_id for g in groups])))}
+    return [dict(id=g.id, name=g.name, description=g.description, cover_id=g.cover_id, position=g.position,
+        version=g.version, artwork=g.artwork, published=g.published, total=len(by_group[g.id]),
+        **({'items': by_group[g.id]} if admin else {})) for g in groups
+        if admin or (by_group[g.id] and g.cover_id in covers and not covers[g.cover_id].hidden)]
+
+
+@router.get('/artwork/{name}')
+def artwork(name: Literal['neon', 'forest'], request: Request):
+    from pathlib import Path
+    from app.services.image_previews import preview_response
+    return preview_response(Path(__file__).resolve().parents[2] / 'assets' / 'store' / (name + '.png'), request, 1024)
+
+
+@router.get('/collections')
+def collections(response: Response, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    response.headers['Cache-Control'] = 'no-store'
+    return collection_data(db)
+
+
+@router.get('/admin/collections')
+def admin_collections(user: User = Depends(manager), db: Session = Depends(get_db)):
+    return collection_data(db, admin=True)
+
+
+class CollectionEdit(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+    description: str = Field(default='', max_length=180)
+    artwork: Literal['neon', 'forest'] | None = None
+    cover_id: str = Field(min_length=1, max_length=64)
+    items: list[str] = Field(min_length=1, max_length=200)
+    published: bool = False
+    position: int = Field(ge=0, le=100000)
+    version: int = Field(ge=0)
+
+
+@router.put('/admin/collections/{collection_id}')
+def edit_collection(collection_id: UUID, body: CollectionEdit, user: User = Depends(manager), db: Session = Depends(get_db)):
+    lock_inventory(db)
+    key = str(collection_id)
+    group = db.get(ShopCollection, key)
+    if (group.version if group else 0) != body.version: raise HTTPException(409, 'Подборка изменена. Обновите список.')
+    ids = set(body.items)
+    entries = list(db.scalars(select(InventoryCatalog).where(InventoryCatalog.id.in_(ids))))
+    if len(entries) != len(ids) or body.cover_id not in ids or not body.name.strip():
+        raise HTTPException(422, 'Проверьте название, состав и обложку подборки')
+    if body.published and any(e.hidden for e in entries): raise HTTPException(422, 'В подборке есть скрытые предметы')
+    before = {'collection': group.name, 'version': group.version} if group else {}
+    if not group:
+        group = ShopCollection(id=key, version=0)
+        db.add(group)
+    for field in ('name', 'description', 'cover_id', 'artwork', 'position', 'published'): setattr(group, field, getattr(body, field))
+    group.name = group.name.strip()
+    group.version += 1
+    db.flush()
+    db.execute(delete(ShopCollectionItem).where(ShopCollectionItem.collection_id == key))
+    db.add_all([ShopCollectionItem(collection_id=key, catalog_id=id) for id in ids])
+    db.add(ShopAudit(actor_id=user.id, actor_name=user.username, target=key, before=before,
+        after={'collection': group.name, 'version': group.version, 'published': group.published, 'items': sorted(ids)}))
+    db.commit()
+    return {'id': key, 'version': group.version}
 
 def period(query, column, start: date | None, end: date | None):
     if start and end and start > end:
@@ -140,6 +245,7 @@ class OfferEdit(BaseModel):
     status: Literal['draft', 'published', 'withdrawn']
     position: int = Field(strict=True, ge=0, le=100000)
     recommended: bool = False
+    rarity: Rarity | None = None
     version: int = Field(strict=True, ge=0)
 
 
@@ -155,7 +261,7 @@ def edit_offer(catalog_id: str, body: OfferEdit, user: User = Depends(manager), 
     if not offer:
         offer = ShopOffer(catalog_id=catalog_id, version=0)
         db.add(offer)
-    for key in ('price', 'status', 'position', 'recommended'): setattr(offer, key, getattr(body, key))
+    for key in ('price', 'status', 'position', 'recommended', 'rarity'): setattr(offer, key, getattr(body, key))
     offer.version += 1
     db.add(ShopAudit(actor_id=user.id, actor_name=user.username, target=catalog_id, before=before, after=offer_data(offer)))
     db.commit()
