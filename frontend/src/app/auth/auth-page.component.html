@@ -1,0 +1,109 @@
+  <div class="auth-page">
+    <app-guest-header class="auth" />
+    <main class="auth-content">
+    <section class="auth-panel auth-panel--form" data-nosnippet>
+      <ng-content />
+      <div class="auth-tabs">
+        <button
+          class="auth-tab"
+          [class.auth-tab--active]="form.mode() === 'login'"
+          [attr.aria-pressed]="form.mode() === 'login'"
+          type="button"
+          (click)="form.switchMode('login')"
+        >
+          Вход
+        </button>
+        <button
+          class="auth-tab"
+          [class.auth-tab--active]="form.mode() === 'register'"
+          [attr.aria-pressed]="form.mode() === 'register'"
+          type="button"
+          (click)="form.switchMode('register')"
+        >
+          Регистрация
+        </button>
+      </div>
+
+      @if (form.mode() === 'login') {
+        <form class="auth-form" (ngSubmit)="form.submitLogin()">
+          <label class="field">
+            <span>Email</span>
+            <input
+              [(ngModel)]="form.loginForm.email"
+              autocomplete="email"
+              name="email"
+              placeholder="you@example.com"
+              type="email"
+            />
+          </label>
+
+          <label class="field">
+            <span>Пароль</span>
+            <input
+              [(ngModel)]="form.loginForm.password"
+              autocomplete="current-password"
+              name="password"
+              placeholder="Введите пароль"
+              type="password"
+            />
+          </label>
+
+          <div class="auth-actions">
+            <button class="primary-button primary-button--full" type="submit" [disabled]="form.loading()">
+              {{ form.loading() ? 'Входим...' : 'Войти' }}
+            </button>
+          </div>
+        </form>
+      } @else {
+        <form class="auth-form" (ngSubmit)="form.submitRegistration()">
+          <label class="field">
+            <span>Email</span>
+            <input
+              [(ngModel)]="form.registerForm.email"
+              autocomplete="email"
+              name="register_email"
+              placeholder="you@example.com"
+              type="email"
+            />
+          </label>
+
+          <label class="field">
+            <span>Пароль</span>
+            <input
+              [(ngModel)]="form.registerForm.password"
+              autocomplete="new-password"
+              name="register_password"
+              placeholder="Не короче 8 символов"
+              type="password"
+            />
+          </label>
+
+          <label class="field">
+            <span>Подтверждение пароля</span>
+            <input
+              [(ngModel)]="form.registerForm.password_confirmation"
+              autocomplete="new-password"
+              name="password_confirmation"
+              placeholder="Повторите пароль"
+              type="password"
+            />
+          </label>
+
+          <label class="field">
+            <span>Ник</span>
+            <input [(ngModel)]="form.registerForm.nick" name="nick" placeholder="Ваш ник" type="text" />
+          </label>
+
+          <button class="primary-button primary-button--full" type="submit" [disabled]="form.loading()">
+            {{ form.loading() ? 'Создаем аккаунт...' : 'Зарегистрироваться' }}
+          </button>
+
+        </form>
+      }
+
+      @if (form.error()) {
+        <p class="auth-error" role="alert">{{ form.error() }}</p>
+      }
+    </section>
+    </main>
+  </div>

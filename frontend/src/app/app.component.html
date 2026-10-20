@@ -259,116 +259,12 @@
 @if (showLanding()) {
   @defer (on immediate) {<app-landing />}
 } @else if (!isAuthenticated()) {
-  <div class="auth-page">
-    <app-guest-header class="auth" />
-    <main class="auth-content">
-    <section class="auth-panel auth-panel--form" data-nosnippet>
+  @defer (on immediate) {
+  <app-auth-page>
       @if (pendingInviteCode()) {<ng-container *ngTemplateOutlet="inviteNotice" />}
       @if(pendingFriendInvite()){<app-friend-invite [userId]="pendingFriendInvite()!" (close)="dismissFriendInvite()" />}
-      <div class="auth-tabs">
-        <button
-          class="auth-tab"
-          [class.auth-tab--active]="authMode() === 'login'"
-          [attr.aria-pressed]="authMode() === 'login'"
-          type="button"
-          (click)="switchAuthMode('login')"
-        >
-          Вход
-        </button>
-        <button
-          class="auth-tab"
-          [class.auth-tab--active]="authMode() === 'register'"
-          [attr.aria-pressed]="authMode() === 'register'"
-          type="button"
-          (click)="switchAuthMode('register')"
-        >
-          Регистрация
-        </button>
-      </div>
-
-      @if (authMode() === 'login') {
-        <form class="auth-form" (ngSubmit)="submitLogin()">
-          <label class="field">
-            <span>Email</span>
-            <input
-              [(ngModel)]="loginForm.email"
-              autocomplete="email"
-              name="email"
-              placeholder="you@example.com"
-              type="email"
-            />
-          </label>
-
-          <label class="field">
-            <span>Пароль</span>
-            <input
-              [(ngModel)]="loginForm.password"
-              autocomplete="current-password"
-              name="password"
-              placeholder="Введите пароль"
-              type="password"
-            />
-          </label>
-
-          <div class="auth-actions">
-            <button class="primary-button primary-button--full" type="submit" [disabled]="authLoading()">
-              {{ authLoading() ? 'Входим...' : 'Войти' }}
-            </button>
-          </div>
-        </form>
-      } @else {
-        <form class="auth-form" (ngSubmit)="submitRegistration()">
-          <label class="field">
-            <span>Email</span>
-            <input
-              [(ngModel)]="registerForm.email"
-              autocomplete="email"
-              name="register_email"
-              placeholder="you@example.com"
-              type="email"
-            />
-          </label>
-
-          <label class="field">
-            <span>Пароль</span>
-            <input
-              [(ngModel)]="registerForm.password"
-              autocomplete="new-password"
-              name="register_password"
-              placeholder="Не короче 8 символов"
-              type="password"
-            />
-          </label>
-
-          <label class="field">
-            <span>Подтверждение пароля</span>
-            <input
-              [(ngModel)]="registerForm.password_confirmation"
-              autocomplete="new-password"
-              name="password_confirmation"
-              placeholder="Повторите пароль"
-              type="password"
-            />
-          </label>
-
-          <label class="field">
-            <span>Ник</span>
-            <input [(ngModel)]="registerForm.nick" name="nick" placeholder="Ваш ник" type="text" />
-          </label>
-
-          <button class="primary-button primary-button--full" type="submit" [disabled]="authLoading()">
-            {{ authLoading() ? 'Создаем аккаунт...' : 'Зарегистрироваться' }}
-          </button>
-
-        </form>
-      }
-
-      @if (authError()) {
-        <p class="auth-error" role="alert">{{ authError() }}</p>
-      }
-    </section>
-    </main>
-  </div>
+  </app-auth-page>
+  }
 } @else {
   <div
     class="messenger-shell" appMobileViewport
@@ -1475,7 +1371,7 @@
                     }
                   </label>
 
-                  <div class="composer-emoji"><button type="button" aria-label="Эмодзи" [attr.aria-expanded]="composerEmojiOpen()" (click)="composerEmojiOpen.set(!composerEmojiOpen())" [disabled]="messageSubmitting()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 14.5c1.5 2.7 6.5 2.7 8 0"/><circle cx="8.5" cy="9" r=".8" fill="currentColor" stroke="none"/><circle cx="15.5" cy="9" r=".8" fill="currentColor" stroke="none"/></svg></button>@if(composerEmojiOpen() && session();as auth){<app-emoji-picker [token]="auth.access_token" (choose)="insertComposerEmoji($event)" (close)="composerEmojiOpen.set(false)"/>}</div>
+                  <div class="composer-emoji"><button type="button" aria-label="Эмодзи" [attr.aria-expanded]="composerEmojiOpen()" (click)="composerEmojiOpen.set(!composerEmojiOpen())" [disabled]="messageSubmitting()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 14.5c1.5 2.7 6.5 2.7 8 0"/><circle cx="8.5" cy="9" r=".8" fill="currentColor" stroke="none"/><circle cx="15.5" cy="9" r=".8" fill="currentColor" stroke="none"/></svg></button>@if(composerEmojiOpen() && session();as auth){@defer (on immediate) {<app-emoji-picker [token]="auth.access_token" (choose)="insertComposerEmoji($event)" (close)="composerEmojiOpen.set(false)"/>}}</div>
                   <button
                     class="primary-button composer__submit"
                     type="button"
@@ -1750,7 +1646,7 @@
    <div class="modal__actions"><button class="secondary-button" type="button" [disabled]="profileSaving()" (click)="closeProfileEditor()">Отмена</button><button class="primary-button" type="button" [disabled]="!canSubmitProfile()" (click)="submitProfileChanges()">{{profileSaving()?'Сохраняем…':'Сохранить'}}</button></div>
   </section>
  </div>
- @if(profileAvatarChooserOpen()) {<app-avatar-picker [token]="session()!.access_token" [presets]="avatarPresets" [selectedPreset]="profileAvatarPreset() ?? currentUser()?.avatar_preset ?? null" [selectedItem]="profileAvatarPreset() ? null : profileInventoryAvatar()?.id ?? currentUser()?.avatar_item_id ?? null" (choose)="chooseProfileAvatar($event)" (close)="profileAvatarChooserOpen.set(false)"/>}
+ @if(profileAvatarChooserOpen()) {@defer (on immediate) {<app-avatar-picker [token]="session()!.access_token" [presets]="avatarPresets" [selectedPreset]="profileAvatarPreset() ?? currentUser()?.avatar_preset ?? null" [selectedItem]="profileAvatarPreset() ? null : profileInventoryAvatar()?.id ?? currentUser()?.avatar_item_id ?? null" (choose)="chooseProfileAvatar($event)" (close)="profileAvatarChooserOpen.set(false)"/>}}
 }
 
 @if (friendRequestsModalOpen()) {
@@ -3651,11 +3547,11 @@
 
 @if(session(); as auth) {
  <app-theme-controller [token]="auth.access_token" [revision]="wallpaperRevision()" />
- <app-wallpapers [suggestedItem]="wallpaperSuggestedItem()" [token]="auth.access_token" [serverId]="selectedServerId()" [open]="wallpaperOpen()" [revision]="wallpaperRevision()" (close)="wallpaperOpen.set(false); wallpaperSuggestedItem.set(null)" (applied)="wallpaperStyle.set($event)" />
+ @defer (on immediate) {<app-wallpapers [suggestedItem]="wallpaperSuggestedItem()" [token]="auth.access_token" [serverId]="selectedServerId()" [open]="wallpaperOpen()" [revision]="wallpaperRevision()" (close)="wallpaperOpen.set(false); wallpaperSuggestedItem.set(null)" (applied)="wallpaperStyle.set($event)" />}
  @if(shopOpen()){@defer(on immediate){<app-shop [token]="auth.access_token" [actorId]="currentUser()!.id" [manage]="isAdmin() || !!currentUser()?.is_shop_admin" [systemAdmin]="isAdmin()" [avatarUrl]="currentUserAvatarUrl()" (close)="shopOpen.set(false)" (inventory)="shopOpen.set(false); inventoryMode.set('inventory')" (wallpaper)="shopOpen.set(false); wallpaperSuggestedItem.set($event); wallpaperOpen.set(true)" (changed)="refreshInventoryProfile()"/>}}
  @if(walletOpen()){@defer(on immediate){<app-wallet-dialog [token]="auth.access_token" (close)="walletOpen.set(false)"/>}@placeholder{<p role="status">Загружаем кошелёк…</p>}}
  @if(userCards.selected()){@defer(on immediate){<app-user-card [token]="auth.access_token" [voiceControls]="userCardVoiceControls()" (chat)="openUserCardChat($event)" (profile)="openProfileEditor()" (voice)="openUserCardVoice($event)"/>}}
- <app-inventory (shop)="inventoryMode.set(null); shopOpen.set(true)" (wallpaper)="inventoryMode.set(null); wallpaperSuggestedItem.set($event); wallpaperOpen.set(true)" [avatarUrl]="currentUserAvatarUrl()" [token]="auth.access_token" [mode]="inventoryMode()" [isAdmin]="isAdmin() || !!currentUser()?.is_avatar_admin" (walletOpen)="walletOpen.set(true)" (close)="inventoryMode.set(null)" (changed)="refreshInventoryProfile()" (unread)="inventoryUnread.set($event)" />
+ @defer (on immediate) {<app-inventory (shop)="inventoryMode.set(null); shopOpen.set(true)" (wallpaper)="inventoryMode.set(null); wallpaperSuggestedItem.set($event); wallpaperOpen.set(true)" [avatarUrl]="currentUserAvatarUrl()" [token]="auth.access_token" [mode]="inventoryMode()" [isAdmin]="isAdmin() || !!currentUser()?.is_avatar_admin" (walletOpen)="walletOpen.set(true)" (close)="inventoryMode.set(null)" (changed)="refreshInventoryProfile()" (unread)="inventoryUnread.set($event)" />}
 }
 
 @if (messageActionsTarget(); as target) {

@@ -1,4 +1,5 @@
 import asyncio
+import threading
 from concurrent.futures import ThreadPoolExecutor
 from uuid import UUID, uuid4
 
@@ -14,6 +15,45 @@ from app.main import app
 from app.services.event_access import allowed_event_user_ids
 from app.services.message_outbox import dispatch_once
 from test_auth_workspace import register_regular_user, get_current_user_profile, delete_user, delete_server
+
+
+def test_slow_attachment_does_not_block_event_loop(conversation, monkeypatch):
+    """The upload and its SQL transaction must stay off the ASGI event loop."""
+    from app.api.routes import messages
+
+    client, token, _, _, chat = conversation
+    entered = threading.Event()
+    release = threading.Event()
+    original_store = messages.store_upload_file
+
+    def slow_store(*args, **kwargs):
+        entered.set()
+        if not release.wait(10):
+            raise TimeoutError("Test did not release upload")
+        return original_store(*args, **kwargs)
+
+    async def probe():
+        return {"responsive": True}
+
+    monkeypatch.setattr(messages, "store_upload_file", slow_store)
+    path = "/api/refactor-event-loop-probe"
+    app.add_api_route(path, probe)
+    try:
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            upload = pool.submit(
+                client.post, f"/api/channels/{chat['primary_channel_id']}/messages",
+                headers={"Authorization": f"Bearer {token}"},
+                files={"files": ("test.txt", b"background write", "text/plain")},
+            )
+            try:
+                assert entered.wait(5), "Upload handler did not start"
+                ping = pool.submit(client.get, path)
+                assert ping.result(timeout=2).json() == {"responsive": True}
+            finally:
+                release.set()
+            assert upload.result(timeout=5).status_code == 201
+    finally:
+        app.router.routes[:] = [route for route in app.router.routes if getattr(route, "endpoint", None) is not probe]
 
 
 @pytest.fixture

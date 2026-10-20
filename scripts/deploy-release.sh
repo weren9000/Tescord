@@ -20,10 +20,16 @@ sha256sum -c RELEASE.sha256 >/dev/null
 python3 "$release/scripts/persist-downloads.py" "$release"
 ln -s /srv/tescord/shared/backend.env backend/.env
 ln -s /srv/tescord/shared/storage backend/storage
-python3.12 -m venv backend/.venv
+python="${TESCORD_DEPLOY_PYTHON:-python3}"
+"$python" -c 'import sys; assert sys.version_info >= (3, 12), "Python 3.12+ required"'
+"$python" -m venv backend/.venv
 backend/.venv/bin/pip install --disable-pip-version-check -q -r backend/requirements.lock
 chown -R tescord:tescord "$release"
-/usr/local/sbin/kva-backup >/dev/null
+if [ -x /usr/local/sbin/kva-backup ]; then
+    /usr/local/sbin/kva-backup
+else
+    bash "$release/scripts/backup-server.sh"
+fi
 cd "$release/backend"
 runuser -u tescord -- .venv/bin/alembic upgrade head
 previous=$(readlink -f /srv/tescord/current)
@@ -50,9 +56,9 @@ test "$healthy" = true
 nginx -t
 systemctl reload nginx
 trap - ERR
-if [ -f "$release/scripts/prune-releases.py" ]; then
+if [ "${TESCORD_PRUNE_RELEASES:-false}" = true ] && [ -f "$release/scripts/prune-releases.py" ]; then
     python3 "$release/scripts/prune-releases.py" "$previous" --apply || echo 'Release cleanup failed; check disk space.' >&2
-elif [ -f /usr/local/sbin/kva-prune-releases ]; then
+elif [ "${TESCORD_PRUNE_RELEASES:-false}" = true ] && [ -f /usr/local/sbin/kva-prune-releases ]; then
     python3 /usr/local/sbin/kva-prune-releases "$previous" --apply || echo 'Release cleanup failed; check disk space.' >&2
 fi
 echo "Active release: $release"

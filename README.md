@@ -1,13 +1,13 @@
-# Altgramm
+# KvaChat
 
-Altgramm - это Discord-подобное приложение для небольших сообществ на `FastAPI`, `Angular`, `PostgreSQL` и `WebRTC`.
+KvaChat — мессенджер для небольших сообществ на `FastAPI`, `Angular`, `PostgreSQL` и `WebRTC`.
 
 Сейчас в проекте уже есть:
 - регистрация и вход
 - текстовые и голосовые каналы
 - realtime через `WebSocket`
 - голос через `WebRTC`
-- загрузка вложений в PostgreSQL
+- загрузка вложений на диск с метаданными в PostgreSQL
 - админ-управление группами, каналами и доступом к голосовым комнатам
 
 ## Структура проекта
@@ -22,7 +22,7 @@ Altgramm - это Discord-подобное приложение для небо�
 ### Что нужно
 
 - `Python 3.12+`
-- `Node.js 20+`
+- `Node.js 22.12+`
 - `PostgreSQL 16+` или `Docker`
 
 Frontend в development-режиме по умолчанию ходит в:

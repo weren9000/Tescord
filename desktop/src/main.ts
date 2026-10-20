@@ -54,6 +54,9 @@ else {
   app.on('before-quit', () => {quitting = true; saveState(); finishCapture?.();});
   app.on('window-all-closed', () => {if (quitting) app.quit();});
   app.whenReady().then(async () => {
+    ipcMain.on('app:version', event => {
+      event.returnValue = isMain(event) ? app.getVersion() : '';
+    });
     Menu.setApplicationMenu(null);
     try { notificationsEnabled = JSON.parse(fs.readFileSync(path.join(app.getPath('userData'), 'notifications.json'), 'utf8')).enabled !== false; } catch {}
     ipcMain.handle('notification:show', (event, value: unknown) => {

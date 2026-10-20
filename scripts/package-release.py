@@ -15,7 +15,8 @@ build = root / 'frontend/dist/frontend/browser'
 if not (build / 'index.html').is_file():
     raise SystemExit('Run npm ci and npm run build in frontend first')
 import re
-for download in set(re.findall(r'href="(/downloads/[^"?]+)"', (build / 'index.html').read_text(encoding='utf-8'))):
+downloads = set(re.findall(r'href="(/downloads/[^"?]+)"', (build / 'index.html').read_text(encoding='utf-8')))
+for download in downloads:
     if not (build / download.lstrip('/')).is_file():
         raise SystemExit('Missing landing download. Run scripts/prepare-downloads.py, then rebuild frontend: ' + download)
 source = subprocess.check_output(['git', '-c', 'core.autocrlf=false', 'archive', '--format=tar', 'HEAD'], cwd=root)
@@ -30,6 +31,9 @@ with tarfile.open(output, 'w:gz') as target:
             checksums.append((entry.name, hashlib.sha256(content).hexdigest()))
     for path in sorted(build.rglob('*')):
         if path.is_file():
+            relative = path.relative_to(build).as_posix()
+            if relative.startswith('downloads/') and '/' + relative not in downloads:
+                continue  # Old installers remain in the server's immutable download store.
             name = path.relative_to(root).as_posix()
             target.add(path, arcname=name)
             checksums.append((name, hashlib.sha256(path.read_bytes()).hexdigest()))

@@ -54,3 +54,10 @@
   .auth-content { padding: 16px 14px 24px; }
   .auth-page .auth-panel--form { padding: 20px; }
 }
+
+:host { display: block; }
+button, input { font: inherit; box-sizing: border-box; }
+button { cursor: pointer; }
+button:disabled { cursor: wait; opacity: .65; }
+.field { display: flex; flex-direction: column; min-width: 0; }
+.primary-button--full { width: 100%; }

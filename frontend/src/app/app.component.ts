@@ -1,3 +1,7 @@
+import { WorkspaceStateStore } from './core/services/workspace-state.store';
+import { prepareProfileAvatarFile, normalizeClipboardAttachmentFile } from './shared/image-files';
+import { AuthPageComponent } from './auth/auth-page.component';
+import { SessionStorageService } from './core/services/session-storage.service';
 import {MessageTextComponent, RenderedMessageSegment} from './workspace/message-text.component';
 import {BoundedCache} from './shared/bounded-cache';
 import {ShopComponent} from './workspace/shop.component';
@@ -8,7 +12,6 @@ import {AndroidCallOutputComponent} from './workspace/android-call-output.compon
 import {WalletDialogComponent} from './workspace/wallet-dialog.component';
 import {WalletBalanceComponent} from './workspace/wallet-balance.component';
 import {WalletService} from './workspace/wallet.service';
-import {GuestHeaderComponent} from './landing/guest-header.component';
 import {LandingComponent} from './landing/landing.component';
 import {FriendLinkComponent} from './workspace/friend-link.component';
 import {FriendInviteComponent} from './workspace/friend-invite.component';
@@ -126,7 +129,6 @@ import { DirectCallPeer, DirectCallService } from './core/services/direct-call.s
 import { VoiceParticipant, VoiceRoomService } from './core/services/voice-room.service';
 import { MediaStreamSrcDirective } from './shared/media-stream-src.directive';
 
-type AuthMode = 'login' | 'register';
 type ChannelKind = 'text' | 'voice';
 type WorkspaceMode = 'chats' | 'groups' | 'platforms';
 type VoicePresenceTone = 'speaking' | 'open' | 'muted' | 'blocked';
@@ -542,15 +544,11 @@ interface BrowserWakeLock {
   request(type: 'screen'): Promise<BrowserWakeLockSentinel>;
 }
 
-const SESSION_STORAGE_KEY = 'tescord.session';
 const MESSAGES_PAGE_SIZE = 25;
 const UNREAD_FOCUS_PAGE_PADDING = 24;
 const MAX_UNREAD_FOCUS_PAGE_SIZE = 200;
 const MAX_ATTACHMENT_SIZE_BYTES = 500 * 1024 * 1024;
 const MAX_INLINE_IMAGE_SIZE_BYTES = 10 * 1024 * 1024;
-const MAX_PROFILE_AVATAR_DIMENSION = 300;
-const MAX_PROFILE_AVATAR_UPLOAD_BYTES = 2 * 1024 * 1024;
-const MAX_PROFILE_AVATAR_SOURCE_BYTES = 8 * 1024 * 1024;
 const PRESENCE_ACTIVITY_THROTTLE_MS = 30000;
 const PRESENCE_KEEPALIVE_INTERVAL_MS = 60000;
 const MESSAGE_REACTION_OPTIONS: readonly MessageReactionOption[] = [
@@ -648,13 +646,14 @@ const DEFAULT_SERVER_ICON_ASSET_BY_NAME: Record<string, string> = {
 };
 
 @Component({
-  providers: [AuthFormStore],
+  providers: [AuthFormStore, WorkspaceStateStore],
     selector: 'app-root',
-    imports: [MessageTextComponent, ShopComponent, UserCardDirective, UserCardComponent, WalletDialogComponent, WalletBalanceComponent, AndroidCallOutputComponent, GuestHeaderComponent, LandingComponent, FriendLinkComponent, FriendInviteComponent, MobileViewportDirective, PlatformListComponent, AdminDirectoryComponent, AvatarPickerComponent, AudioDevicePickerComponent, InfoPanelComponent, ActionMenuComponent, CommonModule, FormsModule, MediaStreamSrcDirective, SectionNavigationComponent, UiIconComponent, ConversationListComponent, QuickSwitchComponent, InviteManagerComponent, InventoryComponent, WallpapersComponent, ThemeControllerComponent, MessageGestureDirective, MessageActionsComponent, EmojiPickerComponent, DesktopPreferencesComponent, SidebarResizeDirective],
+    imports: [AuthPageComponent, MessageTextComponent, ShopComponent, UserCardDirective, UserCardComponent, WalletDialogComponent, WalletBalanceComponent, AndroidCallOutputComponent, LandingComponent, FriendLinkComponent, FriendInviteComponent, MobileViewportDirective, PlatformListComponent, AdminDirectoryComponent, AvatarPickerComponent, AudioDevicePickerComponent, InfoPanelComponent, ActionMenuComponent, CommonModule, FormsModule, MediaStreamSrcDirective, SectionNavigationComponent, UiIconComponent, ConversationListComponent, QuickSwitchComponent, InviteManagerComponent, InventoryComponent, WallpapersComponent, ThemeControllerComponent, MessageGestureDirective, MessageActionsComponent, EmojiPickerComponent, DesktopPreferencesComponent, SidebarResizeDirective],
     templateUrl: './app.component.html',
-    styleUrls: ['./app.component.scss', './app-layout.scss', './call-workspace.scss', './platform-workspace.scss', './invite-entry.scss', './palette-theme.scss', './auth-workspace.scss', './avatar-presets.scss', './mobile-workspace.scss', './chat-bubbles.scss', './conference-stage.scss']
+    styleUrls: ['./app.component.scss', './app-layout.scss', './call-workspace.scss', './platform-workspace.scss', './invite-entry.scss', './palette-theme.scss', './avatar-presets.scss', './mobile-workspace.scss', './chat-bubbles.scss', './conference-stage.scss']
 })
 export class AppComponent {
+  private readonly workspaceState = inject(WorkspaceStateStore);
   readonly pwa=inject(PwaInstallService);
   readonly adminDirectoryOpen = signal(false);
   openAdminDirectory(): void { if(this.isAdmin()||this.currentUser()?.is_avatar_admin){this.closeSideMenu();this.adminDirectoryOpen.set(true);} }
@@ -994,6 +993,7 @@ export class AppComponent {
   }
   private readonly systemApi = inject(SystemApiService);
   private readonly authForm = inject(AuthFormStore);
+  private readonly sessionStorage = inject(SessionStorageService);
   private readonly workspaceApi = inject(WorkspaceApiService);
   private readonly appEvents = inject(AppEventsService);
   private readonly browserPush = inject(BrowserPushService);
@@ -1348,10 +1348,10 @@ export class AppComponent {
   }
   readonly currentUser = signal<CurrentUserResponse | null>(null);
   readonly workspaceMode = signal<WorkspaceMode>('chats');
-  readonly servers = signal<WorkspaceServer[]>([]);
-  readonly conversations = signal<ConversationSummary[]>([]);
+  readonly servers = this.workspaceState.servers;
+  readonly conversations = this.workspaceState.conversations;
   readonly conversationDirectory = signal<ConversationDirectoryUser[]>([]);
-  readonly channels = signal<WorkspaceChannel[]>([]);
+  readonly channels = this.workspaceState.channels;
   readonly members = signal<WorkspaceMember[]>([]);
   readonly voicePresence = signal<WorkspaceVoicePresenceChannel[]>([]);
   readonly messages = signal<WorkspaceMessage[]>([]);
@@ -1490,8 +1490,6 @@ export class AppComponent {
   });
   readonly activeConversationPushEnabled = computed(() => this.activeConversation()?.push_enabled === true);
 
-  readonly loginForm = this.authForm.loginForm;
-  readonly registerForm = this.authForm.registerForm;
 
   readonly createGroupForm: CreateGroupFormModel = {
     name: '',
@@ -3889,9 +3887,6 @@ export class AppComponent {
       .subscribe();
   }
 
-  switchAuthMode(mode: AuthMode): void { this.authForm.switchMode(mode); }
-  submitLogin(): void { this.authForm.submitLogin(); }
-  submitRegistration(): void { this.authForm.submitRegistration(); }
 
   openVoiceSettings(): void {
     this.closeMobilePanel();
@@ -3948,7 +3943,7 @@ export class AppComponent {
     }
 
     try {
-      const preparedFile = await this.prepareProfileAvatarFile(selectedFile);
+      const preparedFile = await prepareProfileAvatarFile(selectedFile);
       if (this.profileAvatarSelectionMode === 'editor') {
         this.profileAvatarPreset.set(null);
         this.profileAvatarFile.set(preparedFile);
@@ -6612,7 +6607,7 @@ export class AppComponent {
       .filter((item) => item.kind === 'file' && item.type.startsWith('image/'))
       .map((item, index) => {
         const file = item.getAsFile();
-        return file ? this.normalizeClipboardAttachmentFile(file, index) : null;
+        return file ? normalizeClipboardAttachmentFile(file, index) : null;
       })
       .filter((file): file is File => file !== null);
 
@@ -8195,17 +8190,17 @@ export class AppComponent {
     if (!isSelectedConversation) {
       if (!isOwnMessage) {
         if (isWorkspaceServer) {
-          this.bumpServerUnreadCount(event.server_id);
+          this.workspaceState.bumpServerUnreadCount(event.server_id);
           if (mentionsCurrentUser) {
-            this.bumpServerMentionUnreadCount(event.server_id);
+            this.workspaceState.bumpServerMentionUnreadCount(event.server_id);
             void this.refreshAttentionInboxIfOpen();
           }
         } else {
-          this.bumpConversationUnreadCount(event.server_id);
-          this.setConversationFirstUnreadMessageIdIfMissing(event.server_id, event.message.id);
+          this.workspaceState.bumpConversationUnreadCount(event.server_id);
+          this.workspaceState.setConversationFirstUnreadMessageIdIfMissing(event.server_id, event.message.id);
           if (mentionsCurrentUser) {
-            this.bumpConversationMentionUnreadCount(event.server_id);
-            this.setConversationFirstMentionUnreadMessageIdIfMissing(event.server_id, event.message.id);
+            this.workspaceState.bumpConversationMentionUnreadCount(event.server_id);
+            this.workspaceState.setConversationFirstMentionUnreadMessageIdIfMissing(event.server_id, event.message.id);
             void this.refreshAttentionInboxIfOpen();
           }
         }
@@ -8221,21 +8216,21 @@ export class AppComponent {
     ) {
       if (!isOwnMessage) {
         if (isWorkspaceServer) {
-          this.bumpChannelUnreadCount(event.message.channel_id);
-          this.bumpServerUnreadCount(event.server_id);
-          this.setChannelFirstUnreadMessageIdIfMissing(event.message.channel_id, event.message.id);
+          this.workspaceState.bumpChannelUnreadCount(event.message.channel_id);
+          this.workspaceState.bumpServerUnreadCount(event.server_id);
+          this.workspaceState.setChannelFirstUnreadMessageIdIfMissing(event.message.channel_id, event.message.id);
           if (mentionsCurrentUser) {
-            this.bumpChannelMentionUnreadCount(event.message.channel_id);
-            this.bumpServerMentionUnreadCount(event.server_id);
-            this.setChannelFirstMentionUnreadMessageIdIfMissing(event.message.channel_id, event.message.id);
+            this.workspaceState.bumpChannelMentionUnreadCount(event.message.channel_id);
+            this.workspaceState.bumpServerMentionUnreadCount(event.server_id);
+            this.workspaceState.setChannelFirstMentionUnreadMessageIdIfMissing(event.message.channel_id, event.message.id);
             void this.refreshAttentionInboxIfOpen();
           }
         } else {
-          this.bumpConversationUnreadCount(event.server_id);
-          this.setConversationFirstUnreadMessageIdIfMissing(event.server_id, event.message.id);
+          this.workspaceState.bumpConversationUnreadCount(event.server_id);
+          this.workspaceState.setConversationFirstUnreadMessageIdIfMissing(event.server_id, event.message.id);
           if (mentionsCurrentUser) {
-            this.bumpConversationMentionUnreadCount(event.server_id);
-            this.setConversationFirstMentionUnreadMessageIdIfMissing(event.server_id, event.message.id);
+            this.workspaceState.bumpConversationMentionUnreadCount(event.server_id);
+            this.workspaceState.setConversationFirstMentionUnreadMessageIdIfMissing(event.server_id, event.message.id);
             void this.refreshAttentionInboxIfOpen();
           }
         }
@@ -8261,21 +8256,21 @@ export class AppComponent {
 
     if (!isOwnMessage) {
       if (isWorkspaceServer) {
-        this.bumpChannelUnreadCount(event.message.channel_id);
-        this.bumpServerUnreadCount(event.server_id);
-        this.setChannelFirstUnreadMessageIdIfMissing(event.message.channel_id, event.message.id);
+        this.workspaceState.bumpChannelUnreadCount(event.message.channel_id);
+        this.workspaceState.bumpServerUnreadCount(event.server_id);
+        this.workspaceState.setChannelFirstUnreadMessageIdIfMissing(event.message.channel_id, event.message.id);
         if (mentionsCurrentUser) {
-          this.bumpChannelMentionUnreadCount(event.message.channel_id);
-          this.bumpServerMentionUnreadCount(event.server_id);
-          this.setChannelFirstMentionUnreadMessageIdIfMissing(event.message.channel_id, event.message.id);
+          this.workspaceState.bumpChannelMentionUnreadCount(event.message.channel_id);
+          this.workspaceState.bumpServerMentionUnreadCount(event.server_id);
+          this.workspaceState.setChannelFirstMentionUnreadMessageIdIfMissing(event.message.channel_id, event.message.id);
           void this.refreshAttentionInboxIfOpen();
         }
       } else {
-        this.bumpConversationUnreadCount(event.server_id);
-        this.setConversationFirstUnreadMessageIdIfMissing(event.server_id, event.message.id);
+        this.workspaceState.bumpConversationUnreadCount(event.server_id);
+        this.workspaceState.setConversationFirstUnreadMessageIdIfMissing(event.server_id, event.message.id);
         if (mentionsCurrentUser) {
-          this.bumpConversationMentionUnreadCount(event.server_id);
-          this.setConversationFirstMentionUnreadMessageIdIfMissing(event.server_id, event.message.id);
+          this.workspaceState.bumpConversationMentionUnreadCount(event.server_id);
+          this.workspaceState.setConversationFirstMentionUnreadMessageIdIfMissing(event.server_id, event.message.id);
           void this.refreshAttentionInboxIfOpen();
         }
       }
@@ -8307,20 +8302,20 @@ export class AppComponent {
       if (activeServer?.kind === 'workspace' && activeServer.id === event.server_id) {
         const channelUnreadCount = this.channels().find((channel) => channel.id === event.channel_id)?.unread_count ?? 0;
         const channelMentionUnreadCount = this.channels().find((channel) => channel.id === event.channel_id)?.mention_unread_count ?? 0;
-        this.setChannelUnreadCount(event.channel_id, 0);
-        this.setChannelMentionUnreadCount(event.channel_id, 0);
-        this.setChannelFirstUnreadMessageId(event.channel_id, null);
+        this.workspaceState.setChannelUnreadCount(event.channel_id, 0);
+        this.workspaceState.setChannelMentionUnreadCount(event.channel_id, 0);
+        this.workspaceState.setChannelFirstUnreadMessageId(event.channel_id, null);
         if (channelUnreadCount > 0) {
-          this.bumpServerUnreadCount(activeServer.id, -channelUnreadCount);
+          this.workspaceState.bumpServerUnreadCount(activeServer.id, -channelUnreadCount);
         }
         if (channelMentionUnreadCount > 0) {
-          this.bumpServerMentionUnreadCount(activeServer.id, -channelMentionUnreadCount);
+          this.workspaceState.bumpServerMentionUnreadCount(activeServer.id, -channelMentionUnreadCount);
         }
       } else {
-        this.setConversationUnreadCountByChannelId(event.channel_id, 0);
-        this.setConversationMentionUnreadCountByChannelId(event.channel_id, 0);
-        this.setConversationFirstUnreadMessageIdByChannelId(event.channel_id, null);
-        this.setConversationFirstMentionUnreadMessageIdByChannelId(event.channel_id, null);
+        this.workspaceState.setConversationUnreadCountByChannelId(event.channel_id, 0);
+        this.workspaceState.setConversationMentionUnreadCountByChannelId(event.channel_id, 0);
+        this.workspaceState.setConversationFirstUnreadMessageIdByChannelId(event.channel_id, null);
+        this.workspaceState.setConversationFirstMentionUnreadMessageIdByChannelId(event.channel_id, null);
       }
       void this.refreshAttentionInboxIfOpen();
     }
@@ -8479,8 +8474,8 @@ export class AppComponent {
 
     const unreadCount = channels.reduce((total, channel) => total + Math.max(0, channel.unread_count ?? 0), 0);
     const mentionUnreadCount = channels.reduce((total, channel) => total + Math.max(0, channel.mention_unread_count ?? 0), 0);
-    this.setServerUnreadCount(activeServer.id, unreadCount);
-    this.setServerMentionUnreadCount(activeServer.id, mentionUnreadCount);
+    this.workspaceState.setServerUnreadCount(activeServer.id, unreadCount);
+    this.workspaceState.setServerMentionUnreadCount(activeServer.id, mentionUnreadCount);
   }
 
   private applyMembersSnapshot(members: WorkspaceMember[]): void {
@@ -8934,27 +8929,11 @@ export class AppComponent {
   }
 
   private restoreSession(): void {
-    if (typeof localStorage === 'undefined') {
-      return;
-    }
-
-    const rawSession = window.kvaDesktop ? window.kvaDesktop.readSession() : localStorage.getItem(SESSION_STORAGE_KEY);
-    if (!rawSession) {
-      return;
-    }
-
-    try {
-      const session = JSON.parse(rawSession) as AuthSessionResponse;
-      if (!session.access_token || !session.user) {
-        throw new Error('invalid session');
-      }
-
-      this.session.set(session);
-      this.currentUser.set(session.user);
-      this.bootstrapWorkspace(session.access_token, { startAuthenticatedServices: true });
-    } catch {
-      this.clearStoredSession();
-    }
+    const session = this.sessionStorage.read();
+    if (!session) return;
+    this.session.set(session);
+    this.currentUser.set(session.user);
+    this.bootstrapWorkspace(session.access_token, { startAuthenticatedServices: true });
   }
 
   private handleAuthenticatedSession(session: AuthSessionResponse): void {
@@ -10064,21 +10043,21 @@ export class AppComponent {
     if (activeServer?.kind === 'workspace') {
       const channelUnreadCount = this.channels().find((channel) => channel.id === channelId)?.unread_count ?? 0;
       const channelMentionUnreadCount = this.channels().find((channel) => channel.id === channelId)?.mention_unread_count ?? 0;
-      this.setChannelUnreadCount(channelId, 0);
-      this.setChannelMentionUnreadCount(channelId, 0);
-      this.setChannelFirstUnreadMessageId(channelId, null);
-      this.setChannelFirstMentionUnreadMessageId(channelId, null);
+      this.workspaceState.setChannelUnreadCount(channelId, 0);
+      this.workspaceState.setChannelMentionUnreadCount(channelId, 0);
+      this.workspaceState.setChannelFirstUnreadMessageId(channelId, null);
+      this.workspaceState.setChannelFirstMentionUnreadMessageId(channelId, null);
       if (channelUnreadCount > 0) {
-        this.bumpServerUnreadCount(activeServer.id, -channelUnreadCount);
+        this.workspaceState.bumpServerUnreadCount(activeServer.id, -channelUnreadCount);
       }
       if (channelMentionUnreadCount > 0) {
-        this.bumpServerMentionUnreadCount(activeServer.id, -channelMentionUnreadCount);
+        this.workspaceState.bumpServerMentionUnreadCount(activeServer.id, -channelMentionUnreadCount);
       }
     } else {
-      this.setConversationUnreadCountByChannelId(channelId, 0);
-      this.setConversationMentionUnreadCountByChannelId(channelId, 0);
-      this.setConversationFirstUnreadMessageIdByChannelId(channelId, null);
-      this.setConversationFirstMentionUnreadMessageIdByChannelId(channelId, null);
+      this.workspaceState.setConversationUnreadCountByChannelId(channelId, 0);
+      this.workspaceState.setConversationMentionUnreadCountByChannelId(channelId, 0);
+      this.workspaceState.setConversationFirstUnreadMessageIdByChannelId(channelId, null);
+      this.workspaceState.setConversationFirstMentionUnreadMessageIdByChannelId(channelId, null);
     }
     this.markChannelReadTrigger$.next({ token, channelId, lastMessageId });
   }
@@ -10283,83 +10262,6 @@ export class AppComponent {
     this.profileAvatarPreviewUrl.set(this.profileAvatarPreviewObjectUrl);
   }
 
-  private async prepareProfileAvatarFile(file: File): Promise<File> {
-    if (!['image/png', 'image/jpeg'].includes(file.type)) {
-      throw new Error('Поддерживаются только PNG и JPG аватарки');
-    }
-
-    if (file.size > MAX_PROFILE_AVATAR_SOURCE_BYTES) {
-      throw new Error('Исходное изображение слишком большое. Выберите файл до 8 МБ');
-    }
-
-    const image = await this.loadFileAsImage(file);
-    if (image.width !== image.height) {
-      throw new Error('Аватарка должна быть квадратной 1:1');
-    }
-
-    const targetSize = Math.min(MAX_PROFILE_AVATAR_DIMENSION, image.width, image.height);
-    let preparedFile = file;
-
-    if (image.width > MAX_PROFILE_AVATAR_DIMENSION || image.height > MAX_PROFILE_AVATAR_DIMENSION) {
-      preparedFile = await this.resizeProfileAvatarFile(file, image, targetSize);
-    }
-
-    if (preparedFile.size > MAX_PROFILE_AVATAR_UPLOAD_BYTES) {
-      throw new Error('Аватарка превышает лимит 2 МБ');
-    }
-
-    return preparedFile;
-  }
-
-  private loadFileAsImage(file: File): Promise<HTMLImageElement> {
-    return new Promise((resolve, reject) => {
-      const objectUrl = URL.createObjectURL(file);
-      const image = new Image();
-      image.onload = () => {
-        URL.revokeObjectURL(objectUrl);
-        resolve(image);
-      };
-      image.onerror = () => {
-        URL.revokeObjectURL(objectUrl);
-        reject(new Error('Не удалось прочитать изображение'));
-      };
-      image.src = objectUrl;
-    });
-  }
-
-  private resizeProfileAvatarFile(file: File, image: HTMLImageElement, targetSize: number): Promise<File> {
-    return new Promise((resolve, reject) => {
-      const canvas = document.createElement('canvas');
-      canvas.width = targetSize;
-      canvas.height = targetSize;
-
-      const context = canvas.getContext('2d');
-      if (!context) {
-        reject(new Error('Не удалось подготовить изображение'));
-        return;
-      }
-
-      context.drawImage(image, 0, 0, targetSize, targetSize);
-      canvas.toBlob(
-        (blob) => {
-          if (!blob) {
-            reject(new Error('Не удалось сохранить изображение'));
-            return;
-          }
-
-          resolve(
-            new File([blob], file.name, {
-              type: file.type,
-              lastModified: Date.now()
-            })
-          );
-        },
-        file.type,
-        file.type === 'image/jpeg' ? 0.92 : undefined
-      );
-    });
-  }
-
   private addPendingFiles(files: File[]): void {
     if (!files.length) {
       return;
@@ -10389,52 +10291,12 @@ export class AppComponent {
     }
   }
 
-  private normalizeClipboardAttachmentFile(file: File, index: number): File {
-    if (file.name) {
-      return file;
-    }
-
-    const extension = this.attachmentFileExtensionByMimeType(file.type);
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    return new File([file], `clipboard-${timestamp}-${index + 1}${extension}`, {
-      type: file.type,
-      lastModified: file.lastModified || Date.now()
-    });
-  }
-
-  private attachmentFileExtensionByMimeType(mimeType: string): string {
-    switch (mimeType.toLowerCase()) {
-      case 'image/png':
-        return '.png';
-      case 'image/jpeg':
-        return '.jpg';
-      case 'image/gif':
-        return '.gif';
-      case 'image/webp':
-        return '.webp';
-      default:
-        return '';
-    }
-  }
-
   private persistSession(session: AuthSessionResponse): void {
-    if (typeof localStorage === 'undefined') {
-      return;
-    }
-
-    if (window.kvaDesktop) {
-      window.kvaDesktop.writeSession(JSON.stringify(session));
-      localStorage.removeItem(SESSION_STORAGE_KEY);
-    } else localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
+    this.sessionStorage.write(session);
   }
 
   private clearStoredSession(): void {
-    if (typeof localStorage === 'undefined') {
-      return;
-    }
-
-    if (window.kvaDesktop) window.kvaDesktop.writeSession(null);
-    localStorage.removeItem(SESSION_STORAGE_KEY);
+    this.sessionStorage.clear();
   }
 
   private extractErrorMessage(error: unknown, fallback: string): string {
@@ -11273,14 +11135,14 @@ export class AppComponent {
     try {
       if (nextEnabled) {
         const result = await this.browserPush.enableConversationPush(token, conversation.id);
-        this.setConversationPushEnabled(conversation.id, true);
+        this.workspaceState.setConversationPushEnabled(conversation.id, true);
         this.setPushFeedback({
           tone: result.warning ? 'warning' : 'success',
           message: result.warning ?? 'Push-уведомления включены для этого чата'
         });
       } else {
         await this.browserPush.disableConversationPush(token, conversation.id);
-        this.setConversationPushEnabled(conversation.id, false);
+        this.workspaceState.setConversationPushEnabled(conversation.id, false);
         this.setPushFeedback({
           tone: 'success',
           message: 'Push-уведомления выключены для этого чата'
@@ -11299,363 +11161,6 @@ export class AppComponent {
     } finally {
       this.conversationPushPendingId.set(null);
     }
-  }
-
-  private setConversationUnreadCount(serverId: string, unreadCount: number): void {
-    const normalizedUnreadCount = Math.max(0, unreadCount);
-    this.conversations.update((conversations) =>
-      conversations.map((conversation) =>
-        conversation.id === serverId
-          ? {
-              ...conversation,
-              unread_count: normalizedUnreadCount,
-            }
-          : conversation
-      )
-    );
-  }
-
-  private setConversationMentionUnreadCount(serverId: string, mentionUnreadCount: number): void {
-    const normalizedMentionUnreadCount = Math.max(0, mentionUnreadCount);
-    this.conversations.update((conversations) =>
-      conversations.map((conversation) =>
-        conversation.id === serverId
-          ? {
-              ...conversation,
-              mention_unread_count: normalizedMentionUnreadCount,
-            }
-          : conversation
-      )
-    );
-  }
-
-  private setConversationFirstUnreadMessageId(serverId: string, messageId: string | null): void {
-    this.conversations.update((conversations) =>
-      conversations.map((conversation) =>
-        conversation.id === serverId
-          ? {
-              ...conversation,
-              first_unread_message_id: messageId,
-            }
-          : conversation
-      )
-    );
-  }
-
-  private setConversationFirstMentionUnreadMessageId(serverId: string, messageId: string | null): void {
-    this.conversations.update((conversations) =>
-      conversations.map((conversation) =>
-        conversation.id === serverId
-          ? {
-              ...conversation,
-              first_mention_unread_message_id: messageId,
-            }
-          : conversation
-      )
-    );
-  }
-
-  private setConversationFirstUnreadMessageIdIfMissing(serverId: string, messageId: string): void {
-    this.conversations.update((conversations) =>
-      conversations.map((conversation) =>
-        conversation.id === serverId && !conversation.first_unread_message_id
-          ? {
-              ...conversation,
-              first_unread_message_id: messageId,
-            }
-          : conversation
-      )
-    );
-  }
-
-  private setConversationFirstMentionUnreadMessageIdIfMissing(serverId: string, messageId: string): void {
-    this.conversations.update((conversations) =>
-      conversations.map((conversation) =>
-        conversation.id === serverId && !conversation.first_mention_unread_message_id
-          ? {
-              ...conversation,
-              first_mention_unread_message_id: messageId,
-            }
-          : conversation
-      )
-    );
-  }
-
-  private setConversationPushEnabled(serverId: string, pushEnabled: boolean): void {
-    this.conversations.update((conversations) =>
-      conversations.map((conversation) =>
-        conversation.id === serverId
-          ? {
-              ...conversation,
-              push_enabled: pushEnabled,
-            }
-          : conversation
-      )
-    );
-  }
-
-  private setServerUnreadCount(serverId: string, unreadCount: number): void {
-    const normalizedUnreadCount = Math.max(0, unreadCount);
-    this.servers.update((servers) =>
-      servers.map((server) =>
-        server.id === serverId
-          ? {
-              ...server,
-              unread_count: normalizedUnreadCount,
-            }
-          : server
-      )
-    );
-  }
-
-  private setServerMentionUnreadCount(serverId: string, mentionUnreadCount: number): void {
-    const normalizedMentionUnreadCount = Math.max(0, mentionUnreadCount);
-    this.servers.update((servers) =>
-      servers.map((server) =>
-        server.id === serverId
-          ? {
-              ...server,
-              mention_unread_count: normalizedMentionUnreadCount,
-            }
-          : server
-      )
-    );
-  }
-
-  private setChannelUnreadCount(channelId: string, unreadCount: number): void {
-    const normalizedUnreadCount = Math.max(0, unreadCount);
-    this.channels.update((channels) =>
-      channels.map((channel) =>
-        channel.id === channelId
-          ? {
-              ...channel,
-              unread_count: normalizedUnreadCount,
-            }
-          : channel
-      )
-    );
-  }
-
-  private setChannelMentionUnreadCount(channelId: string, mentionUnreadCount: number): void {
-    const normalizedMentionUnreadCount = Math.max(0, mentionUnreadCount);
-    this.channels.update((channels) =>
-      channels.map((channel) =>
-        channel.id === channelId
-          ? {
-              ...channel,
-              mention_unread_count: normalizedMentionUnreadCount,
-            }
-          : channel
-      )
-    );
-  }
-
-  private setChannelFirstUnreadMessageId(channelId: string, messageId: string | null): void {
-    this.channels.update((channels) =>
-      channels.map((channel) =>
-        channel.id === channelId
-          ? {
-              ...channel,
-              first_unread_message_id: messageId,
-            }
-          : channel
-      )
-    );
-  }
-
-  private setChannelFirstMentionUnreadMessageId(channelId: string, messageId: string | null): void {
-    this.channels.update((channels) =>
-      channels.map((channel) =>
-        channel.id === channelId
-          ? {
-              ...channel,
-              first_mention_unread_message_id: messageId,
-            }
-          : channel
-      )
-    );
-  }
-
-  private setChannelFirstUnreadMessageIdIfMissing(channelId: string, messageId: string): void {
-    this.channels.update((channels) =>
-      channels.map((channel) =>
-        channel.id === channelId && !channel.first_unread_message_id
-          ? {
-              ...channel,
-              first_unread_message_id: messageId,
-            }
-          : channel
-      )
-    );
-  }
-
-  private setChannelFirstMentionUnreadMessageIdIfMissing(channelId: string, messageId: string): void {
-    this.channels.update((channels) =>
-      channels.map((channel) =>
-        channel.id === channelId && !channel.first_mention_unread_message_id
-          ? {
-              ...channel,
-              first_mention_unread_message_id: messageId,
-            }
-          : channel
-      )
-    );
-  }
-
-  private bumpServerUnreadCount(serverId: string, delta = 1): void {
-    if (!delta) {
-      return;
-    }
-
-    this.servers.update((servers) =>
-      servers.map((server) =>
-        server.id === serverId
-          ? {
-              ...server,
-              unread_count: Math.max(0, (server.unread_count ?? 0) + delta),
-            }
-          : server
-      )
-    );
-  }
-
-  private bumpServerMentionUnreadCount(serverId: string, delta = 1): void {
-    if (!delta) {
-      return;
-    }
-
-    this.servers.update((servers) =>
-      servers.map((server) =>
-        server.id === serverId
-          ? {
-              ...server,
-              mention_unread_count: Math.max(0, (server.mention_unread_count ?? 0) + delta),
-            }
-          : server
-      )
-    );
-  }
-
-  private bumpChannelUnreadCount(channelId: string, delta = 1): void {
-    if (!delta) {
-      return;
-    }
-
-    this.channels.update((channels) =>
-      channels.map((channel) =>
-        channel.id === channelId
-          ? {
-              ...channel,
-              unread_count: Math.max(0, (channel.unread_count ?? 0) + delta),
-            }
-          : channel
-      )
-    );
-  }
-
-  private bumpChannelMentionUnreadCount(channelId: string, delta = 1): void {
-    if (!delta) {
-      return;
-    }
-
-    this.channels.update((channels) =>
-      channels.map((channel) =>
-        channel.id === channelId
-          ? {
-              ...channel,
-              mention_unread_count: Math.max(0, (channel.mention_unread_count ?? 0) + delta),
-            }
-          : channel
-      )
-    );
-  }
-
-  private setConversationUnreadCountByChannelId(channelId: string, unreadCount: number): void {
-    const normalizedUnreadCount = Math.max(0, unreadCount);
-    this.conversations.update((conversations) =>
-      conversations.map((conversation) =>
-        conversation.primary_channel_id === channelId
-          ? {
-              ...conversation,
-              unread_count: normalizedUnreadCount,
-            }
-          : conversation
-      )
-    );
-  }
-
-  private setConversationMentionUnreadCountByChannelId(channelId: string, mentionUnreadCount: number): void {
-    const normalizedMentionUnreadCount = Math.max(0, mentionUnreadCount);
-    this.conversations.update((conversations) =>
-      conversations.map((conversation) =>
-        conversation.primary_channel_id === channelId
-          ? {
-              ...conversation,
-              mention_unread_count: normalizedMentionUnreadCount,
-            }
-          : conversation
-      )
-    );
-  }
-
-  private setConversationFirstUnreadMessageIdByChannelId(channelId: string, messageId: string | null): void {
-    this.conversations.update((conversations) =>
-      conversations.map((conversation) =>
-        conversation.primary_channel_id === channelId
-          ? {
-              ...conversation,
-              first_unread_message_id: messageId,
-            }
-          : conversation
-      )
-    );
-  }
-
-  private setConversationFirstMentionUnreadMessageIdByChannelId(channelId: string, messageId: string | null): void {
-    this.conversations.update((conversations) =>
-      conversations.map((conversation) =>
-        conversation.primary_channel_id === channelId
-          ? {
-              ...conversation,
-              first_mention_unread_message_id: messageId,
-            }
-          : conversation
-      )
-    );
-  }
-
-  private bumpConversationUnreadCount(serverId: string, delta = 1): void {
-    if (!delta) {
-      return;
-    }
-
-    this.conversations.update((conversations) =>
-      conversations.map((conversation) =>
-        conversation.id === serverId
-          ? {
-              ...conversation,
-              unread_count: Math.max(0, (conversation.unread_count ?? 0) + delta),
-            }
-          : conversation
-      )
-    );
-  }
-
-  private bumpConversationMentionUnreadCount(serverId: string, delta = 1): void {
-    if (!delta) {
-      return;
-    }
-
-    this.conversations.update((conversations) =>
-      conversations.map((conversation) =>
-        conversation.id === serverId
-          ? {
-              ...conversation,
-              mention_unread_count: Math.max(0, (conversation.mention_unread_count ?? 0) + delta),
-            }
-          : conversation
-      )
-    );
   }
 
   activeConversationIconUrl(): string | null {

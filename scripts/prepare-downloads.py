@@ -2,11 +2,15 @@
 from pathlib import Path
 import hashlib
 import shutil
+import json
 
 root = Path(__file__).resolve().parents[1]
 target = root / 'frontend/public/downloads'
 target.mkdir(exist_ok=True)
-files = [root / 'desktop/release/KvaChat-Setup-0.5.3-x64.exe', root / 'mobile/release/KvaChat-0.3.6-android.apk']
+desktop_version = json.loads((root / 'desktop/package.json').read_text(encoding='utf-8'))['version']
+android_version = json.loads((root / 'mobile/package.json').read_text(encoding='utf-8'))['version']
+files = [root / f'desktop/release/KvaChat-Setup-{desktop_version}-x64.exe',
+         root / f'mobile/release/KvaChat-{android_version}-android.apk']
 for source in files:
     if not source.is_file(): raise SystemExit(f'Missing installer: {source}')
     checksum = source.with_suffix(source.suffix + '.sha256')

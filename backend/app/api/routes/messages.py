@@ -1,12 +1,11 @@
 from __future__ import annotations
 from app.services.reaction_codes import normalize_reaction, ordered_codes
 
-import asyncio
 from datetime import datetime, timedelta, timezone
 from urllib.parse import quote
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, Response, status
 from fastapi import UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy import and_, or_, select, func
@@ -615,8 +614,9 @@ def search_channel_messages(
 
 
 @router.post("/channels/{channel_id}/messages", response_model=ChannelMessageSummary, status_code=status.HTTP_201_CREATED)
-async def create_channel_message(
+def create_channel_message(
     channel_id: UUID,
+    background_tasks: BackgroundTasks,
     content: str = Form(default=""),
     reply_to_message_id: UUID | None = Form(default=None),
     client_message_id: UUID | None = Form(default=None),
@@ -632,7 +632,7 @@ async def create_channel_message(
     if client_message_id is not None:
         # Serialize retries of this nonce before writing any attachment files.
         if db.bind.dialect.name == "postgresql":
-            await asyncio.to_thread(db.execute, text("SELECT pg_advisory_xact_lock(:key)"), {"key": int.from_bytes(client_message_id.bytes[:8], "big", signed=True)})
+            db.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": int.from_bytes(client_message_id.bytes[:8], "big", signed=True)})
         previous = db.execute(select(Message.id).where(
             Message.author_id == current_user.id, Message.client_message_id == client_message_id,
         )).scalar_one_or_none()
@@ -641,7 +641,7 @@ async def create_channel_message(
             if original.channel_id != channel.id or original.content != normalized_content or original.reply_to_message_id != reply_to_message_id:
                 raise HTTPException(status_code=409, detail="Идентификатор отправки уже использован")
             for upload in files or []:
-                await upload.close()
+                upload.file.close()
             return _build_message_summary(original, current_user.id)
     uploads = [upload for upload in (files or []) if upload.filename]
     if len(uploads) > 10:
@@ -688,7 +688,7 @@ async def create_channel_message(
         remaining_upload_bytes = get_settings().max_message_upload_bytes
         if uploads:
             # Lock the author's quota until this message commits, including concurrent uploads.
-            await asyncio.to_thread(db.execute, text("SELECT pg_advisory_xact_lock(:key)"), {"key": int.from_bytes(current_user.id.bytes[:8], "big", signed=True)})
+            db.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": int.from_bytes(current_user.id.bytes[:8], "big", signed=True)})
             used_bytes = db.scalar(select(func.coalesce(func.sum(Attachment.size_bytes), 0)).join(Message, Message.id == Attachment.message_id).where(Message.author_id == current_user.id, Attachment.deleted_at.is_(None)))
             remaining_upload_bytes = min(remaining_upload_bytes, get_settings().user_upload_quota_bytes - used_bytes)
             if remaining_upload_bytes <= 0:
@@ -697,7 +697,7 @@ async def create_channel_message(
             attachment_id = uuid4()
             sanitized_filename = _sanitize_filename(upload.filename)
             try:
-                stored_attachment = await store_upload_file(
+                stored_attachment = store_upload_file(
                     upload,
                     attachment_id=attachment_id,
                     filename=sanitized_filename,
@@ -738,10 +738,10 @@ async def create_channel_message(
         raise
     finally:
         for upload in uploads:
-            await upload.close()
+            upload.file.close()
 
     from app.services.message_outbox import notify_outbox
-    await notify_outbox()
+    background_tasks.add_task(notify_outbox)
 
     created_message = _load_message(db, message.id)
     if created_message is None:

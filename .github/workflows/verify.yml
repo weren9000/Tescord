@@ -46,3 +46,49 @@ jobs:
       - run: npm run build
       - run: npm test -- --watch=false --browsers=ChromeHeadless
       - run: npm audit --omit=dev --audit-level=high
+  native:
+    # Compile/package checks only. The fixture TURN configuration is never released.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: desktop
+          - os: ubuntu-latest
+            target: mobile
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            frontend/package-lock.json
+            ${{ matrix.target }}/package-lock.json
+      - run: npm ci --prefix frontend
+      - run: npm run build --prefix frontend
+      - run: npm ci --prefix ${{ matrix.target }}
+      - name: Prepare compile-only runtime fixture
+        shell: bash
+        run: |
+          echo '{"iceServers":[{"urls":"turn:ci.invalid:3478","username":"compile-only","credential":"compile-only"}]}' > "$RUNNER_TEMP/native-runtime.json"
+          echo "KVA_NATIVE_RUNTIME_CONFIG=$RUNNER_TEMP/native-runtime.json" >> "$GITHUB_ENV"
+      - if: matrix.target == 'desktop'
+        run: npm run pack --prefix desktop
+      - if: matrix.target == 'mobile'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - if: matrix.target == 'mobile'
+        name: Build and lint unsigned Android package
+        shell: bash
+        run: |
+          sdkmanager "platforms;android-36" "build-tools;36.0.0"
+          node mobile/prepare-web.cjs
+          cd mobile
+          npm run sync
+          cd android
+          bash gradlew assembleRelease lintDebug --console=plain
