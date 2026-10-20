@@ -27,6 +27,7 @@ interface Pending { action: string; item: Item | null; recipient: Person | null;
 })
 export class InventoryComponent implements OnDestroy {
  readonly embedded=input(false);
+ readonly storeLayout=input(false);
  readonly initialTab=input<'avatar'|'issued'>('avatar');
  readonly grantRequested=output<Catalog>();
  readonly previewErrors=signal(false); readonly previewRetry=signal(0);
@@ -110,6 +111,7 @@ export class InventoryComponent implements OnDestroy {
   this.menuTrigger=event.currentTarget as HTMLElement;
   this.menu.set(item);
  }
+ closeNested(){if(this.busy())return true;if(this.menu()){this.menu.set(null);return true;}if(this.pending()||this.giftItem()||this.themePreview()||this.detail()||this.eventsOpen()){this.closePanel();return true;}return false;}
  closePanel() {if(this.busy())return;++this.historyVersion;if(this.pending())this.pending.set(null);else{this.giftItem.set(null);this.grantOpen.set(false);this.detail.set(null);this.themePreview.set(null);this.eventsOpen.set(false);this.uploadOpen.set(false);this.editing.set(null);this.resetUpload();}}
  async clearRecipient() {this.recipient.set(null);this.query='';this.people.set([]);this.searched.set(false);}
  query = '';
@@ -232,7 +234,7 @@ export class InventoryComponent implements OnDestroy {
  dismiss() {if(!this.busy())this.close.emit();}
  keydown(event: KeyboardEvent) {
   if(this.embedded()&&!this.pending()&&!this.giftItem()&&!this.themePreview()&&!this.detail()&&!this.eventsOpen()&&!this.uploadOpen()&&!this.editing()&&!this.grantOpen())return;
-  if(event.key==='Escape'){event.stopPropagation();if(!this.busy()){if(this.menu()){this.menu.set(null);this.menuTrigger?.focus();}else if(this.pending()||this.giftItem()||this.themePreview()||this.detail()||this.eventsOpen()||this.uploadOpen()||this.editing()||this.grantOpen())this.closePanel();else this.dismiss();}}
+  if(event.key==='Escape'){event.preventDefault();event.stopPropagation();if(!this.busy()){if(this.menu()){this.menu.set(null);this.menuTrigger?.focus();}else if(this.pending()||this.giftItem()||this.themePreview()||this.detail()||this.eventsOpen()||this.uploadOpen()||this.editing()||this.grantOpen())this.closePanel();else this.dismiss();}}
   if(event.key!=='Tab')return;
   const root=this.element.nativeElement.querySelector(this.pending()?'.confirm':(this.giftItem()||this.themePreview()||this.detail()||this.eventsOpen()||this.uploadOpen()||this.editing()||this.grantOpen())?'.subpanel':'.inventory');
   const nodes=Array.from(root?.querySelectorAll<HTMLElement>('button:not(:disabled),input,select')??[]).filter(e=>e.offsetParent!==null);

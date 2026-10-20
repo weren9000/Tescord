@@ -126,3 +126,51 @@ def test_grouped_inventory_does_not_split_copies_and_tracks_wallpapers(store):
     assert item['copies']==24 and item['in_use'] and item['id']==used
     assert item['gift_item_id']!=used
     assert c.get('/api/inventory',headers=b,params={'grouped':True,'q':'no-match'}).json()['total']==0
+
+
+def test_personal_receipts_and_journal_are_private_and_survive_gifts(store):
+    c,users,key=store;a,b,d=[u[0] for u in users]
+    assert offer(c,a,key).status_code==200
+    purchase=c.post('/api/shop/purchases',headers=b,json=buy(key)).json()
+    for path in ['/api/shop/purchases','/api/shop/journal']:
+        assert c.get(path).status_code==401
+        assert c.get(path,headers=d).json()['total']==0
+    data=c.get('/api/shop/purchases',headers=b).json()
+    assert data['total']==1 and data['items'][0]['owned']
+    assert data['items'][0]['price']==100 and data['items'][0]['kind']=='avatar'
+    assert c.get('/api/shop/admin/purchases',headers=b).status_code==403
+    assert c.post('/api/inventory/items/'+purchase['item_id']+'/equip',headers=b,json={'request_id':str(uuid4())}).status_code==200
+    assert c.get('/api/shop/purchases',headers=b).json()['items'][0]['in_use']
+    assert c.post('/api/inventory/items/'+purchase['item_id']+'/gift',headers=b,json={'request_id':str(uuid4()),'recipient_id':users[2][1]['id']}).status_code==200
+    receipt=c.get('/api/shop/purchases',headers=b).json()['items'][0]
+    assert not receipt['owned'] and not receipt['in_use'] and receipt['price']==100
+    assert c.get('/api/shop/purchases',headers=d).json()['total']==0
+    sender=c.get('/api/shop/journal',headers=b,params={'action':'gift'}).json()['items']
+    recipient=c.get('/api/shop/journal',headers=d,params={'action':'gift'}).json()['items']
+    assert len(sender)==len(recipient)==1
+    assert sender[0]['direction']=='sent' and recipient[0]['direction']=='received'
+    assert 'owner_id' not in sender[0] and 'recipient_id' not in sender[0]
+    assert c.get('/api/shop/journal',headers=a).json()['total']==0
+    for path in ['/api/shop/purchases','/api/shop/journal']:
+        assert c.get(path,headers=b,params={'q':'absent'}).json()['total']==0
+        assert c.get(path,headers=b,params={'kind':'theme'}).json()['total']==0
+        assert c.get(path,headers=b,params={'start':'2100-01-02','end':'2000-01-01'}).status_code==422
+        assert c.get(path,headers=b,params={'end':'2000-01-01'}).json()['total']==0
+        assert c.get(path,headers=b,params={'end':'9999-12-31'}).status_code==200
+
+
+def test_catalog_price_recommendation_and_real_facets(store):
+    c,users,key=store;a,b,_=[u[0] for u in users]
+    assert offer(c,a,key).status_code==200
+    def get(**params):return c.get('/api/shop',headers=b,params={'q':'Test Shop',**params})
+    assert get().json()['categories']=={'avatar':1}
+    assert get(kind='theme').json()['total']==0
+    assert get(kind='theme').json()['categories']=={'avatar':1}
+    assert get(min_price=101).json()['total']==0
+    assert get(max_price=99).json()['total']==0
+    assert get(min_price=100,max_price=100).json()['total']==1
+    assert get(min_price=101,max_price=100).status_code==422
+    assert get(recommended=True).json()['total']==0
+    assert c.post('/api/shop/purchases',headers=b,json=buy(key)).status_code==200
+    assert get().json()['items'][0]['owned']==1
+    assert get(unowned=True).json()['categories']=={}
