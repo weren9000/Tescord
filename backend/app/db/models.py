@@ -4,13 +4,22 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import BigInteger, CheckConstraint, Boolean, DateTime, Enum, ForeignKey, Index, Integer, LargeBinary, String, Text, Uuid, UniqueConstraint, func
+from sqlalchemy import JSON, BigInteger, CheckConstraint, Boolean, DateTime, Enum, ForeignKey, Index, Integer, LargeBinary, String, Text, Uuid, UniqueConstraint, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, deferred, mapped_column, relationship
 from app.services.avatar_presets import random_avatar_preset
 
 
 class Base(DeclarativeBase):
     pass
+
+
+class WalletBatch(Base):
+    __tablename__ = 'wallet_batches'
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True)
+    actor_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('users.id', ondelete='SET NULL'), index=True)
+    payload: Mapped[dict] = mapped_column(JSON, nullable=False)
+    result: Mapped[dict] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 def enum_values(enum_cls: type[enum.Enum]) -> list[str]:
@@ -325,6 +334,7 @@ class WalletOperation(TimestampMixin, Base):
     delta: Mapped[int] = mapped_column(BigInteger)
     balance_after: Mapped[int] = mapped_column(BigInteger)
     reason: Mapped[str] = mapped_column(String(240))
+    batch_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('wallet_batches.id', ondelete='SET NULL'), index=True)
 
 
 class FriendNotice(TimestampMixin, Base):

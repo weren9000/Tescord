@@ -1,6 +1,6 @@
 <section class="wallet" [attr.aria-label]="admin()?'Управление валютами':'Кошелёк'">
  <header><h2>{{admin()?'Валюты':'Кошелёк'}}</h2>@if(!admin()){<button type="button" aria-label="Закрыть кошелёк" (click)="close.emit()">×</button>}</header>
- @if(admin()){
+ @if(admin() && !target()){
   <form class="search" (ngSubmit)="search()"><input name="query" aria-label="Ник, ID или почта" placeholder="Ник, ID или почта" [(ngModel)]="query" maxlength="320" [disabled]="busy() || !!pending()"/><button [disabled]="busy() || !!pending()">Найти</button></form>
   <div class="people">@for(person of people();track person.id){<button type="button" [attr.aria-pressed]="selected()?.id===person.id" [disabled]="busy() || !!pending()" (click)="choose(person)">{{person.name}} <small>ID {{person.public_id}}</small></button>}@empty{@if(searched()){<p>Пользователи не найдены.</p>}}</div>
  }

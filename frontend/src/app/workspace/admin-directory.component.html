@@ -1,19 +1,28 @@
 <section class="admin" [class.stats-view]="statsActive()" aria-label="Админка" (keydown)="keydown($event)">
  <header><div><h1>Админка</h1></div><button type="button" (click)="close.emit()">Вернуться к чатам</button></header>
- <nav aria-label="Разделы админки">@if(systemAdmin()){<button type="button" [attr.aria-pressed]="statsActive()" (click)="closeDetail();walletActive.set(false);itemsActive.set(false);statsActive.set(true)">&#1057;&#1090;&#1072;&#1090;&#1080;&#1089;&#1090;&#1080;&#1082;&#1072;</button>@for(t of tabs;track t.id){<button type="button" [attr.aria-pressed]="!walletActive() && !statsActive() && !itemsActive() && tab()===t.id" (click)="switchTab(t.id)">{{t.label}} <span>{{counts()?.[t.id] ?? '—'}}</span></button>}}<button type="button" [attr.aria-pressed]="itemsActive()" (click)="closeDetail();walletActive.set(false);statsActive.set(false);itemsActive.set(true)">Предметы</button>@if(systemAdmin()){<button type="button" (click)="voiceAccess.emit()">Доступ к голосу</button>} @if(systemAdmin()){<button type="button" [attr.aria-pressed]="walletActive()" (click)="closeDetail();itemsActive.set(false);statsActive.set(false);walletActive.set(true)">Валюты</button>}</nav>
+ @if(!batchActive()){<nav aria-label="Разделы админки">@if(systemAdmin()){<button type="button" [attr.aria-pressed]="statsActive()" (click)="closeDetail();walletActive.set(false);itemsActive.set(false);statsActive.set(true)">&#1057;&#1090;&#1072;&#1090;&#1080;&#1089;&#1090;&#1080;&#1082;&#1072;</button>@for(t of tabs;track t.id){<button type="button" [attr.aria-pressed]="!walletActive() && !statsActive() && !itemsActive() && tab()===t.id" (click)="switchTab(t.id)">{{t.label}} <span>{{counts()?.[t.id] ?? '—'}}</span></button>}}<button type="button" [attr.aria-pressed]="itemsActive()" (click)="closeDetail();walletActive.set(false);statsActive.set(false);itemsActive.set(true)">Предметы</button>@if(systemAdmin()){<button type="button" (click)="voiceAccess.emit()">Доступ к голосу</button>} @if(systemAdmin()){<button type="button" [attr.aria-pressed]="walletActive()" (click)="closeDetail();itemsActive.set(false);statsActive.set(false);walletActive.set(true)">Валюты</button>}</nav>}
  @if(walletActive() && systemAdmin()){@defer(on immediate){<app-wallet [token]="token()" [admin]="true" [actorId]="actorId()"/>}@placeholder{<p role="status">Загружаем валюты…</p>}}
  @if(itemsActive()){<app-admin-items [token]="token()" [actorId]="actorId()" [avatarUrl]="avatarUrl()" (changed)="changed.emit()"/>}
  @if(statsActive() && systemAdmin()){<app-admin-statistics [token]="token()" (forbidden)="forbidden.emit()"/>}
- @if(!walletActive() && !statsActive() && !itemsActive() && systemAdmin()){
+ @if(batchActive() && systemAdmin()){<app-admin-wallet-batch [token]="token()" [actorId]="actorId()" [userIds]="selectedIds" (close)="batchActive.set(false);load()" (changed)="refresh()"/>}
+ @if(!batchActive() && !walletActive() && !statsActive() && !itemsActive() && systemAdmin()){
  <div class="tools"><input aria-label="Поиск в админке" [placeholder]="tab()==='users'?'Ник, ID или email':'Название или ID'" [(ngModel)]="filter.q" (ngModelChange)="search()" [maxlength]="tab()==='users'?320:80"/><button type="button" (click)="refresh()" [disabled]="loading()">Обновить</button><button type="button" (click)="reset()">Сбросить фильтры</button><span class="muted" role="status">{{loading()?'Загрузка…':''}}</span></div>
+ @if(tab()==='users'){
+  <div class="tools selection-tools"><input aria-label="У кого есть предмет" placeholder="У кого есть предмет: название или ID" maxlength="80" [(ngModel)]="filter.columns['item']" (ngModelChange)="search()"/>
+   <span aria-live="polite">Выбрано: {{selection().size}}</span><button [disabled]="loading() || selecting()" (click)="selectFiltered()">Выбрать всех по фильтру</button><button [disabled]="!selection().size" (click)="clearSelection()">Снять выбор</button><button [disabled]="(!selection().size && !savedBatch()) || selecting()" (click)="closeDetail();batchActive.set(true)">{{savedBatch()?'Продолжить операцию':'Начислить / списать'}}</button>
+  </div>
+ }
  <div class="content">
   <div class="list table-list" #list [attr.aria-busy]="loading()" tabindex="0" aria-label="Таблица записей">
    @if(error()){<div class="table-error" role="alert">{{error()}} <button (click)="load()">Повторить</button></div>}
-   <table class="directory-table"><caption class="sr-only">{{tab()==='users'?'Пользователи':tab()==='groups'?'Группы':'Площадки'}}</caption><thead><tr>
+   <table class="directory-table" [class.users-table]="tab()==='users'"><caption class="sr-only">{{tab()==='users'?'Пользователи':tab()==='groups'?'Группы':'Площадки'}}</caption><thead><tr>
+    @if(tab()==='users'){<th class="select-column"><input type="checkbox" aria-label="Выбрать страницу" [checked]="pageSelected" [disabled]="loading() || selecting()" (change)="togglePage()"/></th>}
     @for(col of columns;track col.key){<th scope="col" [attr.aria-sort]="sortState(col.key)"><button class="sort-button" (click)="sortColumn(col.key)" [attr.aria-label]="'Сортировать: '+col.label">{{col.label}} <span aria-hidden="true">{{filter.sortBy===col.key?(filter.direction==='asc'?'↑':'↓'):'↕'}}</span></button></th>}
    </tr><tr class="column-filters">
+    @if(tab()==='users'){<th></th>}
     @for(col of columns;track col.key){<th>
      @switch(col.type){
+      @case('none'){}
       @case('role'){<select aria-label="Фильтр: роль" [(ngModel)]="filter.role" (change)="change()"><option value="all">Все роли</option><option value="admin">Администраторы</option><option value="avatar">Админы аватарок</option><option value="regular">Пользователи</option></select>}
       @case('date'){<div class="range"><input type="date" aria-label="Дата: с" [(ngModel)]="filter.columns['created_from']" (change)="change()"/><input type="date" aria-label="Дата: по" [(ngModel)]="filter.columns['created_to']" (change)="change()"/></div>}
       @case('range'){<div class="range"><input type="number" min="0" step="1" placeholder="От" [attr.aria-label]="col.label+': от'" [(ngModel)]="filter.columns[col.key+'_min']" (ngModelChange)="search()"/><input type="number" min="0" step="1" placeholder="До" [attr.aria-label]="col.label+': до'" [(ngModel)]="filter.columns[col.key+'_max']" (ngModelChange)="search()"/></div>}
@@ -23,8 +32,9 @@
     </th>}
    </tr></thead><tbody [class.updating]="loading()">
     @for(row of result().items;track row.id){<tr [class.selected]="detailOpen() && detail()?.id===row.id">
+     @if(tab()==='users'){<td><input type="checkbox" [attr.aria-label]="'Выбрать '+row.name" [checked]="selection().has(row.id)" [disabled]="selecting()" (change)="toggleUser(row.id)"/></td>}
      <td><button class="record-name" (click)="open(row)" [attr.aria-label]="'Подробнее: '+row.name"><span class="avatar" [appUserCard]="tab()==='users' ? row.id : null">@if(image(row,tab());as url){@if(!failedImages().has(url)){<img [src]="url" alt="" width="32" height="32" loading="lazy" (error)="imageFailed(url)"/>}@else{ {{row.name.slice(0,2)}} }}@else{ {{row.name.slice(0,2)}} }</span><strong [title]="row.name">{{row.name}}</strong></button></td>
-     @if(tab()==='users'){<td class="numeric">{{row.public_id}}</td><td><span class="badge">{{roles(row)}}</span></td>}
+     @if(tab()==='users'){<td class="numeric">{{row.public_id}}</td><td><span class="badge">{{roles(row)}}</span></td><td class="numeric">{{row.coins|number}}</td><td class="numeric">{{row.crystals|number}}</td><td class="numeric">{{row.inventory_count|number}}</td>}
      @else{<td>{{row.owner_name}}</td><td class="numeric">{{row.members_count}}</td>@if(tab()==='platforms'){<td class="numeric">{{row.channels_count}}</td>}}
      <td class="created">{{row.created_at|date:'dd.MM.yyyy':'UTC'}} <small>{{row.created_at|date:'HH:mm':'UTC'}}</small></td>
     </tr>}@empty{<tr><td [attr.colspan]="columns.length" class="state">{{loading()?'Загрузка…':error()?'Данные недоступны':'Ничего не найдено'}}</td></tr>}
@@ -37,7 +47,13 @@
      @if(detailLoading()){<p role="status">Загрузка…</p>}
      @if(detailError()){<p role="alert">{{detailError()}}</p><button (click)="retryDetail()">Повторить</button>}
      @if(detail();as d){
-      <h3>{{d.name}}</h3><dl>
+      <h3>{{d.name}}</h3>
+      @if(detailKind()==='users'){
+       <div class="relation-tabs"><button [attr.aria-pressed]="userSection()==='profile'" (click)="userSection.set('profile')">Профиль</button><button [attr.aria-pressed]="userSection()==='wallet'" (click)="userSection.set('wallet')">Кошелёк и история</button><button [attr.aria-pressed]="userSection()==='inventory'" (click)="userSection.set('inventory')">Инвентарь</button></div>
+       @if(userSection()==='wallet'){<app-wallet [token]="token()" [admin]="true" [actorId]="actorId()" [target]="walletTarget()" (changed)="load()"/>}
+       @if(userSection()==='inventory'){<app-admin-user-inventory [token]="token()" [userId]="d.id"/>}
+      }
+      @if(detailKind()!=='users' || userSection()==='profile'){<dl>
        @if(detailKind()==='users'){<dt>Роль</dt><dd>{{roles(d)}}</dd><dt>Email</dt><dd>{{d.email}}</dd><dt>Публичный ID</dt><dd>{{d.public_id}} <button aria-label="Копировать публичный ID" (click)="copy(''+d.public_id)">Копировать</button></dd>}
        @else{<dt>Владелец</dt><dd><button (click)="openOwner()">{{d.owner_name}}</button></dd><dt>Участники / каналы</dt><dd>{{d.members_count}} / {{d.channels_count}}</dd>@if(d.description){<dt>Описание</dt><dd>{{d.description}}</dd>}}
        <dt>Дата создания</dt><dd>{{d.created_at | date:'dd.MM.yyyy HH:mm'}}</dd><dt>Внутренний ID</dt><dd class="id">{{d.id}} <button aria-label="Копировать внутренний ID" (click)="copy(d.id)">Копировать</button></dd>
@@ -49,6 +65,7 @@
       @else if(relatedLoading()){<p role="status">Загрузка…</p>}
       @else{@for(row of related().items;track row.id){@if(relation()==='channels'){<div class="related"><strong>{{row.name}}</strong><small>{{row.type==='voice'?'Голосовой':row.type==='announcement'?'Объявления':'Текстовый'}}</small></div>}@else{<button class="related" (click)="openRelated(row)"><strong>{{row.name}}</strong><small>{{relation()==='spaces'?kindLabel(row.kind):memberRole(row.role)}}</small></button>}}@if(!related().total){<p class="muted">Записей нет.</p>}}
       <div class="related-pages"><button aria-label="Предыдущая страница подробностей" [disabled]="related().page===1 || relatedLoading()" (click)="loadRelated(related().page-1)">‹</button><span>{{related().page}} / {{related().pages}}</span><button aria-label="Следующая страница подробностей" [disabled]="related().page===related().pages || relatedLoading()" (click)="loadRelated(related().page+1)">›</button></div>
+      }
      }
     </div>
    </aside>

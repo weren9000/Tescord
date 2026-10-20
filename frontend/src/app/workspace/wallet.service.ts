@@ -3,7 +3,7 @@ import {DestroyRef, Injectable, inject, signal} from '@angular/core';
 import {HttpClient} from '@angular/common/http';
 import {firstValueFrom} from 'rxjs';
 import {API_BASE_URL} from '../core/api/api-base';
-export interface WalletOperation {id:string;currency:'coins'|'crystals';delta:number;balance_after:number;reason:string;created_at:string;actor_name?:string;actor_id?:string}
+export interface WalletOperation {id:string;currency:'coins'|'crystals';delta:number;balance_after:number;reason:string;created_at:string;actor_name?:string;actor_id?:string;batch_id?:string|null}
 export interface Wallet {coins:number;crystals:number;user_id:string;nick:string;public_id:number;items:WalletOperation[];page:number;pages:number;total:number}
 @Injectable({providedIn:'root'})
 export class WalletService {

@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.api.dependencies.auth import get_current_user
 from app.db.models import Channel, Server, ServerKind, ServerMember, User
+from app.db.inventory import InventoryItem, InventoryCatalog
 from app.db.session import get_db
 from app.services.server_icons import ALLOWED_SERVER_ICON_ASSETS
 
@@ -23,8 +24,11 @@ def require_admin(response: Response, user: User = Depends(get_current_user)):
 router = APIRouter(prefix='/admin/directory', tags=['admin'], dependencies=[Depends(require_admin)])
 Kind = Literal['groups', 'platforms']
 KINDS = {'groups': ServerKind.GROUP_CHAT, 'platforms': ServerKind.WORKSPACE}
+inventory_count = select(func.count(InventoryItem.id)).where(
+    InventoryItem.owner_id == User.id, InventoryItem.revoked.is_(False)).correlate(User).scalar_subquery()
 USER_FIELDS = (User.id, User.public_id, User.username.label('name'), User.is_admin,
-               User.is_avatar_admin, User.is_shop_admin, User.avatar_updated_at, User.created_at)
+               User.is_avatar_admin, User.is_shop_admin, User.avatar_updated_at, User.created_at,
+               User.coins, User.crystals, inventory_count.label('inventory_count'))
 SPACE_FIELDS = (Server.id, Server.name, Server.kind, Server.owner_id, Server.icon_asset,
                 Server.icon_updated_at, Server.created_at, User.username.label('owner_name'))
 member_count = select(func.count(ServerMember.id)).where(ServerMember.server_id == Server.id).correlate(Server).scalar_subquery()
@@ -81,8 +85,9 @@ def users(q: str = Query('', max_length=320), role: Literal['all', 'admin', 'ava
           sort: Literal['new', 'old', 'name'] = 'new', page: int = Query(1, ge=1),
           name: str = Query('', max_length=80), public_id: int | None = Query(None, ge=1),
           created_from: date | None = None, created_to: date | None = None,
-          sort_by: Literal['name', 'public_id', 'role', 'created_at'] | None = None,
+          sort_by: Literal['name', 'public_id', 'role', 'created_at', 'coins', 'crystals', 'inventory_count'] | None = None,
           direction: Literal['asc', 'desc'] = 'asc',
+          item: str = Query('', max_length=80), selection: bool = False,
           size: int = Query(24, ge=1, le=48), db: Session = Depends(get_db)):
     query = select(*USER_FIELDS)
     if q.strip():
@@ -92,10 +97,19 @@ def users(q: str = Query('', max_length=320), role: Literal['all', 'admin', 'ava
     if role == 'regular': query = query.where(User.is_admin.is_(False), User.is_avatar_admin.is_(False))
     if name.strip(): query = query.where(User.username.ilike(pattern(name), escape='\\'))
     if public_id is not None: query = query.where(User.public_id == public_id)
+    if item.strip():
+        query = query.where(select(InventoryItem.id).join(InventoryCatalog).where(
+            InventoryItem.owner_id == User.id, InventoryItem.revoked.is_(False),
+            or_(InventoryCatalog.name.ilike(pattern(item), escape='\\'), InventoryCatalog.id == item.strip())).exists())
     query = date_filter(query, User.created_at, created_from, created_to)
+    if selection:
+        ids = db.scalars(query.with_only_columns(User.id).order_by(User.id).limit(1001)).all()
+        if len(ids) > 1000:
+            raise HTTPException(422, 'В одной операции не более 1000 пользователей. Уточните фильтры.')
+        return {'user_ids': ids}
     order = {'new': User.created_at.desc(), 'old': User.created_at.asc(), 'name': func.lower(User.username)}[sort]
     if sort_by:
-        column = {'name': func.lower(User.username), 'public_id': User.public_id, 'role': case((User.is_admin.is_(True), 0), (User.is_avatar_admin.is_(True), 1), else_=2), 'created_at': User.created_at}[sort_by]
+        column = {'name': func.lower(User.username), 'public_id': User.public_id, 'role': case((User.is_admin.is_(True), 0), (User.is_avatar_admin.is_(True), 1), else_=2), 'created_at': User.created_at, 'coins': User.coins, 'crystals': User.crystals, 'inventory_count': inventory_count}[sort_by]
         order = column.desc() if direction == 'desc' else column.asc()
     return paged(db, query.order_by(order, User.id), page, size)
 
@@ -105,6 +119,25 @@ def user_detail(key: UUID, db: Session = Depends(get_db)):
     row = db.execute(select(*USER_FIELDS, User.email).where(User.id == key)).mappings().first()
     if not row: raise HTTPException(404, 'Пользователь не найден')
     return dict(row)
+
+
+@router.get('/users/{key}/inventory')
+def user_inventory(key: UUID, q: str = Query('', max_length=80),
+                   kind: Literal['', 'avatar', 'frame', 'wallpaper', 'theme'] = '',
+                   page: int = Query(1, ge=1), db: Session = Depends(get_db)):
+    from app.api.routes.inventory import usage_expression
+    user = db.get(User, key)
+    if not user:
+        raise HTTPException(404, 'Пользователь не найден')
+    query = select(InventoryCatalog.id, InventoryCatalog.name, InventoryCatalog.kind,
+                   InventoryCatalog.rarity, func.count(InventoryItem.id).label('copies'),
+                   func.bool_or(usage_expression(user)).label('in_use'),
+                   func.max(InventoryItem.created_at).label('created_at')).join(
+                       InventoryItem, InventoryItem.catalog_id == InventoryCatalog.id).where(
+                           InventoryItem.owner_id == key, InventoryItem.revoked.is_(False))
+    if q.strip(): query = query.where(InventoryCatalog.name.ilike(pattern(q), escape='\\'))
+    if kind: query = query.where(InventoryCatalog.kind == kind)
+    return paged(db, query.group_by(InventoryCatalog.id).order_by(InventoryCatalog.name, InventoryCatalog.id), page, 24)
 
 
 @router.get('/users/{key}/spaces')
