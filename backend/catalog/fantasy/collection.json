@@ -1,0 +1,88 @@
+{
+  "id": "dd0bb446-3162-5006-a9cf-775ce4690fc3",
+  "name": "Фэнтези",
+  "description": "Лунная магия, древние духи и герои зачарованных миров",
+  "cover_id": "c1f81b29-e4af-5f10-afc9-0f8130d1fe40",
+  "items": [
+    {
+      "id": "c1f81b29-e4af-5f10-afc9-0f8130d1fe40",
+      "slug": "moon-elf",
+      "name": "Лунная эльфийка",
+      "rarity": "epic",
+      "price": 450,
+      "source_sha256": "b36c50fc1a4677ce23381fe899cca767629e5a703b8e019947927b0156977b9f"
+    },
+    {
+      "id": "f962fbe8-97e8-551b-bfe7-acaa365cd6df",
+      "slug": "silver-guardian",
+      "name": "Серебряный страж",
+      "rarity": "rare",
+      "price": 300,
+      "source_sha256": "68e7195b1279d803d4abfe55c75a6f9f27cfed5303a7918ff9991fa909afc8dd"
+    },
+    {
+      "id": "36e53f57-2609-59f5-9b44-f5180339a7fe",
+      "slug": "orc-warlord",
+      "name": "Орк-воевода",
+      "rarity": "rare",
+      "price": 250,
+      "source_sha256": "38f4b96da5795c2b7d9b2e179c6e1774deb823d212ee3ca2324cd59eca091f4a"
+    },
+    {
+      "id": "a440d6d1-bb83-5f84-a6c4-24c3e44f44b3",
+      "slug": "spirit-shaman",
+      "name": "Шаманка духов",
+      "rarity": "epic",
+      "price": 500,
+      "source_sha256": "134e44d7a1563e3be3235809914a92288580cb4cd555213144550a0ee0f357be"
+    },
+    {
+      "id": "3cc8e27f-8b18-5a85-ad4b-3c4680789a57",
+      "slug": "forest-troll",
+      "name": "Лесной тролль",
+      "rarity": "uncommon",
+      "price": 150,
+      "source_sha256": "86dfb615ed2555e2d7daebcc6b183faa72ade3a28f2cbb1447f79679b8c90b95"
+    },
+    {
+      "id": "0ef8400d-f2df-5147-b7c7-783326408e86",
+      "slug": "goblin-inventor",
+      "name": "Гоблин-изобретатель",
+      "rarity": "rare",
+      "price": 250,
+      "source_sha256": "bb9b6bc40e00efb2aad0a30da0214561f9632b71bed3ef5b559b2c4d26494bd9"
+    },
+    {
+      "id": "7f826675-1086-5af9-b86f-960dccef7117",
+      "slug": "rune-smith",
+      "name": "Рунный кузнец",
+      "rarity": "uncommon",
+      "price": 200,
+      "source_sha256": "4261b5cff0c06618ffe549a5692d3919743f254cc88844b87ce5b66b32712732"
+    },
+    {
+      "id": "5111637f-d0cf-5f5a-a6b3-34453a73828e",
+      "slug": "crystal-fairy",
+      "name": "Кристальная фея",
+      "rarity": "epic",
+      "price": 450,
+      "source_sha256": "77b726767e5160c7e5f83c4fb2df46c86a831f52caaca3fd04316fa28fcc98f8"
+    },
+    {
+      "id": "498b3716-518b-5fae-b57e-617b770d8bca",
+      "slug": "blood-moon",
+      "name": "Владычица кровавой луны",
+      "rarity": "legendary",
+      "price": 750,
+      "source_sha256": "302e1ac44472710f3d1be255c8ecc4c5ae9388b1c45152adf85fb22c147b85de"
+    },
+    {
+      "id": "989f6458-0970-5a5a-ac92-9c0d4c1c7be3",
+      "slug": "lich-king",
+      "name": "Король-лич",
+      "rarity": "legendary",
+      "price": 800,
+      "source_sha256": "d1c6035db26768c781122dc5b4852f4892fcc57b46f9d924dc66d164fe513aba"
+    }
+  ]
+}
