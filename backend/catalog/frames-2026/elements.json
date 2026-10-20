@@ -1,0 +1,54 @@
+{
+  "id": "be17e67b-83bc-5667-a52b-0b88746ae0b2",
+  "name": "Рамки · Стихии",
+  "description": "Пять рамок для аватара: стихии",
+  "cover_id": "4423ba33-9656-502d-a2a4-6da90e1f0037",
+  "position": 2,
+  "items": [
+    {
+      "id": "4423ba33-9656-502d-a2a4-6da90e1f0037",
+      "slug": "flame",
+      "name": "Пламя",
+      "kind": "frame",
+      "rarity": "rare",
+      "price": 300,
+      "source_sha256": "c65493ccb8b7720e24113f15d146ace252d49e855fe1bf191c727eb85341ce97"
+    },
+    {
+      "id": "ac21e94b-d302-599b-8604-9532ac9f7d72",
+      "slug": "ice",
+      "name": "Лёд",
+      "kind": "frame",
+      "rarity": "uncommon",
+      "price": 200,
+      "source_sha256": "9c06e1b547ed26e01ae26a7d421c812e295da094aea7c23362fb501b59a76bec"
+    },
+    {
+      "id": "3e3904f8-3b7b-51ac-a87d-42fef69b2c1f",
+      "slug": "lightning",
+      "name": "Молния",
+      "kind": "frame",
+      "rarity": "epic",
+      "price": 500,
+      "source_sha256": "e9f521b86251d71c80e6dc6c27be80cfcf0a92329539d0c9d7ab0061f1276f63"
+    },
+    {
+      "id": "f57020e4-b0ac-552a-910b-31f11bf9b6e6",
+      "slug": "whirlpool",
+      "name": "Водоворот",
+      "kind": "frame",
+      "rarity": "uncommon",
+      "price": 200,
+      "source_sha256": "725aa472c1b8ca88e1ec0d8b8e01b246e2cb5ae67a46dc2a7b6b840799b2d058"
+    },
+    {
+      "id": "f598703f-468c-5b88-bb81-60e94d0b155f",
+      "slug": "stone",
+      "name": "Каменные кристаллы",
+      "kind": "frame",
+      "rarity": "common",
+      "price": 100,
+      "source_sha256": "680d135df172abe7ffd41b5a5a0d5c95ea4c068ef0eddf5710a74648237ee144"
+    }
+  ]
+}

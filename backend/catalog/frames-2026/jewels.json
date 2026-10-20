@@ -1,0 +1,54 @@
+{
+  "id": "2e13cc32-92a8-5aff-8721-5e8970453d20",
+  "name": "Рамки · Драгоценности",
+  "description": "Пять рамок для аватара: драгоценности",
+  "cover_id": "146f8b36-24de-51d2-a558-69b852caf943",
+  "position": 7,
+  "items": [
+    {
+      "id": "146f8b36-24de-51d2-a558-69b852caf943",
+      "slug": "silver",
+      "name": "Серебряная филигрань",
+      "kind": "frame",
+      "rarity": "common",
+      "price": 100,
+      "source_sha256": "0dc2834ff746445c57fd33637c4fbd3965f4d62db97a41634f3407f50ec595d6"
+    },
+    {
+      "id": "64b76565-9db4-5068-aedf-edcd6a8ccc7b",
+      "slug": "emerald",
+      "name": "Изумрудная филигрань",
+      "kind": "frame",
+      "rarity": "rare",
+      "price": 300,
+      "source_sha256": "fa74ac31e85b5e4f1327715035fa80733253b6139d72d514774f15c0de28d7b0"
+    },
+    {
+      "id": "8c01175e-b7cc-5491-8454-2a64ad0fa0db",
+      "slug": "sapphire",
+      "name": "Сапфир",
+      "kind": "frame",
+      "rarity": "rare",
+      "price": 300,
+      "source_sha256": "6d31d79d3788863f6b81ae71fe2c82d900986bd89af4c185f0e9813ecd484466"
+    },
+    {
+      "id": "ef27c96d-7459-5631-a565-c12f720396f1",
+      "slug": "amethyst",
+      "name": "Аметист",
+      "kind": "frame",
+      "rarity": "rare",
+      "price": 300,
+      "source_sha256": "84f4602f4e39b44fd46e9893e361787dee1cfd93c14b8ba3a96b424de85e5574"
+    },
+    {
+      "id": "d4474d1a-61ef-59c3-a43f-4af9103afe79",
+      "slug": "gold-crown",
+      "name": "Золотая корона",
+      "kind": "frame",
+      "rarity": "legendary",
+      "price": 700,
+      "source_sha256": "75059c70cebba3ac70bd7a36219acdc619d9b5ca50aec14257813edd2ba33bc0"
+    }
+  ]
+}

@@ -1,0 +1,54 @@
+{
+  "id": "8a1fc3ee-1b14-5dba-9ac5-eb14502310ea",
+  "name": "Рамки · Небо и космос",
+  "description": "Пять рамок для аватара: небо и космос",
+  "cover_id": "ee08a599-933b-5ca0-9dbc-e65e27e943bc",
+  "position": 5,
+  "items": [
+    {
+      "id": "ee08a599-933b-5ca0-9dbc-e65e27e943bc",
+      "slug": "moon",
+      "name": "Лунный серп",
+      "kind": "frame",
+      "rarity": "rare",
+      "price": 300,
+      "source_sha256": "c11cf5585e18de03143c4941f6e442d72a81c7fdeae2c64efe20b86e8e159d35"
+    },
+    {
+      "id": "3c881975-9f8f-5e7e-903c-10f828b93d34",
+      "slug": "constellations",
+      "name": "Созвездия",
+      "kind": "frame",
+      "rarity": "common",
+      "price": 100,
+      "source_sha256": "48c1fbaa3c78d9a6aeccc03f7f91083a65fd7db4afe1782c6309a5e53628deab"
+    },
+    {
+      "id": "7a98fce6-c956-53e1-9d0c-69c088ad2dd4",
+      "slug": "orbital-rings",
+      "name": "Орбитальные кольца",
+      "kind": "frame",
+      "rarity": "uncommon",
+      "price": 200,
+      "source_sha256": "c3daf4610556e8e73cc5c06701b323e65fe5a81155e4bc92b75122e83b2e9522"
+    },
+    {
+      "id": "5b3ad547-637e-5663-8a16-90ec3c5f25d5",
+      "slug": "nebula",
+      "name": "Туманность",
+      "kind": "frame",
+      "rarity": "epic",
+      "price": 500,
+      "source_sha256": "d7d378a7fb0df78b1e76e847655b934b210cc2827fef0e486873267242e1bed2"
+    },
+    {
+      "id": "b70d1906-c0ef-5777-86d0-792e6651b9c7",
+      "slug": "eclipse",
+      "name": "Солнечное затмение",
+      "kind": "frame",
+      "rarity": "legendary",
+      "price": 800,
+      "source_sha256": "488de3d6aaa6aae13340a2128cd3e125f2e9f388c6d1624a3c75006c0bd14fed"
+    }
+  ]
+}

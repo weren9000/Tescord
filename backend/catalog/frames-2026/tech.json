@@ -1,0 +1,54 @@
+{
+  "id": "71275fa2-febd-5d93-b4da-0387a6369716",
+  "name": "Рамки · Технологии",
+  "description": "Пять рамок для аватара: технологии",
+  "cover_id": "c123d018-e40d-5910-9a9c-265c56481703",
+  "position": 6,
+  "items": [
+    {
+      "id": "c123d018-e40d-5910-9a9c-265c56481703",
+      "slug": "circuit",
+      "name": "Неоновая схема",
+      "kind": "frame",
+      "rarity": "uncommon",
+      "price": 200,
+      "source_sha256": "58a37d42dba3fc07a383799d3253e2a797a3e32dd503960c3f353c0721f63633"
+    },
+    {
+      "id": "727c5f93-d43d-5f7d-bb44-8b2b8a17eff4",
+      "slug": "hologram",
+      "name": "Голограмма",
+      "kind": "frame",
+      "rarity": "uncommon",
+      "price": 200,
+      "source_sha256": "65d7a400c7be2b64004043fe6dad61056c7b238bd27740e5951cf9e5abddde05"
+    },
+    {
+      "id": "b94d23a1-8aec-51a4-a1f4-50bb60fc66ac",
+      "slug": "cyber-armor",
+      "name": "Киберброня",
+      "kind": "frame",
+      "rarity": "epic",
+      "price": 450,
+      "source_sha256": "226158b6359f11e44584e48410c770b5a80049e97701cc82ff360dc0d37dbd8e"
+    },
+    {
+      "id": "7662fbc5-abaa-55f9-bd38-bc2a87de441a",
+      "slug": "steampunk",
+      "name": "Стимпанк",
+      "kind": "frame",
+      "rarity": "epic",
+      "price": 500,
+      "source_sha256": "10ec4ba5ffa6dcd9c2c85158fb54298f6ef4f72554fe847e4831a604782ed934"
+    },
+    {
+      "id": "d4160c1e-8350-520a-b370-ae673e9b2f3a",
+      "slug": "glitch",
+      "name": "Глитч",
+      "kind": "frame",
+      "rarity": "uncommon",
+      "price": 150,
+      "source_sha256": "953e4568b1c60f9dc86f39db56aa686a8478dd6e0845fee64135f1c9916bca74"
+    }
+  ]
+}

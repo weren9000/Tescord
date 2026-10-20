@@ -1,0 +1,54 @@
+{
+  "id": "94e95b65-683f-523f-86f2-5bc414d16d0c",
+  "name": "Рамки · Лесная магия",
+  "description": "Пять рамок для аватара: лесная магия",
+  "cover_id": "e027568a-dea1-581c-a3c1-52b8cb3cc37f",
+  "position": 3,
+  "items": [
+    {
+      "id": "e027568a-dea1-581c-a3c1-52b8cb3cc37f",
+      "slug": "vines",
+      "name": "Лианы",
+      "kind": "frame",
+      "rarity": "common",
+      "price": 100,
+      "source_sha256": "641d9e7baf49569f5ffa4e632de0708637334e2b32fdcb09840a244f6f5b8d2c"
+    },
+    {
+      "id": "624b34a8-f94f-54a9-8e21-7be7dde3566a",
+      "slug": "sakura",
+      "name": "Цветущая сакура",
+      "kind": "frame",
+      "rarity": "rare",
+      "price": 300,
+      "source_sha256": "0309ba4e5508cc8d81c09f9f04fa4224496d86918a5975d5a975f859069d88b4"
+    },
+    {
+      "id": "bc16439e-1ec1-5aa8-9acd-2acc77877386",
+      "slug": "mushrooms",
+      "name": "Грибной лес",
+      "kind": "frame",
+      "rarity": "rare",
+      "price": 250,
+      "source_sha256": "c12599d7f146dba092375469c917482f807c13b3e20e8dae32b45f4abd93fd98"
+    },
+    {
+      "id": "2185a7fd-e9ae-559a-be8c-184df40b1f1c",
+      "slug": "wood-runes",
+      "name": "Древесные руны",
+      "kind": "frame",
+      "rarity": "uncommon",
+      "price": 200,
+      "source_sha256": "7a8ef76096416605f3205e2c37654c1d35009f1867668fb1da2adb425a5f1967"
+    },
+    {
+      "id": "333153e4-7d23-5f70-a375-0ef2c8fbe992",
+      "slug": "gold-leaves",
+      "name": "Золотые листья",
+      "kind": "frame",
+      "rarity": "uncommon",
+      "price": 150,
+      "source_sha256": "4429ee4aef10c460e7fddd879783fbd783333076a9b53f087490d6c019af6c51"
+    }
+  ]
+}

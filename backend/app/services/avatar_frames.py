@@ -2,6 +2,7 @@
 from base64 import b64encode
 from functools import lru_cache
 from app.services.inventory import asset_path
+from app.services.circular_frames import CIRCULAR_FRAME_IDS
 
 SVG_START = '<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">'
 NEON = '''<defs><linearGradient id="neon" x1="0" y1="0" x2="1" y2="1">
@@ -34,8 +35,11 @@ def frame_svg(catalog_id: str, avatar: bytes | None = None, mime: str = 'image/w
     inner = ''
     if avatar is not None:
         uri = data_uri(avatar, mime)
-        inner = ('<defs><clipPath id="avatar"><rect x="43" y="43" width="426" height="426" rx="82"/></clipPath></defs>'
-                 f'<image x="43" y="43" width="426" height="426" preserveAspectRatio="xMidYMid slice" '
+        circular = catalog_id in CIRCULAR_FRAME_IDS
+        inset, edge = (61, 390) if circular else (43, 426)
+        clip = '<circle cx="256" cy="256" r="195"/>' if circular else '<rect x="43" y="43" width="426" height="426" rx="82"/>'
+        inner = (f'<defs><clipPath id="avatar">{clip}</clipPath></defs>'
+                 f'<image x="{inset}" y="{inset}" width="{edge}" height="{edge}" preserveAspectRatio="xMidYMid slice" '
                  f'clip-path="url(#avatar)" href="{uri}"/>')
     layer = frame_layer(catalog_id)
     if not motion:

@@ -1,0 +1,54 @@
+{
+  "id": "7255f691-a940-5896-a4da-1cc56c249b10",
+  "name": "Рамки · Тёмное фэнтези",
+  "description": "Пять рамок для аватара: тёмное фэнтези",
+  "cover_id": "81248ae7-1706-56de-afb2-2c6b80c11f2d",
+  "position": 4,
+  "items": [
+    {
+      "id": "81248ae7-1706-56de-afb2-2c6b80c11f2d",
+      "slug": "obsidian",
+      "name": "Шипы и обсидиан",
+      "kind": "frame",
+      "rarity": "rare",
+      "price": 350,
+      "source_sha256": "1f3e7de45595a59e6de1e5b987fe7a2804c0926d8f6db89869fad201a93c39d0"
+    },
+    {
+      "id": "98a8b22a-4bee-5ecf-ae55-9ce48f8ce732",
+      "slug": "bones",
+      "name": "Кости",
+      "kind": "frame",
+      "rarity": "rare",
+      "price": 250,
+      "source_sha256": "7832f5fdfa3312196d7bd5fd676d35d1bf1028edea27aed055bc2ab1fa6251f5"
+    },
+    {
+      "id": "a8947ffe-b2d8-588b-b6b9-49c9103c034c",
+      "slug": "demon-wings",
+      "name": "Крылья демона",
+      "kind": "frame",
+      "rarity": "epic",
+      "price": 550,
+      "source_sha256": "35d33f035cc2ff20c027fb75a56c2fa3207c96168b1465652677f7fbaa3aa0e4"
+    },
+    {
+      "id": "46588298-7d72-5728-bf34-900147f067c7",
+      "slug": "ghost-mist",
+      "name": "Призрачный туман",
+      "kind": "frame",
+      "rarity": "epic",
+      "price": 450,
+      "source_sha256": "967f9505473eb0103540f01d627b303b10e62177b8d40e60b8e3196707b2a29b"
+    },
+    {
+      "id": "516da4e1-92c1-5df1-9fd0-96371a244e1c",
+      "slug": "lich-crown",
+      "name": "Корона лича",
+      "kind": "frame",
+      "rarity": "legendary",
+      "price": 900,
+      "source_sha256": "d327f112c19c89bc3d79b47fd1c3d9c1ede479a690a42c3d27345362c2e85559"
+    }
+  ]
+}

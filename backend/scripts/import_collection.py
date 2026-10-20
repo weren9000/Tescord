@@ -24,22 +24,27 @@ def main():
     args = parser.parse_args()
     data = json.loads(args.manifest.read_text(encoding='utf8'))
     UUID(data['id'])
-    assert len(data['items']) == 10
-    assert len({i['id'] for i in data['items']}) == 10
+    assert 1 <= len(data['items']) <= 200
+    assert len({i['id'] for i in data['items']}) == len(data['items'])
     assert data['cover_id'] in {i['id'] for i in data['items']}
     payloads = {}
     for item in data['items']:
         UUID(item['id'])
         assert item['rarity'] in ('common', 'uncommon', 'rare', 'epic', 'legendary')
         assert isinstance(item['price'], int) and 1 <= item['price'] <= 1000000000
+        assert item.get('kind', 'avatar') in ('avatar', 'frame')
         source = args.manifest.parent / (item['slug'] + '.webp')
         assert source.resolve().parent == args.manifest.parent.resolve()
         with Image.open(source) as image:
             assert image.format == 'WEBP' and image.size == (512, 512)
             image.load()
+            if item.get('kind') == 'frame':
+                alpha = image.convert('RGBA').getchannel('A')
+                assert alpha.crop((153,153,358,358)).getextrema()[1] <= 20, 'Frame center must be transparent'
+                assert alpha.getextrema()[1] > 0, 'Empty frame'
         payloads[item['id']] = source.read_bytes()
     if not args.apply:
-        print('Validated 10 avatars, prices, rarities and collection. Use --apply to import.')
+        print('Validated',len(data['items']),'items, prices, rarities and collection. Use --apply to import.')
         return
     with SessionLocal() as db:
         lock_inventory(db)
@@ -54,7 +59,7 @@ def main():
                     output.write(payloads[key])
             preview_path(target, 256)
             if not db.get(InventoryCatalog, key):
-                db.add(InventoryCatalog(id=key, name=item['name'], kind='avatar',
+                db.add(InventoryCatalog(id=key, name=item['name'], kind=item.get('kind', 'avatar'),
                                         builtin=False, hidden=False, rarity=item['rarity']))
                 db.flush()
             if not db.get(ShopOffer, key):
@@ -65,7 +70,7 @@ def main():
         db.flush()
         if not db.get(ShopCollection, data['id']):
             db.add(ShopCollection(id=data['id'], name=data['name'], description=data['description'],
-                                 cover_id=data['cover_id'], artwork=None, published=True, position=0, version=1))
+                                 cover_id=data['cover_id'], artwork=None, published=True, position=data.get('position', 0), version=1))
             db.flush()
             for item in data['items']:
                 db.add(ShopCollectionItem(collection_id=data['id'], catalog_id=item['id']))

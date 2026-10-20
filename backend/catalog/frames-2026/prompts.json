@@ -1,0 +1,242 @@
+[
+  {
+    "slug": "flame",
+    "mode": "generate",
+    "prompt": "Use case: stylized-concept. Create ONE premium game avatar FRAME OVERLAY, square 1024x1024 PNG with genuine alpha transparency. Front orthographic view, centered circular ring, outer ornament fully within canvas with 3% clear padding. Large completely empty transparent circular aperture diameter 76% of canvas; center has absolutely NO face, picture, object, color, glow or background. Everything outside ornament is also transparent, NOT a checkerboard painted into image. All ornament stays in narrow peripheral ring. Readable bold silhouette at 44px. Polished detailed hand-painted fantasy game inventory asset, tasteful dimensional materials. No text, letters, numbers, logos, watermark, drop shadow in center. Theme: Sculpted curling orange and amber flames, dark bronze thin structural rim, dynamic flame tips along outer perimeter",
+    "edit_prompt": null,
+    "asset": "flame.webp",
+    "original": "flame.png"
+  },
+  {
+    "slug": "ice",
+    "mode": "generate",
+    "prompt": "Use case: stylized-concept. Create ONE premium game avatar FRAME OVERLAY, square 1024x1024 PNG with genuine alpha transparency. Front orthographic view, centered circular ring, outer ornament fully within canvas with 3% clear padding. Large completely empty transparent circular aperture diameter 76% of canvas; center has absolutely NO face, picture, object, color, glow or background. Everything outside ornament is also transparent, NOT a checkerboard painted into image. All ornament stays in narrow peripheral ring. Readable bold silhouette at 44px. Polished detailed hand-painted fantasy game inventory asset, tasteful dimensional materials. No text, letters, numbers, logos, watermark, drop shadow in center. Theme: Jagged translucent pale blue ice shards forming an irregular frosted ring, snow flecks only at perimeter",
+    "edit_prompt": null,
+    "asset": "ice.webp",
+    "original": "ice.png"
+  },
+  {
+    "slug": "lightning",
+    "mode": "generate",
+    "prompt": "Use case: stylized-concept. Create ONE premium game avatar FRAME OVERLAY, square 1024x1024 PNG with genuine alpha transparency. Front orthographic view, centered circular ring, outer ornament fully within canvas with 3% clear padding. Large completely empty transparent circular aperture diameter 76% of canvas; center has absolutely NO face, picture, object, color, glow or background. Everything outside ornament is also transparent, NOT a checkerboard painted into image. All ornament stays in narrow peripheral ring. Readable bold silhouette at 44px. Polished detailed hand-painted fantasy game inventory asset, tasteful dimensional materials. No text, letters, numbers, logos, watermark, drop shadow in center. Theme: Electric violet and gold lightning bolts zigzagging around a thin storm-dark ring, no lightning across aperture",
+    "edit_prompt": null,
+    "asset": "lightning.webp",
+    "original": "lightning.png"
+  },
+  {
+    "slug": "whirlpool",
+    "mode": "generate",
+    "prompt": "Use case: stylized-concept. Create ONE premium game avatar FRAME OVERLAY, square 1024x1024 PNG with genuine alpha transparency. Front orthographic view, centered circular ring, outer ornament fully within canvas with 3% clear padding. Large completely empty transparent circular aperture diameter 76% of canvas; center has absolutely NO face, picture, object, color, glow or background. Everything outside ornament is also transparent, NOT a checkerboard painted into image. All ornament stays in narrow peripheral ring. Readable bold silhouette at 44px. Polished detailed hand-painted fantasy game inventory asset, tasteful dimensional materials. No text, letters, numbers, logos, watermark, drop shadow in center. Theme: Sculpted turquoise curling water waves circling the rim clockwise, pearly foam along outer edges",
+    "edit_prompt": null,
+    "asset": "whirlpool.webp",
+    "original": "whirlpool.png"
+  },
+  {
+    "slug": "stone",
+    "mode": "generate",
+    "prompt": "Use case: stylized-concept. Create ONE premium game avatar FRAME OVERLAY, square 1024x1024 PNG with genuine alpha transparency. Front orthographic view, centered circular ring, outer ornament fully within canvas with 3% clear padding. Large completely empty transparent circular aperture diameter 76% of canvas; center has absolutely NO face, picture, object, color, glow or background. Everything outside ornament is also transparent, NOT a checkerboard painted into image. All ornament stays in narrow peripheral ring. Readable bold silhouette at 44px. Polished detailed hand-painted fantasy game inventory asset, tasteful dimensional materials. No text, letters, numbers, logos, watermark, drop shadow in center. Theme: Simple rugged slate stone ring with five chunky quartz crystal outcrops, earthy grey materials",
+    "edit_prompt": null,
+    "asset": "stone.webp",
+    "original": "stone.png"
+  },
+  {
+    "slug": "vines",
+    "mode": "generate",
+    "prompt": "Use case: stylized-concept. Create ONE premium game avatar FRAME OVERLAY, square 1024x1024 PNG with genuine alpha transparency. Front orthographic view, centered circular ring, outer ornament fully within canvas with 3% clear padding. Large completely empty transparent circular aperture diameter 76% of canvas; center has absolutely NO face, picture, object, color, glow or background. Everything outside ornament is also transparent, NOT a checkerboard painted into image. All ornament stays in narrow peripheral ring. Readable bold silhouette at 44px. Polished detailed hand-painted fantasy game inventory asset, tasteful dimensional materials. No text, letters, numbers, logos, watermark, drop shadow in center. Theme: Simple intertwined emerald ivy vines forming an organic circular wreath, few broad leaves, fresh green highlights",
+    "edit_prompt": null,
+    "asset": "vines.webp",
+    "original": "vines.png"
+  },
+  {
+    "slug": "sakura",
+    "mode": "generate",
+    "prompt": "Use case: stylized-concept. Create ONE premium game avatar FRAME OVERLAY, square 1024x1024 PNG with genuine alpha transparency. Front orthographic view, centered circular ring, outer ornament fully within canvas with 3% clear padding. Large completely empty transparent circular aperture diameter 76% of canvas; center has absolutely NO face, picture, object, color, glow or background. Everything outside ornament is also transparent, NOT a checkerboard painted into image. All ornament stays in narrow peripheral ring. Readable bold silhouette at 44px. Polished detailed hand-painted fantasy game inventory asset, tasteful dimensional materials. No text, letters, numbers, logos, watermark, drop shadow in center. Theme: Cherry blossom branches, clusters of pale pink blossoms on an elegant dark wooden rim, asymmetrical flower accents",
+    "edit_prompt": null,
+    "asset": "sakura.webp",
+    "original": "sakura.png"
+  },
+  {
+    "slug": "mushrooms",
+    "mode": "edit",
+    "prompt": "Use case: stylized-concept. Create ONE premium game avatar FRAME OVERLAY, square 1024x1024 PNG with genuine alpha transparency. Front orthographic view, centered circular ring, outer ornament fully within canvas with 3% clear padding. Large completely empty transparent circular aperture diameter 76% of canvas; center has absolutely NO face, picture, object, color, glow or background. Everything outside ornament is also transparent, NOT a checkerboard painted into image. All ornament stays in narrow peripheral ring. Readable bold silhouette at 44px. Polished detailed hand-painted fantasy game inventory asset, tasteful dimensional materials. No text, letters, numbers, logos, watermark, drop shadow in center. Theme: Enchanted woodland ring with red-capped mushrooms clustered at bottom and little moss tufts on bark perimeter",
+    "edit_prompt": "Edit this avatar frame overlay. Preserve its recognizable theme, colors and premium material style, but make the ornamental ring substantially thinner and perfectly centered CIRCULAR, not oval. Move ALL ornaments, flames, crystals, mushrooms and crescent outward into the peripheral band. The entire centered circular opening of diameter 78% of canvas must be COMPLETELY TRANSPARENT with no stray pixels, glow, shadow or decoration. Keep 2% outer transparent margin. No background, face, text or avatar. Genuine transparent PNG alpha center and exterior.",
+    "asset": "mushrooms.webp",
+    "original": "mushrooms.png"
+  },
+  {
+    "slug": "wood-runes",
+    "mode": "generate",
+    "prompt": "Use case: stylized-concept. Create ONE premium game avatar FRAME OVERLAY, square 1024x1024 PNG with genuine alpha transparency. Front orthographic view, centered circular ring, outer ornament fully within canvas with 3% clear padding. Large completely empty transparent circular aperture diameter 76% of canvas; center has absolutely NO face, picture, object, color, glow or background. Everything outside ornament is also transparent, NOT a checkerboard painted into image. All ornament stays in narrow peripheral ring. Readable bold silhouette at 44px. Polished detailed hand-painted fantasy game inventory asset, tasteful dimensional materials. No text, letters, numbers, logos, watermark, drop shadow in center. Theme: Carved ancient oak rim with glowing amber abstract rune-like grooves, no readable letters, knotted roots at edges",
+    "edit_prompt": null,
+    "asset": "wood-runes.webp",
+    "original": "wood-runes.png"
+  },
+  {
+    "slug": "gold-leaves",
+    "mode": "generate",
+    "prompt": "Use case: stylized-concept. Create ONE premium game avatar FRAME OVERLAY, square 1024x1024 PNG with genuine alpha transparency. Front orthographic view, centered circular ring, outer ornament fully within canvas with 3% clear padding. Large completely empty transparent circular aperture diameter 76% of canvas; center has absolutely NO face, picture, object, color, glow or background. Everything outside ornament is also transparent, NOT a checkerboard painted into image. All ornament stays in narrow peripheral ring. Readable bold silhouette at 44px. Polished detailed hand-painted fantasy game inventory asset, tasteful dimensional materials. No text, letters, numbers, logos, watermark, drop shadow in center. Theme: Elegant simple autumn wreath of broad golden ginkgo and oak leaves, warm copper stems",
+    "edit_prompt": null,
+    "asset": "gold-leaves.webp",
+    "original": "gold-leaves.png"
+  },
+  {
+    "slug": "obsidian",
+    "mode": "generate",
+    "prompt": "Use case: stylized-concept. Create ONE premium game avatar FRAME OVERLAY, square 1024x1024 PNG with genuine alpha transparency. Front orthographic view, centered circular ring, outer ornament fully within canvas with 3% clear padding. Large completely empty transparent circular aperture diameter 76% of canvas; center has absolutely NO face, picture, object, color, glow or background. Everything outside ornament is also transparent, NOT a checkerboard painted into image. All ornament stays in narrow peripheral ring. Readable bold silhouette at 44px. Polished detailed hand-painted fantasy game inventory asset, tasteful dimensional materials. No text, letters, numbers, logos, watermark, drop shadow in center. Theme: Black obsidian thorn armor, angular polished dark stone, restrained crimson gem accents",
+    "edit_prompt": null,
+    "asset": "obsidian.webp",
+    "original": "obsidian.png"
+  },
+  {
+    "slug": "bones",
+    "mode": "generate",
+    "prompt": "Use case: stylized-concept. Create ONE premium game avatar FRAME OVERLAY, square 1024x1024 PNG with genuine alpha transparency. Front orthographic view, centered circular ring, outer ornament fully within canvas with 3% clear padding. Large completely empty transparent circular aperture diameter 76% of canvas; center has absolutely NO face, picture, object, color, glow or background. Everything outside ornament is also transparent, NOT a checkerboard painted into image. All ornament stays in narrow peripheral ring. Readable bold silhouette at 44px. Polished detailed hand-painted fantasy game inventory asset, tasteful dimensional materials. No text, letters, numbers, logos, watermark, drop shadow in center. Theme: Ivory bone segments and two small stylized fantasy skull ornaments at lower outer corners, dark iron joins, no gore",
+    "edit_prompt": null,
+    "asset": "bones.webp",
+    "original": "bones.png"
+  },
+  {
+    "slug": "demon-wings",
+    "mode": "generate",
+    "prompt": "Use case: stylized-concept. Create ONE premium game avatar FRAME OVERLAY, square 1024x1024 PNG with genuine alpha transparency. Front orthographic view, centered circular ring, outer ornament fully within canvas with 3% clear padding. Large completely empty transparent circular aperture diameter 76% of canvas; center has absolutely NO face, picture, object, color, glow or background. Everything outside ornament is also transparent, NOT a checkerboard painted into image. All ornament stays in narrow peripheral ring. Readable bold silhouette at 44px. Polished detailed hand-painted fantasy game inventory asset, tasteful dimensional materials. No text, letters, numbers, logos, watermark, drop shadow in center. Theme: Dark crimson bat-like demon wings curve around outer ring, two horns at top, infernal black metal, no creature inside",
+    "edit_prompt": null,
+    "asset": "demon-wings.webp",
+    "original": "demon-wings.png"
+  },
+  {
+    "slug": "ghost-mist",
+    "mode": "generate",
+    "prompt": "Use case: stylized-concept. Create ONE premium game avatar FRAME OVERLAY, square 1024x1024 PNG with genuine alpha transparency. Front orthographic view, centered circular ring, outer ornament fully within canvas with 3% clear padding. Large completely empty transparent circular aperture diameter 76% of canvas; center has absolutely NO face, picture, object, color, glow or background. Everything outside ornament is also transparent, NOT a checkerboard painted into image. All ornament stays in narrow peripheral ring. Readable bold silhouette at 44px. Polished detailed hand-painted fantasy game inventory asset, tasteful dimensional materials. No text, letters, numbers, logos, watermark, drop shadow in center. Theme: Spectral silver rim wrapped in wisps of pale mint ghost mist, mist only on perimeter, empty transparent center",
+    "edit_prompt": null,
+    "asset": "ghost-mist.webp",
+    "original": "ghost-mist.png"
+  },
+  {
+    "slug": "lich-crown",
+    "mode": "edit",
+    "prompt": "Use case: stylized-concept. Create ONE premium game avatar FRAME OVERLAY, square 1024x1024 PNG with genuine alpha transparency. Front orthographic view, centered circular ring, outer ornament fully within canvas with 3% clear padding. Large completely empty transparent circular aperture diameter 76% of canvas; center has absolutely NO face, picture, object, color, glow or background. Everything outside ornament is also transparent, NOT a checkerboard painted into image. All ornament stays in narrow peripheral ring. Readable bold silhouette at 44px. Polished detailed hand-painted fantasy game inventory asset, tasteful dimensional materials. No text, letters, numbers, logos, watermark, drop shadow in center. Theme: Legendary icy skeletal royal circlet forms ring with tall gothic blue crystal crown at top, black silver and sapphire accents",
+    "edit_prompt": "Edit this avatar frame overlay. Preserve its recognizable theme, colors and premium material style, but make the ornamental ring substantially thinner and perfectly centered CIRCULAR, not oval. Move ALL ornaments, flames, crystals, mushrooms and crescent outward into the peripheral band. The entire centered circular opening of diameter 78% of canvas must be COMPLETELY TRANSPARENT with no stray pixels, glow, shadow or decoration. Keep 2% outer transparent margin. No background, face, text or avatar. Genuine transparent PNG alpha center and exterior.",
+    "asset": "lich-crown.webp",
+    "original": "lich-crown.png"
+  },
+  {
+    "slug": "moon",
+    "mode": "edit",
+    "prompt": "Use case: stylized-concept. Create ONE premium game avatar FRAME OVERLAY, square 1024x1024 PNG with genuine alpha transparency. Front orthographic view, centered circular ring, outer ornament fully within canvas with 3% clear padding. Large completely empty transparent circular aperture diameter 76% of canvas; center has absolutely NO face, picture, object, color, glow or background. Everything outside ornament is also transparent, NOT a checkerboard painted into image. All ornament stays in narrow peripheral ring. Readable bold silhouette at 44px. Polished detailed hand-painted fantasy game inventory asset, tasteful dimensional materials. No text, letters, numbers, logos, watermark, drop shadow in center. Theme: Silver crescent moon integrated into a midnight-blue rim, a few large stars and delicate lunar silver ornament",
+    "edit_prompt": "Edit this avatar frame overlay. Preserve its recognizable theme, colors and premium material style, but make the ornamental ring substantially thinner and perfectly centered CIRCULAR, not oval. Move ALL ornaments, flames, crystals, mushrooms and crescent outward into the peripheral band. The entire centered circular opening of diameter 78% of canvas must be COMPLETELY TRANSPARENT with no stray pixels, glow, shadow or decoration. Keep 2% outer transparent margin. No background, face, text or avatar. Genuine transparent PNG alpha center and exterior.",
+    "asset": "moon.webp",
+    "original": "moon.png"
+  },
+  {
+    "slug": "constellations",
+    "mode": "generate",
+    "prompt": "Use case: stylized-concept. Create ONE premium game avatar FRAME OVERLAY, square 1024x1024 PNG with genuine alpha transparency. Front orthographic view, centered circular ring, outer ornament fully within canvas with 3% clear padding. Large completely empty transparent circular aperture diameter 76% of canvas; center has absolutely NO face, picture, object, color, glow or background. Everything outside ornament is also transparent, NOT a checkerboard painted into image. All ornament stays in narrow peripheral ring. Readable bold silhouette at 44px. Polished detailed hand-painted fantasy game inventory asset, tasteful dimensional materials. No text, letters, numbers, logos, watermark, drop shadow in center. Theme: Simple slender midnight blue ring with connected tiny gold constellation stars placed along rim, airy elegant minimal ornament",
+    "edit_prompt": null,
+    "asset": "constellations.webp",
+    "original": "constellations.png"
+  },
+  {
+    "slug": "orbital-rings",
+    "mode": "generate",
+    "prompt": "Use case: stylized-concept. Create ONE premium game avatar FRAME OVERLAY, square 1024x1024 PNG with genuine alpha transparency. Front orthographic view, centered circular ring, outer ornament fully within canvas with 3% clear padding. Large completely empty transparent circular aperture diameter 76% of canvas; center has absolutely NO face, picture, object, color, glow or background. Everything outside ornament is also transparent, NOT a checkerboard painted into image. All ornament stays in narrow peripheral ring. Readable bold silhouette at 44px. Polished detailed hand-painted fantasy game inventory asset, tasteful dimensional materials. No text, letters, numbers, logos, watermark, drop shadow in center. Theme: Retro futuristic titanium orbital bands wrap the outside of circular rim, tiny warm copper planet shapes on perimeter only",
+    "edit_prompt": null,
+    "asset": "orbital-rings.webp",
+    "original": "orbital-rings.png"
+  },
+  {
+    "slug": "nebula",
+    "mode": "generate",
+    "prompt": "Use case: stylized-concept. Create ONE premium game avatar FRAME OVERLAY, square 1024x1024 PNG with genuine alpha transparency. Front orthographic view, centered circular ring, outer ornament fully within canvas with 3% clear padding. Large completely empty transparent circular aperture diameter 76% of canvas; center has absolutely NO face, picture, object, color, glow or background. Everything outside ornament is also transparent, NOT a checkerboard painted into image. All ornament stays in narrow peripheral ring. Readable bold silhouette at 44px. Polished detailed hand-painted fantasy game inventory asset, tasteful dimensional materials. No text, letters, numbers, logos, watermark, drop shadow in center. Theme: Violet and magenta nebula wisps trapped in a dark crystal ring, subtle star sparkles embedded within peripheral band",
+    "edit_prompt": null,
+    "asset": "nebula.webp",
+    "original": "nebula.png"
+  },
+  {
+    "slug": "eclipse",
+    "mode": "edit",
+    "prompt": "Use case: stylized-concept. Create ONE premium game avatar FRAME OVERLAY, square 1024x1024 PNG with genuine alpha transparency. Front orthographic view, centered circular ring, outer ornament fully within canvas with 3% clear padding. Large completely empty transparent circular aperture diameter 76% of canvas; center has absolutely NO face, picture, object, color, glow or background. Everything outside ornament is also transparent, NOT a checkerboard painted into image. All ornament stays in narrow peripheral ring. Readable bold silhouette at 44px. Polished detailed hand-painted fantasy game inventory asset, tasteful dimensional materials. No text, letters, numbers, logos, watermark, drop shadow in center. Theme: Legendary solar eclipse ring made of black gold and brilliant orange corona flames, magnificent radiant rim, completely transparent hole",
+    "edit_prompt": "Edit this avatar frame overlay. Preserve its recognizable theme, colors and premium material style, but make the ornamental ring substantially thinner and perfectly centered CIRCULAR, not oval. Move ALL ornaments, flames, crystals, mushrooms and crescent outward into the peripheral band. The entire centered circular opening of diameter 78% of canvas must be COMPLETELY TRANSPARENT with no stray pixels, glow, shadow or decoration. Keep 2% outer transparent margin. No background, face, text or avatar. Genuine transparent PNG alpha center and exterior.",
+    "asset": "eclipse.webp",
+    "original": "eclipse.png"
+  },
+  {
+    "slug": "circuit",
+    "mode": "generate",
+    "prompt": "Use case: stylized-concept. Create ONE premium game avatar FRAME OVERLAY, square 1024x1024 PNG with genuine alpha transparency. Front orthographic view, centered circular ring, outer ornament fully within canvas with 3% clear padding. Large completely empty transparent circular aperture diameter 76% of canvas; center has absolutely NO face, picture, object, color, glow or background. Everything outside ornament is also transparent, NOT a checkerboard painted into image. All ornament stays in narrow peripheral ring. Readable bold silhouette at 44px. Polished detailed hand-painted fantasy game inventory asset, tasteful dimensional materials. No text, letters, numbers, logos, watermark, drop shadow in center. Theme: Cyan neon circuit tracks on a graphite metal rim, crisp angular futuristic tabs, restrained teal illumination",
+    "edit_prompt": null,
+    "asset": "circuit.webp",
+    "original": "circuit.png"
+  },
+  {
+    "slug": "hologram",
+    "mode": "generate",
+    "prompt": "Use case: stylized-concept. Create ONE premium game avatar FRAME OVERLAY, square 1024x1024 PNG with genuine alpha transparency. Front orthographic view, centered circular ring, outer ornament fully within canvas with 3% clear padding. Large completely empty transparent circular aperture diameter 76% of canvas; center has absolutely NO face, picture, object, color, glow or background. Everything outside ornament is also transparent, NOT a checkerboard painted into image. All ornament stays in narrow peripheral ring. Readable bold silhouette at 44px. Polished detailed hand-painted fantasy game inventory asset, tasteful dimensional materials. No text, letters, numbers, logos, watermark, drop shadow in center. Theme: Translucent iridescent cyan and lilac holographic segmented ring, clean futuristic glass-like surfaces",
+    "edit_prompt": null,
+    "asset": "hologram.webp",
+    "original": "hologram.png"
+  },
+  {
+    "slug": "cyber-armor",
+    "mode": "generate",
+    "prompt": "Use case: stylized-concept. Create ONE premium game avatar FRAME OVERLAY, square 1024x1024 PNG with genuine alpha transparency. Front orthographic view, centered circular ring, outer ornament fully within canvas with 3% clear padding. Large completely empty transparent circular aperture diameter 76% of canvas; center has absolutely NO face, picture, object, color, glow or background. Everything outside ornament is also transparent, NOT a checkerboard painted into image. All ornament stays in narrow peripheral ring. Readable bold silhouette at 44px. Polished detailed hand-painted fantasy game inventory asset, tasteful dimensional materials. No text, letters, numbers, logos, watermark, drop shadow in center. Theme: Chunky angular graphite armored rim with orange safety accents, brushed industrial metal, four plate sections",
+    "edit_prompt": null,
+    "asset": "cyber-armor.webp",
+    "original": "cyber-armor.png"
+  },
+  {
+    "slug": "steampunk",
+    "mode": "generate",
+    "prompt": "Use case: stylized-concept. Create ONE premium game avatar FRAME OVERLAY, square 1024x1024 PNG with genuine alpha transparency. Front orthographic view, centered circular ring, outer ornament fully within canvas with 3% clear padding. Large completely empty transparent circular aperture diameter 76% of canvas; center has absolutely NO face, picture, object, color, glow or background. Everything outside ornament is also transparent, NOT a checkerboard painted into image. All ornament stays in narrow peripheral ring. Readable bold silhouette at 44px. Polished detailed hand-painted fantasy game inventory asset, tasteful dimensional materials. No text, letters, numbers, logos, watermark, drop shadow in center. Theme: Brass and copper mechanical ring with small gears on outer edges, two pressure gauge-like ornaments without text, warm patina",
+    "edit_prompt": null,
+    "asset": "steampunk.webp",
+    "original": "steampunk.png"
+  },
+  {
+    "slug": "glitch",
+    "mode": "generate",
+    "prompt": "Use case: stylized-concept. Create ONE premium game avatar FRAME OVERLAY, square 1024x1024 PNG with genuine alpha transparency. Front orthographic view, centered circular ring, outer ornament fully within canvas with 3% clear padding. Large completely empty transparent circular aperture diameter 76% of canvas; center has absolutely NO face, picture, object, color, glow or background. Everything outside ornament is also transparent, NOT a checkerboard painted into image. All ornament stays in narrow peripheral ring. Readable bold silhouette at 44px. Polished detailed hand-painted fantasy game inventory asset, tasteful dimensional materials. No text, letters, numbers, logos, watermark, drop shadow in center. Theme: Segmented minimal black chrome rim with short cyan and pink pixel-like offset blocks along edges, clean intentional digital glitch silhouette",
+    "edit_prompt": null,
+    "asset": "glitch.webp",
+    "original": "glitch.png"
+  },
+  {
+    "slug": "silver",
+    "mode": "generate",
+    "prompt": "Use case: stylized-concept. Create ONE premium game avatar FRAME OVERLAY, square 1024x1024 PNG with genuine alpha transparency. Front orthographic view, centered circular ring, outer ornament fully within canvas with 3% clear padding. Large completely empty transparent circular aperture diameter 76% of canvas; center has absolutely NO face, picture, object, color, glow or background. Everything outside ornament is also transparent, NOT a checkerboard painted into image. All ornament stays in narrow peripheral ring. Readable bold silhouette at 44px. Polished detailed hand-painted fantasy game inventory asset, tasteful dimensional materials. No text, letters, numbers, logos, watermark, drop shadow in center. Theme: Simple delicate silver filigree ring with flowing symmetrical scrolls, no gemstones, elegant restrained jewelry",
+    "edit_prompt": null,
+    "asset": "silver.webp",
+    "original": "silver.png"
+  },
+  {
+    "slug": "emerald",
+    "mode": "generate",
+    "prompt": "Use case: stylized-concept. Create ONE premium game avatar FRAME OVERLAY, square 1024x1024 PNG with genuine alpha transparency. Front orthographic view, centered circular ring, outer ornament fully within canvas with 3% clear padding. Large completely empty transparent circular aperture diameter 76% of canvas; center has absolutely NO face, picture, object, color, glow or background. Everything outside ornament is also transparent, NOT a checkerboard painted into image. All ornament stays in narrow peripheral ring. Readable bold silhouette at 44px. Polished detailed hand-painted fantasy game inventory asset, tasteful dimensional materials. No text, letters, numbers, logos, watermark, drop shadow in center. Theme: Faceted emerald gemstones set in polished silver, elegant jewelry filigree with large clear green accents",
+    "edit_prompt": null,
+    "asset": "emerald.webp",
+    "original": "emerald.png"
+  },
+  {
+    "slug": "sapphire",
+    "mode": "generate",
+    "prompt": "Use case: stylized-concept. Create ONE premium game avatar FRAME OVERLAY, square 1024x1024 PNG with genuine alpha transparency. Front orthographic view, centered circular ring, outer ornament fully within canvas with 3% clear padding. Large completely empty transparent circular aperture diameter 76% of canvas; center has absolutely NO face, picture, object, color, glow or background. Everything outside ornament is also transparent, NOT a checkerboard painted into image. All ornament stays in narrow peripheral ring. Readable bold silhouette at 44px. Polished detailed hand-painted fantasy game inventory asset, tasteful dimensional materials. No text, letters, numbers, logos, watermark, drop shadow in center. Theme: Deep sapphire blue baguette gemstones in a platinum ring, geometric art deco setting, small diamond edge accents",
+    "edit_prompt": null,
+    "asset": "sapphire.webp",
+    "original": "sapphire.png"
+  },
+  {
+    "slug": "amethyst",
+    "mode": "edit",
+    "prompt": "Use case: stylized-concept. Create ONE premium game avatar FRAME OVERLAY, square 1024x1024 PNG with genuine alpha transparency. Front orthographic view, centered circular ring, outer ornament fully within canvas with 3% clear padding. Large completely empty transparent circular aperture diameter 76% of canvas; center has absolutely NO face, picture, object, color, glow or background. Everything outside ornament is also transparent, NOT a checkerboard painted into image. All ornament stays in narrow peripheral ring. Readable bold silhouette at 44px. Polished detailed hand-painted fantasy game inventory asset, tasteful dimensional materials. No text, letters, numbers, logos, watermark, drop shadow in center. Theme: Purple amethyst crystals arranged as a graceful asymmetrical ring, rose-gold wirework around outer facets",
+    "edit_prompt": "Edit this avatar frame overlay. Preserve its recognizable theme, colors and premium material style, but make the ornamental ring substantially thinner and perfectly centered CIRCULAR, not oval. Move ALL ornaments, flames, crystals, mushrooms and crescent outward into the peripheral band. The entire centered circular opening of diameter 78% of canvas must be COMPLETELY TRANSPARENT with no stray pixels, glow, shadow or decoration. Keep 2% outer transparent margin. No background, face, text or avatar. Genuine transparent PNG alpha center and exterior.",
+    "asset": "amethyst.webp",
+    "original": "amethyst.png"
+  },
+  {
+    "slug": "gold-crown",
+    "mode": "generate",
+    "prompt": "Use case: stylized-concept. Create ONE premium game avatar FRAME OVERLAY, square 1024x1024 PNG with genuine alpha transparency. Front orthographic view, centered circular ring, outer ornament fully within canvas with 3% clear padding. Large completely empty transparent circular aperture diameter 76% of canvas; center has absolutely NO face, picture, object, color, glow or background. Everything outside ornament is also transparent, NOT a checkerboard painted into image. All ornament stays in narrow peripheral ring. Readable bold silhouette at 44px. Polished detailed hand-painted fantasy game inventory asset, tasteful dimensional materials. No text, letters, numbers, logos, watermark, drop shadow in center. Theme: Legendary ornate gold royal ring topped with an elegant five-point crown, ruby and pearl accents, regal clean silhouette",
+    "edit_prompt": null,
+    "asset": "gold-crown.webp",
+    "original": "gold-crown.png"
+  }
+]

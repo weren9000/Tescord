@@ -47,7 +47,7 @@
  </div>
  @if(loading()){<p class="loading-note" role="status">Загружаем…</p>}
  @if(catalogMode()){
- <div class="grid" [attr.aria-busy]="loading()">@for(item of items();track item.id){<app-store-product-card [item]="item" [src]="image(item.id)" [kindLabel]="kindLabel(item.kind)" [managed]="mode()==='offers'" [showKind]="!kind" [favoriteBusy]="favoriteBusy().has(item.id)" (favorite)="toggleFavorite(item)" [disabled]="loading()" [retry]="previewRetry()" (open)="open(item,$event)" (failed)="previewErrors.set(true)"/>}</div>
+ <div class="grid" [attr.aria-busy]="loading()">@for(item of items();track item.id){<app-store-product-card [avatarUrl]="avatarUrl()" [item]="item" [src]="image(item.id)" [kindLabel]="kindLabel(item.kind)" [managed]="mode()==='offers'" [showKind]="!kind" [favoriteBusy]="favoriteBusy().has(item.id)" (favorite)="toggleFavorite(item)" [disabled]="loading()" [retry]="previewRetry()" (open)="open(item,$event)" (failed)="previewErrors.set(true)"/>}</div>
  }@else if(mode()==='purchases'||mode()==='sales'){
  <div class="records">@for(r of receipts();track r.id){<article><img loading="lazy" [src]="image(r.catalog_id)" alt=""/><div><strong>{{r.name}}</strong><p>{{mode()==='sales'?r.buyer_name:kindLabel(r.kind)}} · {{r.created_at | date:'dd.MM.yyyy HH:mm'}}</p><span class="status">✓ Покупка завершена</span></div><span class="balance"><img src="/assets/crystal.svg" alt="Кристаллы"/>{{r.price | number}}</span>@if(mode()==='purchases'){<button [attr.aria-label]="'Детали покупки: '+r.name" (click)="showReceipt(r,$event)">Подробнее →</button>}</article>}</div>
  }@else if(mode()==='journal'){
