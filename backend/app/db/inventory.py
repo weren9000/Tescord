@@ -10,6 +10,7 @@ class InventoryCatalog(Base):
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     name: Mapped[str] = mapped_column(String(80), nullable=False)
     kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    rarity: Mapped[str | None] = mapped_column(String(16), nullable=True)
     builtin: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     hidden: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default='false')
     created_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('users.id', ondelete='SET NULL'))

@@ -1,3 +1,4 @@
+import {RarityBadgeComponent} from './rarity-badge.component';
 import {AfterViewInit, Component, DestroyRef, ElementRef, OnDestroy, ViewChild, inject, input, output, signal, computed, effect} from '@angular/core';
 import {CommonModule} from '@angular/common';
 import {FormsModule} from '@angular/forms';
@@ -23,7 +24,7 @@ interface Journal {id:string;name:string;catalog_id:string;kind:string;action:st
 type Mode='browse'|'inventory'|'recommendations'|'purchases'|'journal'|'offers'|'sales'|'audit'|'roles'|'collections';
 interface ViewState {favorites?:boolean;rarity?:string;collection?:string;q:string;kind:string;sort:string;unowned:boolean;priceBand:string;action:string;start:string;end:string;page:number;scroll:number}
 
-@Component({selector:'app-shop',standalone:true,imports:[CommonModule,FormsModule,CollectiblePreviewComponent,InventoryComponent,StoreProductCardComponent,UiIconComponent,StoreCollectionsComponent],templateUrl:'./shop.component.html',styleUrl:'./shop.component.scss'})
+@Component({selector:'app-shop',standalone:true,imports:[RarityBadgeComponent,CommonModule,FormsModule,CollectiblePreviewComponent,InventoryComponent,StoreProductCardComponent,UiIconComponent,StoreCollectionsComponent],templateUrl:'./shop.component.html',styleUrl:'./shop.component.scss'})
 export class ShopComponent implements AfterViewInit, OnDestroy {
  readonly token=input.required<string>();readonly actorId=input.required<string>();readonly manage=input(false);readonly systemAdmin=input(false);readonly avatarUrl=input<string|null>(null);
  readonly close=output<void>();readonly inventory=output<void>();readonly changed=output<void>();readonly wallpaper=output<string>();
@@ -60,7 +61,7 @@ export class ShopComponent implements AfterViewInit, OnDestroy {
  readonly nextBanner=(index:number)=>index+1;
  readonly bannerPair=computed(()=>{const a=this.collections();return a.length?[a[this.bannerIndex()%a.length],...(a.length>1?[a[(this.bannerIndex()+1)%a.length]]:[])]:[];});
  readonly favoriteBusy=signal<Set<string>>(new Set());
- readonly rarities=[{id:'common',label:'Обычный'},{id:'rare',label:'Редкий'},{id:'epic',label:'Эпический'},{id:'legendary',label:'Легендарный'}];
+ readonly rarities=[{id:'common',label:'Обычный'},{id:'uncommon',label:'Необычный'},{id:'rare',label:'Редкий'},{id:'epic',label:'Эпический'},{id:'legendary',label:'Легендарный'}];
  draft={kind:'',priceBand:'',rarity:'',start:'',end:'',action:''};readonly draftTotal=signal<number|null>(null);readonly draftError=signal(false);private draftVersion=0;private searchTimer?:ReturnType<typeof setTimeout>;
  kind='';q='';sort='new';unowned=false;priceBand='';action='';start='';end='';price=1;status='draft';position=0;recommended=false;
  private version=0;private alive=true;private trigger:HTMLElement|null=null;

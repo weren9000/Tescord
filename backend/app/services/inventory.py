@@ -26,7 +26,7 @@ CATALOG.update({key: {'name': name, 'kind': 'wallpaper'} for key, name in WALLPA
 def catalog_data(db, catalog_id):
     from app.db.inventory import InventoryCatalog
     entry = db.get(InventoryCatalog, catalog_id)
-    return {'name': entry.name, 'kind': entry.kind} if entry else {'name': catalog_id, 'kind': 'avatar'}
+    return {'name': entry.name, 'kind': entry.kind, 'rarity': entry.rarity} if entry else {'name': catalog_id, 'kind': 'avatar'}
 
 
 def asset_path(catalog_id):

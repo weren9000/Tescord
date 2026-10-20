@@ -15,7 +15,7 @@ from app.db.session import get_db
 from app.services.inventory import lock_inventory
 
 router = APIRouter(prefix='/shop', tags=['shop'])
-Rarity = Literal['common', 'rare', 'epic', 'legendary']
+Rarity = Literal['common', 'uncommon', 'rare', 'epic', 'legendary']
 Kind = Literal['avatar', 'frame', 'wallpaper', 'theme']
 
 
@@ -52,7 +52,7 @@ def offers(response: Response, kind: Kind | None = None, q: str = Query('', max_
     if max_price is not None: query = query.where(ShopOffer.price <= max_price)
     favorite_ids = select(ShopFavorite.catalog_id).where(ShopFavorite.user_id == user.id)
     if favorites: query = query.where(InventoryCatalog.id.in_(favorite_ids))
-    if rarity: query = query.where(ShopOffer.rarity == rarity)
+    if rarity: query = query.where(InventoryCatalog.rarity == rarity)
     if collection:
         group = db.get(ShopCollection, collection)
         if not group or not group.published: raise HTTPException(404, 'Подборка недоступна')
@@ -72,7 +72,7 @@ def offers(response: Response, kind: Kind | None = None, q: str = Query('', max_
         InventoryItem.owner_id == user.id, InventoryItem.revoked.is_(False),
         InventoryItem.catalog_id.in_(ids)).group_by(InventoryItem.catalog_id)).all()) if ids else {}
     favorites_set = set(db.scalars(favorite_ids.where(ShopFavorite.catalog_id.in_(ids)))) if ids else set()
-    result['items'] = [dict(id=e.id, name=e.name, kind=e.kind, favorite=e.id in favorites_set, **offer_data(prices[e.id]),
+    result['items'] = [dict(id=e.id, name=e.name, kind=e.kind, favorite=e.id in favorites_set, **{**offer_data(prices[e.id]), 'rarity': e.rarity},
                            owned=quantities.get(e.id, 0)) for e in result['items']]
     result['categories'] = counts
     return result
@@ -236,7 +236,7 @@ def admin_offers(kind: Kind | None = None, q: str = Query('', max_length=80), pa
     if q.strip(): query = query.where(InventoryCatalog.name.ilike(search_pattern(q), escape='\\'))
     result = paginate(db, query, page, InventoryCatalog.created_at.desc(), InventoryCatalog.id)
     result['items'] = [dict(id=e.id, name=e.name, kind=e.kind, hidden=e.hidden,
-        **offer_data(db.get(ShopOffer, e.id)), sales=db.scalar(select(func.count()).select_from(ShopPurchase).where(ShopPurchase.catalog_id == e.id))) for e in result['items']]
+        **{**offer_data(db.get(ShopOffer, e.id)), 'rarity': e.rarity}, sales=db.scalar(select(func.count()).select_from(ShopPurchase).where(ShopPurchase.catalog_id == e.id))) for e in result['items']]
     return result
 
 
@@ -262,6 +262,7 @@ def edit_offer(catalog_id: str, body: OfferEdit, user: User = Depends(manager), 
         offer = ShopOffer(catalog_id=catalog_id, version=0)
         db.add(offer)
     for key in ('price', 'status', 'position', 'recommended', 'rarity'): setattr(offer, key, getattr(body, key))
+    entry.rarity = body.rarity
     offer.version += 1
     db.add(ShopAudit(actor_id=user.id, actor_name=user.username, target=catalog_id, before=before, after=offer_data(offer)))
     db.commit()

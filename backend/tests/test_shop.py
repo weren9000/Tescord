@@ -249,3 +249,17 @@ def test_favorite_updates_only_owners_sessions(store, monkeypatch):
     assert c.put('/api/shop/favorites/'+key,headers=users[1][0],json={'enabled':True}).status_code==200
     assert deliveries==[(users[1][1]['id'],{'type':'shop_favorites_changed','catalog_id':key,'favorite':True})]
     assert broadcasts==[]
+
+
+def test_uncommon_rarity_shared_with_inventory(store):
+    from app.db.inventory import InventoryCatalog
+    from app.services.inventory import catalog_data
+    c,users,key=store;a,b,_=[u[0] for u in users]
+    assert offer(c,a,key).status_code==200
+    payload=dict(price=100,status='published',position=0,version=1,rarity='uncommon')
+    assert c.put('/api/shop/admin/offers/'+key,headers=a,json=payload).status_code==200
+    data=c.get('/api/shop',headers=b,params={'rarity':'uncommon'}).json()
+    assert any(i['id']==key and i['rarity']=='uncommon' for i in data['items'])
+    assert not any(i['id']==key for i in c.get('/api/shop',headers=b,params={'rarity':'rare'}).json()['items'])
+    with SessionLocal() as db:
+        assert catalog_data(db,key)['rarity']=='uncommon'

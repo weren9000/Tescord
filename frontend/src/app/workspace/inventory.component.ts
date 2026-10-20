@@ -1,3 +1,4 @@
+import {RarityBadgeComponent} from './rarity-badge.component';
 import {ResourceRefreshService} from '../core/services/resource-refresh.service';
 import {CollectiblePreviewComponent} from './collectible-preview.component';
 import {UserCardDirective} from './user-card.directive';
@@ -13,7 +14,7 @@ import { firstValueFrom } from 'rxjs';
 import { API_BASE_URL } from '../core/api/api-base';
 
 interface Person { id: string; nick: string; public_id: number; avatar_updated_at: string | null; }
-interface Item { in_use?: boolean; received_at?: string; copies?: number; gift_item_id?: string; created_at: string; id: string; catalog_id: string; name: string; kind: string; equipped: boolean; revoked: boolean; owner: Person | null; }
+interface Item { rarity?:string|null; in_use?: boolean; received_at?: string; copies?: number; gift_item_id?: string; created_at: string; id: string; catalog_id: string; name: string; kind: string; equipped: boolean; revoked: boolean; owner: Person | null; }
 interface Notice { id: string; action: string; name: string; actor: Person | null; created_at: string; unread: boolean; }
 interface Event { action: string; actor: Person | null; recipient: Person | null; created_at: string; }
 interface Page<T> { items: T[]; total: number; page: number; pages: number; }
@@ -22,7 +23,7 @@ interface Catalog { id: string; name: string; kind: string; hidden: boolean; }
 interface Pending { action: string; item: Item | null; recipient: Person | null; request_id: string; catalog_id?: string; }
 
 @Component({
- selector: 'app-inventory', standalone: true, imports: [CollectiblePreviewComponent, UserCardDirective, WalletBalanceComponent, AssetPreviewComponent, CommonModule, FormsModule, ActionMenuComponent, UiIconComponent],
+ selector: 'app-inventory', standalone: true, imports: [RarityBadgeComponent,CollectiblePreviewComponent, UserCardDirective, WalletBalanceComponent, AssetPreviewComponent, CommonModule, FormsModule, ActionMenuComponent, UiIconComponent],
  templateUrl: './inventory.component.html', styleUrl: './inventory.component.scss'
 })
 export class InventoryComponent implements OnDestroy {
