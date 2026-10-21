@@ -136,10 +136,6 @@ def join_invite(token: str, response: Response, user: User = Depends(get_current
     joined = membership is None
     if joined:
         ensure_active(invite)
-        if server.kind == ServerKind.GROUP_CHAT:
-            count = db.scalar(select(func.count()).select_from(ServerMember).where(ServerMember.server_id == server.id))
-            if count >= 10:
-                raise HTTPException(409, "В группе уже 10 участников. Свободных мест нет")
         db.add(ServerMember(server_id=server.id, user_id=user.id, role=MemberRole.MEMBER, nickname=user.username))
         invite.uses += 1
         db.flush()

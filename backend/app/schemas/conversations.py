@@ -60,5 +60,5 @@ class CreateDirectConversationRequest(BaseModel):
 
 class CreateGroupConversationRequest(BaseModel):
     name: str = Field(min_length=2, max_length=80)
-    member_ids: list[UUID] = Field(default_factory=list, max_length=9)
+    member_ids: list[UUID] = Field(default_factory=list)
     icon_asset: str | None = Field(default=None, max_length=255)

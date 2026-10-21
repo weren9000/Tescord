@@ -197,6 +197,8 @@ def test_concurrent_registration_has_unique_public_ids():
 
 
 def test_voice_tokens_cannot_bypass_mute_kick_or_revoked_session(conversation, monkeypatch):
+    from unittest.mock import AsyncMock
+    monkeypatch.setattr('app.api.routes.voice.prepare_voice_room', AsyncMock())
     from datetime import datetime, timezone, timedelta
     from app.db.models import VoiceChannelAccess
     from app.services.voice_sfu import media_permission

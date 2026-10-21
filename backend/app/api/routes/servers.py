@@ -433,7 +433,7 @@ def add_server_member(
 
     _ensure_manage_permission(membership, current_user)
 
-    # Serialize capacity checks with invitation joins for this same server.
+    # Serialize membership changes with invitation joins for this same server.
     db.execute(select(Server).where(Server.id == server_id).with_for_update()).scalar_one()
 
     if payload.user_id is not None:
@@ -455,16 +455,6 @@ def add_server_member(
         select(ServerMember).where(ServerMember.server_id == server.id, ServerMember.user_id == user.id)
     ).scalar_one_or_none()
     if existing_member is None:
-        if server.kind == ServerKind.GROUP_CHAT:
-            members_count = db.execute(
-                select(func.count(ServerMember.id)).where(ServerMember.server_id == server.id)
-            ).scalar_one()
-            if int(members_count or 0) >= 10:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="В группе не может быть больше 10 участников",
-                )
-
         existing_member = ServerMember(
             server_id=server.id,
             user_id=user.id,

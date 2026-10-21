@@ -845,6 +845,12 @@ export class AppComponent {
   }
   resetPlatformChannelFilters(): void { this.sidebarQuery.set(''); }
   readonly expandedPlatformRosters = signal(new Set<string>());
+  async togglePlatformVoiceRoom(channel: WorkspaceChannel): Promise<void> {
+    this.togglePlatformRoster(channel.id);
+    if (this.selectedChannelId() !== channel.id) {
+      await this.selectChannel(channel, {connectVoice: false, preserveMobilePanel: true});
+    }
+  }
   togglePlatformRoster(channelId: string): void {
     this.expandedPlatformRosters.update(current => {
       const next = new Set(current);
@@ -7220,11 +7226,11 @@ export class AppComponent {
     this.loadServerWorkspace(token, serverId);
   }
 
-  async selectChannel(channel: WorkspaceChannel, options: { connectVoice?: boolean } = {}): Promise<void> {
+  async selectChannel(channel: WorkspaceChannel, options: { connectVoice?: boolean; preserveMobilePanel?: boolean } = {}): Promise<void> {
     const shouldConnectVoice = options.connectVoice ?? true;
     const selectedChannelChanged = this.selectedChannelId() !== channel.id;
     this.schedulePresenceHeartbeat();
-    this.closeMobilePanel();
+    if (!options.preserveMobilePanel) this.closeMobilePanel();
     this.closeChatFilesModal();
     if (selectedChannelChanged) {
       this.rememberMessagePosition();

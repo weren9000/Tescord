@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Response, WebSock
 from fastapi.security import HTTPAuthorizationCredentials
 from app.api.dependencies.auth import bearer_scheme
 from app.core.security import decode_access_token
-from app.services.voice_sfu import enforce_participant, media_permission
+from app.services.voice_sfu import enforce_participant, media_permission, prepare_voice_room
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -69,7 +69,7 @@ from app.services.voice_access import (
     mark_guest_rejoin_grace,
     utc_now,
 )
-from app.services.voice_signaling import voice_signaling_manager
+from app.services.voice_signaling import VoiceAdmissionError, voice_signaling_manager
 
 try:
     from livekit import api as livekit_api
@@ -162,6 +162,7 @@ def _build_voice_sfu_token(channel: Channel, current_user: User, *, owner_muted:
         .with_name(current_user.username)
         .with_metadata(json.dumps({"session_id": session_id}))
         .with_ttl(timedelta(minutes=5))
+        .with_room_config(livekit_api.RoomConfiguration(max_participants=settings.voice_room_capacity))
         .with_grants(
             livekit_api.VideoGrants(
                 room_join=True,
@@ -848,6 +849,7 @@ async def create_voice_sfu_token(
     if membership_created:
         await publish_members_updated(channel.server_id, reason="member_joined")
 
+    await prepare_voice_room(channel.id, current_user.id)
     session_id = decode_access_token(credentials.credentials, settings.secret_key)["sid"]
     return _build_voice_sfu_token(channel, current_user, owner_muted=bool(access and access.owner_muted), session_id=session_id)
 
@@ -911,15 +913,19 @@ async def connect_to_voice_channel(websocket: WebSocket, channel_id: UUID) -> No
                 await websocket.close(code=4403, reason="Ожидайте ответа владельца канала")
             return
 
-        participant = await voice_signaling_manager.connect(
-            websocket,
-            str(channel.id),
-            user_id=str(current_user.id),
-            public_id=current_user.public_id,
-            nick=current_user.username,
-            avatar_updated_at=current_user.avatar_updated_at,
-            owner_muted=bool(access.owner_muted) if access is not None else False,
-        )
+        try:
+            participant = await voice_signaling_manager.connect(
+                websocket,
+                str(channel.id),
+                user_id=str(current_user.id),
+                public_id=current_user.public_id,
+                nick=current_user.username,
+                avatar_updated_at=current_user.avatar_updated_at,
+                owner_muted=bool(access.owner_muted) if access is not None else False,
+            )
+        except VoiceAdmissionError as error:
+            await websocket.close(code=error.code, reason=error.reason)
+            return
         await publish_voice_presence_updated(channel.server_id)
 
     try:

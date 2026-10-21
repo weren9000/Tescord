@@ -23,6 +23,29 @@ def _client():
     return api.LiveKitAPI(settings.livekit_internal_url, settings.livekit_api_key, settings.livekit_api_secret, timeout=ClientTimeout(total=5))
 
 
+async def prepare_voice_room(channel_id, user_id):
+    settings = get_settings()
+    if not settings.livekit_enabled:
+        raise HTTPException(503, 'Голосовой сервер недоступен')
+    try:
+        async with _client() as client:
+            room = await client.room.create_room(api.CreateRoomRequest(
+                name=str(channel_id), max_participants=settings.voice_room_capacity,
+                empty_timeout=60, departure_timeout=20))
+            if room.max_participants != settings.voice_room_capacity:
+                # Existing rooms keep their creation settings. Never interrupt a live call.
+                raise HTTPException(409, 'Комната обновляется. Повторите вход после завершения текущей голосовой сессии')
+            participants = await client.room.list_participants(api.ListParticipantsRequest(room=str(channel_id)))
+            if len(participants.participants) >= settings.voice_room_capacity and not any(
+                p.identity == str(user_id) for p in participants.participants
+            ):
+                raise HTTPException(409, f'В голосовой комнате уже {settings.voice_room_capacity} участников. Подключитесь, когда освободится место')
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(503, 'Не удалось подготовить голосовую комнату') from exc
+
+
 def media_permission(room: str, identity: str, metadata: str, *, joining: bool) -> bool | None:
     """None denies participation, False permits listening, True permits publishing."""
     try:

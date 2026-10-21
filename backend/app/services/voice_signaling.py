@@ -8,6 +8,13 @@ from uuid import uuid4
 
 from starlette.websockets import WebSocketState
 from fastapi import WebSocket
+from app.core.config import get_settings
+
+
+class VoiceAdmissionError(Exception):
+    def __init__(self, code: int, reason: str):
+        self.code, self.reason = code, reason
+        super().__init__(reason)
 
 
 @dataclass(slots=True)
@@ -68,25 +75,34 @@ class VoiceSignalingManager:
 
         async with self._lock:
             room = self._rooms.setdefault(channel_id, {})
+            if any(c.participant.user_id == user_id for c in room.values()):
+                raise VoiceAdmissionError(4409, "Already connected")
+            if len(room) >= get_settings().voice_room_capacity:
+                raise VoiceAdmissionError(4429, "Voice room full")
             existing_participants = [connection.participant.to_payload() for connection in room.values()]
             room[participant.id] = VoiceConnection(websocket=websocket, participant=participant)
 
-        await websocket.send_json(
-            {
-                "type": "room_state",
-                "self_id": participant.id,
-                "self_participant": participant.to_payload(),
-                "participants": existing_participants,
-            }
-        )
-        await self._broadcast(
-            channel_id,
-            {
-                "type": "peer_joined",
-                "participant": participant.to_payload(),
-            },
-            exclude_participant_id=participant.id,
-        )
+        try:
+            await websocket.send_json(
+                {
+                    "type": "room_state",
+                    "self_id": participant.id,
+                    "self_participant": participant.to_payload(),
+                    "participants": existing_participants,
+                }
+            )
+            await self._broadcast(
+                channel_id,
+                {
+                    "type": "peer_joined",
+                    "participant": participant.to_payload(),
+                },
+                exclude_participant_id=participant.id,
+            )
+
+        except BaseException:
+            await self.disconnect(channel_id, participant.id)
+            raise
 
         return participant
 

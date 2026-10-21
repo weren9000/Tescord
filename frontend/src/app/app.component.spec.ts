@@ -102,6 +102,20 @@ describe('AppComponent', () => {
     const fixture = TestBed.createComponent(AppComponent);
     expect(fixture.componentInstance).toBeTruthy();
   });
+  it('toggles a voice roster without joining and preserves the mobile panel', async () => {
+    const fixture = TestBed.createComponent(AppComponent), app = fixture.componentInstance;
+    const select = spyOn(app, 'selectChannel').and.resolveTo();
+    const channel = {id: 'voice-test', type: 'voice', name: 'Таверна'} as any;
+    await app.togglePlatformVoiceRoom(channel);
+    expect(app.expandedPlatformRosters().has(channel.id)).toBeTrue();
+    expect(select).toHaveBeenCalledWith(channel, {connectVoice: false, preserveMobilePanel: true});
+    app.selectedChannelId.set(channel.id);
+    select.calls.reset();
+    await app.togglePlatformVoiceRoom(channel);
+    expect(app.expandedPlatformRosters().has(channel.id)).toBeFalse();
+    expect(select).not.toHaveBeenCalled();
+    fixture.destroy();
+  });
   it('reuses text models across a long history and invalidates edited text and search', () => {
     const fixture=TestBed.createComponent(AppComponent), app=fixture.componentInstance;
     const messages=Array.from({length:1000},(_,i)=>({id:String(i),content:'Message '+i+' https://example.com',mentioned_user_ids:[]} as any));

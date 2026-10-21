@@ -471,22 +471,15 @@
                   </div>
                   @if (!isPlatformChannelSectionCollapsed('voice') || sidebarQuery().trim()) {
                     @for (channel of sidebarVoiceChannels(); track channel.id) {
-                      <div class="channel-action-row"><button class="space-channel" type="button" [class.space-channel--selected]="selectedChannelId() === channel.id" [class.space-channel--connected]="connectedVoiceChannelId() === channel.id" [attr.aria-current]="selectedChannelId() === channel.id ? 'page' : null" [attr.title]="channel.name + (channel.topic ? ' · ' + channel.topic : '')" (click)="previewPlatformVoiceChannel(channel)">
+                      <div class="channel-action-row"><button class="space-channel" type="button" [class.space-channel--selected]="selectedChannelId() === channel.id" [class.space-channel--connected]="connectedVoiceChannelId() === channel.id" [attr.aria-current]="selectedChannelId() === channel.id ? 'page' : null" [attr.title]="channel.name + (channel.topic ? ' · ' + channel.topic : '')" [attr.aria-expanded]="expandedPlatformRosters().has(channel.id)" [attr.aria-controls]="'room-roster-' + channel.id" (click)="togglePlatformVoiceRoom(channel)">
+                        <app-ui-icon name="down" class="voice-roster-chevron" [class.voice-roster-chevron--collapsed]="!expandedPlatformRosters().has(channel.id)" />
                         <app-ui-icon name="sound" /><span class="space-channel__name">{{ channel.name }}</span>
                         @if (channelMentionUnreadCount(channel)>0) {<span class="space-badge space-badge--mention" [attr.aria-label]="'Упоминаний: ' + channelMentionUnreadCount(channel)">&#64;{{channelMentionUnreadBadgeLabel(channel)}}</span>}
                         @else if (channelUnreadCount(channel)>0) {<span class="space-badge" [attr.aria-label]="'Непрочитанных: ' + channelUnreadCount(channel)">{{channelUnreadBadgeLabel(channel)}}</span>}
                         @if (connectedVoiceChannelId() === channel.id) {<app-ui-icon name="check" aria-label="Вы подключены" />}
-                        @if (platformVoiceParticipants(channel.id).length) {<span class="space-channel__count" [attr.aria-label]="'Участников в комнате: ' + platformVoiceParticipants(channel.id).length">{{ platformVoiceParticipants(channel.id).length }}</span>}
+                        @if (platformVoiceParticipants(channel.id).length) {<span class="space-channel__count" [attr.aria-label]="'Участников в комнате: ' + platformVoiceParticipants(channel.id).length"><span class="voice-active-dot" aria-hidden="true"></span>{{ platformVoiceParticipants(channel.id).length }}</span>}
                       </button><button class="channel-menu-trigger" type="button" [attr.aria-label]="'Действия канала: ' + channel.name" [attr.title]="'Действия канала: ' + channel.name" aria-haspopup="dialog" (click)="openChannelActions(channel)"><app-ui-icon name="more" /></button></div>
                       @if (platformVoiceParticipants(channel.id).length) {
-                        <button class="space-roster-toggle" type="button" [attr.aria-expanded]="expandedPlatformRosters().has(channel.id)" [attr.aria-controls]="'room-roster-' + channel.id" [attr.aria-label]="(expandedPlatformRosters().has(channel.id) ? 'Скрыть участников: ' : 'Показать участников: ') + channel.name" (click)="togglePlatformRoster(channel.id)">
-                          <span class="space-roster-avatars">
-                            @for (participant of platformVoiceParticipants(channel.id).slice(0, 3); track participant.user_id) {
-                              <span class="space-person__avatar">@if (userAvatarUrl(participant.user_id, participant.avatar_updated_at); as avatar) {<img [appUserCard]="participant.user_id" [src]="avatar" alt="" />} @else { {{ displayNickInitials(participant.nick) }} }</span>
-                            }
-                          </span>
-                          <span>{{ expandedPlatformRosters().has(channel.id) ? 'Скрыть' : 'Участники · ' + platformVoiceParticipants(channel.id).length }}</span><app-ui-icon name="down" />
-                        </button>
                         @if (expandedPlatformRosters().has(channel.id)) {
                         <div class="space-people" [id]="'room-roster-' + channel.id">
                           @for (participant of platformVoiceParticipants(channel.id); track participant.user_id) {
@@ -687,7 +680,7 @@
                         >
                           <div class="group-voice-card__copy">
                             <strong>{{ groupVoiceChannel.name }}</strong>
-                            <small>Участников: {{ activeGroupVoiceParticipants().length }}</small>
+                            <small>@if (activeGroupVoiceParticipants().length) {<span class="voice-active-dot" aria-hidden="true"></span>} Участников: {{ activeGroupVoiceParticipants().length }}</small>
                           </div>
                       </button>
                       <div class="group-voice-card__actions">

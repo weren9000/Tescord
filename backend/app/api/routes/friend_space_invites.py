@@ -102,8 +102,6 @@ def respond(invite_id: UUID, action: str, user: User = Depends(get_current_user)
     if is_server_blocked(db, server.id, user.id):
         raise HTTPException(403, 'Сообщество заблокировано')
     if not get_membership(db, server.id, user.id):
-        if server.kind == ServerKind.GROUP_CHAT and db.scalar(select(func.count()).select_from(ServerMember).where(ServerMember.server_id == server.id)) >= 10:
-            raise HTTPException(409, 'В группе уже 10 участников')
         db.add(ServerMember(server_id=server.id, user_id=user.id, role=MemberRole.MEMBER, nickname=user.username))
         db.flush()
     text, _ = ensure_group_chat_defaults(db, server) if server.kind == ServerKind.GROUP_CHAT else ensure_workspace_defaults(db, server)

@@ -1027,8 +1027,13 @@ export class VoiceRoomService {
       this.controlSocket = socket;
 
       let opened = false;
+      const admissionTimeout = setTimeout(() => {
+        reject(new Error('Сервер не подтвердил вход в голосовую комнату'));
+        socket.close();
+      }, 15000);
 
-      socket.onopen = () => {
+      const admitted = () => {
+        clearTimeout(admissionTimeout);
         opened = true;
         this.reconnectAttempt = 0;
         if (this.reconnectMode === 'socket') {
@@ -1046,10 +1051,12 @@ export class VoiceRoomService {
       };
 
       socket.onerror = () => {
+        clearTimeout(admissionTimeout);
         reject(new Error('Не удалось установить signaling-соединение'));
       };
 
       socket.onclose = (event) => {
+        clearTimeout(admissionTimeout);
         if (this.controlSocket !== socket) {
           return;
         }
@@ -1066,6 +1073,7 @@ export class VoiceRoomService {
 
       socket.onmessage = (event) => {
         this.handleControlSocketMessage(event.data);
+        if (!opened && JSON.parse(event.data).type === 'room_state') admitted();
       };
     });
   }
@@ -2001,12 +2009,14 @@ export class VoiceRoomService {
   }
 
   private isFatalControlSocketCloseCode(code: number): boolean {
-    return code === 4003 || code === 4401 || code === 4403 || code === 4404;
+    return code === 4003 || code === 4401 || code === 4403 || code === 4404 || code === 4409 || code === 4429;
   }
 
   private isFatalControlSocketMessage(message: string): boolean {
     return (
-      message === 'Владелец закрыл вам доступ к голосовому каналу'
+      message === this.getControlSocketFailureMessage(4429)
+      || message === this.getControlSocketFailureMessage(4409)
+      || message === 'Владелец закрыл вам доступ к голосовому каналу'
       || message === 'Сессия голосового канала истекла, подключитесь заново'
       || message === 'У вас больше нет доступа к голосовому каналу'
       || message === 'Голосовой канал больше недоступен'
@@ -2014,6 +2024,8 @@ export class VoiceRoomService {
   }
 
   private getControlSocketFailureMessage(code: number): string {
+    if (code === 4429) return 'В голосовой комнате уже 30 участников. Подключитесь, когда освободится место';
+    if (code === 4409) return 'Вы уже подключены к этой комнате в другой вкладке или на другом устройстве';
     if (code === 4003) {
       return 'Владелец закрыл вам доступ к голосовому каналу';
     }

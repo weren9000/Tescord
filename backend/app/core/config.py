@@ -4,7 +4,7 @@ from functools import lru_cache
 from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import model_validator
+from pydantic import Field, model_validator
 
 
 class Settings(BaseSettings):
@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     redis_url: str | None = None
     rate_limits_enabled: bool = False
     livekit_internal_url: str = "http://127.0.0.1:7880"
+    voice_room_capacity: int = Field(default=30, ge=1, le=30)
     push_vapid_public_key: str | None = None
     push_vapid_private_key_path: str | None = None
     push_vapid_subject: str | None = None
