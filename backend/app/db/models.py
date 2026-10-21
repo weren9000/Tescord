@@ -174,11 +174,57 @@ class User(TimestampMixin, Base):
     )
 
 
+class PlatformMigrationState(Base):
+    __tablename__ = "platform_migration_state"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    retired_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+class Platform(TimestampMixin, Base):
+    """A community whose chats share one membership and role policy."""
+
+    __tablename__ = "platforms"
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String(80), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text)
+    owner_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    members: Mapped[list["PlatformMember"]] = relationship(cascade="all, delete-orphan", passive_deletes=True)
+    chats: Mapped[list["Server"]] = relationship(back_populates="platform", cascade="all, delete-orphan", passive_deletes=True)
+
+
+class PlatformMember(Base):
+    __tablename__ = "platform_members"
+    __table_args__ = (UniqueConstraint("platform_id", "user_id", name="uq_platform_member"),)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    platform_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("platforms.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    role: Mapped[MemberRole] = mapped_column(Enum(MemberRole, name="memberrole", values_callable=enum_values), nullable=False, default=MemberRole.MEMBER)
+    notifications_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
+    joined_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+class PlatformInvite(Base):
+    __tablename__ = "platform_invites"
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    platform_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("platforms.id", ondelete="CASCADE"), nullable=False, index=True)
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    created_by_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    max_uses: Mapped[int | None] = mapped_column(Integer)
+    uses: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+
+
 class Server(TimestampMixin, Base):
     chat_wallpaper: Mapped[str | None] = mapped_column(String(64))
     wallpaper_scale: Mapped[int] = mapped_column(Integer, nullable=False, default=100, server_default='100')
     wallpaper_dim: Mapped[int] = mapped_column(Integer, nullable=False, default=35, server_default='35')
     __tablename__ = "servers"
+
+    platform_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("platforms.id", ondelete="CASCADE"), index=True)
+    platform_position: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    platform: Mapped["Platform | None"] = relationship(back_populates="chats")
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(80), nullable=False)

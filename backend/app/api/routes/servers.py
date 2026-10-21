@@ -36,6 +36,7 @@ from app.services.app_events import (
 )
 from app.services.default_tavern import is_default_tavern_channel
 from app.services.group_chat_defaults import ensure_group_chat_defaults
+from app.services.platforms import reject_individual_chat_management
 from app.services.attachment_storage import delete_stored_attachment
 from app.services.server_access import get_accessible_server, is_server_blocked
 from app.services.server_icons import get_default_server_icon_asset, normalize_server_icon_asset
@@ -263,6 +264,9 @@ def create_server(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> ServerSummary:
+    from app.db.models import PlatformMigrationState
+    if db.get(PlatformMigrationState, 1) is not None:
+        raise HTTPException(410, "Старые площадки отключены. Обновите приложение и создайте новую площадку")
     name = payload.name.strip()
     if not name:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Название площадки не может быть пустым")
@@ -428,6 +432,7 @@ def add_server_member(
     db: Session = Depends(get_db),
 ) -> ServerMemberSummary:
     server, membership = get_accessible_server(db, server_id, current_user, allow_workspace_auto_join=False)
+    reject_individual_chat_management(server)
     if server.kind == ServerKind.DIRECT:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Нельзя добавлять участников в личный чат")
 
@@ -487,6 +492,7 @@ def remove_server_member(
     db: Session = Depends(get_db),
 ) -> Response:
     server, membership = get_accessible_server(db, server_id, current_user, allow_workspace_auto_join=False)
+    reject_individual_chat_management(server)
     if server.kind == ServerKind.DIRECT:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Нельзя удалять участников из личного чата")
 
@@ -537,6 +543,7 @@ async def leave_server(
     db: Session = Depends(get_db),
 ) -> Response:
     server, membership = get_accessible_server(db, server_id, current_user, allow_workspace_auto_join=False)
+    reject_individual_chat_management(server)
     if server.kind not in {ServerKind.GROUP_CHAT, ServerKind.WORKSPACE}:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Выйти можно только из группы или площадки")
 

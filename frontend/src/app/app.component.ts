@@ -18,6 +18,8 @@ import {FriendInviteComponent} from './workspace/friend-invite.component';
 import {MobileViewportDirective} from './workspace/mobile-viewport.directive';
 import {PwaInstallService} from './core/services/pwa-install.service';
 import {PlatformListComponent} from './workspace/platform-list.component';
+import {PlatformChatsComponent} from './workspace/platform-chats.component';
+import {PlatformApiService} from './core/api/platform-api.service';
 import {AdminDirectoryComponent} from './workspace/admin-directory.component';
 import {AudioDevicePickerComponent} from './workspace/audio-device-picker.component';
 import { InfoPanelComponent } from './workspace/info-panel.component';
@@ -648,11 +650,34 @@ const DEFAULT_SERVER_ICON_ASSET_BY_NAME: Record<string, string> = {
 @Component({
   providers: [AuthFormStore, WorkspaceStateStore],
     selector: 'app-root',
-    imports: [AuthPageComponent, MessageTextComponent, ShopComponent, UserCardDirective, UserCardComponent, WalletDialogComponent, WalletBalanceComponent, AndroidCallOutputComponent, LandingComponent, FriendLinkComponent, FriendInviteComponent, MobileViewportDirective, PlatformListComponent, AdminDirectoryComponent, AvatarPickerComponent, AudioDevicePickerComponent, InfoPanelComponent, ActionMenuComponent, CommonModule, FormsModule, MediaStreamSrcDirective, SectionNavigationComponent, UiIconComponent, ConversationListComponent, QuickSwitchComponent, InviteManagerComponent, InventoryComponent, WallpapersComponent, ThemeControllerComponent, MessageGestureDirective, MessageActionsComponent, EmojiPickerComponent, DesktopPreferencesComponent, SidebarResizeDirective],
+    imports: [PlatformChatsComponent, AuthPageComponent, MessageTextComponent, ShopComponent, UserCardDirective, UserCardComponent, WalletDialogComponent, WalletBalanceComponent, AndroidCallOutputComponent, LandingComponent, FriendLinkComponent, FriendInviteComponent, MobileViewportDirective, PlatformListComponent, AdminDirectoryComponent, AvatarPickerComponent, AudioDevicePickerComponent, InfoPanelComponent, ActionMenuComponent, CommonModule, FormsModule, MediaStreamSrcDirective, SectionNavigationComponent, UiIconComponent, ConversationListComponent, QuickSwitchComponent, InviteManagerComponent, InventoryComponent, WallpapersComponent, ThemeControllerComponent, MessageGestureDirective, MessageActionsComponent, EmojiPickerComponent, DesktopPreferencesComponent, SidebarResizeDirective],
     templateUrl: './app.component.html',
     styleUrls: ['./app.component.scss', './app-layout.scss', './call-workspace.scss', './platform-workspace.scss', './invite-entry.scss', './palette-theme.scss', './avatar-presets.scss', './mobile-workspace.scss', './chat-bubbles.scss', './conference-stage.scss']
 })
 export class AppComponent {
+  readonly platformApi = inject(PlatformApiService);
+  readonly selectedPlatformId = signal<string | null>(null);
+  readonly pendingPlatformInvite = signal(/^\/platform-invite\/([A-Za-z0-9_-]{43})\/?$/.exec(window.location.pathname)?.[1] ?? null);
+  readonly activePlatform = computed(() => this.platformApi.platforms().find(p => p.id === this.selectedPlatformId()) ?? null);
+  readonly platformConversations = computed(() => this.conversations().filter(c => !!c.platform_id));
+  platformNotificationsEnabled(conversation: ConversationSummary): boolean {
+    return !conversation.platform_id || this.platformApi.platforms().find(p => p.id === conversation.platform_id)?.notifications_enabled === true;
+  }
+  readonly selectedPlatformChats = computed(() => this.platformConversations().filter(c => c.platform_id === this.selectedPlatformId()).sort((a,b) => (a.platform_position ?? 0) - (b.platform_position ?? 0)));
+  async platformChanged(chatId: string | null): Promise<void> {
+    const token = this.session()?.access_token;
+    if (!token) return;
+    try {
+      const conversations = await firstValueFrom(this.workspaceApi.getConversations(token));
+      this.conversations.set(conversations);
+      if (chatId) this.openWorkspaceTarget(chatId);
+      else if (!conversations.some(c => c.id === this.selectedServerId())) {
+        const next = this.selectedPlatformChats()[0];
+        if(next) this.openWorkspaceTarget(next.id);
+        else {this.selectedServerId.set(null);this.selectedChannelId.set(null);this.channels.set([]);this.members.set([]);this.resetTextChannelState();}
+      }
+    } catch(error) {this.workspaceError.set(this.extractErrorMessage(error, 'Не удалось обновить площадку'));}
+  }
   private readonly workspaceState = inject(WorkspaceStateStore);
   readonly pwa=inject(PwaInstallService);
   readonly adminDirectoryOpen = signal(false);
@@ -819,7 +844,22 @@ export class AppComponent {
     this.messageActionsFocus = null;
     requestAnimationFrame(() => { if (focus?.isConnected) focus.focus({preventScroll:true}); });
   }
-  chooseMessageAction(action: 'reply'|'open-image'|'download-image'): void {
+  canDeletePlatformMessage(message: WorkspaceMessage): boolean {
+    if(!this.activeConversation()?.platform_id)return false;
+    if(message.author.id===this.currentUser()?.id)return true;
+    const role=this.activeConversation()?.member_role;
+    const target=this.activeConversation()?.members.find(m=>m.user_id===message.author.id)?.role;
+    return target!=='owner' && (role==='owner' || (role==='admin' && target!=='admin'));
+  }
+  async deletePlatformMessage(message: WorkspaceMessage): Promise<void> {
+    const token=this.session()?.access_token, platformId=this.activeConversation()?.platform_id;
+    if(!token || !platformId || !this.canDeletePlatformMessage(message) || !confirm('Удалить сообщение для всех участников?'))return;
+    try{await firstValueFrom(this.platformApi.request(token,'DELETE',`/${platformId}/messages/${message.id}`));
+      this.messages.update(rows=>rows.map(m=>m.id===message.id?{...m,content:'Сообщение удалено',attachments:[],reactions:[]}:m));
+    }catch(error){this.messageError.set(this.extractErrorMessage(error,'Не удалось удалить сообщение'));}
+  }
+  chooseMessageAction(action: 'reply'|'open-image'|'download-image'|'delete'): void {
+    if(action==='delete'){const target=this.messageActionsTarget();this.closeMessageActions();if(target)void this.deletePlatformMessage(target);return;}
     const message = this.messageActionsTarget();
     this.closeMessageActions();
     if (!message || !this.messages().some(item => item.id === message.id)) return;
@@ -859,17 +899,20 @@ export class AppComponent {
     });
   }
   private readonly platformSectionState = new Map<string, {text: boolean; voice: boolean}>();
-  readonly platformChoices = computed(() => this.platformSpaces().map(space => ({
-    id: space.id, name: space.name, description: space.description,
-    icon: this.resolveSpaceIconUrl(space.id, space.icon_asset, space.icon_updated_at),
-    unread: this.platformUnreadCount(space), mentions: this.platformMentionUnreadCount(space),
+  readonly platformChoices = computed(() => this.platformApi.platforms().map(space => ({
+    id: space.id, name: space.name, description: space.description, icon: null,
+    unread: this.platformConversations().filter(c => c.platform_id===space.id).reduce((n,c)=>n+c.unread_count,0),
+    mentions: this.platformConversations().filter(c => c.platform_id===space.id).reduce((n,c)=>n+c.mention_unread_count,0),
   })));
   readonly platformBrowserStage=signal<'spaces'|'channels'>('spaces');
   selectPlatformFromPicker(id: string): void {
+    this.selectedPlatformId.set(id);
     this.platformBrowserStage.set('channels');
 
     this.sidebarQuery.set('');
-    this.openWorkspaceTarget(id);
+    const chat = this.selectedPlatformChats()[0];
+    if (chat) this.openWorkspaceTarget(chat.id);
+    else {this.selectedServerId.set(null);this.selectedChannelId.set(null);this.channels.set([]);this.resetTextChannelState();}
     if (this.isCompactVoiceWorkspaceViewport()) this.mobilePanel.set('servers');
   }
   previewPlatformVoiceChannel(channel: WorkspaceChannel): void {
@@ -887,7 +930,7 @@ export class AppComponent {
     else this.openCreateConversationModal('direct');
   }
   readonly conversationLinks = computed(() => this.conversations()
-    .filter(c => c.kind === (this.isGroupsMode() ? 'group_chat' : 'direct') && c.title.toLocaleLowerCase('ru').includes(this.sidebarQuery().trim().toLocaleLowerCase('ru')))
+    .filter(c => !c.platform_id && c.kind === (this.isGroupsMode() ? 'group_chat' : 'direct') && c.title.toLocaleLowerCase('ru').includes(this.sidebarQuery().trim().toLocaleLowerCase('ru')))
     .sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned))
     .map(conversation => ({
     userId: this.conversationPeer(conversation)?.user_id, id: conversation.id, name: conversation.title, subtitle: this.conversationMetaLabel(conversation),
@@ -899,8 +942,7 @@ export class AppComponent {
   readonly quickLinks = computed<QuickLink[]>(() => {
     const query = this.globalSearchQuery().trim().toLocaleLowerCase('ru');
     const links: QuickLink[] = [
-      ...this.conversations().map(c => ({id: c.id, label: c.title, detail: c.kind === 'direct' ? 'Личная беседа' : 'Группа', spaceId: c.id})),
-      ...this.platformSpaces().map(s => ({id: s.id, label: s.name, detail: 'Площадка', spaceId: s.id})),
+      ...this.conversations().map(c => ({id: c.id, label: c.title, detail: c.platform_id ? this.platformApi.platforms().find(p=>p.id===c.platform_id)?.name ?? 'Площадка' : c.kind === 'direct' ? 'Личная беседа' : 'Группа', spaceId: c.id})),
       ...this.channels().map(c => ({id: c.id, label: c.name, detail: this.activeServer()?.name ?? 'Канал', spaceId: this.selectedServerId()!, channelId: c.id})),
       ...this.globalSearchChannelResults().map(c => ({id: c.channel_id, label: c.name, detail: c.server_name, spaceId: c.server_id, channelId: c.channel_id})),
       ...this.conversationDirectory().filter(user => user.user_id !== this.currentUser()?.id && !this.conversations().some(c => c.kind === 'direct' && c.members.some(m => m.user_id === user.user_id)))
@@ -939,7 +981,8 @@ export class AppComponent {
     const conversation = this.conversations().find(c => c.id === spaceId);
     if (!conversation && !this.platformSpaces().some(s => s.id === spaceId)) return;
     if (conversation) this.homeSpaceId = conversation.id;
-    this.applyWorkspaceMode(conversation ? conversation.kind === 'direct' ? 'chats' : 'groups' : 'platforms');
+    this.applyWorkspaceMode(conversation?.platform_id ? 'platforms' : conversation ? conversation.kind === 'direct' ? 'chats' : 'groups' : 'platforms');
+    if (conversation?.platform_id) this.selectedPlatformId.set(conversation.platform_id);
     const savedChannel = channelId ?? this.workspaceMemory.lastChannel(spaceId);
     if (savedChannel) this.pendingSearchNavigation.set({serverId: spaceId, channelId: savedChannel});
     if (this.selectedServerId() === spaceId && savedChannel) {
@@ -1574,12 +1617,10 @@ export class AppComponent {
     this.conversations().filter((conversation) => conversation.kind === 'direct')
   );
   readonly groupConversations = computed(() =>
-    this.conversations().filter((conversation) => conversation.kind === 'group_chat')
+    this.conversations().filter((conversation) => conversation.kind === 'group_chat' && !conversation.platform_id)
   );
   readonly platformSpaces = computed<WorkspaceServer[]>(() =>
-    this.servers()
-      .filter((server) => server.kind === 'workspace')
-      .sort((left, right) => left.name.localeCompare(right.name, 'ru'))
+    this.mapConversationSpaces(this.platformConversations())
   );
   readonly conversationSpaces = computed<WorkspaceServer[]>(() =>
     this.conversations().map((conversation) => ({
@@ -1757,7 +1798,7 @@ export class AppComponent {
       return false;
     }
 
-    return currentUser.is_admin || activeServer.member_role === 'owner' || activeServer.member_role === 'admin';
+    return (!this.activeConversation()?.platform_id && currentUser.is_admin) || activeServer.member_role === 'owner' || activeServer.member_role === 'admin';
   });
   readonly canOpenPlatformSettings = computed(() => {
     const activeServer = this.activeServer();
@@ -1995,6 +2036,8 @@ export class AppComponent {
       return conversation ? {serverId: conversation.id, mode: 'chats' as WorkspaceMode, channelId: null} : null;
     }
     const snapshot = this.activeVoiceCallSnapshot();
+    const chat = this.conversations().find(c => c.id === snapshot?.serverId);
+    if (snapshot && chat?.platform_id) return {serverId: snapshot.serverId, mode: 'platforms' as WorkspaceMode, channelId: chat.primary_channel_id};
     return snapshot ? {serverId: snapshot.serverId, mode: (call.kind === 'platform' ? 'platforms' : 'groups') as WorkspaceMode, channelId: call.kind === 'platform' ? snapshot.channel.id : null} : null;
   });
 
@@ -2008,6 +2051,8 @@ export class AppComponent {
 
   private navigateToActiveCall(target: NonNullable<ReturnType<typeof this.activeCallChatTarget>>): void {
     this.workspaceMode.set(target.mode);
+    const parent = this.conversations().find(c => c.id === target.serverId)?.platform_id;
+    if(parent) this.selectedPlatformId.set(parent);
     this.closeMobilePanel();
     if (target.serverId !== this.selectedServerId()) {
       if (target.channelId) this.pendingSearchNavigation.set({serverId: target.serverId, channelId: target.channelId});
@@ -2523,7 +2568,7 @@ export class AppComponent {
   readonly groupOwnershipCandidates = computed(() =>
     this.groupMembers().filter((member) => !member.isSelf)
   );
-  readonly canManageGroupMembers = computed(() => this.canManageActiveGroup());
+  readonly canManageGroupMembers = computed(() => !this.activeConversation()?.platform_id && this.canManageActiveGroup());
 
   readonly selectedMember = computed(() => {
     const userId = this.selectedMemberUserId();
@@ -4174,7 +4219,10 @@ export class AppComponent {
   openCreatePlatformShortcut(): void {
     this.closeQuickCreateMenu();
     this.closeSideMenu();
-    this.openCreatePlatformModal();
+    this.workspaceMode.set('platforms');
+    this.selectedPlatformId.set(null);
+    this.platformBrowserStage.set('channels');
+    this.mobilePanel.set('servers');
   }
 
   openAddUserShortcut(): void {
@@ -5768,11 +5816,13 @@ export class AppComponent {
       this.currentSpaceList().find((entry) => entry.id === channel.server_id)
       ?? this.activeServer();
     const kind: VoiceCallSurfaceKind = server?.kind === 'workspace' ? 'platform' : 'group';
+    const parentId = this.conversations().find(c => c.id === channel.server_id)?.platform_id;
+    const parent = this.platformApi.platforms().find(p => p.id === parentId);
 
     return {
       kind,
       serverId: channel.server_id,
-      serverName: server?.name ?? (kind === 'platform' ? 'Площадка' : 'Группа'),
+      serverName: parent ? `${parent.name} · ${server?.name ?? 'Чат'}` : server?.name ?? (kind === 'platform' ? 'Площадка' : 'Группа'),
       channel,
     };
   }
@@ -7160,6 +7210,8 @@ export class AppComponent {
   }
 
   logout(): void {
+    this.platformApi.clear();
+    this.selectedPlatformId.set(null);
     this.spaceInvitations.set([]);
     this.inviteManagerSpace.set(null);
     const token = this.session()?.access_token;
@@ -8135,6 +8187,11 @@ export class AppComponent {
   }
 
   private async handleAppEvent(event: AppEventsMessage): Promise<void> {
+    if(event.type==='platform_message_updated'){
+      this.messages.update(rows=>rows.map(m=>m.id===event.message.id?event.message:m.reply_to?.id===event.message.id?{...m,reply_to:{...m.reply_to,content:event.message.content}}:m));
+      if(this.selectedReplyMessage()?.id===event.message.id)this.selectedReplyMessage.set(null);
+      return;
+    }
     switch (event.type) {
       case 'ready':
         await this.resyncAfterAppEventsReconnect();
@@ -8173,6 +8230,7 @@ export class AppComponent {
       case 'servers_changed': {
         const token = this.session()?.access_token;
         if (token) {
+          await this.platformApi.refresh(token).catch(() => {});
           await this.refreshServersList(token);
           await this.refreshConversationsList(token, event.reason === 'message_created');
           await this.refreshAttentionInboxIfOpen();
@@ -8260,7 +8318,7 @@ export class AppComponent {
 
   private handleMessageCreatedEvent(event: AppMessageCreatedEvent): void {
     const conversation = this.conversations().find(item => item.id === event.server_id);
-    if (conversation?.push_enabled && event.message.author.id !== this.currentUser()?.id) {
+    if (conversation?.push_enabled && this.platformNotificationsEnabled(conversation) && event.message.author.id !== this.currentUser()?.id) {
       void window.kvaDesktop?.notify?.({id: event.message.id, title: conversation.title, body: this.buildConversationListPreview(event.message), target: conversation.id});
     }
     const preview = this.buildConversationListPreview(event.message);
@@ -8700,7 +8758,7 @@ export class AppComponent {
           if (notifyDesktop) {
             for (const item of conversations) {
               const previous = this.conversations().find(old => old.id === item.id);
-              if (item.push_enabled && item.unread_count > (previous?.unread_count ?? 0)) {
+              if (item.push_enabled && this.platformNotificationsEnabled(item) && item.unread_count > (previous?.unread_count ?? 0)) {
                 void window.kvaDesktop?.notify?.({id: `${item.id}:${item.unread_count}:${Date.now()}`, title: item.title, body: item.subtitle || 'Новое сообщение', target: item.id});
               }
             }
@@ -8995,7 +9053,8 @@ export class AppComponent {
     }
 
     this.pendingPushConversationId = null;
-    this.workspaceMode.set(conversation.kind === 'group_chat' ? 'groups' : 'chats');
+    this.workspaceMode.set(conversation.platform_id ? 'platforms' : conversation.kind === 'group_chat' ? 'groups' : 'chats');
+    if(conversation.platform_id) this.selectedPlatformId.set(conversation.platform_id);
 
     if (conversation.id === this.selectedServerId()) {
       this.closeMobilePanel();
@@ -9070,6 +9129,7 @@ export class AppComponent {
     token: string,
     options: { startAuthenticatedServices?: boolean } = {}
   ): void {
+    void this.platformApi.refresh(token).catch(() => {});
     this.workspaceLoading.set(true);
     this.workspaceError.set(null);
     this.friendRequestsLoading.set(true);
@@ -9080,6 +9140,15 @@ export class AppComponent {
     this.workspaceApi
       .getCurrentUser(token)
       .pipe(
+        switchMap(me => {
+          const code = this.pendingPlatformInvite();
+          if (!code) return of(me);
+          return this.platformApi.request(token, 'POST', `/join/${code}`).pipe(
+            tap(() => {this.pendingPlatformInvite.set(null);window.history.replaceState({}, '', '/');void this.platformApi.refresh(token);this.workspaceMode.set('platforms');}),
+            map(() => me),
+            catchError(error => {this.workspaceError.set(this.extractErrorMessage(error, 'Приглашение площадки недоступно'));this.pendingPlatformInvite.set(null);return of(me);})
+          );
+        }),
         switchMap(me => {
           const code = this.pendingInviteCode();
           if (!code) return of(me);
@@ -9128,8 +9197,8 @@ export class AppComponent {
           void this.refreshFriendRequests(token);
 
           const directSpaces = mergedConversations.filter((conversation) => conversation.kind === 'direct');
-          const groupSpaces = mergedConversations.filter((conversation) => conversation.kind === 'group_chat');
-          const platformSpaces = this.mergeServersById(servers).filter((server) => server.kind === 'workspace');
+          const groupSpaces = mergedConversations.filter((conversation) => conversation.kind === 'group_chat' && !conversation.platform_id);
+          const platformSpaces = this.mapConversationSpaces(mergedConversations.filter(c => !!c.platform_id));
 
           const requested = this.readWorkspaceUrl();
           if (requested && ![...this.conversationSpaces(), ...this.platformSpaces()].some(s => s.id === requested.spaceId)) {
@@ -9226,6 +9295,8 @@ export class AppComponent {
   }
 
   private loadServerWorkspace(token: string, serverId: string): void {
+    const platformId = this.conversations().find(c => c.id === serverId)?.platform_id;
+    if(platformId) this.selectedPlatformId.set(platformId);
     const requestId = ++this.workspaceLoadId;
     this.rememberMessagePosition();
     const pendingNavigation = this.pendingMessageNavigation();

@@ -114,7 +114,8 @@ def ensure_group_chat_voice_access(db: Session, server: Server, channel: Channel
             continue
 
         access.role = desired_role
-        access.owner_muted = False
+        if server.platform_id is None:
+            access.owner_muted = False
         access.blocked_until = None
         access.temporary_access_until = None
 

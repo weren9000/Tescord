@@ -70,6 +70,7 @@ from app.services.voice_access import (
     utc_now,
 )
 from app.services.voice_signaling import VoiceAdmissionError, voice_signaling_manager
+from app.services.platforms import platform_context, ensure_target_manageable, reject_individual_chat_management
 
 try:
     from livekit import api as livekit_api
@@ -183,6 +184,9 @@ def _build_voice_sfu_token(channel: Channel, current_user: User, *, owner_muted:
 
 
 def _ensure_server_membership(db: Session, channel: Channel, user: User) -> tuple[ServerMember, bool]:
+    server = db.get(Server, channel.server_id)
+    if server is not None and server.platform_id is not None:
+        platform_context(db, server.platform_id, user.id)
     membership = db.execute(
         select(ServerMember).where(
             ServerMember.server_id == channel.server_id,
@@ -191,6 +195,9 @@ def _ensure_server_membership(db: Session, channel: Channel, user: User) -> tupl
     ).scalar_one_or_none()
     if membership is not None:
         return membership, False
+
+    if server is not None and server.platform_id is not None:
+        raise HTTPException(404, "Чат площадки недоступен")
 
     membership = ServerMember(
         server_id=channel.server_id,
@@ -235,6 +242,8 @@ def _ensure_voice_channel_manager(
     channel: Channel,
     current_user: User,
 ) -> tuple[ServerMember | None, VoiceChannelAccess | None, bool]:
+    if channel.server.platform_id is not None:
+        platform_context(db, channel.server.platform_id, current_user.id, manage=True)
     membership = _get_channel_membership(db, channel, current_user.id)
     access = get_voice_channel_access(db, channel.id, current_user.id)
     has_platform_scope = current_user.is_admin or (membership is not None and is_platform_voice_manager(membership.role))
@@ -507,6 +516,7 @@ async def update_voice_channel_access(
 ) -> list[VoiceChannelAccessEntry]:
     channel = _get_voice_channel_or_404(db, channel_id)
     _, _, has_platform_scope = _ensure_voice_channel_manager(db, channel, current_user)
+    reject_individual_chat_management(channel.server)
     if is_default_tavern_channel(channel):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -793,6 +803,10 @@ async def kick_voice_participant(
 ) -> list[VoiceChannelAccessEntry]:
     channel = _get_voice_channel_or_404(db, channel_id)
     _ensure_voice_channel_manager(db, channel, current_user)
+    if channel.server.platform_id is not None:
+        _, actor = platform_context(db, channel.server.platform_id, current_user.id, manage=True, lock=True)
+        _, target = platform_context(db, channel.server.platform_id, user_id)
+        ensure_target_manageable(actor, target)
 
     access = get_voice_channel_access(db, channel.id, user_id)
     if access is None:
@@ -801,7 +815,8 @@ async def kick_voice_participant(
     if access.role == VoiceAccessRole.OWNER:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Нельзя выгнать владельца канала")
 
-    block_guest_access(access)
+    if channel.server.platform_id is None:
+        block_guest_access(access)
     db.commit()
     await enforce_participant(channel.id, user_id, can_publish=None)
     await voice_signaling_manager.disconnect_user_sessions(str(channel.id), str(user_id))
@@ -820,6 +835,10 @@ async def update_voice_participant_owner_mute(
 ) -> list[VoiceChannelAccessEntry]:
     channel = _get_voice_channel_or_404(db, channel_id)
     _ensure_voice_channel_manager(db, channel, current_user)
+    if channel.server.platform_id is not None:
+        _, actor = platform_context(db, channel.server.platform_id, current_user.id, manage=True, lock=True)
+        _, target = platform_context(db, channel.server.platform_id, user_id)
+        ensure_target_manageable(actor, target)
 
     access = get_voice_channel_access(db, channel.id, user_id)
     if access is None:

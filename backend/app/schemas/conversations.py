@@ -17,6 +17,8 @@ class ConversationMemberPreview(BaseModel):
 
 
 class ConversationSummary(BaseModel):
+    platform_id: UUID | None = None
+    platform_position: int = 0
     pinned: bool = False
     id: UUID
     kind: str

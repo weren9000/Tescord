@@ -160,6 +160,8 @@ def _build_conversation_summary(
     unread_state = (unread_states_by_channel_id or {}).get(primary_channel.id)
     members = sorted(server.members, key=lambda member: ((member.user_id != current_user_id), member.user.username.casefold()))
     return ConversationSummary(
+        platform_id=server.platform_id,
+        platform_position=server.platform_position,
         pinned=membership.conversation_pinned,
         id=server.id,
         kind=server.kind.value,

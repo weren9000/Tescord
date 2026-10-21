@@ -15,6 +15,7 @@ from app.db.models import MemberRole, Server, ServerInvite, ServerKind, ServerMe
 from app.db.session import get_db
 from app.services.app_events import publish_members_updated_from_sync, publish_servers_changed_from_sync
 from app.services.group_chat_defaults import ensure_group_chat_defaults
+from app.services.platforms import reject_individual_chat_management
 from app.services.workspace_defaults import ensure_workspace_defaults
 from app.services.server_access import get_accessible_server, get_membership, is_server_blocked
 from app.services.rate_limits import enforce_limit
@@ -29,6 +30,7 @@ class CreateInvite(BaseModel):
 
 def managed_server(db: Session, server_id: UUID, user: User) -> Server:
     server, member = get_accessible_server(db, server_id, user)
+    reject_individual_chat_management(server)
     if server.kind not in {ServerKind.WORKSPACE, ServerKind.GROUP_CHAT}:
         raise HTTPException(400, "Для личной беседы нельзя создать приглашение")
     if not user.is_admin and (member is None or member.role not in {MemberRole.OWNER, MemberRole.ADMIN}):
@@ -127,6 +129,7 @@ def join_invite(token: str, response: Response, user: User = Depends(get_current
     server = db.scalar(select(Server).where(Server.id == initial.server_id).with_for_update())
     if server is None or server.kind not in {ServerKind.WORKSPACE, ServerKind.GROUP_CHAT}:
         raise HTTPException(404, "Сообщество не найдено")
+    reject_individual_chat_management(server)
     invite = db.scalar(select(ServerInvite).where(ServerInvite.id == initial.id).with_for_update().execution_options(populate_existing=True))
     if invite is None:
         raise HTTPException(404, "Приглашение не найдено")

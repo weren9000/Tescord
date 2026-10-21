@@ -6,7 +6,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.db.models import Channel, Server, ServerBlock, ServerKind, ServerMember, User
+from app.db.models import Channel, PlatformMember, Server, ServerBlock, ServerKind, ServerMember, User
 
 
 def get_membership(db: Session, server_id: UUID, user_id: UUID) -> ServerMember | None:
@@ -35,6 +35,10 @@ def get_accessible_server(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Чат не найден")
 
     membership = get_membership(db, server_id, current_user.id)
+    if server.platform_id is not None and db.scalar(select(PlatformMember.id).where(
+        PlatformMember.platform_id == server.platform_id, PlatformMember.user_id == current_user.id
+    )) is None:
+        raise HTTPException(404, "Площадка недоступна")
     if server.kind == ServerKind.WORKSPACE and allow_workspace_auto_join:
         return server, membership
 

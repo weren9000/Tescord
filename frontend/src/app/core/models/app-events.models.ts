@@ -108,6 +108,7 @@ export interface AppFriendRequestsChangedEvent {
 export interface ShopFavoritesChangedEvent {type:'shop_favorites_changed';catalog_id:string;favorite:boolean}
 
 export type AppEventsMessage =
+  | {type: 'platform_message_updated'; server_id: string; message: WorkspaceMessage}
   | ShopFavoritesChangedEvent
   | AppEventsReadyEvent
   | AppEventsPongEvent
