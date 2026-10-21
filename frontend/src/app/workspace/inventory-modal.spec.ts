@@ -54,4 +54,3 @@ describe('Inventory above a clipped store dialog', () => {
   expect(app.pending()).toBeNull();expect(app.eventsOpen()).toBeTrue();expect(store.open).toBeTrue();
  });
 });
-
