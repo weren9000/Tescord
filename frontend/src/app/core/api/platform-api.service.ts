@@ -15,6 +15,7 @@ export interface PlatformMember {
   user_id: string;
   nick: string;
   public_id: number;
+  avatar_updated_at?: string | null;
   role: 'owner' | 'admin' | 'member';
 }
 @Injectable({providedIn: 'root'})

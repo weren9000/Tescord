@@ -656,6 +656,10 @@ const DEFAULT_SERVER_ICON_ASSET_BY_NAME: Record<string, string> = {
 })
 export class AppComponent {
   readonly platformApi = inject(PlatformApiService);
+  private readonly platformLastChats = new Map<string,string>();
+  readonly platformEntryInvite = signal('');
+  readonly platformEntryMode = signal<'create'|'join'>('create');
+  readonly platformCreateRequest = signal(0);
   readonly selectedPlatformId = signal<string | null>(null);
   readonly pendingPlatformInvite = signal(/^\/platform-invite\/([A-Za-z0-9_-]{43})\/?$/.exec(window.location.pathname)?.[1] ?? null);
   readonly activePlatform = computed(() => this.platformApi.platforms().find(p => p.id === this.selectedPlatformId()) ?? null);
@@ -910,10 +914,20 @@ export class AppComponent {
     this.platformBrowserStage.set('channels');
 
     this.sidebarQuery.set('');
-    const chat = this.selectedPlatformChats()[0];
+    const chat = this.selectedPlatformChats().find(c=>c.id===this.platformLastChats.get(id)) ?? this.selectedPlatformChats()[0];
     if (chat) this.openWorkspaceTarget(chat.id);
     else {this.selectedServerId.set(null);this.selectedChannelId.set(null);this.channels.set([]);this.resetTextChannelState();}
     if (this.isCompactVoiceWorkspaceViewport()) this.mobilePanel.set('servers');
+  }
+  async platformJoined(id:string):Promise<void>{await this.platformChanged(null);this.selectPlatformFromPicker(id);}
+  openPlatformSearchResult(result: {id:string;chat_id:string;channel_id:string}): void {
+    const token=this.session()?.access_token;
+    if(!token)return;
+    this.pendingMessageNavigation.set({serverId:result.chat_id,channelId:result.channel_id,focusMessageId:result.id,focusKind:'search'});
+    const same=this.selectedServerId()===result.chat_id && this.selectedChannelId()===result.channel_id;
+    this.openWorkspaceTarget(result.chat_id,result.channel_id);
+    this.closeMobilePanel();
+    if(same)this.loadMessagesForChannel(token,result.channel_id,undefined,{focusMessageId:result.id,focusKind:'search'});
   }
   previewPlatformVoiceChannel(channel: WorkspaceChannel): void {
     void this.selectChannel(channel, {connectVoice: false});
@@ -982,7 +996,7 @@ export class AppComponent {
     if (!conversation && !this.platformSpaces().some(s => s.id === spaceId)) return;
     if (conversation) this.homeSpaceId = conversation.id;
     this.applyWorkspaceMode(conversation?.platform_id ? 'platforms' : conversation ? conversation.kind === 'direct' ? 'chats' : 'groups' : 'platforms');
-    if (conversation?.platform_id) this.selectedPlatformId.set(conversation.platform_id);
+    if (conversation?.platform_id) {this.selectedPlatformId.set(conversation.platform_id);this.platformLastChats.set(conversation.platform_id,conversation.id);}
     const savedChannel = channelId ?? this.workspaceMemory.lastChannel(spaceId);
     if (savedChannel) this.pendingSearchNavigation.set({serverId: spaceId, channelId: savedChannel});
     if (this.selectedServerId() === spaceId && savedChannel) {
@@ -4216,11 +4230,14 @@ export class AppComponent {
     this.openCreateGroupModal();
   }
 
+  openJoinPlatformShortcut(): void {this.openCreatePlatformShortcut();this.platformEntryMode.set('join');}
   openCreatePlatformShortcut(): void {
+    this.platformEntryMode.set('create');
     this.closeQuickCreateMenu();
     this.closeSideMenu();
+    this.adminDirectoryOpen.set(false);
     this.workspaceMode.set('platforms');
-    this.selectedPlatformId.set(null);
+    this.platformCreateRequest.update(n=>n+1);
     this.platformBrowserStage.set('channels');
     this.mobilePanel.set('servers');
   }
@@ -9141,15 +9158,6 @@ export class AppComponent {
       .getCurrentUser(token)
       .pipe(
         switchMap(me => {
-          const code = this.pendingPlatformInvite();
-          if (!code) return of(me);
-          return this.platformApi.request(token, 'POST', `/join/${code}`).pipe(
-            tap(() => {this.pendingPlatformInvite.set(null);window.history.replaceState({}, '', '/');void this.platformApi.refresh(token);this.workspaceMode.set('platforms');}),
-            map(() => me),
-            catchError(error => {this.workspaceError.set(this.extractErrorMessage(error, 'Приглашение площадки недоступно'));this.pendingPlatformInvite.set(null);return of(me);})
-          );
-        }),
-        switchMap(me => {
           const code = this.pendingInviteCode();
           if (!code) return of(me);
           this.inviteJoining.set(true); this.inviteError.set('');
@@ -9196,6 +9204,15 @@ export class AppComponent {
           void this.loadConversationDirectory(token);
           void this.refreshFriendRequests(token);
 
+          const platformInvite=this.pendingPlatformInvite();
+          if(platformInvite){
+            this.pendingPlatformInvite.set(null);
+            window.history.replaceState({},'', '/');
+            this.platformEntryInvite.set(platformInvite);
+            this.openJoinPlatformShortcut();
+            this.workspaceLoading.set(false);
+            return;
+          }
           const directSpaces = mergedConversations.filter((conversation) => conversation.kind === 'direct');
           const groupSpaces = mergedConversations.filter((conversation) => conversation.kind === 'group_chat' && !conversation.platform_id);
           const platformSpaces = this.mapConversationSpaces(mergedConversations.filter(c => !!c.platform_id));

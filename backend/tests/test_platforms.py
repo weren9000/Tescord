@@ -37,6 +37,26 @@ def join_member(client, headers, platform_id, index):
     assert response.status_code == 200, response.text
 
 
+def test_invitation_preview_does_not_join_or_consume_use(community):
+    client, headers, ids, platform = community
+    pid = platform['id']
+    invitation = client.post(f'/api/platforms/{pid}/invites', headers=headers[0], json={'max_uses': 1}).json()
+    url = '/api/platforms/invitation/' + invitation['token']
+    assert client.get(url).status_code == 401
+    preview = client.get(url, headers=headers[1])
+    assert preview.status_code == 200
+    assert preview.json() == {'name': 'Community', 'description': None}
+    assert preview.headers['cache-control'] == 'no-store'
+    assert client.get('/api/platforms', headers=headers[1]).json() == []
+    assert client.get(f'/api/platforms/{pid}/invites', headers=headers[0]).json()[0]['uses'] == 0
+    assert client.post('/api/platforms/join/' + invitation['token'], headers=headers[1]).status_code == 200
+    assert client.get(url, headers=headers[2]).status_code == 410
+    revoked = client.post(f'/api/platforms/{pid}/invites', headers=headers[0], json={}).json()
+    client.delete(f"/api/platforms/{pid}/invites/{revoked['id']}", headers=headers[0])
+    assert client.get('/api/platforms/invitation/' + revoked['token'], headers=headers[2]).status_code == 410
+    assert client.get('/api/platforms/invitation/' + 'x' * 43, headers=headers[2]).status_code == 404
+
+
 def test_membership_all_chats_and_revocation(community):
     client, headers, ids, platform = community
     pid, first = platform["id"], platform["chat_id"]

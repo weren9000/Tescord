@@ -281,6 +281,26 @@ def revoke_invite(platform_id: UUID, invite_id: UUID, user: User = Depends(get_c
     return Response(status_code=204)
 
 
+@router.get("/invitation/{token}")
+def preview_invitation(token: str, response: Response, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    enforce_limit("platform-invite-preview", str(user.id), 30, 60)
+    if len(token) != 43:
+        raise HTTPException(404, "Приглашение недоступно")
+    invite = db.scalar(select(PlatformInvite).where(PlatformInvite.token_hash == hashlib.sha256(token.encode()).hexdigest()))
+    if invite is None:
+        raise HTTPException(404, "Приглашение недоступно")
+    expiry = invite.expires_at
+    if expiry and expiry.tzinfo is None:
+        expiry = expiry.replace(tzinfo=timezone.utc)
+    if invite.revoked_at or (expiry and expiry <= datetime.now(timezone.utc)) or (invite.max_uses is not None and invite.uses >= invite.max_uses):
+        raise HTTPException(410, "Приглашение истекло или отключено")
+    platform = db.get(Platform, invite.platform_id)
+    if platform is None:
+        raise HTTPException(404, "Площадка недоступна")
+    response.headers["Cache-Control"] = "no-store"
+    return {"name": platform.name, "description": platform.description}
+
+
 @router.post("/join/{token}")
 def join(token: str, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     enforce_limit("platform-join", str(user.id), 30, 60)

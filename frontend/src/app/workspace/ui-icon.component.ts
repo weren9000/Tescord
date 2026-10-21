@@ -1,6 +1,8 @@
 import { Component, input } from '@angular/core';
 
 const paths: Record<string, string> = {
+  close: 'M6 6l12 12M18 6L6 18',
+  copy: 'M9 9h12v12H9zM15 9V3H3v12h6',
   chat: 'M4 4h16v12H9l-5 4V4M8 8h8M8 12h5',
   headphones: 'M4 14v-3a8 8 0 0 1 16 0v3M4 12h3v8H4zM17 12h3v8h-3z',
   shop: 'M3 9l2-6h14l2 6M3 9v3a3 3 0 0 0 4 2 3 3 0 0 0 5 0 3 3 0 0 0 5 0 3 3 0 0 0 4-2V9H3M5 15v6h14v-6M10 21v-5h4v5',
