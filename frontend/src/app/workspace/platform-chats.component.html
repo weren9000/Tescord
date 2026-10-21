@@ -1,16 +1,16 @@
 <header class="panel-head">
-  <button class="icon-button" title="К площадкам" aria-label="К площадкам" (click)="back.emit()"><app-ui-icon name="back"/></button>
-  <div class="identity"><strong>{{platform()?.name || 'Площадки'}}</strong><small>{{platform() ? 'Чаты сообщества' : 'Ваше место для общения'}}</small></div>
+  <button class="icon-button platform-back" title="К площадкам" aria-label="К площадкам" (click)="back.emit()"><app-ui-icon name="back"/></button>
+  <div class="platform-heading-identity"><span class="platform-mark">{{platform()?.name?.slice(0,1) || 'К'}}</span><div class="identity"><strong>{{platform()?.name || 'Выберите площадку'}}</strong><small>Чаты сообщества</small></div></div>
   @if(platform()){<button class="icon-button" title="Настройки площадки" aria-label="Настройки площадки" (click)="tab.set('general');openSettings()"><app-ui-icon name="more"/></button>}
 </header>
 @if(platform()) {
-  <div class="chat-tools"><label class="search"><app-ui-icon name="search"/><input [(ngModel)]="query" placeholder="Найти чат" aria-label="Найти чат"/></label><button class="icon-button" title="Поиск сообщений" aria-label="Поиск сообщений" (click)="show('search')"><app-ui-icon name="search"/></button></div>
-  <div class="section-label"><span>Чаты · {{chats().length}}</span>@if(manager()){<button class="icon-button" title="Создать чат" aria-label="Создать чат" (click)="editChat()"><app-ui-icon name="plus"/></button>}</div>
+  <div class="chat-tools"><label class="search"><app-ui-icon name="search"/><input [(ngModel)]="query" placeholder="Найти чат" aria-label="Найти чат"/></label></div>
+  <div class="section-label"><span>Чаты · {{chats().length}}</span></div>
   <nav class="chat-list" aria-label="Чаты площадки">
     @for(chat of visible();track chat.id){
       <div class="chat-row" [class.selected]="selected()===chat.id">
         <button class="chat" [attr.aria-current]="selected()===chat.id?'page':null" (click)="open.emit(chat.id)">
-          <span class="chat-symbol"><app-ui-icon name="chat"/></span>
+          <span class="chat-symbol"><app-ui-icon [name]="voiceCounts()[chat.id] || activeVoiceChat()===chat.id ? 'headphones' : 'chat'"/></span>
           <span class="chat-copy"><strong>{{chat.title}}</strong><small>{{chat.subtitle || 'Начните общение'}}</small>
           @if(voiceCounts()[chat.id] || activeVoiceChat()===chat.id){<span class="voice"><span class="live-dot"></span><app-ui-icon name="headphones"/>{{activeVoiceChat()===chat.id ? 'Вы в созвоне' : 'В созвоне'}} · {{voiceCounts()[chat.id] || 1}}</span>}</span>
           <span class="badges">@if(chat.mention_unread_count){<b class="mention">&#64;{{chat.mention_unread_count}}</b>}@if(chat.unread_count){<b>{{chat.unread_count}}</b>}</span>
@@ -18,10 +18,11 @@
         @if(manager()){<button class="icon-button row-menu" [attr.aria-label]="'Действия чата '+chat.title" title="Действия чата" (click)="editChat(chat)"><app-ui-icon name="more"/></button>}
       </div>
     }@empty{<div class="empty"><app-ui-icon name="chat"/><strong>{{query?'Ничего не найдено':'Здесь появятся чаты'}}</strong><p>{{query?'Попробуйте другое название':'Создайте первый чат для общения.'}}</p></div>}
+    @if(manager()){<button class="create-group-tile" (click)="editChat()"><app-ui-icon name="plus"/><span>Создать чат</span></button>}
   </nav>
   <footer class="panel-footer"><button (click)="tab.set('members');openSettings()"><app-ui-icon name="profile"/>Участники</button>@if(manager()){<button (click)="tab.set('invites');openSettings()"><app-ui-icon name="plus"/>Пригласить</button>}</footer>
 } @else {
-  <div class="empty welcome"><span class="welcome-icon"><app-ui-icon name="platforms"/></span><h2>Вместе удобнее</h2><p>Объедините общение по темам в одной площадке.</p><button class="primary" (click)="show('create')"><app-ui-icon name="plus"/>Создать площадку</button><button (click)="show('join')">Войти по приглашению</button></div>
+  <div class="empty welcome"><span class="welcome-icon"><app-ui-icon name="platforms"/></span><h2>Вместе удобнее</h2><p>Объедините общение по темам в одной площадке.</p><button class="primary" (click)="show('create')"><app-ui-icon name="plus"/>Создать площадку</button></div>
 }
 
 <dialog #dialog class="platform-dialog" [class.settings-dialog]="panel()==='settings'" aria-labelledby="platform-dialog-title" (cancel)="dismiss($event)" (click)="backdrop($event)" (close)="panel.set(null)">
@@ -34,7 +35,7 @@
   }@else if(panel()==='create'){
     <form class="dialog-body" (ngSubmit)="createPlatform()"><p class="muted">Площадка объединяет чаты. Все её участники смогут общаться в каждом из них.</p><label>Название<input autofocus name="name" [(ngModel)]="name" maxlength="80" required placeholder="Например, Вечерняя компания"/></label><label>Описание <small>Необязательно</small><textarea name="description" [(ngModel)]="description" maxlength="2000" rows="3" placeholder="О чём ваша площадка?"></textarea></label><div class="note"><app-ui-icon name="chat"/><span>Чат «Общий» появится автоматически. Вы станете владельцем площадки.</span></div><div class="actions"><button type="button" (click)="close()" [disabled]="busy()">Отмена</button><button class="primary" [disabled]="busy()||!name.trim()">Создать площадку</button></div></form>
   }@else if(panel()==='join'){
-    <form class="dialog-body" (ngSubmit)="preview()?join():previewInvite()"><label>Ссылка или код приглашения<input autofocus name="invite" [(ngModel)]="inviteToken" (ngModelChange)="preview.set(null)" placeholder="Вставьте приглашение" required/></label>@if(preview();as target){<div class="invite-preview"><app-ui-icon name="platforms"/><h3>{{target.name}}</h3><p>{{target.description || 'Вас приглашают в сообщество'}}</p><small>После входа вам будут доступны все чаты площадки.</small></div>}<div class="actions"><button class="primary" [disabled]="busy()||!inviteToken.trim()">{{preview()?'Присоединиться':'Проверить приглашение'}}</button></div></form>
+    <form class="dialog-body" (ngSubmit)="preview()?join():previewInvite()">@if(preview();as target){<div class="invite-preview"><app-ui-icon name="platforms"/><h3>{{target.name}}</h3><p>{{target.description || 'Вас приглашают в сообщество'}}</p><small>После входа вам будут доступны все чаты площадки.</small></div>}<div class="actions"><button class="primary" [disabled]="busy()||!inviteToken.trim()">{{preview()?'Присоединиться':busy()?'Проверяем приглашение…':'Повторить проверку'}}</button></div></form>
   }@else if(panel()==='chat'){
     <div class="dialog-body"><form (ngSubmit)="saveChat()"><label>Название чата<input autofocus name="chatName" [ngModel]="editing()?chatName:newChatName" (ngModelChange)="editing()?chatName=$event:newChatName=$event" maxlength="80" required placeholder="Например, Игры"/></label><p class="muted">Текстовое общение и созвон доступны всем участникам площадки.</p><div class="actions"><button class="primary" [disabled]="busy()||!(editing()?chatName:newChatName).trim()">{{editing()?'Сохранить':'Создать чат'}}</button></div></form>@if(editingChat();as chat){<hr/><h3>Порядок в списке</h3><div class="actions start"><button [disabled]="busy()||chats()[0]?.id===chat.id" (click)="move(chat,-1)">↑ Выше</button><button [disabled]="busy()||chats()[chats().length-1]?.id===chat.id" (click)="move(chat,1)">↓ Ниже</button></div><hr/><button class="danger" [disabled]="busy()" (click)="askDeleteChat(chat)"><app-ui-icon name="trash"/>Удалить чат</button>}</div>
   }@else if(panel()==='search'){

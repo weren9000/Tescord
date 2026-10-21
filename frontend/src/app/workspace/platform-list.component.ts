@@ -7,7 +7,7 @@ interface Choice{id:string;name:string;description?:string|null;icon:string|null
  styleUrl:'./platform-list.component.scss'})
 export class PlatformListComponent{
  readonly spaces=input.required<Choice[]>();readonly selected=input<string|null>(null);readonly collapsed=input(false);
- readonly select=output<string>();readonly create=output<void>();readonly join=output<void>();readonly toggle=output<void>();
+ readonly select=output<string>();readonly create=output<void>();readonly toggle=output<void>();
  readonly query=signal('');readonly failed=signal(new Set<string>());
  readonly visible=computed(()=>this.spaces().filter(s=>s.name.toLocaleLowerCase().includes(this.query().trim().toLocaleLowerCase())));
  imageError(id:string){this.failed.update(x=>new Set([...x,id]));}

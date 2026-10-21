@@ -652,7 +652,7 @@ const DEFAULT_SERVER_ICON_ASSET_BY_NAME: Record<string, string> = {
     selector: 'app-root',
     imports: [PlatformChatsComponent, AuthPageComponent, MessageTextComponent, ShopComponent, UserCardDirective, UserCardComponent, WalletDialogComponent, WalletBalanceComponent, AndroidCallOutputComponent, LandingComponent, FriendLinkComponent, FriendInviteComponent, MobileViewportDirective, PlatformListComponent, AdminDirectoryComponent, AvatarPickerComponent, AudioDevicePickerComponent, InfoPanelComponent, ActionMenuComponent, CommonModule, FormsModule, MediaStreamSrcDirective, SectionNavigationComponent, UiIconComponent, ConversationListComponent, QuickSwitchComponent, InviteManagerComponent, InventoryComponent, WallpapersComponent, ThemeControllerComponent, MessageGestureDirective, MessageActionsComponent, EmojiPickerComponent, DesktopPreferencesComponent, SidebarResizeDirective],
     templateUrl: './app.component.html',
-    styleUrls: ['./app.component.scss', './app-layout.scss', './call-workspace.scss', './platform-workspace.scss', './invite-entry.scss', './palette-theme.scss', './avatar-presets.scss', './mobile-workspace.scss', './chat-bubbles.scss', './conference-stage.scss']
+    styleUrls: ['./app.component.scss', './app-layout.scss', './call-workspace.scss', './platform-workspace.scss', './invite-entry.scss', './palette-theme.scss', './avatar-presets.scss', './mobile-workspace.scss', './chat-bubbles.scss', './conference-stage.scss', './platform-calm.scss']
 })
 export class AppComponent {
   readonly platformApi = inject(PlatformApiService);
@@ -996,7 +996,7 @@ export class AppComponent {
     if (!conversation && !this.platformSpaces().some(s => s.id === spaceId)) return;
     if (conversation) this.homeSpaceId = conversation.id;
     this.applyWorkspaceMode(conversation?.platform_id ? 'platforms' : conversation ? conversation.kind === 'direct' ? 'chats' : 'groups' : 'platforms');
-    if (conversation?.platform_id) {this.selectedPlatformId.set(conversation.platform_id);this.platformLastChats.set(conversation.platform_id,conversation.id);}
+    if (conversation?.platform_id) {this.selectedPlatformId.set(conversation.platform_id);this.platformLastChats.set(conversation.platform_id,conversation.id);this.platformBrowserStage.set('channels');}
     const savedChannel = channelId ?? this.workspaceMemory.lastChannel(spaceId);
     if (savedChannel) this.pendingSearchNavigation.set({serverId: spaceId, channelId: savedChannel});
     if (this.selectedServerId() === spaceId && savedChannel) {
@@ -2066,7 +2066,7 @@ export class AppComponent {
   private navigateToActiveCall(target: NonNullable<ReturnType<typeof this.activeCallChatTarget>>): void {
     this.workspaceMode.set(target.mode);
     const parent = this.conversations().find(c => c.id === target.serverId)?.platform_id;
-    if(parent) this.selectedPlatformId.set(parent);
+    if(parent) {this.selectedPlatformId.set(parent);this.platformBrowserStage.set('channels');}
     this.closeMobilePanel();
     if (target.serverId !== this.selectedServerId()) {
       if (target.channelId) this.pendingSearchNavigation.set({serverId: target.serverId, channelId: target.channelId});
@@ -9313,7 +9313,7 @@ export class AppComponent {
 
   private loadServerWorkspace(token: string, serverId: string): void {
     const platformId = this.conversations().find(c => c.id === serverId)?.platform_id;
-    if(platformId) this.selectedPlatformId.set(platformId);
+    if(platformId) {this.selectedPlatformId.set(platformId);this.platformBrowserStage.set('channels');}
     const requestId = ++this.workspaceLoadId;
     this.rememberMessagePosition();
     const pendingNavigation = this.pendingMessageNavigation();

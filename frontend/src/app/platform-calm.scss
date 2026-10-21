@@ -1,0 +1,14 @@
+// The platform presentation stays isolated from standalone groups and direct messages.
+@media(min-width:981px){
+  .messenger-shell .messenger-layout--platform .conversation-head{height:82px;min-height:82px;max-height:82px;padding:12px 24px}
+  .messenger-layout--platform .conversation-head__summary strong,
+  .messenger-layout--platform .conversation-info-trigger{font-size:18px}
+  .messenger-layout--platform .channel-context{margin-top:5px;font-size:12px}
+}
+.messenger-layout--platform .group-voice-card{border-color:transparent;background:var(--palette-surface);border-radius:12px;box-shadow:none}
+.messenger-layout--platform .group-voice-card--active{background:var(--palette-selected)}
+.messenger-shell .messenger-layout--platform .message-list .message-card__body{border-color:transparent;box-shadow:none;border-radius:14px;padding:10px 14px 8px}
+.messenger-shell .messenger-layout--platform .message-list .message-card--self .message-card__body{border-color:transparent;background:var(--palette-selected)}
+.messenger-shell .messenger-layout--platform .message-list .message-card--mention .message-card__body{border-left-color:var(--palette-primary)}
+.messenger-shell .messenger-layout--platform .message-list .message-card__author strong{font-size:13px}
+.messenger-shell .messenger-layout--platform .message-list .message-card__text{line-height:1.55}
