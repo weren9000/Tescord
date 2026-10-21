@@ -1,3 +1,5 @@
+import {PlatformIconEditorComponent} from './platform-icon-editor.component';
+import {PlatformInvitationsComponent} from './platform-invitations.component';
 import {DatePipe} from '@angular/common';
 import {Component, ElementRef, viewChild, computed, effect, inject, input, output, signal} from '@angular/core';
 import {FormsModule} from '@angular/forms';
@@ -8,7 +10,7 @@ import {UiIconComponent} from './ui-icon.component';
 import {API_BASE_URL} from '../core/api/api-base';
 
 @Component({
-  selector: 'app-platform-chats', standalone: true, imports: [FormsModule, UiIconComponent, DatePipe],
+  selector: 'app-platform-chats', standalone: true, imports: [FormsModule, UiIconComponent, DatePipe, PlatformIconEditorComponent, PlatformInvitationsComponent],
   templateUrl: './platform-chats.component.html',
   styleUrl: './platform-chats.component.scss',
 })
@@ -37,14 +39,12 @@ export class PlatformChatsComponent {
   readonly entryInvite = input('');
   private createSeen = 0;
   memberQuery=''; messageQuery='';
-  readonly preview = signal<{name:string;description:string|null}|null>(null);
+  readonly preview = signal<{name:string;description:string|null;icon_url?:string|null}|null>(null);
   readonly tabs = [{id:'general',label:'Основное',icon:'info'},{id:'members',label:'Участники',icon:'profile'},{id:'invites',label:'Приглашения',icon:'plus'},{id:'notifications',label:'Уведомления',icon:'settings'},{id:'manage',label:'Управление',icon:'settings'}];
   readonly members = signal<PlatformMember[]>([]);
   readonly busy = signal(false);
   readonly error = signal('');
   readonly editing = signal<string | null>(null);
-  readonly inviteLink = signal('');
-  readonly invites = signal<{id:string;revoked_at:string|null;uses:number;expires_at:string|null;max_uses:number|null}[]>([]);
   readonly voiceCounts = signal<Record<string,number>>({});
   readonly results = signal<PlatformSearchResult[] | null>(null);
   readonly manager = computed(() => ['owner','admin'].includes(this.platform()?.member_role ?? ''));
@@ -56,13 +56,14 @@ export class PlatformChatsComponent {
     effect(onCleanup=>{
     const id=this.platform()?.id ?? null;
     const token=this.token();
-    if(id!==this.previousPlatform){this.previousPlatform=id;this.members.set([]);this.invites.set([]);this.inviteLink.set('');this.editing.set(null);this.error.set('');this.results.set(null);this.voiceCounts.set({});}
+    if(id!==this.previousPlatform){this.previousPlatform=id;this.members.set([]);this.editing.set(null);this.error.set('');this.results.set(null);this.voiceCounts.set({});}
     if(!id)return;
     let stopped=false;
     const refresh=async()=>{try{const rows=await firstValueFrom(this.api.request<{chat_id:string;count:number}[]>(token,'GET',`/${id}/voice-presence`));if(!stopped)this.voiceCounts.set(Object.fromEntries(rows.map(r=>[r.chat_id,r.count])));}catch{}};
     void refresh();const timer=setInterval(()=>void refresh(),5000);
     onCleanup(()=>{stopped=true;clearInterval(timer);});
   });}
+  iconUrl(path:string|null|undefined):string{return path?API_BASE_URL+path:'';}
   roleLabel(role: string): string {return role==='owner'?'Владелец':role==='admin'?'Администратор':'Пользователь';}
   canManage(member: PlatformMember): boolean {return member.role!=='owner' && (this.platform()?.member_role==='owner' || (this.platform()?.member_role==='admin' && member.role==='member'));}
   async run(action: () => Promise<void>): Promise<void> {
@@ -74,14 +75,12 @@ export class PlatformChatsComponent {
   async refresh(chatId: string | null=null): Promise<void>{await this.api.refresh(this.token());this.changed.emit(chatId);}
   createPlatform(): void{void this.run(async()=>{const p=await firstValueFrom(this.api.request<PlatformSummary & {chat_id:string}>(this.token(),'POST','',{name:this.name.trim(),description:this.description.trim()||null}));await this.refresh(p.chat_id);this.close();this.name='';});}
   join(): void{void this.run(async()=>{const token=this.inviteCode();const p=await firstValueFrom(this.api.request<PlatformSummary>(this.token(),'POST',`/join/${encodeURIComponent(token)}`));await this.api.refresh(this.token());this.joined.emit(p.id);this.close();this.inviteToken='';});}
-  openSettings(): void{this.show('settings');this.name=this.platform()!.name;this.description=this.platform()!.description??'';void this.run(async()=>{this.members.set(await this.request<PlatformMember[]>('GET','/members'));if(this.manager())this.invites.set(await this.request('GET','/invites'));});}
+  openSettings(): void{this.show('settings');this.name=this.platform()!.name;this.description=this.platform()!.description??'';void this.run(async()=>{this.members.set(await this.request<PlatformMember[]>('GET','/members'));});}
   save(): void{void this.run(async()=>{await this.request('PATCH','',{name:this.name.trim(),description:this.description});await this.refresh();this.notice.set('Изменения сохранены');});}
   addChat(): void{void this.run(async()=>{const chat=await this.request<{id:string}>('POST','/chats',{name:this.newChatName});this.newChatName='';await this.refresh(chat.id);this.close();});}
   rename(chat: ConversationSummary): void{void this.run(async()=>{await this.request('PATCH',`/chats/${chat.id}`,{name:this.chatName});this.editing.set(null);await this.refresh();this.close();});}
   moveUp(chat: ConversationSummary): void{void this.run(async()=>{const ids=this.chats().map(c=>c.id);const i=ids.indexOf(chat.id);if(i<1)return;[ids[i-1],ids[i]]=[ids[i],ids[i-1]];await this.request('PUT','/chats/order',{chat_ids:ids});await this.refresh();});}
   deleteChat(chat: ConversationSummary): void{void this.run(async()=>{await this.request('DELETE',`/chats/${chat.id}`);await this.refresh();this.close();});}
-  invite(): void{void this.run(async()=>{const link=await this.request<{token:string}>('POST','/invites',{});this.inviteLink.set(`https://kvachat.ru/platform-invite/${link.token}`);this.invites.set(await this.request('GET','/invites'));});}
-  revoke(id: string): void{void this.run(async()=>{await this.request('DELETE',`/invites/${id}`);this.invites.set(await this.request('GET','/invites'));});}
   searchMessages(): void{void this.run(async()=>{this.results.set(await this.request('GET',`/search?query=${encodeURIComponent(this.messageQuery.trim())}`));});}
   notify(enabled: boolean): void{void this.run(async()=>{await this.request('PUT','/notifications',{enabled});await this.refresh();});}
   role(member: PlatformMember): void{void this.run(async()=>{await this.request('PUT',`/members/${member.user_id}/role`,{role:member.role==='admin'?'member':'admin'});this.members.set(await this.request('GET','/members'));await this.refresh();});}
@@ -111,9 +110,8 @@ export class PlatformChatsComponent {
   askLeave():void{this.ask('Покинуть площадку?', 'Вы потеряете доступ ко всем её чатам. Для возвращения понадобится приглашение.',()=>this.leave());}
   askDelete():void{this.ask('Удалить площадку «'+this.platform()?.name+'»?', 'Все чаты, сообщения и приглашения площадки будут удалены без возможности восстановления.',()=>this.deletePlatform());}
   move(chat:ConversationSummary,delta:number):void{void this.run(async()=>{const ids=this.chats().map(c=>c.id);const i=ids.indexOf(chat.id);const j=i+delta;if(i<0||j<0||j>=ids.length)return;[ids[i],ids[j]]=[ids[j],ids[i]];await this.request('PUT','/chats/order',{chat_ids:ids});await this.refresh();this.notice.set('Порядок чатов обновлён');});}
-  async copyInvite():Promise<void>{try{await navigator.clipboard.writeText(this.inviteLink());this.notice.set('Ссылка скопирована');}catch{this.error.set('Не удалось скопировать. Выделите ссылку и скопируйте вручную.');}}
   inviteCode():string{const value=this.inviteToken.trim();try{return new URL(value).pathname.split('/').filter(Boolean).pop()??'';}catch{return value;}}
-  previewInvite():void{void this.run(async()=>{this.preview.set(await firstValueFrom(this.api.request<{name:string;description:string|null}>(this.token(),'GET',`/invitation/${encodeURIComponent(this.inviteCode())}`)));});}
+  previewInvite():void{void this.run(async()=>{this.preview.set(await firstValueFrom(this.api.request<{name:string;description:string|null;icon_url?:string|null}>(this.token(),'GET',`/invitation/${encodeURIComponent(this.inviteCode())}`)));});}
   openResult(result:PlatformSearchResult):void{this.message.emit(result);this.close();}
   dateExpired(date:string|null):boolean{return !!date&&Date.parse(date)<=Date.now();}
   avatar(member:PlatformMember):string{return `${API_BASE_URL}/api/users/${encodeURIComponent(member.user_id)}/avatar?v=${encodeURIComponent(member.avatar_updated_at??'default')}&motion=false`;}

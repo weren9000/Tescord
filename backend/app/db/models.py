@@ -187,9 +187,24 @@ class Platform(TimestampMixin, Base):
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(80), nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
+    icon_catalog_id: Mapped[str | None] = mapped_column(String(64))
+    icon_content: Mapped[bytes | None] = deferred(mapped_column(LargeBinary))
+    icon_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     owner_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     members: Mapped[list["PlatformMember"]] = relationship(cascade="all, delete-orphan", passive_deletes=True)
     chats: Mapped[list["Server"]] = relationship(back_populates="platform", cascade="all, delete-orphan", passive_deletes=True)
+
+
+class PlatformFriendInvite(Base):
+    __tablename__ = "platform_friend_invites"
+    __table_args__ = (UniqueConstraint("platform_id", "target_user_id", name="uq_platform_friend_invite"),)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    platform_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("platforms.id", ondelete="CASCADE"), nullable=False)
+    target_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    sender_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class PlatformMember(Base):

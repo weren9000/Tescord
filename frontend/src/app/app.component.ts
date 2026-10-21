@@ -904,7 +904,7 @@ export class AppComponent {
   }
   private readonly platformSectionState = new Map<string, {text: boolean; voice: boolean}>();
   readonly platformChoices = computed(() => this.platformApi.platforms().map(space => ({
-    id: space.id, name: space.name, description: space.description, icon: null,
+    id: space.id, name: space.name, description: space.description, icon: space.icon_url ? API_BASE_URL + space.icon_url : null,
     unread: this.platformConversations().filter(c => c.platform_id===space.id).reduce((n,c)=>n+c.unread_count,0),
     mentions: this.platformConversations().filter(c => c.platform_id===space.id).reduce((n,c)=>n+c.mention_unread_count,0),
   })));
@@ -1268,6 +1268,7 @@ export class AppComponent {
   readonly friendRequestsModalOpen = signal(false);
   readonly spaceInvitations = signal<FriendSpaceInvitation[]>([]);
   readonly spaceInviteBusy = signal(false);
+  platformInvitationIcon(path:string):string{return API_BASE_URL+path;}
   async respondSpaceInvitation(id: string, action: 'accept' | 'reject'): Promise<void> {
     const token = this.session()?.access_token;
     if (!token || this.spaceInviteBusy()) return;
@@ -1278,6 +1279,7 @@ export class AppComponent {
       if (this.session()?.access_token !== token) return;
       this.spaceInvitations.update(rows => rows.filter(row => row.id !== id));
       if (result.accepted && result.server_id && result.channel_id) {
+        if (result.platform_id) await this.platformApi.refresh(token);
         const refreshed = await firstValueFrom(forkJoin({
           servers: this.workspaceApi.getServers(token), conversations: this.workspaceApi.getConversations(token)
         }));

@@ -8,6 +8,7 @@ export interface PlatformSummary {
   name: string;
   description: string | null;
   owner_id: string;
+  icon_url?: string | null;
   member_role: 'owner' | 'admin' | 'member';
   notifications_enabled: boolean;
 }

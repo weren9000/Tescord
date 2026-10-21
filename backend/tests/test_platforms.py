@@ -45,7 +45,7 @@ def test_invitation_preview_does_not_join_or_consume_use(community):
     assert client.get(url).status_code == 401
     preview = client.get(url, headers=headers[1])
     assert preview.status_code == 200
-    assert preview.json() == {'name': 'Community', 'description': None}
+    assert preview.json() == {'name': 'Community', 'description': None, 'icon_url': None}
     assert preview.headers['cache-control'] == 'no-store'
     assert client.get('/api/platforms', headers=headers[1]).json() == []
     assert client.get(f'/api/platforms/{pid}/invites', headers=headers[0]).json()[0]['uses'] == 0

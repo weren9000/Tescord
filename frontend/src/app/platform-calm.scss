@@ -12,3 +12,4 @@
 .messenger-shell .messenger-layout--platform .message-list .message-card--mention .message-card__body{border-left-color:var(--palette-primary)}
 .messenger-shell .messenger-layout--platform .message-list .message-card__author strong{font-size:13px}
 .messenger-shell .messenger-layout--platform .message-list .message-card__text{line-height:1.55}
+@media(max-width:480px){.friend-request-row.space-invitation{grid-template-columns:40px minmax(0,1fr)}.space-invitation .friend-request-row__actions{grid-column:1/-1}.space-invitation .friend-request-row__actions button{min-height:40px;flex:1}}

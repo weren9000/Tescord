@@ -1588,9 +1588,9 @@
                 <section class="notification-section">
                   <div class="notification-section__head"><strong>Приглашения</strong></div>
                   @for (invite of spaceInvitations(); track invite.id) {
-                    <div class="friend-request-row"><div class="friend-request-row__copy"><strong>{{ invite.name }}</strong><small>{{ invite.sender }} · {{ invite.kind === 'workspace' ? 'Площадка' : 'Группа' }}</small></div>
+                    <div class="friend-request-row space-invitation"><span class="friend-request-row__avatar">@if(invite.icon_url){<img [src]="platformInvitationIcon(invite.icon_url)" alt=""/>}@else{ {{invite.name.slice(0,1)}} }</span><div class="friend-request-row__copy"><strong>{{ invite.name }}</strong><small>{{ invite.sender }} · {{ invite.kind === 'workspace' || invite.kind === 'platform' ? 'Площадка' : 'Группа' }}</small></div><div class="friend-request-row__actions">
                     <button type="button" class="secondary-button" [disabled]="spaceInviteBusy()" (click)="respondSpaceInvitation(invite.id, 'accept')">Принять</button>
-                    <button type="button" class="secondary-button" [disabled]="spaceInviteBusy()" (click)="respondSpaceInvitation(invite.id, 'reject')">Отклонить</button></div>
+                    <button type="button" class="secondary-button" [disabled]="spaceInviteBusy()" (click)="respondSpaceInvitation(invite.id, 'reject')">Отклонить</button></div></div>
                   }
                 </section>
               }

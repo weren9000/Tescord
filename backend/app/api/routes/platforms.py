@@ -4,7 +4,8 @@ import secrets
 from typing import Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, UploadFile, File, Form
+from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -54,7 +55,8 @@ class Notifications(BaseModel):
 
 
 class InviteRequest(BaseModel):
-    expires_in_days: Literal[1, 7, 30] = 7
+    expires_in_days: Literal[1, 7, 30] = 1
+    expires_in_hours: Literal[1, 24, 168] | None = 24
     max_uses: int | None = Field(default=None, ge=1, le=10000)
 
 
@@ -73,7 +75,86 @@ def member_or_404(db, platform_id, user_id):
 def summary(platform, member):
     return {"id": platform.id, "name": platform.name, "description": platform.description,
             "owner_id": platform.owner_id, "member_role": member.role.value,
-            "notifications_enabled": member.notifications_enabled}
+            "notifications_enabled": member.notifications_enabled, "icon_url": icon_url(platform)}
+
+
+def icon_url(platform):
+    if platform.icon_catalog_id:
+        return f'/api/inventory/assets/{platform.icon_catalog_id}?preview=true'
+    if platform.icon_updated_at:
+        return f'/api/platforms/{platform.id}/icon?v={platform.icon_updated_at.timestamp()}'
+    return None
+
+
+class IconChoice(BaseModel):
+    item_id: UUID
+
+
+class FriendInvitesRequest(BaseModel):
+    user_ids: list[UUID] = Field(min_length=1, max_length=50)
+
+
+@router.get('/{platform_id}/friend-invites')
+def friend_candidates(platform_id: UUID, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    from app.services.platform_invitations import candidates
+    return candidates(db, platform_id, user)
+
+
+@router.post('/{platform_id}/friend-invites', status_code=201)
+def invite_friends(platform_id: UUID, body: FriendInvitesRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    from app.services.platform_invitations import send
+    enforce_limit('platform-friend-invite', str(user.id), 30, 3600)
+    return send(db, platform_id, user, body.user_ids)
+
+
+@router.put('/{platform_id}/icon')
+async def upload_icon(platform_id: UUID, icon: UploadFile = File(...),
+                      crop_x: float = Form(0.5, ge=0, le=1), crop_y: float = Form(0.5, ge=0, le=1),
+                      zoom: float = Form(1, ge=1, le=4),
+                      user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    from app.services.collectible_uploads import prepare_image
+    platform_context(db, platform_id, user.id, manage=True)
+    try:
+        payload = await icon.read(10 * 1024 * 1024 + 1)
+    finally:
+        await icon.close()
+    content = await run_in_threadpool(prepare_image, payload, 'avatar', crop_x, crop_y, zoom)
+    platform, member = platform_context(db, platform_id, user.id, manage=True, lock=True)
+    platform.icon_content, platform.icon_catalog_id = content, None
+    platform.icon_updated_at = datetime.now(timezone.utc)
+    changed(db)
+    return summary(platform, member)
+
+
+@router.patch('/{platform_id}/icon')
+def select_icon(platform_id: UUID, body: IconChoice, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    from app.db.inventory import InventoryItem
+    from app.services.inventory import lock_inventory
+    platform, member = platform_context(db, platform_id, user.id, manage=True, lock=True)
+    lock_inventory(db)
+    item = db.get(InventoryItem, body.item_id)
+    if not item or item.owner_id != user.id or item.revoked or item.kind != 'avatar':
+        raise HTTPException(403, 'Выберите аватар из своего инвентаря')
+    platform.icon_catalog_id, platform.icon_content = item.catalog_id, None
+    platform.icon_updated_at = datetime.now(timezone.utc)
+    changed(db)
+    return summary(platform, member)
+
+
+@router.delete('/{platform_id}/icon', status_code=204)
+def reset_icon(platform_id: UUID, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    platform, _ = platform_context(db, platform_id, user.id, manage=True, lock=True)
+    platform.icon_catalog_id = platform.icon_content = platform.icon_updated_at = None
+    changed(db)
+    return Response(status_code=204)
+
+
+@router.get('/{platform_id}/icon')
+def read_icon(platform_id: UUID, db: Session = Depends(get_db)):
+    platform = db.get(Platform, platform_id)
+    if not platform or not platform.icon_content:
+        raise HTTPException(404, 'Иконка не найдена')
+    return Response(platform.icon_content, media_type='image/webp', headers={'Cache-Control': 'public, max-age=300', 'X-Content-Type-Options': 'nosniff'})
 
 
 @router.get("")
@@ -256,7 +337,9 @@ def invite(platform_id: UUID, body: InviteRequest, response: Response,
     token = secrets.token_urlsafe(32)
     row = PlatformInvite(platform_id=platform_id, created_by_id=user.id,
         token_hash=hashlib.sha256(token.encode()).hexdigest(), max_uses=body.max_uses,
-        expires_at=datetime.now(timezone.utc) + timedelta(days=body.expires_in_days))
+        expires_at=(datetime.now(timezone.utc) + timedelta(days=body.expires_in_days)
+                    if 'expires_in_days' in body.model_fields_set and 'expires_in_hours' not in body.model_fields_set
+                    else datetime.now(timezone.utc) + timedelta(hours=body.expires_in_hours) if body.expires_in_hours is not None else None))
     db.add(row)
     db.commit()
     response.headers["Cache-Control"] = "no-store"
@@ -298,7 +381,7 @@ def preview_invitation(token: str, response: Response, user: User = Depends(get_
     if platform is None:
         raise HTTPException(404, "Площадка недоступна")
     response.headers["Cache-Control"] = "no-store"
-    return {"name": platform.name, "description": platform.description}
+    return {"name": platform.name, "description": platform.description, "icon_url": icon_url(platform)}
 
 
 @router.post("/join/{token}")

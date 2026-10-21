@@ -72,16 +72,20 @@ def send(server_id: UUID, body: SendInvites, user: User = Depends(get_current_us
 
 @router.get('/friend-space-invites')
 def inbox(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    from app.services.platform_invitations import inbox as platform_inbox
     rows = db.execute(select(FriendSpaceInvite, Server, User).join(Server, Server.id == FriendSpaceInvite.server_id)
         .join(User, User.id == FriendSpaceInvite.sender_user_id).where(FriendSpaceInvite.target_user_id == user.id,
         FriendSpaceInvite.status == 'pending', FriendSpaceInvite.expires_at > datetime.now(timezone.utc))).all()
     friends = friend_ids(db, user.id)
     return [{'id': row.id, 'name': server.name, 'kind': server.kind.value, 'sender': sender.username}
-            for row, server, sender in rows if sender.id in friends and not is_server_blocked(db, server.id, user.id)]
+            for row, server, sender in rows if sender.id in friends and not is_server_blocked(db, server.id, user.id)] + platform_inbox(db, user)
 
 @router.post('/friend-space-invites/{invite_id}/{action}')
 def respond(invite_id: UUID, action: str, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     initial = db.get(FriendSpaceInvite, invite_id)
+    if initial is None:
+        from app.services.platform_invitations import respond as respond_platform
+        return respond_platform(db, invite_id, action, user)
     if not initial or initial.target_user_id != user.id:
         raise HTTPException(404, 'Приглашение не найдено')
     server = db.scalar(select(Server).where(Server.id == initial.server_id).with_for_update())
