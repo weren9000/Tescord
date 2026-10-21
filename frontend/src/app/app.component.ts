@@ -1168,6 +1168,7 @@ export class AppComponent {
   @ViewChild('callFullscreenLayer')
   private set callFullscreenLayerRef(ref: ElementRef<HTMLElement> | undefined) {
     this.callFullscreenLayerElement = ref?.nativeElement ?? null;
+    if (ref) queueMicrotask(() => ref.nativeElement.querySelector<HTMLButtonElement>('.call-media-fullscreen__back')?.focus({preventScroll:true}));
     if (this.callFullscreenRequestPending && this.callFullscreenLayerElement) {
       void this.enterNativeCallFullscreen();
     }
@@ -1974,8 +1975,49 @@ export class AppComponent {
   });
   readonly activeCallVoiceVideoScene = computed(() => {
     const surface = this.activeCallSurface();
-    return surface?.channelId ? this.voiceVideoSceneForChannel(surface.channelId) : null;
+    const scene = surface?.channelId ? this.voiceVideoSceneForChannel(surface.channelId) : null;
+    if (!scene?.stageTile) return scene;
+    const screens = [scene.stageTile, ...scene.secondaryTiles.filter(tile => tile.source === 'screen-share')];
+    const selected = screens.find(tile => tile.id === this.conferenceScreenId()) ?? scene.stageTile;
+    return {...scene, stageTile: selected, secondaryTiles: [...screens.filter(tile => tile.id !== selected.id), ...scene.secondaryTiles.filter(tile => tile.source !== 'screen-share')]};
   });
+  readonly conferenceScreenId = signal<string | null>(null);
+  readonly conferenceScreens = computed(() => {
+    const scene = this.activeCallVoiceVideoScene();
+    return scene?.stageTile ? [scene.stageTile, ...scene.secondaryTiles.filter(tile => tile.source === 'screen-share')].sort((a,b)=>a.id.localeCompare(b.id)) : [];
+  });
+  readonly activeCallChatTarget = computed(() => {
+    const call = this.activeCallSurface();
+    if (!call) return null;
+    if (call.kind === 'direct') {
+      const peer = this.directCallPeer();
+      const conversation = peer ? this.findDirectConversationByUserId(peer.user_id) : null;
+      return conversation ? {serverId: conversation.id, mode: 'chats' as WorkspaceMode, channelId: null} : null;
+    }
+    const snapshot = this.activeVoiceCallSnapshot();
+    return snapshot ? {serverId: snapshot.serverId, mode: (call.kind === 'platform' ? 'platforms' : 'groups') as WorkspaceMode, channelId: call.kind === 'platform' ? snapshot.channel.id : null} : null;
+  });
+
+  openActiveCallChat(event?: Event): void {
+    event?.stopPropagation();
+    const target = this.activeCallChatTarget();
+    if (!target) return;
+    this.minimizeCallWindow(event);
+    this.navigateToActiveCall(target);
+  }
+
+  private navigateToActiveCall(target: NonNullable<ReturnType<typeof this.activeCallChatTarget>>): void {
+    this.workspaceMode.set(target.mode);
+    this.closeMobilePanel();
+    if (target.serverId !== this.selectedServerId()) {
+      if (target.channelId) this.pendingSearchNavigation.set({serverId: target.serverId, channelId: target.channelId});
+      this.selectServer(target.serverId);
+    } else {
+      const channel = target.channelId ? this.channels().find(c => c.id === target.channelId) : this.channels().find(c => c.type === 'text');
+      if (channel && channel.id !== this.selectedChannelId()) void this.selectChannel(channel, {connectVoice: false});
+    }
+    this.voiceWorkspaceTab.set('chat');
+  }
   readonly activeCallSelfParticipant = computed(() =>
     this.activeCallVoiceParticipants().find((participant) => participant.is_self) ?? null
   );
@@ -5769,6 +5811,9 @@ export class AppComponent {
   }
 
   minimizeCallWindow(event?: Event): void {
+    const restoreKeyboardFocus = event instanceof KeyboardEvent ||
+      (event instanceof MouseEvent && event.detail === 0) ||
+      (!event && !!document.activeElement?.matches(':focus-visible'));
     this.callAudioSettingsOpen.set(false);
     this.callParticipantId.set(null);
     event?.stopPropagation();
@@ -5779,7 +5824,9 @@ export class AppComponent {
     this.directCallScreenExpanded.set(false);
     this.callDockVolumeOpen.set(false);
     this.callWindowMode.set('minimized');
-    requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('.call-tray__identity')?.focus({preventScroll: true}));
+    if (restoreKeyboardFocus) {
+      requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('.call-tray__identity')?.focus({preventScroll: true}));
+    }
   }
 
   expandCallWindow(event?: Event): void {
@@ -5788,9 +5835,13 @@ export class AppComponent {
       return;
     }
 
+    const target = this.activeCallChatTarget();
+    if (!target) return;
+    this.navigateToActiveCall(target);
+    this.closeMobilePanel();
     this.callDockVolumeOpen.set(false);
     this.callWindowMode.set('expanded');
-    requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('.call-window__controls button[aria-label="Свернуть звонок"]')?.focus({preventScroll: true}));
+    requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('.conversation-head button[aria-label="Свернуть звонок"]')?.focus({preventScroll: true}));
   }
 
   toggleActiveCallMute(event?: Event): void {
@@ -6122,6 +6173,39 @@ export class AppComponent {
     this.scheduleFullscreenControlsHide();
   }
 
+  onFullscreenPointerMove(event: PointerEvent): void {
+    if (event.pointerType !== 'touch') this.showFullscreenMediaControls();
+  }
+
+  onFullscreenMediaKeydown(event: KeyboardEvent): void {
+    if (event.key !== 'Tab') return;
+    this.showFullscreenMediaControls();
+    const buttons = this.callFullscreenLayerElement?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled)');
+    if (!buttons?.length) return;
+    const first = buttons[0], last = buttons[buttons.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();first.focus();
+    }
+  }
+
+  toggleFullscreenMediaControls(): void {
+    const focused = document.activeElement;
+    if (focused instanceof HTMLElement && this.callFullscreenLayerElement?.contains(focused)) focused.blur();
+    if (this.fullscreenMediaControlsVisible()) {
+      this.clearFullscreenControlsHideTimer();
+      this.fullscreenMediaControlsVisible.set(false);
+    } else {
+      this.showFullscreenMediaControls();
+    }
+  }
+
+  onFullscreenStagePointerUp(event: PointerEvent): void {
+    if (event.pointerType === 'touch') this.toggleFullscreenMediaControls();
+    else this.showFullscreenMediaControls();
+  }
+
   fullscreenMediaSourceLabel(media: FullscreenMediaState): string {
     return media.source === 'screen-share' ? 'Экран' : 'Камера';
   }
@@ -6266,10 +6350,13 @@ export class AppComponent {
   private scheduleFullscreenControlsHide(): void {
     this.clearFullscreenControlsHideTimer();
     this.fullscreenControlsHideTimeoutId = setTimeout(() => {
-      if (this.fullscreenMedia()) {
+      const controls = this.callFullscreenLayerElement?.querySelector('.call-media-fullscreen__controls');
+      const interacting = !!controls?.querySelector(':focus-visible') ||
+        (window.matchMedia('(hover: hover)').matches && controls?.matches(':hover'));
+      if (this.fullscreenMedia() && !interacting) {
         this.fullscreenMediaControlsVisible.set(false);
       }
-    }, 2600);
+    }, 3000);
   }
 
   private clearFullscreenControlsHideTimer(): void {

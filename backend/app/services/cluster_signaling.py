@@ -9,7 +9,8 @@ from app.services import cluster as c
 class ClusterVoiceSignalingManager:
     async def connect(self, websocket, channel_id, *, user_id, public_id, nick,
                       avatar_updated_at=None, owner_muted=False):
-        from app.services.voice_signaling import VoiceParticipant
+        from app.services.voice_signaling import VoiceAdmissionError, VoiceParticipant
+        from app.core.config import get_settings
         participant = VoiceParticipant(uuid4().hex, user_id, public_id, nick,
                                        avatar_updated_at, owner_muted=owner_muted)
         if websocket.application_state != WebSocketState.CONNECTED:
@@ -17,6 +18,10 @@ class ClusterVoiceSignalingManager:
         c.local_sockets[participant.id] = websocket
         def change(state, events):
             room = state['rooms'].setdefault(channel_id, {})
+            if any(p['participant']['user_id'] == user_id for p in room.values()):
+                raise VoiceAdmissionError(4409, 'Already connected')
+            if len(room) >= get_settings().voice_room_capacity:
+                raise VoiceAdmissionError(4429, 'Voice room full')
             existing = [p['participant'] for p in room.values()]
             c.send(events, room, {'type': 'peer_joined', 'participant': participant.to_payload()})
             room[participant.id] = {'worker': c.WORKER, 'participant': participant.to_payload()}

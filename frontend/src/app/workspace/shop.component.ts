@@ -1,3 +1,4 @@
+import {ModalLayerDirective} from '../shared/modal-layer.directive';
 import {RarityBadgeComponent} from './rarity-badge.component';
 import {AfterViewInit, Component, DestroyRef, ElementRef, OnDestroy, ViewChild, inject, input, output, signal, computed, effect} from '@angular/core';
 import {CommonModule} from '@angular/common';
@@ -24,7 +25,7 @@ interface Journal {id:string;name:string;catalog_id:string;kind:string;action:st
 type Mode='browse'|'inventory'|'recommendations'|'purchases'|'journal'|'offers'|'sales'|'audit'|'roles'|'collections';
 interface ViewState {favorites?:boolean;rarity?:string;collection?:string;q:string;kind:string;sort:string;unowned:boolean;priceBand:string;action:string;start:string;end:string;page:number;scroll:number}
 
-@Component({selector:'app-shop',standalone:true,imports:[RarityBadgeComponent,CommonModule,FormsModule,CollectiblePreviewComponent,InventoryComponent,StoreProductCardComponent,UiIconComponent,StoreCollectionsComponent],templateUrl:'./shop.component.html',styleUrl:'./shop.component.scss'})
+@Component({selector:'app-shop',standalone:true,imports:[ModalLayerDirective,RarityBadgeComponent,CommonModule,FormsModule,CollectiblePreviewComponent,InventoryComponent,StoreProductCardComponent,UiIconComponent,StoreCollectionsComponent],templateUrl:'./shop.component.html',styleUrl:'./shop.component.scss'})
 export class ShopComponent implements AfterViewInit, OnDestroy {
  readonly token=input.required<string>();readonly actorId=input.required<string>();readonly manage=input(false);readonly systemAdmin=input(false);readonly avatarUrl=input<string|null>(null);
  readonly close=output<void>();readonly inventory=output<void>();readonly changed=output<void>();readonly wallpaper=output<string>();
@@ -154,8 +155,8 @@ export class ShopComponent implements AfterViewInit, OnDestroy {
  open(item:Offer,event:Event){this.trigger=event.currentTarget as HTMLElement;this.selected.set(item);this.result.set(null);this.confirming.set(false);this.error.set('');this.success.set('');this.price=item.price??1;this.status=item.status??'draft';this.position=item.position??0;this.recommended=item.recommended??false;this.editRarity=item.rarity??'';setTimeout(()=>this.host.nativeElement.querySelector<HTMLElement>('.back')?.focus());}
  back(){if(this.busy())return;this.selected.set(null);this.confirming.set(false);this.result.set(null);this.error.set('');setTimeout(()=>this.trigger?.isConnected&&this.trigger.focus());}
  dismiss(){if(this.busy()||this.collectionPanel?.busy()||this.inventoryPanel?.busy())return;this.close.emit();}
- inventoryNested(){const i=this.inventoryPanel;return !!(i?.filtersOpen()||i?.pending()||i?.detail()||i?.giftItem()||i?.themePreview()||i?.eventsOpen()||i?.menu());}
- hasNested(){const i=this.inventoryPanel;return !!(this.collectionPanel?.editing()||this.confirming()||this.selected()||this.result()||this.filtersOpen()||this.purchaseDetail()||this.roleTarget()||i?.pending()||i?.detail()||i?.giftItem()||i?.themePreview()||i?.eventsOpen()||i?.menu());}
+ inventoryNested(){const i=this.inventoryPanel;return !!(i?.filtersOpen()||i?.pending()||i?.detail()||i?.giftItem()||i?.themePreview()||i?.eventsOpen()||i?.uploadOpen()||i?.editing()||i?.grantOpen()||i?.filtersOpen()||i?.menu());}
+ hasNested(){const i=this.inventoryPanel;return !!(this.collectionPanel?.editing()||this.confirming()||this.selected()||this.result()||this.filtersOpen()||this.purchaseDetail()||this.roleTarget()||i?.pending()||i?.detail()||i?.giftItem()||i?.themePreview()||i?.eventsOpen()||i?.uploadOpen()||i?.editing()||i?.grantOpen()||i?.filtersOpen()||i?.menu());}
  backStep(){
   if(this.busy()||this.collectionPanel?.busy()||this.inventoryPanel?.busy())return;
   if(this.collectionPanel?.editing()){this.collectionPanel.editing.set(null);return;}

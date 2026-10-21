@@ -1,7 +1,7 @@
 {
   "name": "kvachat-desktop",
   "productName": "KvaChat",
-  "version": "0.5.8",
+  "version": "0.5.10",
   "description": "Квачат для Windows",
   "author": "KvaChat",
   "private": true,

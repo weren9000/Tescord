@@ -26,6 +26,24 @@ describe('Voice room admission', () => {
     expect(admitted).toBeTrue();
     expect(service.startSocketKeepAlive).toHaveBeenCalledTimes(1);
   });
+  it('keeps the local call when 29 peers join, leave and rejoin', () => {
+    service.handleControlSocketMessage.and.callThrough();
+    const fail = spyOn(service, 'failSession');
+    const leave = spyOn(service, 'leave');
+    const self = {id:'self',user_id:'self-user',nick:'Self',muted:false,owner_muted:false,is_self:true};
+    service.selfId = 'self';service.activeChannelId.set('platform-room');service.state.set('connected');
+    service.participants.set([self]);
+    for (let i = 0; i < 29; i++) {
+      service.handleControlSocketMessage(JSON.stringify({type:'peer_joined',participant:{...self,id:`peer-${i}`,user_id:`user-${i}`,is_self:false}}));
+    }
+    expect(service.participants().length).toBe(30);
+    service.handleControlSocketMessage(JSON.stringify({type:'peer_left',participant_id:'peer-0'}));
+    service.handleControlSocketMessage(JSON.stringify({type:'peer_joined',participant:{...self,id:'replacement',user_id:'user-0',is_self:false}}));
+    expect(service.participants().length).toBe(30);
+    expect(service.participants()[0].is_self).toBeTrue();
+    expect(service.activeChannelId()).toBe('platform-room');expect(service.state()).toBe('connected');
+    expect(fail).not.toHaveBeenCalled();expect(leave).not.toHaveBeenCalled();
+  });
   it('rejects a full room before media connection with a readable message', async () => {
     const pending = service.openControlSocket('room', 'token');
     socket.onclose({code: 4429});

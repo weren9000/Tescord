@@ -1,6 +1,6 @@
 {
   "name": "kvachat-android",
-  "version": "0.3.11",
+  "version": "0.3.13",
   "private": true,
   "scripts": {
     "sync": "cap sync android"

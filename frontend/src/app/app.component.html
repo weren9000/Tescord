@@ -1,28 +1,32 @@
-<ng-template #conferenceSurface>
-    @if (activeCallSurface(); as call) {
+<ng-template #activeCallTray>
+@if(activeCallSurface(); as call){
       @if (!callWindowExpanded()) {
         <section class="call-tray" aria-label="Текущий звонок" [class.call-tray--incoming]="isIncomingDirectCall()">
           <button class="call-tray__identity" type="button" aria-label="Развернуть звонок" (click)="expandCallWindow($event)">
             <span class="call-tray__status" [class.call-tray__status--ready]="activeCallMediaControlsVisible() && !activeCallWarning()"></span>
-            <span class="call-tray__copy"><strong>{{ call.title }}</strong><small [attr.title]="activeCallWarning()" [attr.role]="activeCallWarning() ? 'status' : null">{{ activeCallWarning() ? (call.kind !== 'direct' && voiceState() === 'connecting' ? voiceCallStateLabel() : activeCallWarning()) : (call.kind === 'direct' ? callDockParticipantLabel() : call.subtitle + ' · ' + callDockParticipantLabel()) }}</small></span>
-            @if (activeCallScreenSharing()) {<span class="call-tray__media" role="img" aria-label="Вы показываете экран" title="Вы показываете экран"><app-ui-icon name="screen" /></span>}
+            <span class="call-tray__copy"><strong>{{ call.title }}</strong><small [attr.title]="activeCallWarning()" [attr.role]="activeCallWarning() ? 'status' : null">@if(activeCallMediaControlsVisible() && !activeCallWarning()){В звонке · }{{ activeCallWarning() ? (call.kind !== 'direct' && voiceState() === 'connecting' ? voiceCallStateLabel() : activeCallWarning()) : (call.kind === 'direct' ? callDockParticipantLabel() : call.subtitle + ' · ' + callDockParticipantLabel()) }}</small></span>
+            @if (activeCallScreenSharing() || conferenceScreens().length || hasAnyDirectCallScreen()) {<span class="call-tray__media" role="img" aria-label="Идёт демонстрация экрана" title="Идёт демонстрация экрана"><app-ui-icon name="screen" /></span>}
             @else if (activeCallCameraEnabled()) {<span class="call-tray__media" role="img" aria-label="Камера включена" title="Камера включена"><app-ui-icon name="camera" /></span>}
             <app-ui-icon name="expand" />
           </button>
           <div class="call-tray__controls">
             @if (isIncomingDirectCall()) {
               <button class="call-tray__answer" type="button" (click)="acceptDirectCall()"><app-ui-icon name="phone" />Ответить</button>
-              <button class="call-control-button call-control-button--danger" type="button" aria-label="Отклонить звонок" title="Отклонить звонок" (click)="rejectDirectCall()"><app-ui-icon name="hangup" /></button>
+              <button class="call-control-button call-control-button--danger call-tray__leave" type="button" aria-label="Отклонить звонок" title="Отклонить звонок" (click)="rejectDirectCall()"><app-ui-icon name="hangup" /></button>
             } @else {
               <button class="call-control-button" [class.call-control-button--muted]="activeCallMuted()" [attr.aria-pressed]="activeCallMuted()" [disabled]="call.kind !== 'direct' && voiceOwnerMuted()" type="button" [attr.aria-label]="activeCallMuteLabel()" [attr.title]="activeCallMuteLabel()" (click)="toggleActiveCallMute($event)"><app-ui-icon [name]="activeCallMuted() ? 'micOff' : 'mic'" /></button>
               <button hidden class="call-control-button call-tray__sound" [class.call-control-button--muted]="activeCallOutputMuted()" [attr.aria-pressed]="activeCallOutputMuted()" type="button" [attr.aria-label]="activeCallOutputMuted() ? 'Включить звук звонка' : 'Выключить звук звонка'" [attr.title]="activeCallOutputMuted() ? 'Включить звук звонка' : 'Выключить звук звонка'" (click)="toggleActiveCallOutput()"><app-ui-icon [name]="activeCallOutputMuted() ? 'soundOff' : 'sound'" /></button>
               <button hidden class="call-control-button call-tray__more" type="button" aria-label="Настройки звука" title="Настройки звука" (click)="openCallAudioSettings()"><app-ui-icon name="more" /></button>
-              <button class="call-control-button call-control-button--danger" type="button" aria-label="Завершить звонок" title="Завершить звонок" (click)="endActiveCall($event)"><app-ui-icon name="hangup" /></button>
+              <button class="call-control-button call-control-button--danger call-tray__leave" type="button" aria-label="Завершить звонок" title="Завершить звонок" (click)="endActiveCall($event)"><app-ui-icon name="hangup" /></button>
             }
           </div>
         </section>
       }
 
+}
+</ng-template>
+<ng-template #conferenceSurface>
+    @if (activeCallSurface(); as call) {
       @if (callWindowExpanded()) {
         <section class="call-window-layer">
           <div
@@ -131,9 +135,10 @@
                 </div>
                 <div class="conference-stage" [class.conference-stage--presentation]="!!activeCallVoiceVideoScene()?.stageTile">
                   @if(activeCallVoiceVideoScene()?.stageTile; as tile){
+                    @if(conferenceScreens().length > 1){<div class="conference-screen-tabs" role="group" aria-label="Демонстрации">@for(screen of conferenceScreens();track screen.id){<button type="button" [attr.aria-pressed]="screen.id === tile.id" (click)="conferenceScreenId.set(screen.id)"><app-ui-icon name="screen" />{{displayNick(screen.nick)}}</button>}</div>}
                     <div class="conference-presentation" (dblclick)="openVoiceTileFullscreenMedia(tile,$event)">
                       <video autoplay playsinline [appMediaStreamSrc]="tile.stream" [appMediaStreamMuted]="tile.isSelf"></video>
-                      <span class="conference-name">{{displayNick(tile.nick)}}</span>
+                      <span class="conference-name">Экран · {{displayNick(tile.nick)}}</span>
                       <button class="call-control-button conference-fullscreen" type="button" aria-label="На весь экран" title="На весь экран" (click)="openVoiceTileFullscreenMedia(tile,$event)"><app-ui-icon name="expand" /></button>
                     </div>
                   }
@@ -272,6 +277,7 @@
     [class.messenger-shell--call-window-open]="callWindowExpanded()"
     [class.messenger-shell--side-menu-open]="sideMenuOpen()"
   >
+    <ng-container *ngTemplateOutlet="activeCallTray" />
     <input
       #profileAvatarInput
       hidden
@@ -476,7 +482,7 @@
                         <app-ui-icon name="sound" /><span class="space-channel__name">{{ channel.name }}</span>
                         @if (channelMentionUnreadCount(channel)>0) {<span class="space-badge space-badge--mention" [attr.aria-label]="'Упоминаний: ' + channelMentionUnreadCount(channel)">&#64;{{channelMentionUnreadBadgeLabel(channel)}}</span>}
                         @else if (channelUnreadCount(channel)>0) {<span class="space-badge" [attr.aria-label]="'Непрочитанных: ' + channelUnreadCount(channel)">{{channelUnreadBadgeLabel(channel)}}</span>}
-                        @if (connectedVoiceChannelId() === channel.id) {<app-ui-icon name="check" aria-label="Вы подключены" />}
+                        @if (connectedVoiceChannelId() === channel.id) {<app-ui-icon name="headphones" aria-label="Вы подключены" />}
                         @if (platformVoiceParticipants(channel.id).length) {<span class="space-channel__count" [attr.aria-label]="'Участников в комнате: ' + platformVoiceParticipants(channel.id).length"><span class="voice-active-dot" aria-hidden="true"></span>{{ platformVoiceParticipants(channel.id).length }}</span>}
                       </button><button class="channel-menu-trigger" type="button" [attr.aria-label]="'Действия канала: ' + channel.name" [attr.title]="'Действия канала: ' + channel.name" aria-haspopup="dialog" (click)="openChannelActions(channel)"><app-ui-icon name="more" /></button></div>
                       @if (platformVoiceParticipants(channel.id).length) {
@@ -555,7 +561,7 @@
                 }
               </div>
 
-              @if(callWindowExpanded()){<button class="call-control-button" type="button" aria-label="Свернуть звонок" title="Вернуться к чату" (click)="minimizeCallWindow($event)"><app-ui-icon name="minimize" /></button>}
+              @if(callWindowExpanded()){<button class="call-control-button" type="button" aria-label="Открыть чат звонка" title="Открыть чат звонка" [disabled]="!activeCallChatTarget()" (click)="openActiveCallChat($event)"><app-ui-icon name="chat" /></button><button class="call-control-button" type="button" aria-label="Свернуть звонок" title="Свернуть звонок" (click)="minimizeCallWindow($event)"><app-ui-icon name="minimize" /></button>}
               <div class="conversation-head__menu">
                 <div class="workspace-tools">
                   <ng-container *ngTemplateOutlet="workspaceQuickActions; context: {menu: false}" />
@@ -1526,22 +1532,19 @@
     #callFullscreenLayer
     class="call-media-fullscreen"
     [class.call-media-fullscreen--controls-hidden]="!fullscreenMediaControlsVisible()"
-    (mousemove)="showFullscreenMediaControls()"
-    (click)="showFullscreenMediaControls()"
-    (touchstart)="showFullscreenMediaControls()"
+    role="dialog"
+    aria-modal="true"
+    [attr.aria-label]="fullscreenMediaSourceLabel(media) + ' · ' + media.title"
+    (pointermove)="onFullscreenPointerMove($event)"
+    (focusin)="showFullscreenMediaControls()"
+    (focusout)="showFullscreenMediaControls()"
+    (keydown)="onFullscreenMediaKeydown($event)"
   >
-    <header class="call-media-fullscreen__bar">
-      <div class="call-media-fullscreen__title">
-        <span>{{ fullscreenMediaSourceLabel(media) }}</span>
-        <strong>{{ media.title }}</strong>
-        <small>{{ media.subtitle }}</small>
-      </div>
-      <button class="call-control-button" type="button" title="Закрыть" aria-label="Закрыть" (click)="closeFullscreenMedia($event)">
+      <button class="call-control-button call-media-fullscreen__back" type="button" title="Вернуться к звонку" aria-label="Вернуться к звонку" (click)="closeFullscreenMedia($event)">
         <span aria-hidden="true">×</span>
       </button>
-    </header>
 
-    <main class="call-media-fullscreen__stage">
+    <main class="call-media-fullscreen__stage" (pointerup)="onFullscreenStagePointerUp($event)">
       <video
         class="call-media-fullscreen__video"
         [class.call-media-fullscreen__video--screen]="media.source === 'screen-share'"
@@ -1553,7 +1556,7 @@
     </main>
 
     @if (activeCallSurface()) {
-      <footer class="call-media-fullscreen__controls" (click)="$event.stopPropagation()">
+      <footer class="call-media-fullscreen__controls" (click)="$event.stopPropagation()" (pointerenter)="showFullscreenMediaControls()" (pointerleave)="showFullscreenMediaControls()">
         <button
           class="call-control-button"
           [class.call-control-button--active]="activeCallMuted()"

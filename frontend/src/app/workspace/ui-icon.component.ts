@@ -1,6 +1,8 @@
 import { Component, input } from '@angular/core';
 
 const paths: Record<string, string> = {
+  chat: 'M4 4h16v12H9l-5 4V4M8 8h8M8 12h5',
+  headphones: 'M4 14v-3a8 8 0 0 1 16 0v3M4 12h3v8H4zM17 12h3v8h-3z',
   shop: 'M3 9l2-6h14l2 6M3 9v3a3 3 0 0 0 4 2 3 3 0 0 0 5 0 3 3 0 0 0 5 0 3 3 0 0 0 4-2V9H3M5 15v6h14v-6M10 21v-5h4v5',
   callSettings: 'M9 3h6l.5 2.5 2 1.2 2.4-.8 2 3.4-1.9 1.7v2l1.9 1.7-2 3.4-2.4-.8-2 1.2L15 21H9l-.5-2.5-2-1.2-2.4.8-2-3.4L4 13v-2L2.1 9.3l2-3.4 2.4.8 2-1.2zM15 12a3 3 0 1 0-6 0 3 3 0 0 0 6 0',
   gift: 'M3 8h18v4H3zM5 12v9h14v-9M12 8v13M12 8C3 8 5 1 9 3l3 5M12 8c9 0 7-7 3-5z',
