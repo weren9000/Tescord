@@ -1,6 +1,7 @@
 """Package committed source and the production frontend build for deploy-release.sh."""
 import hashlib
 import io
+import json
 from pathlib import Path
 import subprocess
 import sys
@@ -16,6 +17,14 @@ if not (build / 'index.html').is_file():
     raise SystemExit('Run npm ci and npm run build in frontend first')
 import re
 downloads = set(re.findall(r'href="(/downloads/[^"?]+)"', (build / 'index.html').read_text(encoding='utf-8')))
+desktop_version = json.loads((root / 'desktop/package.json').read_text(encoding='utf-8'))['version']
+android_version = json.loads((root / 'mobile/package.json').read_text(encoding='utf-8'))['version']
+expected_downloads = {
+    f'/downloads/KvaChat-Setup-{desktop_version}-x64.exe',
+    f'/downloads/KvaChat-{android_version}-android.apk',
+}
+if not expected_downloads.issubset(downloads):
+    raise SystemExit('Landing download versions do not match package versions. Update landing links and rebuild frontend.')
 for download in downloads:
     if not (build / download.lstrip('/')).is_file():
         raise SystemExit('Missing landing download. Run scripts/prepare-downloads.py, then rebuild frontend: ' + download)
