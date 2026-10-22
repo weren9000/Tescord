@@ -25,7 +25,7 @@
   <div class="empty welcome"><span class="welcome-icon"><app-ui-icon name="platforms"/></span><h2>Вместе удобнее</h2><p>Объедините общение по темам в одной площадке.</p><button class="primary" (click)="show('create')"><app-ui-icon name="plus"/>Создать площадку</button></div>
 }
 
-<dialog #dialog class="platform-dialog" [class.settings-dialog]="panel()==='settings'" aria-labelledby="platform-dialog-title" (cancel)="dismiss($event)" (click)="backdrop($event)" (close)="panel.set(null)">
+<dialog #dialog class="platform-dialog" [class.settings-dialog]="panel()==='settings'" aria-labelledby="platform-dialog-title" (cancel)="dismiss($event)" (click)="backdrop($event)" (close)="dialogClosed()">
   <header class="dialog-head"><div><small>{{panel()==='settings'||panel()==='search'||panel()==='chat' ? platform()?.name : 'Площадки Квачата'}}</small><h2 id="platform-dialog-title">{{confirmation()?.title || (panel()==='create'?'Создать площадку':panel()==='join'?'Войти по приглашению':panel()==='settings'?'Настройки площадки':panel()==='search'?'Поиск сообщений':editing()?'Настройки чата':'Новый чат')}}</h2></div><button class="icon-button" aria-label="Закрыть окно" title="Закрыть" [disabled]="busy()" (click)="close()"><app-ui-icon name="close"/></button></header>
   @if(error()){<p class="feedback error" role="alert">{{error()}}</p>}
   @if(notice()){<p class="feedback success" role="status">{{notice()}}</p>}

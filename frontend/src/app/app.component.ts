@@ -659,6 +659,7 @@ export class AppComponent {
   private readonly platformLastChats = new Map<string,string>();
   readonly platformEntryInvite = signal('');
   readonly platformEntryMode = signal<'create'|'join'>('create');
+  readonly platformInviteOpen = signal(false);
   readonly platformCreateRequest = signal(0);
   readonly selectedPlatformId = signal<string | null>(null);
   readonly pendingPlatformInvite = signal(/^\/platform-invite\/([A-Za-z0-9_-]{43})\/?$/.exec(window.location.pathname)?.[1] ?? null);
@@ -4232,7 +4233,7 @@ export class AppComponent {
     this.openCreateGroupModal();
   }
 
-  openJoinPlatformShortcut(): void {this.openCreatePlatformShortcut();this.platformEntryMode.set('join');}
+  openJoinPlatformShortcut(): void {this.platformInviteOpen.set(true);this.openCreatePlatformShortcut();this.platformEntryMode.set('join');}
   openCreatePlatformShortcut(): void {
     this.platformEntryMode.set('create');
     this.closeQuickCreateMenu();
@@ -4865,6 +4866,7 @@ export class AppComponent {
   }
 
   selectWorkspaceMode(mode: WorkspaceMode): void {
+    this.platformInviteOpen.set(false);
     this.adminDirectoryOpen.set(false);
     if (this.workspaceMode() === mode) {
       return;
@@ -7229,6 +7231,7 @@ export class AppComponent {
   }
 
   logout(): void {
+    this.platformInviteOpen.set(false);
     this.platformApi.clear();
     this.selectedPlatformId.set(null);
     this.spaceInvitations.set([]);
@@ -8785,6 +8788,10 @@ export class AppComponent {
           const mergedConversations = this.mergeConversationsById(conversations);
           this.conversations.set(mergedConversations);
           this.tryOpenPendingPushConversation(token);
+
+          // Realtime refresh must not replace the invite dialog with a fallback
+          // group/direct conversation before the recipient can respond.
+          if (this.pendingPlatformInvite() || this.platformInviteOpen()) return;
 
           let spaces = this.currentSpaceList();
 

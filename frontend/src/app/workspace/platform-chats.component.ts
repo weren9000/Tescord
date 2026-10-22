@@ -36,6 +36,7 @@ export class PlatformChatsComponent {
   readonly entryMode = input<'create'|'join'>('create');
   readonly createRequest = input(0);
   readonly entryOpened = output<void>();
+  readonly entryClosed = output<void>();
   readonly entryInvite = input('');
   private createSeen = 0;
   memberQuery=''; messageQuery='';
@@ -95,7 +96,8 @@ export class PlatformChatsComponent {
     this.panel.set(panel);
     this.dialog()?.nativeElement.showModal();
   }
-  close(): void {this.dialog()?.nativeElement.close();this.panel.set(null);this.confirmation.set(null);}
+  close(): void {this.dialog()?.nativeElement.close();this.dialogClosed();this.confirmation.set(null);}
+  dialogClosed():void{if(this.panel()==='join')this.entryClosed.emit();this.panel.set(null);}
   dismiss(event: Event): void {event.preventDefault();if(this.busy())return;if(this.confirmation()){this.confirmation.set(null);return;}this.close();}
   backdrop(event: MouseEvent): void {if(!this.busy()&&event.target===this.dialog()?.nativeElement){const r=this.dialog()!.nativeElement.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)this.close();}}
   editChat(chat?: ConversationSummary): void {this.editing.set(chat?.id??null);this.chatName=chat?.title??'';this.newChatName='';this.show('chat');}
