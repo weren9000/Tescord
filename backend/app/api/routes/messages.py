@@ -1056,3 +1056,16 @@ def download_attachment(
     attachment = _get_downloadable_attachment(db, attachment_id, current_user)
     return _build_attachment_download_response(attachment)
 
+
+@router.get('/attachments/{attachment_id}/preview')
+def image_attachment_preview(attachment_id: UUID, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> Response:
+    attachment = _get_downloadable_attachment(db, attachment_id, current_user)
+    if not attachment.storage_path:
+        raise HTTPException(404, 'Превью недоступно. Можно открыть оригинал.')
+    from app.services.attachment_storage import resolve_attachment_path
+    from app.services.attachment_previews import ensure_preview
+    preview = ensure_preview(resolve_attachment_path(attachment.storage_path))
+    if preview is None:
+        raise HTTPException(404, 'Превью недоступно. Можно открыть оригинал.')
+    return FileResponse(preview, media_type='image/webp', headers={'Cache-Control':'private, max-age=300', 'Vary':'Authorization', 'X-Content-Type-Options':'nosniff'})
+

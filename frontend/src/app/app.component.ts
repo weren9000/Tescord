@@ -1,4 +1,7 @@
 import {FileAttachmentComponent} from './workspace/file-attachment.component';
+import {PhotoGridComponent,isPhoto} from './workspace/photo-grid.component';
+import {PhotoThumbnailComponent} from './workspace/photo-thumbnail.component';
+import {PhotoViewerComponent} from './workspace/photo-viewer.component';
 import {UploadPanelComponent} from './workspace/upload-panel.component';
 import {UploadQueueService} from './core/services/upload-queue.service';
 import {TextFileViewerComponent} from './workspace/text-file-viewer.component';
@@ -557,7 +560,6 @@ const MESSAGES_PAGE_SIZE = 25;
 const UNREAD_FOCUS_PAGE_PADDING = 24;
 const MAX_UNREAD_FOCUS_PAGE_SIZE = 200;
 const MAX_ATTACHMENT_SIZE_BYTES = 500 * 1024 * 1024;
-const MAX_INLINE_IMAGE_SIZE_BYTES = 10 * 1024 * 1024;
 const PRESENCE_ACTIVITY_THROTTLE_MS = 30000;
 const PRESENCE_KEEPALIVE_INTERVAL_MS = 60000;
 const MESSAGE_REACTION_OPTIONS: readonly MessageReactionOption[] = [
@@ -657,7 +659,7 @@ const DEFAULT_SERVER_ICON_ASSET_BY_NAME: Record<string, string> = {
 @Component({
   providers: [AuthFormStore, WorkspaceStateStore],
     selector: 'app-root',
-    imports: [UploadPanelComponent, FileAttachmentComponent, TextFileViewerComponent, ChatSkeletonComponent, PlatformChatsComponent, AuthPageComponent, MessageTextComponent, ShopComponent, UserCardDirective, UserCardComponent, WalletDialogComponent, WalletBalanceComponent, AndroidCallOutputComponent, LandingComponent, FriendLinkComponent, FriendInviteComponent, MobileViewportDirective, PlatformListComponent, AdminDirectoryComponent, AvatarPickerComponent, AudioDevicePickerComponent, InfoPanelComponent, ActionMenuComponent, CommonModule, FormsModule, MediaStreamSrcDirective, SectionNavigationComponent, UiIconComponent, ConversationListComponent, QuickSwitchComponent, InviteManagerComponent, InventoryComponent, WallpapersComponent, ThemeControllerComponent, MessageGestureDirective, MessageActionsComponent, EmojiPickerComponent, DesktopPreferencesComponent, SidebarResizeDirective],
+    imports: [PhotoGridComponent, PhotoThumbnailComponent, PhotoViewerComponent, UploadPanelComponent, FileAttachmentComponent, TextFileViewerComponent, ChatSkeletonComponent, PlatformChatsComponent, AuthPageComponent, MessageTextComponent, ShopComponent, UserCardDirective, UserCardComponent, WalletDialogComponent, WalletBalanceComponent, AndroidCallOutputComponent, LandingComponent, FriendLinkComponent, FriendInviteComponent, MobileViewportDirective, PlatformListComponent, AdminDirectoryComponent, AvatarPickerComponent, AudioDevicePickerComponent, InfoPanelComponent, ActionMenuComponent, CommonModule, FormsModule, MediaStreamSrcDirective, SectionNavigationComponent, UiIconComponent, ConversationListComponent, QuickSwitchComponent, InviteManagerComponent, InventoryComponent, WallpapersComponent, ThemeControllerComponent, MessageGestureDirective, MessageActionsComponent, EmojiPickerComponent, DesktopPreferencesComponent, SidebarResizeDirective],
     templateUrl: './app.component.html',
     styleUrls: ['./app.component.scss', './app-layout.scss', './call-workspace.scss', './platform-workspace.scss', './invite-entry.scss', './palette-theme.scss', './avatar-presets.scss', './mobile-workspace.scss', './chat-bubbles.scss', './conference-stage.scss', './platform-calm.scss']
 })
@@ -2850,10 +2852,15 @@ export class AppComponent {
     return null;
   });
 
-  readonly openedImageAttachmentUrl = computed(() => {
-    const attachment = this.openedImageAttachment();
-    return attachment ? this.attachmentPreviewUrl(attachment) : null;
+  readonly openedPhotoGroup = computed(() => {
+    const selected=this.openedImageAttachmentId();
+    const message=this.messages().find(m=>m.attachments.some(a=>a.id===selected));
+    if(message)return message.attachments.filter(isPhoto);
+    return this.chatAttachments().map(a=>this.toAttachmentRecord(a)).filter(isPhoto);
   });
+  messagePhotos(message:WorkspaceMessage):WorkspaceMessageAttachment[]{return message.attachments.filter(isPhoto);}
+  messageOtherAttachments(message:WorkspaceMessage):WorkspaceMessageAttachment[]{return message.attachments.filter(a=>!isPhoto(a));}
+
   readonly chatGalleryAttachments = computed(() =>
     this.chatAttachments().filter((attachment) => this.isInlineImageAttachment(this.toAttachmentRecord(attachment)))
   );
@@ -3649,7 +3656,7 @@ export class AppComponent {
               }
 
               this.messages.update((messages) => this.mergeMessagesChronologically([...messages, message]));
-              this.preloadInlineImagePreviews([message]);
+
               this.scrollMessagesToBottom();
               this.markChannelAsRead(channelId, message.id);
             }),
@@ -3726,7 +3733,7 @@ export class AppComponent {
               }
 
               this.chatAttachments.set(attachments);
-              this.preloadChatAttachmentPreviews(attachments);
+
               if (this.chatMediaTab() === 'gallery' && !attachments.some((attachment) => this.isInlineImageAttachment(this.toAttachmentRecord(attachment)))) {
                 this.chatMediaTab.set('files');
               }
@@ -4781,9 +4788,7 @@ export class AppComponent {
     return this.isAttachmentPreviewLoading(this.toAttachmentRecord(attachment));
   }
 
-  chatAttachmentPreviewUrl(attachment: WorkspaceChatAttachmentSummary): string | null {
-    return this.attachmentPreviewUrl(this.toAttachmentRecord(attachment));
-  }
+
 
   openChatGalleryAttachment(attachment: WorkspaceChatAttachmentSummary): void {
     this.openImageAttachment(this.toAttachmentRecord(attachment), 'chat');
@@ -7761,29 +7766,14 @@ export class AppComponent {
     return this.attachmentPreviewUrls()[attachment.id] ?? null;
   }
 
-  imagePreviewUrl(attachment: WorkspaceMessageAttachment): string | null {
-    return this.attachmentPreviewUrl(attachment);
-  }
+
 
   isAttachmentPreviewLoading(attachment: WorkspaceMessageAttachment): boolean {
     return this.loadingAttachmentPreviewIds.has(attachment.id);
   }
 
   isInlineImageAttachment(attachment: WorkspaceMessageAttachment): boolean {
-    if (attachment.deleted_at) {
-      return false;
-    }
-
-    if (attachment.size_bytes > MAX_INLINE_IMAGE_SIZE_BYTES) {
-      return false;
-    }
-
-    const mimeType = attachment.mime_type.toLowerCase();
-    if (mimeType === 'image/png' || mimeType === 'image/jpeg' || mimeType === 'image/jpg') {
-      return true;
-    }
-
-    return /\.(png|jpe?g)$/i.test(attachment.filename);
+    return isPhoto(attachment);
   }
 
   isTavernChannel(channel: WorkspaceChannel | null | undefined): boolean {
@@ -7811,15 +7801,9 @@ export class AppComponent {
     return this.attachmentPreviewUrl(attachment);
   }
 
-  openedImageAttachmentMetaLabel(): string {
-    const attachment = this.openedImageAttachment();
-    return attachment ? this.attachmentMetaLabel(attachment) : '';
-  }
 
-  openedImageAttachmentStateLabel(): string {
-    const attachment = this.openedImageAttachment();
-    return attachment ? this.attachmentStateLabel(attachment) : '';
-  }
+
+
 
   canDeleteOpenedImageAttachment(): boolean {
     const attachment = this.openedImageAttachment();
@@ -7845,19 +7829,7 @@ export class AppComponent {
       return;
     }
 
-    const previewUrl = this.imagePreviewUrl(attachment);
-    if (previewUrl) {
-      this.openedImageAttachmentId.set(
-        this.openedImageAttachmentId() === attachment.id ? null : attachment.id
-      );
-      return;
-    }
-
-    this.requestAttachmentPreview(attachment, {
-      openImageAfterLoad: true,
-      reportErrors: true,
-      surface,
-    });
+    this.openedImageAttachmentId.set(attachment.id);
   }
 
   loadAudioAttachment(attachment: WorkspaceMessageAttachment): void {
@@ -8522,7 +8494,7 @@ export class AppComponent {
       !listElement || listElement.scrollHeight - listElement.scrollTop - listElement.clientHeight <= 80;
 
     this.messages.update((messages) => this.mergeMessagesChronologically([...messages, event.message]));
-    this.preloadInlineImagePreviews([event.message]);
+
 
     if (isNearBottom || isOwnMessage) {
       this.scrollMessagesToBottom();
@@ -9676,7 +9648,6 @@ export class AppComponent {
             this.messages.set(page.items);
           }
 
-          this.preloadInlineImagePreviews(page.items);
 
           this.messagesHasMore.set(page.has_more);
           this.messagesCursor.set(page.next_before);
@@ -9865,34 +9836,6 @@ export class AppComponent {
     });
   }
 
-  private preloadInlineImagePreviews(messages: WorkspaceMessage[]): void {
-    for (const message of messages) {
-      for (const attachment of message.attachments) {
-        if (!this.isInlineImageAttachment(attachment)) {
-          continue;
-        }
-
-        this.requestAttachmentPreview(attachment, {
-          reportErrors: false,
-          surface: 'message',
-        });
-      }
-    }
-  }
-
-  private preloadChatAttachmentPreviews(attachments: WorkspaceChatAttachmentSummary[]): void {
-    for (const attachment of attachments) {
-      const normalizedAttachment = this.toAttachmentRecord(attachment);
-      if (!this.isInlineImageAttachment(normalizedAttachment)) {
-        continue;
-      }
-
-      this.requestAttachmentPreview(normalizedAttachment, {
-        reportErrors: false,
-        surface: 'chat',
-      });
-    }
-  }
 
   private shouldKeepAttachmentPreview(attachmentId: string): boolean {
     if (this.messages().some((message) => message.attachments.some((attachment) => attachment.id === attachmentId))) {
@@ -10071,7 +10014,7 @@ export class AppComponent {
       ), () => this.selectedChannelId() === channelId && this.session()?.access_token === token);
       if (this.selectedChannelId() !== channelId || this.session()?.access_token !== token) { return; }
       this.messages.set(this.mergeMessagesChronologically([...this.messages(), ...synchronized]));
-      this.preloadInlineImagePreviews(synchronized);
+
       if (nearBottom && document.visibilityState === 'visible') {
         this.scrollMessagesToBottom();
         const latest = this.messages().at(-1);

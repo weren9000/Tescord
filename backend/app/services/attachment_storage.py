@@ -55,6 +55,8 @@ def delete_stored_attachment(relative_path: str | None) -> None:
     file_path = resolve_attachment_path(relative_path)
     try:
         file_path.unlink(missing_ok=True)
+        from app.services.attachment_previews import delete_preview
+        delete_preview(file_path)
     except OSError:
         return
 
@@ -102,6 +104,10 @@ def store_upload_file(
     except Exception:
         temp_path.unlink(missing_ok=True)
         raise
+
+    if final_path.suffix.lower() in {'.jpg','.jpeg','.png','.webp','.gif'}:
+        from app.services.attachment_previews import ensure_preview
+        ensure_preview(final_path)
 
     return StoredAttachment(
         filename=filename,

@@ -929,7 +929,8 @@
                           }
                           @if (message.attachments.length) {
                             <div class="message-attachments">
-                              @for (attachment of message.attachments; track attachment.id) {
+                              @if(messagePhotos(message).length){<app-photo-grid [photos]="messagePhotos(message)" [token]="session()?.access_token ?? ''" (open)="openImageAttachment($event)"/>}
+                              @for (attachment of messageOtherAttachments(message); track attachment.id) {
                                 @if (attachment.deleted_at) {
                                   <div class="attachment-card attachment-card--deleted">
                                     <div class="attachment-card__body">
@@ -938,59 +939,6 @@
                                         <small>{{ attachmentMetaLabel(attachment) }}</small>
                                       </div>
                                       <span class="attachment-card__state">{{ attachmentStateLabel(attachment) }}</span>
-                                    </div>
-                                  </div>
-                                } @else if (isInlineImageAttachment(attachment)) {
-                                  <div class="attachment-card attachment-card--image" [class.attachment-card--unavailable]="isAttachmentUnavailable(attachment)">
-                                    @if (imagePreviewUrl(attachment); as previewUrl) {
-                                      <button
-                                        class="attachment-card__preview"
-                                        type="button"
-                                        (click)="openImageAttachment(attachment)"
-                                      >
-                                        <img [src]="previewUrl" [alt]="attachment.filename" loading="lazy" />
-                                      </button>
-                                    } @else {
-                                      <button
-                                        class="attachment-card__preview attachment-card__preview--placeholder"
-                                        type="button"
-                                        [disabled]="isAttachmentPreviewLoading(attachment)"
-                                        (click)="openImageAttachment(attachment)"
-                                      >
-                                        <span>{{ isAttachmentPreviewLoading(attachment) ? 'Загрузка...' : 'Открыть изображение' }}</span>
-                                      </button>
-                                    }
-
-                                    <div class="attachment-card__body">
-                                      <div class="attachment-card__copy">
-                                        <strong>{{ attachment.filename }}</strong>
-                                        <small>{{ attachmentMetaLabel(attachment) }}</small>
-                                      </div>
-                                      <span class="attachment-card__state">{{ attachmentStateLabel(attachment) }}</span>
-                                      <div class="attachment-card__actions">
-                                        <button
-                                          class="attachment-download"
-                                          type="button"
-                                          [disabled]="isAttachmentDownloading(attachment)"
-                                          title="Скачать файл"
-                                          aria-label="Скачать файл"
-                                          (click)="downloadAttachment(attachment)"
-                                        >
-                                          <img src="/assets/Download_circle.svg" alt="" />
-                                        </button>
-                                        @if (canDeleteMessageAttachment(message, attachment)) {
-                                          <button
-                                            class="attachment-delete"
-                                            type="button"
-                                            [disabled]="isDeletingMessageAttachment(attachment.id)"
-                                            title="Удалить файл"
-                                            aria-label="Удалить файл"
-                                            (click)="deleteMessageAttachment(attachment)"
-                                          >
-                                            <img src="/assets/Trash.svg" alt="" />
-                                          </button>
-                                        }
-                                      </div>
                                     </div>
                                   </div>
                                 } @else if (isInlineAudioAttachment(attachment)) {
@@ -1879,21 +1827,9 @@
               <div class="chat-gallery-grid">
                 @for (attachment of chatGalleryAttachments(); track attachment.id) {
                   <article class="chat-gallery-card" [class.chat-gallery-card--unavailable]="isChatAttachmentUnavailable(attachment)">
-                    @if (chatAttachmentPreviewUrl(attachment); as previewUrl) {
-                      <button class="chat-gallery-card__preview" type="button" (click)="openChatGalleryAttachment(attachment)">
-                        <img [src]="previewUrl" [alt]="attachment.filename" loading="lazy" />
-                      </button>
-                    } @else {
-                      <button
-                        class="chat-gallery-card__preview chat-gallery-card__preview--placeholder"
-                        type="button"
-                        [disabled]="isChatGalleryAttachmentLoading(attachment)"
-                        (click)="openChatGalleryAttachment(attachment)"
-                      >
-                        <span>{{ isChatGalleryAttachmentLoading(attachment) ? 'Загрузка...' : 'Открыть' }}</span>
-                      </button>
-                    }
-
+                    <button class="chat-gallery-card__preview" type="button" (click)="openChatGalleryAttachment(attachment)">
+                      <app-photo-thumbnail [id]="attachment.id" [token]="session()?.access_token ?? ''" [name]="attachment.filename"/>
+                    </button>
                     <div class="chat-gallery-card__body">
                       <div class="chat-gallery-card__copy">
                         <strong>{{ attachment.filename }}</strong>
@@ -2062,50 +1998,7 @@
 }
 
 @if (openedImageAttachment(); as attachment) {
-  <div class="modal-backdrop image-lightbox" (click)="closeImageAttachment()">
-    <section class="image-lightbox__dialog" (click)="$event.stopPropagation()">
-      <button class="image-lightbox__close" type="button" (click)="closeImageAttachment()">✕</button>
-      @if (openedImageAttachmentUrl(); as previewUrl) {
-        <img
-          class="image-lightbox__image"
-          [src]="previewUrl"
-          [alt]="attachment.filename"
-          (click)="closeImageAttachment()"
-        />
-      }
-      <div class="image-lightbox__footer">
-        <div class="image-lightbox__copy">
-          <strong>{{ attachment.filename }}</strong>
-          <small>{{ openedImageAttachmentMetaLabel() }}</small>
-          <small>{{ openedImageAttachmentStateLabel() }}</small>
-        </div>
-        <div class="attachment-card__actions">
-          <button
-            class="attachment-download"
-            type="button"
-            [disabled]="isAttachmentDownloading(attachment)"
-            title="Скачать файл"
-            aria-label="Скачать файл"
-            (click)="downloadAttachment(attachment)"
-          >
-            <img src="/assets/Download_circle.svg" alt="" />
-          </button>
-          @if (canDeleteOpenedImageAttachment()) {
-            <button
-              class="attachment-delete"
-              type="button"
-              [disabled]="isDeletingMessageAttachment(attachment.id)"
-              title="Удалить файл"
-              aria-label="Удалить файл"
-              (click)="deleteOpenedImageAttachment()"
-            >
-              <img src="/assets/Trash.svg" alt="" />
-            </button>
-          }
-        </div>
-      </div>
-    </section>
-  </div>
+  @if(!attachment.deleted_at && openedPhotoGroup().length){@defer(on immediate){<app-photo-viewer [photos]="openedPhotoGroup()" [selectedId]="attachment.id" [token]="session()?.access_token ?? ''" [deletable]="canDeleteOpenedImageAttachment()" (choose)="openedImageAttachmentId.set($event)" (closed)="closeImageAttachment()" (download)="downloadAttachment($event)" (remove)="deleteOpenedImageAttachment()"/>}}
 }
 
 @if (settingsPanelOpen()) {
