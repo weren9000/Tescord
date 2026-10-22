@@ -1,3 +1,7 @@
+import {TextFileViewerComponent} from './workspace/text-file-viewer.component';
+import type {TextFileSource} from './workspace/text-file-viewer.component';
+import {isTextFile, prepareTextFile, safeTextFilename, textLength, TEXT_MESSAGE_LIMIT} from './shared/text-files';
+import {ChatSkeletonComponent} from './workspace/chat-skeleton.component';
 import { WorkspaceStateStore } from './core/services/workspace-state.store';
 import { prepareProfileAvatarFile, normalizeClipboardAttachmentFile } from './shared/image-files';
 import { AuthPageComponent } from './auth/auth-page.component';
@@ -650,7 +654,7 @@ const DEFAULT_SERVER_ICON_ASSET_BY_NAME: Record<string, string> = {
 @Component({
   providers: [AuthFormStore, WorkspaceStateStore],
     selector: 'app-root',
-    imports: [PlatformChatsComponent, AuthPageComponent, MessageTextComponent, ShopComponent, UserCardDirective, UserCardComponent, WalletDialogComponent, WalletBalanceComponent, AndroidCallOutputComponent, LandingComponent, FriendLinkComponent, FriendInviteComponent, MobileViewportDirective, PlatformListComponent, AdminDirectoryComponent, AvatarPickerComponent, AudioDevicePickerComponent, InfoPanelComponent, ActionMenuComponent, CommonModule, FormsModule, MediaStreamSrcDirective, SectionNavigationComponent, UiIconComponent, ConversationListComponent, QuickSwitchComponent, InviteManagerComponent, InventoryComponent, WallpapersComponent, ThemeControllerComponent, MessageGestureDirective, MessageActionsComponent, EmojiPickerComponent, DesktopPreferencesComponent, SidebarResizeDirective],
+    imports: [TextFileViewerComponent, ChatSkeletonComponent, PlatformChatsComponent, AuthPageComponent, MessageTextComponent, ShopComponent, UserCardDirective, UserCardComponent, WalletDialogComponent, WalletBalanceComponent, AndroidCallOutputComponent, LandingComponent, FriendLinkComponent, FriendInviteComponent, MobileViewportDirective, PlatformListComponent, AdminDirectoryComponent, AvatarPickerComponent, AudioDevicePickerComponent, InfoPanelComponent, ActionMenuComponent, CommonModule, FormsModule, MediaStreamSrcDirective, SectionNavigationComponent, UiIconComponent, ConversationListComponent, QuickSwitchComponent, InviteManagerComponent, InventoryComponent, WallpapersComponent, ThemeControllerComponent, MessageGestureDirective, MessageActionsComponent, EmojiPickerComponent, DesktopPreferencesComponent, SidebarResizeDirective],
     templateUrl: './app.component.html',
     styleUrls: ['./app.component.scss', './app-layout.scss', './call-workspace.scss', './platform-workspace.scss', './invite-entry.scss', './palette-theme.scss', './avatar-presets.scss', './mobile-workspace.scss', './chat-bubbles.scss', './conference-stage.scss', './platform-calm.scss']
 })
@@ -1022,6 +1026,7 @@ export class AppComponent {
     this.workspaceMemory.visit(spaceId, channelId);
     this.messageDraft.set(this.workspaceMemory.channel(channelId).draft ?? '');
     this.pendingFiles.set([]);
+    this.textFileNotice.set('');
     this.selectedReplyMessage.set(null);
     this.clearComposerMentionState();
     this.scheduleMessageTextareaResize();
@@ -1250,6 +1255,8 @@ export class AppComponent {
   readonly managementSuccess = signal<string | null>(null);
   readonly pushFeedback = signal<{ tone: PushFeedbackTone; message: string } | null>(null);
   readonly authLoading = this.authForm.loading;
+  readonly membersLoading = signal(false);
+  readonly membersError = signal<string | null>(null);
   readonly workspaceLoading = signal(false);
   readonly messagesLoading = signal(false);
   readonly messagesLoadingMore = signal(false);
@@ -1458,6 +1465,58 @@ export class AppComponent {
   readonly voiceWorkspaceTab = signal<VoiceWorkspaceTab>('chat');
   readonly messageDraft = signal('');
   readonly pendingFiles = signal<File[]>([]);
+  readonly textFilePreview = signal<TextFileSource | null>(null);
+  readonly textFileNotice = signal('');
+  readonly isTextFile = isTextFile;
+  readonly messageCharacterCount = computed(() => textLength(this.messageDraft()));
+  private readonly generatedTextFiles = new WeakMap<File, string>();
+  isGeneratedTextFile(file: File): boolean { return this.generatedTextFiles.has(file); }
+
+  convertDraftToFile(): void {
+    if (this.messageSubmitting() || !this.messageDraft().trim()) return;
+    const original = this.messageDraft();
+    try {
+      const prepared = prepareTextFile(original);
+      const file = new File([prepared.content], prepared.name, {type:'text/plain;charset=utf-8'});
+      if (file.size > MAX_ATTACHMENT_SIZE_BYTES) throw Error('Текст превышает лимит файла 500 МБ.');
+      this.generatedTextFiles.set(file, original);
+      this.addPendingFiles([file]);
+      this.onMessageDraftChange('');
+      this.textFileNotice.set(textLength(original)>TEXT_MESSAGE_LIMIT ? 'Текст длиннее 2 000 символов добавлен файлом. Проверьте его и нажмите «Отправить».' : 'Текст добавлен файлом. Можно добавить комментарий.');
+    } catch { this.messageError.set('Не удалось подготовить файл. Исходный текст сохранён в редакторе.'); }
+  }
+  renameTextFile(file: File, name: string): void {
+    if (this.messageSubmitting()) return;
+    const clean = safeTextFilename(name);
+    if (!clean || !isTextFile(clean)) {this.textFileNotice.set('Укажите имя с текстовым расширением: .md, .txt, .py, .yaml, .json и другими.');return;}
+    const renamed = new File([file], clean, {type:file.type, lastModified:file.lastModified});
+    const original=this.generatedTextFiles.get(file);
+    if(original!==undefined)this.generatedTextFiles.set(renamed,original);
+    this.pendingFiles.update(files=>files.map(item=>item===file?renamed:item));
+    this.textFileNotice.set('Имя файла изменено.');
+  }
+  restoreTextFile(file: File): void {
+    if (this.messageSubmitting()) return;
+    const original=this.generatedTextFiles.get(file);
+    if(original===undefined)return;
+    this.onMessageDraftChange(original+(this.messageDraft()?'\n\n'+this.messageDraft():''));
+    this.pendingFiles.update(files=>files.filter(item=>item!==file));
+    this.textFileNotice.set('Текст возвращён в редактор. Если он длиннее 2 000 символов, при отправке снова будет подготовлен файл.');
+    this.focusMessageComposer();
+  }
+  previewPendingTextFile(file:File):void {
+    this.textFilePreview.set({name:file.name,size:file.size,load:()=>Promise.resolve(file),download:()=>{
+      const url=URL.createObjectURL(file);const link=document.createElement('a');link.href=url;link.download=file.name;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+    }});
+  }
+  previewTextAttachment(attachment:WorkspaceMessageAttachment):void {
+    const token=this.session()?.access_token;if(!token || this.isAttachmentUnavailable(attachment))return;
+    this.textFilePreview.set({name:attachment.filename,size:attachment.size_bytes,load:()=>firstValueFrom(this.workspaceApi.downloadAttachment(token,attachment.id)),download:()=>this.downloadAttachment(attachment)});
+  }
+  onComposerDrop(event:DragEvent):void {
+    event.preventDefault();
+    if(!this.messageSubmitting())this.addPendingFiles(Array.from(event.dataTransfer?.files??[]));
+  }
   readonly voiceAdminChannelsLoading = signal(false);
   readonly voiceAdminUsersLoading = signal(false);
   readonly voiceAdminAccessLoading = signal(false);
@@ -1778,20 +1837,6 @@ export class AppComponent {
     return this.voiceParticipantsForChannel(activeChannelId);
   });
   readonly activeVoiceRosterCount = computed(() => this.activeVoiceRoster().length);
-  readonly workspaceOverlayVisible = computed(
-    () => this.showVoiceWorkspaceChat() && (this.workspaceLoading() || this.messagesLoading())
-  );
-  readonly workspaceOverlayLabel = computed(() => {
-    if (this.workspaceLoading()) {
-      return 'Загружаем рабочую область';
-    }
-
-    if (this.showVoiceWorkspaceChat() && this.messagesLoading()) {
-      return 'Загружаем сообщения';
-    }
-
-    return '';
-  });
   readonly canSendMessage = computed(() => {
     if (!this.canUseActiveChannelChat() || this.messageSubmitting()) {
       return false;
@@ -3562,6 +3607,7 @@ export class AppComponent {
               if (this.selectedChannelId() !== channelId) { return; }
               if (unchangedDraft) this.messageDraft.set('');
               this.pendingFiles.set([]);
+    this.textFileNotice.set('');
               this.selectedReplyMessage.set(null);
               this.clearComposerMentionState();
               this.scheduleMessageTextareaResize();
@@ -6767,6 +6813,15 @@ export class AppComponent {
       return;
     }
 
+    const text=clipboardData.getData('text/plain');
+    if (text) {
+      const field=this.messageTextareaRef?.nativeElement;
+      const draft=this.messageDraft();
+      const combined=draft.slice(0,field?.selectionStart??draft.length)+text+draft.slice(field?.selectionEnd??draft.length);
+      if(textLength(combined)>TEXT_MESSAGE_LIMIT){
+        event.preventDefault();this.onMessageDraftChange(combined);this.convertDraftToFile();return;
+      }
+    }
     const pastedImages = Array.from(clipboardData.items)
       .filter((item) => item.kind === 'file' && item.type.startsWith('image/'))
       .map((item, index) => {
@@ -6780,6 +6835,7 @@ export class AppComponent {
 
   removePendingFile(index: number): void {
     this.pendingFiles.update((files) => files.filter((_, currentIndex) => currentIndex !== index));
+    if (!this.pendingFiles().length) this.textFileNotice.set('');
     this.messageUploadOutcome.set('idle');
   }
 
@@ -6841,6 +6897,10 @@ export class AppComponent {
       return;
     }
 
+    if (textLength(this.messageDraft()) > TEXT_MESSAGE_LIMIT) {
+      this.convertDraftToFile();
+      return;
+    }
     const payload = {
       content: this.messageDraft().trim(),
       files: this.pendingFiles(),
@@ -7231,6 +7291,10 @@ export class AppComponent {
   }
 
   logout(): void {
+    this.textFilePreview.set(null);
+    this.textFileNotice.set('');
+    this.membersLoading.set(false);
+    this.membersError.set(null);
     this.platformInviteOpen.set(false);
     this.platformApi.clear();
     this.selectedPlatformId.set(null);
@@ -9320,6 +9384,27 @@ export class AppComponent {
       });
   }
 
+  refreshChatMembers(): void {
+    const token = this.session()?.access_token;
+    const serverId = this.selectedServerId();
+    if (!token || !serverId) return;
+    const requestId = this.workspaceLoadId;
+    this.membersLoading.set(true);
+    this.membersError.set(null);
+    this.workspaceApi.getMembers(token, serverId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: members => {
+        if (requestId !== this.workspaceLoadId || this.selectedServerId() !== serverId || this.session()?.access_token !== token) return;
+        this.applyMembersSnapshot(members);
+        this.membersLoading.set(false);
+      },
+      error: error => {
+        if (requestId !== this.workspaceLoadId || this.selectedServerId() !== serverId || this.session()?.access_token !== token) return;
+        this.membersLoading.set(false);
+        this.membersError.set(this.extractErrorMessage(error, 'Не удалось загрузить участников'));
+      }
+    });
+  }
+
   private loadServerWorkspace(token: string, serverId: string): void {
     const platformId = this.conversations().find(c => c.id === serverId)?.platform_id;
     if(platformId) {this.selectedPlatformId.set(platformId);this.platformBrowserStage.set('channels');}
@@ -9359,17 +9444,18 @@ export class AppComponent {
     this.voicePresence.set([]);
     this.resetTextChannelState();
 
+    this.members.set([]);
+    this.refreshChatMembers();
+
     forkJoin({
       channels: this.workspaceApi.getChannels(token, serverId),
-      members: this.workspaceApi.getMembers(token, serverId),
       voicePresence: this.workspaceApi.getVoicePresence(token, serverId)
     })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: ({ channels, members, voicePresence }) => {
+        next: ({ channels, voicePresence }) => {
           if (requestId !== this.workspaceLoadId || this.selectedServerId() !== serverId || this.session()?.access_token !== token) return;
           this.applyChannelsSnapshot(channels, token, previousSelectedChannelId);
-          this.applyMembersSnapshot(members);
           this.applyVoicePresenceSnapshot(voicePresence);
           this.syncMessageAutoRefreshPolling();
           this.workspaceLoading.set(false);
@@ -9495,6 +9581,14 @@ export class AppComponent {
     };
   }
 
+  retryChatMessages(): void {
+    const token = this.session()?.access_token;
+    const channel = this.activeMessagingChannel();
+    if (!token || !channel || this.messagesLoading() || this.messagesLoadingMore()) return;
+    if (this.messages().length && this.messagesCursor()) this.loadOlderMessages();
+    else this.loadMessagesForChannel(token, channel.id);
+  }
+
   private loadMessagesForChannel(
     token: string,
     channelId: string,
@@ -9507,6 +9601,7 @@ export class AppComponent {
     const previousScrollHeight = listElement?.scrollHeight ?? 0;
     const previousScrollTop = listElement?.scrollTop ?? 0;
 
+    this.messageError.set(null);
     if (isLoadingMore) {
       if (this.messagesLoadingMore()) {
         return;
@@ -9971,6 +10066,7 @@ export class AppComponent {
     this.messageDraft.set('');
     this.clearComposerMentionState();
     this.pendingFiles.set([]);
+    this.textFileNotice.set('');
     this.messageError.set(null);
     this.chatFilesModalOpen.set(false);
     this.chatFilesLoading.set(false);

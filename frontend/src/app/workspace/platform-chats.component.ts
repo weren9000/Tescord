@@ -1,3 +1,4 @@
+import {ChatSkeletonComponent} from './chat-skeleton.component';
 import {PlatformIconEditorComponent} from './platform-icon-editor.component';
 import {PlatformInvitationsComponent} from './platform-invitations.component';
 import {DatePipe} from '@angular/common';
@@ -10,12 +11,13 @@ import {UiIconComponent} from './ui-icon.component';
 import {API_BASE_URL} from '../core/api/api-base';
 
 @Component({
-  selector: 'app-platform-chats', standalone: true, imports: [FormsModule, UiIconComponent, DatePipe, PlatformIconEditorComponent, PlatformInvitationsComponent],
+  selector: 'app-platform-chats', standalone: true, imports: [ChatSkeletonComponent, FormsModule, UiIconComponent, DatePipe, PlatformIconEditorComponent, PlatformInvitationsComponent],
   templateUrl: './platform-chats.component.html',
   styleUrl: './platform-chats.component.scss',
 })
 export class PlatformChatsComponent {
   private readonly api = inject(PlatformApiService);
+  readonly loading = input(false);
   readonly token = input.required<string>();
   readonly platform = input<PlatformSummary | null>(null);
   readonly chats = input<ConversationSummary[]>([]);

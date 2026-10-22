@@ -1,11 +1,15 @@
+import {SidebarResizeDirective} from './sidebar-resize.directive';
+import {ChatSkeletonComponent} from './chat-skeleton.component';
 import {Component,computed,input,output,signal} from '@angular/core';
 import {FormsModule} from '@angular/forms';
 import {UiIconComponent} from './ui-icon.component';
 interface Choice{id:string;name:string;description?:string|null;icon:string|null;unread:number;mentions:number}
-@Component({selector:'app-platform-list',standalone:true,imports:[FormsModule,UiIconComponent],
+@Component({selector:'app-platform-list',standalone:true,imports: [SidebarResizeDirective, ChatSkeletonComponent, FormsModule,UiIconComponent],
  templateUrl:'./platform-list.component.html',
  styleUrl:'./platform-list.component.scss'})
 export class PlatformListComponent{
+ readonly appearance=output<void>();
+ readonly loading=input(false);
  readonly spaces=input.required<Choice[]>();readonly selected=input<string|null>(null);readonly collapsed=input(false);
  readonly select=output<string>();readonly create=output<void>();readonly toggle=output<void>();
  readonly query=signal('');readonly failed=signal(new Set<string>());

@@ -22,11 +22,13 @@ export interface PlatformMember {
 @Injectable({providedIn: 'root'})
 export class PlatformApiService {
   private readonly http = inject(HttpClient);
+  readonly loading = signal(false);
   readonly platforms = signal<PlatformSummary[]>([]);
   private generation = 0;
   private sessionToken: string | null = null;
   clear(): void {
     this.generation++;
+    this.loading.set(false);
     this.sessionToken = null;
     this.platforms.set([]);
   }
@@ -41,7 +43,12 @@ export class PlatformApiService {
       this.sessionToken = token;
     }
     const generation = ++this.generation;
-    const platforms = await firstValueFrom(this.request<PlatformSummary[]>(token, 'GET'));
-    if (generation === this.generation) this.platforms.set(platforms);
+    this.loading.set(true);
+    try {
+      const platforms = await firstValueFrom(this.request<PlatformSummary[]>(token, 'GET'));
+      if (generation === this.generation) this.platforms.set(platforms);
+    } finally {
+      if (generation === this.generation) this.loading.set(false);
+    }
   }
 }

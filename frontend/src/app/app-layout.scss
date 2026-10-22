@@ -304,3 +304,10 @@ button:focus-visible, article:focus-visible, input:focus-visible, textarea:focus
  .messenger-layout--sidebar-collapsed:not(.messenger-layout--platform) .desktop-sidebar-toolbar{height:64px;min-height:64px;box-sizing:border-box;padding:0 6px;justify-content:center;border-bottom:1px solid var(--palette-border)}
 }
 .platform-sidebar>app-platform-list{display:block;flex:1;min-height:0;height:100%}
+
+.text-file-name{display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--palette-muted)}
+.text-file-name input{box-sizing:border-box;max-width:100%;width:190px;padding:6px 8px;border:1px solid var(--palette-border);border-radius:6px;color:var(--palette-text);background:var(--palette-surface);font:inherit;font-size:13px}
+.text-file-notice{margin:6px 10px;font-size:12px;color:var(--palette-muted);overflow-wrap:anywhere}
+.text-file-tools{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:4px 8px}.text-file-tools small{font-size:12px;color:var(--palette-muted)}
+.attachment-card--pending .attachment-card__body{flex-wrap:wrap}
+.text-file-actions{display:flex;gap:6px;flex-wrap:wrap}.text-file-actions:empty{display:none}.text-file-actions .secondary-button{font-size:12px;padding:6px 10px;min-height:36px}

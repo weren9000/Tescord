@@ -28,13 +28,26 @@ import { DesktopPreferencesService, Density } from './desktop-preferences.servic
         <input type="range" min="13" max="20" step="1" [value]="preferences.value().textSize" (input)="preferences.update({textSize: +$any($event.target).value})" />
       </label>
       <div class="preview" [style.font-size.px]="preferences.value().textSize"><strong>Пример сообщения</strong><p>Своё болото. Свои люди.</p></div>
-      <label class="range">Ширина списка бесед: {{preferences.value().width}} px
+      @if(platforms()){
+      <div class="desktop-widths">
+      <label class="range">Ширина списка площадок: {{preferences.value().platformsWidth}} px
+        <input aria-label="Ширина списка площадок" type="range" min="180" max="360" step="10" [value]="preferences.value().platformsWidth" (input)="preferences.update({platformsWidth: +$any($event.target).value})" />
+      </label>
+      <label class="range">Ширина чатов площадки: {{preferences.value().platformChatsWidth}} px
+        <input aria-label="Ширина чатов площадки" type="range" min="220" max="460" step="10" [value]="preferences.value().platformChatsWidth" (input)="preferences.update({platformChatsWidth: +$any($event.target).value})" />
+      </label>
+      <p>В узком окне колонки подстраиваются, оставляя место переписке.</p>
+      </div>
+      } @else {
+      <label class="range desktop-widths">Ширина списка бесед: {{preferences.value().width}} px
         <input type="range" min="220" max="460" step="10" [value]="preferences.value().width" (input)="preferences.update({width: +$any($event.target).value})" />
       </label>
+      }
       <footer><button type="button" (click)="preferences.reset()">Сбросить вид</button><button type="button" (click)="dialog.close()">Готово</button></footer>
     </dialog>
   `,
   styles: [`
+    @media(max-width:980px){.desktop-widths{display:none}}
     select{box-sizing:border-box;width:100%;min-height:40px;padding:8px 12px;border:1px solid var(--palette-border);border-radius:7px;background:var(--palette-raised);color:var(--palette-text);font:inherit}select:focus-visible{outline:2px solid var(--palette-cyan);outline-offset:2px}button:disabled,select:disabled{opacity:.55;cursor:wait}
     button{font:inherit;color:var(--palette-text);background:var(--palette-raised);border:1px solid var(--palette-border);border-radius:7px;padding:7px 12px;cursor:pointer}
     .trigger{font-size:12px;background:transparent}dialog{box-sizing:border-box;width:min(480px,calc(100vw - 32px));max-height:85dvh;overflow:auto;padding:24px;border:1px solid var(--palette-border);border-radius:14px;background:var(--palette-surface);color:var(--palette-text)}
@@ -42,6 +55,7 @@ import { DesktopPreferencesService, Density } from './desktop-preferences.servic
   `],
 })
 export class DesktopPreferencesComponent implements AfterViewInit {
+  readonly platforms=input(false);
   readonly openImmediately=input(false);
   readonly token=input('');
   readonly closed=output<void>();

@@ -361,7 +361,7 @@
       </app-action-menu>
     }
     @if (appearanceOpen()) {
-      <app-desktop-preferences [openImmediately]="true" [token]="session()!.access_token" (closed)="appearanceOpen.set(false)" (changed)="refreshInventoryProfile()" />
+      <app-desktop-preferences [platforms]="isPlatformsMode()" [openImmediately]="true" [token]="session()!.access_token" (closed)="appearanceOpen.set(false)" (changed)="refreshInventoryProfile()" />
     }
     @if(pwa.helpOpen()){
       <app-action-menu label="Квачат на главном экране" (close)="pwa.helpOpen.set(false)">
@@ -404,13 +404,14 @@
         @if(canDeleteWorkspaceChannel(channel)){<section><button type="button" class="danger" [disabled]="isDeletingChannel(channel.id)" (click)="deleteChannel(channel)"><app-ui-icon name="trash" />Удалить канал</button></section>}
       </app-action-menu>
     }
-    <div class="messenger-layout" [class.messenger-layout--admin]="adminDirectoryOpen() && (isAdmin() || !!currentUser()?.is_avatar_admin)" [class.messenger-layout--info]="conversationInfoOpen()" [class.messenger-layout--platform]="isPlatformsMode()" [class.platforms-list-collapsed]="desktopPreferences.value().platformsCollapsed" [attr.data-density]="desktopPreferences.value().density" [class.messenger-layout--sidebar-collapsed]="!isPlatformsMode() && desktopPreferences.value().collapsed" [style.--sidebar-width]="desktopPreferences.value().width + 'px'" [style.--message-text-size]="desktopPreferences.value().textSize + 'px'">
+    <div class="messenger-layout" [class.messenger-layout--admin]="adminDirectoryOpen() && (isAdmin() || !!currentUser()?.is_avatar_admin)" [class.messenger-layout--info]="conversationInfoOpen()" [class.messenger-layout--platform]="isPlatformsMode()" [class.platforms-list-collapsed]="desktopPreferences.value().platformsCollapsed" [attr.data-density]="desktopPreferences.value().density" [class.messenger-layout--sidebar-collapsed]="!isPlatformsMode() && desktopPreferences.value().collapsed" [style.--platforms-width]="desktopPreferences.value().platformsWidth + 'px'" [style.--platform-chats-width]="desktopPreferences.value().platformChatsWidth + 'px'" [style.--sidebar-width]="desktopPreferences.value().width + 'px'" [style.--message-text-size]="desktopPreferences.value().textSize + 'px'">
       <app-section-navigation (shop)="shopOpen.set(true)" [userId]="currentUser()?.id ?? null" [isSystemAdmin]="isAdmin()" [adminSelected]="adminDirectoryOpen() && (isAdmin() || !!currentUser()?.is_avatar_admin)" (admin)="openAdminDirectory()" [isAvatarAdmin]="!!currentUser()?.is_avatar_admin" [inventoryUnread]="inventoryUnread()" (inventory)="inventoryMode.set($event)" [avatarUrl]="currentUserAvatarUrl()" [selected]="workspaceMode()" [initials]="displayNickInitials(currentUser()?.nick ?? 'Я')" [hasNotifications]="friendRequestBadgeVisible()" (selectSection)="selectWorkspaceMode($event)" (menu)="toggleSideMenu()" (search)="openQuickSwitch()" (profile)="toggleSideMenu()" (notifications)="openFriendRequestsModal()" />
       @if(adminDirectoryOpen() && (isAdmin() || !!currentUser()?.is_avatar_admin)){@defer(on immediate){<app-admin-directory (voiceAccess)="openVoiceAdminPanel()" [systemAdmin]="isAdmin()" [actorId]="currentUser()!.id" [avatarUrl]="currentUserAvatarUrl()" (changed)="refreshInventoryProfile()" [token]="session()!.access_token" (close)="adminDirectoryOpen.set(false)" (forbidden)="adminDirectoryOpen.set(false)"/>}@placeholder{<p role="status">Загружаем админку…</p>}}
       @if(isPlatformsMode()){
-        <app-platform-list [spaces]="platformChoices()" [selected]="selectedPlatformId()" [collapsed]="desktopPreferences.value().platformsCollapsed" [class.platform-list-mobile-open]="mobilePanel()==='servers' && platformBrowserStage()==='spaces'" (select)="selectPlatformFromPicker($event)" (create)="openCreatePlatformShortcut()" (toggle)="desktopPreferences.update({platformsCollapsed:!desktopPreferences.value().platformsCollapsed})"/>
+        <app-platform-list (appearance)="appearanceOpen.set(true)" [loading]="platformApi.loading()" [spaces]="platformChoices()" [selected]="selectedPlatformId()" [collapsed]="desktopPreferences.value().platformsCollapsed" [class.platform-list-mobile-open]="mobilePanel()==='servers' && platformBrowserStage()==='spaces'" (select)="selectPlatformFromPicker($event)" (create)="openCreatePlatformShortcut()" (toggle)="desktopPreferences.update({platformsCollapsed:!desktopPreferences.value().platformsCollapsed})"/>
         <aside class="conversation-sidebar platform-sidebar" [class.conversation-sidebar--mobile-open]="mobilePanel()==='servers' && platformBrowserStage()==='channels'">
-          <app-platform-chats (entryClosed)="platformInviteOpen.set(false)" [entryInvite]="platformEntryInvite()" (entryOpened)="platformCreateRequest.set(0);platformEntryInvite.set('')" [entryMode]="platformEntryMode()" [createRequest]="platformCreateRequest()" [activeVoiceChat]="activeCallChatTarget()?.serverId ?? null" (joined)="platformJoined($event)" (message)="openPlatformSearchResult($event)" [token]="session()!.access_token" [platform]="activePlatform()" [chats]="selectedPlatformChats()" [selected]="selectedServerId()" (open)="openWorkspaceTarget($event)" (changed)="platformChanged($event)" (back)="platformBrowserStage.set('spaces')"/>
+          <div class="sidebar-resizer platform-chat-resizer" appSidebarResize="platformChatsWidth" title="Перетащите для изменения ширины. Двойной щелчок — сброс."></div>
+          <app-platform-chats [loading]="workspaceLoading() && !conversations().length" (entryClosed)="platformInviteOpen.set(false)" [entryInvite]="platformEntryInvite()" (entryOpened)="platformCreateRequest.set(0);platformEntryInvite.set('')" [entryMode]="platformEntryMode()" [createRequest]="platformCreateRequest()" [activeVoiceChat]="activeCallChatTarget()?.serverId ?? null" (joined)="platformJoined($event)" (message)="openPlatformSearchResult($event)" [token]="session()!.access_token" [platform]="activePlatform()" [chats]="selectedPlatformChats()" [selected]="selectedServerId()" (open)="openWorkspaceTarget($event)" (changed)="platformChanged($event)" (back)="platformBrowserStage.set('spaces')"/>
         </aside>
       } @else {
       <aside class="conversation-sidebar" [class.conversation-sidebar--mobile-open]="mobilePanel() === 'servers'">
@@ -419,13 +420,13 @@
           <app-desktop-preferences />
           <button type="button" [attr.aria-expanded]="!desktopPreferences.value().collapsed" [attr.aria-label]="desktopPreferences.value().collapsed ? 'Развернуть список бесед' : 'Свернуть список бесед'" [attr.title]="desktopPreferences.value().collapsed ? 'Развернуть список бесед' : 'Свернуть список бесед'" (click)="desktopPreferences.update({collapsed: !desktopPreferences.value().collapsed})"><app-ui-icon [name]="desktopPreferences.value().collapsed ? 'forward' : 'back'" /></button>
         </div>
-        <div class="sidebar-resizer" appSidebarResize title="Перетащите для изменения ширины. Двойной щелчок — сброс." ></div>
+        <div class="sidebar-resizer" appSidebarResize="width" title="Перетащите для изменения ширины. Двойной щелчок — сброс." ></div>
         <div class="section-search"><app-ui-icon name="search" />
           <input type="search" [ngModel]="sidebarQuery()" (ngModelChange)="sidebarQuery.set($event)" (keydown.escape)="sidebarQuery.set('')" [placeholder]="isPlatformsMode() ? 'Найти канал' : isGroupsMode() ? 'Найти группу' : 'Найти друга'" [attr.aria-label]="'Поиск в разделе «' + sectionTitle() + '»'" />
         </div>
         <div class="conversation-sidebar__list">
             @if (pinError()) { <p class="pin-error" role="alert">{{pinError()}}</p> }
-            <app-conversation-list [compact]="desktopPreferences.value().collapsed" [entries]="conversationLinks()" [pending]="pinPending()" (pin)="toggleConversationPin($event)" [selected]="selectedServerId()" [emptyLabel]="sidebarQuery() ? 'Ничего не найдено' : isGroupsMode() ? 'Создайте группу, чтобы общаться вместе' : 'Добавьте друга, чтобы начать общение'" (open)="openWorkspaceTarget($event)" />
+            <app-conversation-list [loading]="workspaceLoading() && !conversations().length" [compact]="desktopPreferences.value().collapsed" [entries]="conversationLinks()" [pending]="pinPending()" (pin)="toggleConversationPin($event)" [selected]="selectedServerId()" [emptyLabel]="sidebarQuery() ? 'Ничего не найдено' : isGroupsMode() ? 'Создайте группу, чтобы общаться вместе' : 'Добавьте друга, чтобы начать общение'" (open)="openWorkspaceTarget($event)" />
         </div>
           <button class="section-create" type="button" (click)="openSectionCreate()"><app-ui-icon name="plus" />{{ sectionCreateLabel() }}</button>
       </aside>
@@ -433,12 +434,7 @@
       }
 
       <main class="messenger-workspace">
-        @if (workspaceOverlayVisible()) {
-          <div class="workspace-overlay">
-            <div class="workspace-overlay__loader"></div>
-            <span>{{ workspaceOverlayLabel() }}</span>
-          </div>
-        }
+
 
         @if (activeServer()) {
           <section class="conversation-head conversation-head--managed">
@@ -861,16 +857,18 @@
               </div>
             }
             <div class="message-list" [class.message-list--wallpaper]="wallpaperStyle().image!=='none'" [style.background-image]="wallpaperStyle().image" [style.background-size]="wallpaperStyle().size" #messageList (scroll)="onMessageListScroll()">
-              @if (canUseActiveChannelChat()) {
-                @if (!messagesLoading()) {
+              @if (workspaceLoading() || (messagesLoading() && !messages().length)) {
+                <app-chat-skeleton kind="messages" label="Загрузка сообщений" />
+              } @else if (canUseActiveChannelChat()) {
+                @if (!messagesLoading() || messages().length) {
                   @if (messagesHasMore()) {
                     <div class="message-list__status">
-                      {{ messagesLoadingMore() ? 'Загружаем старые сообщения...' : 'Прокрутите выше, чтобы загрузить старые сообщения' }}
+                      @if(messagesLoadingMore()){<app-chat-skeleton kind="history" [count]="1" label="Загрузка истории"/>}@else{Прокрутите выше, чтобы загрузить старые сообщения}
                     </div>
                   }
 
                   @if (messageError()) {
-                    <div class="message-list__status message-list__status--error">{{ messageError() }}</div>
+                    <div class="message-list__status message-list__status--error" role="alert">{{ messageError() }} <button type="button" class="secondary-button" (click)="retryChatMessages()">Повторить</button></div>
                   }
 
                   @if (messages().length) {
@@ -1049,7 +1047,7 @@
                                         <small>{{ attachmentMetaLabel(attachment) }}</small>
                                       </div>
                                       <span class="attachment-card__state">{{ attachmentStateLabel(attachment) }}</span>
-                                      <div class="attachment-card__actions">
+                                      <div class="attachment-card__actions">@if(isTextFile(attachment.filename)){<button type="button" class="secondary-button" [disabled]="isAttachmentUnavailable(attachment)" (click)="previewTextAttachment(attachment)">Просмотр</button>}
                                         <button
                                           class="attachment-download"
                                           type="button"
@@ -1136,6 +1134,8 @@
                         </div>
                       </article>
                     }
+                  } @else if (!messageError()) {
+                    <div class="message-list__status">Здесь пока нет сообщений</div>
                   }
                 }
               } @else {
@@ -1144,7 +1144,7 @@
             </div>
 
             @if (showJumpToLatest()) { <button class="jump-to-latest" type="button" aria-label="К последним сообщениям" title="К последним сообщениям" (click)="jumpToLatest()">↓ @if(activeMessagingChannel();as channel){@if(channelUnreadCount(channel)>0){<small>{{channelUnreadCount(channel)}}</small>}}</button> }
-            <section class="composer">
+            <section class="composer" (dragover)="$event.preventDefault()" (drop)="onComposerDrop($event)">
               @if (canUseActiveChannelChat()) {
                 <input #attachmentInput hidden type="file" multiple (change)="onAttachmentSelection($event)" />
 
@@ -1179,10 +1179,16 @@
                       >
                         <div class="attachment-card__body">
                           <div class="attachment-card__copy">
-                            <strong>{{ file.name }}</strong>
+                            @if(isGeneratedTextFile(file)){
+                              <label class="text-file-name">Имя и формат<input [attr.aria-label]="'Имя файла '+file.name" [value]="file.name" [disabled]="messageSubmitting()" (change)="renameTextFile(file,$any($event.target).value)" maxlength="180"/></label>
+                            }@else{<strong>{{ file.name }}</strong>}
                             <small>{{ formatFileSize(file.size) }}</small>
                           </div>
                           <span class="attachment-card__state">{{ messageUploadOutcomeLabel() }}</span>
+                          <div class="text-file-actions">
+                            @if(isTextFile(file.name)){<button type="button" class="secondary-button" (click)="previewPendingTextFile(file)">Просмотр</button>}
+                            @if(isGeneratedTextFile(file)){<button type="button" class="secondary-button" [disabled]="messageSubmitting()" (click)="restoreTextFile(file)">В редактор</button>}
+                          </div>
                         </div>
                         <button
                           class="attachment-delete attachment-delete--ghost"
@@ -1199,6 +1205,11 @@
                   </div>
                 }
 
+                @if(textFileNotice()){<p class="text-file-notice" role="status">{{textFileNotice()}}</p>}
+                @if(messageDraft().trim()){
+                  <div class="text-file-tools"><button type="button" class="secondary-button" [disabled]="messageSubmitting()" (click)="convertDraftToFile()">Прикрепить как файл</button>
+                  @if(messageCharacterCount()>2000){<small>{{messageCharacterCount()}} символов · При отправке будет подготовлен файл</small>}</div>
+                }
                 @if (messageUploadProgress(); as uploadProgress) {
                   <div class="composer__upload-progress" aria-live="polite">
                     <div class="composer__upload-progress-copy">
@@ -1309,6 +1320,8 @@
           </section>
             </div>
           </div>
+        } @else if (workspaceLoading()) {
+          <app-chat-skeleton kind="messages" label="Загрузка переписки" />
         } @else {
           <section class="workspace-empty-state">
             <img class="workspace-empty-state__logo" src="/assets/KVA-chat.png" alt="KVA Chat" />
@@ -1350,12 +1363,14 @@
                 <button type="button" (click)="closeConversationInfo(); openAddGroupMemberModal()"><app-ui-icon name="groups" />Добавить участника</button>
               }
               <input type="search" aria-label="Найти участника" placeholder="Найти участника" [ngModel]="infoMemberQuery()" (ngModelChange)="infoMemberQuery.set($event)" />
-              @for(member of infoMembers();track member.userId){
+              @if(membersLoading() && !members().length){<app-chat-skeleton kind="members" label="Загрузка участников"/>}
+              @else if(membersError()){<p role="alert">{{membersError()}}</p><button type="button" (click)="refreshChatMembers()">Повторить</button>}
+              @else {@for(member of infoMembers();track member.userId){
                 <button class="info-member" type="button" (click)="closeConversationInfo(); openGroupMemberFromPanel(member)">
                   <img [appUserCard]="member.userId" [src]="userAvatarUrl(member.userId,member.avatarUpdatedAt)" alt="" /><span><strong>{{displayNick(member.nick)}}</strong><small>{{member.roleLabel}} · {{member.isOnline ? 'В сети' : 'Не в сети'}}</small></span>
                 </button>
                 @if(member.userId !== currentUser()?.id){<button type="button" [disabled]="memberFriendBusy()" (click)="memberFriendAction(member.userId)">{{memberFriendLabel(member.userId)}}</button>}
-              } @empty {<p>Участники не найдены</p>}
+              } @empty {<p>Участники не найдены</p>}}
               @if(memberFriendError()){<p role="alert">{{memberFriendError()}}</p>}
             </section>
             @if(canManageActiveGroup() || (isPlatformsMode() && canOpenPlatformSettings())){
@@ -2962,7 +2977,9 @@
               </div>
 
               <div class="platform-settings-list platform-settings-list--members">
-                @for (member of groupMembers(); track member.userId) {
+                @if(membersLoading() && !members().length){<app-chat-skeleton kind="members" label="Загрузка участников"/>}
+          @else if(membersError()){<p role="alert">{{membersError()}}</p><button type="button" class="secondary-button" (click)="refreshChatMembers()">Повторить</button>}
+          @else {@for (member of groupMembers(); track member.userId) {
                   <div class="platform-settings-row">
                     <button
                       type="button"
@@ -3004,7 +3021,7 @@
                   </div>
                 } @empty {
                   <p class="modal-note">На площадке пока нет участников.</p>
-                }
+                }}
               </div>
               @if(memberFriendError()){<p class="modal-note modal-note--error" role="alert">{{memberFriendError()}}</p>}
             </section>
@@ -3214,7 +3231,9 @@
 
       <div class="modal__body conversation-create">
         <div class="conversation-picker-list">
-          @for (member of groupMembers(); track member.userId) {
+          @if(membersLoading() && !members().length){<app-chat-skeleton kind="members" label="Загрузка участников"/>}
+          @else if(membersError()){<p role="alert">{{membersError()}}</p><button type="button" class="secondary-button" (click)="refreshChatMembers()">Повторить</button>}
+          @else {@for (member of groupMembers(); track member.userId) {
             <div class="conversation-picker-row conversation-picker-row--member-manage">
               <button class="conversation-picker-row__main" type="button" (click)="openGroupMemberFromPanel(member)">
                 <span class="conversation-picker-row__avatar">
@@ -3246,7 +3265,7 @@
             </div>
           } @empty {
             <div class="rail-empty">{{ isPlatformsMode() ? 'На площадке пока нет участников' : 'В группе пока нет участников' }}</div>
-          }
+          }}
         </div>
         @if(memberFriendError()){<p class="modal-note modal-note--error" role="alert">{{memberFriendError()}}</p>}
       </div>
@@ -3458,3 +3477,5 @@
 @if (messageActionsTarget(); as target) {
   <app-message-actions [canDelete]="canDeletePlatformMessage(target)" [token]="session()?.access_token ?? ''" [hasImage]="!!menuImage(target)" [text]="target.content" [anchor]="messageActionsAnchor()" (react)="reactFromMenu($event)" (choose)="chooseMessageAction($event)" (close)="closeMessageActions()" />
 }
+
+@if(textFilePreview();as source){@defer(on immediate){<app-text-file-viewer [source]="source" (closed)="textFilePreview.set(null)"/>}}

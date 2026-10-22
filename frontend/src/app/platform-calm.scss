@@ -1,4 +1,17 @@
 // The platform presentation stays isolated from standalone groups and direct messages.
+.messenger-layout--platform[data-density='compact']{--conversation-height:48px;--conversation-padding:6px;--conversation-avatar:34px}
+.messenger-layout--platform[data-density='spacious']{--conversation-height:76px;--conversation-padding:16px;--conversation-avatar:48px}
+.messenger-shell .messenger-layout--platform .message-card__text{font-size:var(--message-text-size,15px)}
+@media(min-width:981px){
+  .messenger-shell .messenger-layout.messenger-layout--platform:not(.messenger-layout--admin){
+    --platform-list-track:min(var(--platforms-width,230px),calc((100vw - 452px) * .43));
+    --platform-chat-track:min(var(--platform-chats-width,300px),calc((100vw - 452px) * .57));
+    grid-template-columns:92px var(--platform-list-track) var(--platform-chat-track) minmax(0,1fr);
+  }
+  .messenger-shell .messenger-layout.messenger-layout--platform.platforms-list-collapsed:not(.messenger-layout--admin){--platform-list-track:64px}
+  .messenger-shell .messenger-layout.messenger-layout--platform.messenger-layout--info:not(.messenger-layout--admin){grid-template-columns:92px min(var(--platform-list-track),18vw) min(var(--platform-chat-track),22vw) minmax(0,1fr) min(280px,23vw)}
+  .messenger-layout--platform .sidebar-resizer.platform-chat-resizer{display:block;top:0;right:0}
+}
 @media(min-width:981px){
   .messenger-shell .messenger-layout--platform .conversation-head{height:82px;min-height:82px;max-height:82px;padding:12px 24px}
   .messenger-layout--platform .conversation-head__summary strong,

@@ -1,6 +1,6 @@
 import { computed, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { of } from 'rxjs';
+import { of, Subject } from 'rxjs';
 
 import { AppComponent } from './app.component';
 import { AuthApiService } from './core/api/auth-api.service';
@@ -10,6 +10,39 @@ import { DirectCallService } from './core/services/direct-call.service';
 import { VoiceRoomService } from './core/services/voice-room.service';
 
 describe('AppComponent', () => {
+  it('ignores late members from a previously selected chat', () => {
+    const fixture = TestBed.createComponent(AppComponent), app = fixture.componentInstance;
+    const oldResponse = new Subject<any[]>(), newResponse = new Subject<any[]>();
+    spyOn(TestBed.inject(WorkspaceApiService), 'getMembers').and.returnValues(oldResponse, newResponse);
+    app.session.set({access_token: 'local-test'} as any);
+    app.selectedServerId.set('old');
+    app.refreshChatMembers();
+    app.selectedServerId.set('new');
+    app.refreshChatMembers();
+    oldResponse.next([{user_id: 'old-user'}]);
+    expect(app.membersLoading()).toBeTrue();
+    expect(app.members()).toEqual([]);
+    newResponse.next([{user_id: 'new-user'}]);
+    expect(app.membersLoading()).toBeFalse();
+    expect(app.members()[0].user_id).toBe('new-user');
+    fixture.destroy();
+  });
+
+  it('ends member loading on failure without discarding the visible conversation', () => {
+    const fixture = TestBed.createComponent(AppComponent), app = fixture.componentInstance;
+    const response = new Subject<any[]>();
+    spyOn(TestBed.inject(WorkspaceApiService), 'getMembers').and.returnValue(response);
+    app.session.set({access_token: 'local-test'} as any);
+    app.selectedServerId.set('chat');
+    const message = {id: 'visible-message'} as any;
+    app.messages.set([message]);
+    app.refreshChatMembers();
+    response.error(new Error('offline'));
+    expect(app.membersLoading()).toBeFalse();
+    expect(app.membersError()).toBeTruthy();
+    expect(app.messages()).toEqual([message]);
+    fixture.destroy();
+  });
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [AppComponent],
