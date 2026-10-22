@@ -4,5 +4,6 @@ import { Routes } from '@angular/router';
 export const routes: Routes = [
   {path: 'login', children: []},
   {path: 'invite/:code', children: []},
+  {path: 'platform-invite/:code', children: []},
   {path: 'channels/:spaceId/:channelId', children: []},
 ];

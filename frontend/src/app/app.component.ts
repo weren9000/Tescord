@@ -1015,7 +1015,7 @@ export class AppComponent {
   }
   private rememberChannelVisit(channelId: string): void {
     this.messageActionsTarget.set(null);
-    if (this.pendingInviteCode() || this.pendingFriendInvite()) return;
+    if (this.pendingInviteCode() || this.pendingPlatformInvite() || this.pendingFriendInvite()) return;
     const spaceId = this.selectedServerId();
     if (!spaceId) return;
     this.workspaceMemory.visit(spaceId, channelId);
