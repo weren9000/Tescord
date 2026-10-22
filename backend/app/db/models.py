@@ -534,6 +534,7 @@ class Attachment(Base):
     __table_args__ = (Index("ix_attachments_message_id", "message_id"),)
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    position: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default='0')
     message_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("messages.id", ondelete="CASCADE"), nullable=False)
     filename: Mapped[str] = mapped_column(String(255), nullable=False)
     mime_type: Mapped[str] = mapped_column(String(128), nullable=False)
@@ -546,6 +547,20 @@ class Attachment(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     message: Mapped["Message"] = relationship(back_populates="attachments")
+
+
+class PendingUpload(Base):
+    __tablename__ = 'pending_uploads'
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True)
+    owner_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('users.id', ondelete='CASCADE'), index=True)
+    channel_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('channels.id', ondelete='CASCADE'), index=True)
+    message_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('messages.id', ondelete='CASCADE'), nullable=True)
+    filename: Mapped[str] = mapped_column(String(255))
+    mime_type: Mapped[str] = mapped_column(String(128))
+    storage_path: Mapped[str] = mapped_column(String(512))
+    size_bytes: Mapped[int] = mapped_column(BigInteger)
+    checksum_sha256: Mapped[str] = mapped_column(String(64))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
 
 
 class MessageReaction(TimestampMixin, Base):

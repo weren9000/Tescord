@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.services.pending_uploads import run_upload_cleanup
 
 import asyncio
 import logging
@@ -64,6 +65,7 @@ async def lifespan(_: FastAPI):
     performance_task = asyncio.create_task(flush_metrics())
     presence_sweeper_task = asyncio.create_task(run_presence_sweeper())
     outbox_task = asyncio.create_task(run_message_outbox())
+    upload_cleanup_task = asyncio.create_task(run_upload_cleanup())
     media_task = asyncio.create_task(cluster.singleton('media', reconcile_media_permissions))
     monitoring_task = asyncio.create_task(cluster.singleton('monitoring', collect_metrics))
     try:
@@ -77,6 +79,8 @@ async def lifespan(_: FastAPI):
         await stop_event_bus(event_bus_task)
         media_task.cancel()
         await asyncio.gather(media_task, return_exceptions=True)
+        upload_cleanup_task.cancel()
+        await asyncio.gather(upload_cleanup_task, return_exceptions=True)
         outbox_task.cancel()
         await asyncio.gather(outbox_task, return_exceptions=True)
         presence_sweeper_task.cancel()

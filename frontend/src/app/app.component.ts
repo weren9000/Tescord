@@ -1,4 +1,6 @@
 import {FileAttachmentComponent} from './workspace/file-attachment.component';
+import {UploadPanelComponent} from './workspace/upload-panel.component';
+import {UploadQueueService} from './core/services/upload-queue.service';
 import {TextFileViewerComponent} from './workspace/text-file-viewer.component';
 import type {TextFileSource} from './workspace/text-file-viewer.component';
 import {isTextFile, prepareTextFile, safeTextFilename, textLength, TEXT_MESSAGE_LIMIT} from './shared/text-files';
@@ -655,7 +657,7 @@ const DEFAULT_SERVER_ICON_ASSET_BY_NAME: Record<string, string> = {
 @Component({
   providers: [AuthFormStore, WorkspaceStateStore],
     selector: 'app-root',
-    imports: [FileAttachmentComponent, TextFileViewerComponent, ChatSkeletonComponent, PlatformChatsComponent, AuthPageComponent, MessageTextComponent, ShopComponent, UserCardDirective, UserCardComponent, WalletDialogComponent, WalletBalanceComponent, AndroidCallOutputComponent, LandingComponent, FriendLinkComponent, FriendInviteComponent, MobileViewportDirective, PlatformListComponent, AdminDirectoryComponent, AvatarPickerComponent, AudioDevicePickerComponent, InfoPanelComponent, ActionMenuComponent, CommonModule, FormsModule, MediaStreamSrcDirective, SectionNavigationComponent, UiIconComponent, ConversationListComponent, QuickSwitchComponent, InviteManagerComponent, InventoryComponent, WallpapersComponent, ThemeControllerComponent, MessageGestureDirective, MessageActionsComponent, EmojiPickerComponent, DesktopPreferencesComponent, SidebarResizeDirective],
+    imports: [UploadPanelComponent, FileAttachmentComponent, TextFileViewerComponent, ChatSkeletonComponent, PlatformChatsComponent, AuthPageComponent, MessageTextComponent, ShopComponent, UserCardDirective, UserCardComponent, WalletDialogComponent, WalletBalanceComponent, AndroidCallOutputComponent, LandingComponent, FriendLinkComponent, FriendInviteComponent, MobileViewportDirective, PlatformListComponent, AdminDirectoryComponent, AvatarPickerComponent, AudioDevicePickerComponent, InfoPanelComponent, ActionMenuComponent, CommonModule, FormsModule, MediaStreamSrcDirective, SectionNavigationComponent, UiIconComponent, ConversationListComponent, QuickSwitchComponent, InviteManagerComponent, InventoryComponent, WallpapersComponent, ThemeControllerComponent, MessageGestureDirective, MessageActionsComponent, EmojiPickerComponent, DesktopPreferencesComponent, SidebarResizeDirective],
     templateUrl: './app.component.html',
     styleUrls: ['./app.component.scss', './app-layout.scss', './call-workspace.scss', './platform-workspace.scss', './invite-entry.scss', './palette-theme.scss', './avatar-presets.scss', './mobile-workspace.scss', './chat-bubbles.scss', './conference-stage.scss', './platform-calm.scss']
 })
@@ -1020,6 +1022,7 @@ export class AppComponent {
     return match ? {spaceId: match[1], channelId: match[2]} : undefined;
   }
   private rememberChannelVisit(channelId: string): void {
+    this.fileOverflow.set([]);
     this.messageActionsTarget.set(null);
     if (this.pendingInviteCode() || this.pendingPlatformInvite() || this.pendingFriendInvite()) return;
     const spaceId = this.selectedServerId();
@@ -1466,6 +1469,31 @@ export class AppComponent {
   readonly voiceWorkspaceTab = signal<VoiceWorkspaceTab>('chat');
   readonly messageDraft = signal('');
   readonly pendingFiles = signal<File[]>([]);
+  readonly uploadQueue = inject(UploadQueueService);
+  readonly currentUpload = computed(() => {const job=this.uploadQueue.job();return job && job.channelId===this.activeMessagingChannel()?.id && job.status!=='done'?job:null;});
+  readonly uploadPanelFiles = computed(() => this.currentUpload()?.payload.files ?? this.pendingFiles());
+  readonly fileOverflow = signal<File[]>([]);
+  readonly generatedFileCheck = (file:File) => this.isGeneratedTextFile(file);
+  private uploadSpaceId: string | null = null;
+  openUploadChat():void {const job=this.uploadQueue.job();if(job && this.uploadSpaceId){this.openWorkspaceTarget(this.uploadSpaceId,job.channelId);this.closeMobilePanel();}}
+  retryFileUpload(readyOnly=false):void {
+    if(this.messageSubmitting())return;
+    if(readyOnly)this.uploadQueue.dropFailed();
+    const job=this.uploadQueue.job();const token=this.session()?.access_token;if(!job||!token)return;
+    this.messageSubmitting.set(true);this.messageError.set(null);this.messageUploadOutcome.set('uploading');
+    this.sendMessageTrigger$.next({token,channelId:job.channelId,payload:job.payload});
+  }
+  cancelFileUpload():void {
+    const job=this.uploadQueue.job();if(!job || job.status==='finalizing')return;
+    if(this.uploadQueue.uncertain())return;
+    if(job.status==='uploading'){this.cancelMessageUpload();return;}
+    if(!window.confirm('Отменить отправку? Файлы останутся в редакторе этого чата.'))return;
+    if(job.channelId!==this.activeMessagingChannel()?.id){this.openUploadChat();return;}
+    this.pendingFiles.set(job.payload.files);this.onMessageDraftChange(job.payload.content);
+    this.uploadQueue.discard();this.messageError.set(null);this.messageUploadOutcome.set('idle');
+  }
+  removePreparedFile(file:File):void {this.removePendingFile(this.pendingFiles().indexOf(file));}
+  acceptFileOverflow():void {const files=this.fileOverflow().slice(0,Math.max(0,10-this.pendingFiles().length));this.fileOverflow.set([]);this.addPendingFiles(files);}
   readonly textFilePreview = signal<TextFileSource | null>(null);
   readonly textFileNotice = signal('');
   readonly isTextFile = isTextFile;
@@ -1475,11 +1503,13 @@ export class AppComponent {
 
   convertDraftToFile(): void {
     if (this.messageSubmitting() || !this.messageDraft().trim()) return;
+    if(this.currentUpload() || this.pendingFiles().length>=10){this.messageError.set('В сообщении может быть до 10 файлов. Уберите вложение или завершите текущую отправку. Текст сохранён.');return;}
     const original = this.messageDraft();
     try {
       const prepared = prepareTextFile(original);
       const file = new File([prepared.content], prepared.name, {type:'text/plain;charset=utf-8'});
       if (file.size > MAX_ATTACHMENT_SIZE_BYTES) throw Error('Текст превышает лимит файла 500 МБ.');
+      if(this.pendingFiles().reduce((n,f)=>n+f.size,0)+file.size>this.uploadQueue.limits().max_message_bytes){this.messageError.set('Превышен суммарный размер вложений. Текст сохранён в редакторе.');return;}
       this.generatedTextFiles.set(file, original);
       this.addPendingFiles([file]);
       this.onMessageDraftChange('');
@@ -3626,7 +3656,7 @@ export class AppComponent {
             catchError((error) => {
               failed = true;
               this.messageUploadOutcome.set('failed');
-              this.messageError.set(this.extractErrorMessage(error, 'Не удалось отправить сообщение'));
+              if(!payload.files.length || !this.uploadQueue.job())this.messageError.set(this.extractErrorMessage(error, 'Не удалось отправить сообщение'));
               return EMPTY;
             }),
             finalize(() => {
@@ -6887,6 +6917,7 @@ export class AppComponent {
   }
 
   submitMessage(): void {
+    if(this.currentUpload()){this.retryFileUpload();return;}
     const token = this.session()?.access_token;
     const activeChannel = this.activeMessagingChannel();
     if (
@@ -6909,6 +6940,12 @@ export class AppComponent {
       clientMessageId: '',
     };
     const channelId = activeChannel.id;
+    if(payload.files.length){
+      const job=this.uploadQueue.job();
+      if(job && job.status!=='done'){this.messageError.set('Завершите или отмените загрузку в другом чате.');return;}
+      this.uploadSpaceId=this.selectedServerId();this.uploadQueue.title=this.activeServer()?.name ?? activeChannel.name;
+      void this.uploadQueue.loadLimits(token);
+    }
     const signature = JSON.stringify([payload.content, payload.replyToMessageId, payload.files.map(file => [file.name, file.size, file.lastModified])]);
     const pending = this.pendingMessageIds.get(channelId);
     payload.clientMessageId = pending?.signature === signature ? pending.id : crypto.randomUUID();
@@ -6955,6 +6992,7 @@ export class AppComponent {
   }
 
   cancelMessageUpload(): void {
+    if(this.uploadQueue.job()?.status==='finalizing')return;
     if (!this.messageSubmitting()) {
       return;
     }
@@ -7292,6 +7330,9 @@ export class AppComponent {
   }
 
   logout(): void {
+    this.cancelMessageUploadTrigger$.next();
+    this.uploadQueue.discard();
+    this.fileOverflow.set([]);
     this.textFilePreview.set(null);
     this.textFileNotice.set('');
     this.membersLoading.set(false);
@@ -10553,6 +10594,9 @@ export class AppComponent {
     if (!files.length) {
       return;
     }
+    if(this.currentUpload()){this.messageError.set('Сначала завершите или отмените текущую отправку.');return;}
+    if(files.length+this.pendingFiles().length>10){this.fileOverflow.set(files);return;}
+    if([...this.pendingFiles(),...files].reduce((n,f)=>n+f.size,0)>this.uploadQueue.limits().max_message_bytes){this.messageError.set('Превышен суммарный размер вложений. Выберите файлы меньшего размера.');return;}
 
     const validFiles: File[] = [];
     let rejectedFile: File | null = null;

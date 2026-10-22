@@ -8946,3 +8946,5 @@ select {
 }
 
 .block-settings{height:min(560px,calc(100dvh - 32px));display:flex;flex-direction:column}.block-settings .modal__body{flex:1;min-height:0;overflow:auto}.block-settings-tabs{display:flex;gap:8px;padding:12px 20px}.block-settings-tabs [aria-pressed="true"]{background:var(--palette-primary);color:white}
+.upload-overflow{padding:12px;border:1px solid var(--palette-border);border-radius:12px;margin-bottom:8px}.upload-overflow p{font-size:13px}.upload-overflow button{margin:4px}
+.upload-global{position:fixed;z-index:120;top:12px;left:50%;transform:translateX(-50%);max-width:calc(100vw - 24px);display:flex;gap:4px;padding:6px;border:1px solid var(--palette-border);border-radius:12px;background:var(--palette-surface);box-shadow:0 4px 20px #0005}.upload-global button{min-height:36px;border:0;background:transparent;color:var(--palette-text);cursor:pointer;padding:6px;font:inherit;font-size:13px}

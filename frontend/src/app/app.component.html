@@ -1136,60 +1136,24 @@
                   </div>
                 }
 
-                @if (pendingFiles().length) {
-                  <div class="composer__files">
-                    @for (file of pendingFiles(); track file.name + '-' + $index) {
-                      <div
-                        class="attachment-card attachment-card--pending"
-                        [class.attachment-card--pending-uploading]="messageUploadOutcome() === 'uploading'"
-                        [class.attachment-card--pending-cancelled]="messageUploadOutcome() === 'cancelled'"
-                        [class.attachment-card--pending-failed]="messageUploadOutcome() === 'failed'"
-                      >
-                        <div class="attachment-card__body">
-                          <div class="attachment-card__copy">
-                            @if(isGeneratedTextFile(file)){
-                              <label class="text-file-name">Имя и формат<input [attr.aria-label]="'Имя файла '+file.name" [value]="file.name" [disabled]="messageSubmitting()" (change)="renameTextFile(file,$any($event.target).value)" maxlength="180"/></label>
-                            }@else{<strong>{{ file.name }}</strong>}
-                            <small>{{ formatFileSize(file.size) }}</small>
-                          </div>
-                          <span class="attachment-card__state">{{ messageUploadOutcomeLabel() }}</span>
-                          <div class="text-file-actions">
-                            @if(isTextFile(file.name)){<button type="button" class="secondary-button" (click)="previewPendingTextFile(file)">Просмотр</button>}
-                            @if(isGeneratedTextFile(file)){<button type="button" class="secondary-button" [disabled]="messageSubmitting()" (click)="restoreTextFile(file)">В редактор</button>}
-                          </div>
-                        </div>
-                        <button
-                          class="attachment-delete attachment-delete--ghost"
-                          type="button"
-                          [disabled]="messageSubmitting()"
-                          aria-label="Убрать файл"
-                          title="Убрать файл"
-                          (click)="removePendingFile($index)"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    }
+                @if(fileOverflow().length){
+                  <div class="upload-overflow" role="alert">
+                    <strong>Можно прикрепить до 10 файлов</strong>
+                    <p>Выбрано {{fileOverflow().length}}, свободных мест: {{10-pendingFiles().length}}. Новые файлы пока не добавлены.</p>
+                    @if(pendingFiles().length<10){<button type="button" class="secondary-button" (click)="acceptFileOverflow()">Добавить первые {{10-pendingFiles().length}}</button>}
+                    <button type="button" class="secondary-button" (click)="fileOverflow.set([]);openAttachmentPicker()">Выбрать заново</button>
+                    <button type="button" class="secondary-button" (click)="fileOverflow.set([])">Отмена</button>
                   </div>
+                }
+                @if (uploadPanelFiles().length) {
+                  <app-upload-panel [files]="uploadPanelFiles()" [job]="currentUpload()" [generated]="generatedFileCheck" (add)="openAttachmentPicker()" (remove)="removePreparedFile($event)" (preview)="previewPendingTextFile($event)" (restore)="restoreTextFile($event)" (rename)="renameTextFile($event.file,$event.name)" (retry)="retryFileUpload()" (sendReady)="retryFileUpload(true)" (cancel)="cancelFileUpload()"/>
                 }
 
                 @if(textFileNotice()){<p class="text-file-notice" role="status">{{textFileNotice()}}</p>}
-                @if(messageDraft().trim()){
-                  <div class="text-file-tools"><button type="button" class="secondary-button" [disabled]="messageSubmitting()" (click)="convertDraftToFile()">Прикрепить как файл</button>
+                @if(messageDraft().trim() && !currentUpload()){
+                  <div class="text-file-tools"><button type="button" class="secondary-button" [disabled]="messageSubmitting() || !!currentUpload()" (click)="convertDraftToFile()">Прикрепить как файл</button>
                   @if(messageCharacterCount()>2000){<small>{{messageCharacterCount()}} символов · При отправке будет подготовлен файл</small>}</div>
                 }
-                @if (messageUploadProgress(); as uploadProgress) {
-                  <div class="composer__upload-progress" aria-live="polite">
-                    <div class="composer__upload-progress-copy">
-                      <strong>Загрузка {{ messageUploadPercent(uploadProgress) }}%</strong>
-                      <small>{{ messageUploadSummary(uploadProgress) }}</small>
-                    </div>
-                    <div class="composer__upload-progress-track">
-                      <span [style.width.%]="messageUploadPercent(uploadProgress)"></span>
-                    </div>
-                  </div>
-                }
-
                 <div
                   class="composer__surface"
                   [class.composer__surface--busy]="messageSubmitting()"
@@ -1198,7 +1162,7 @@
                   <button
                     class="secondary-button composer__attach"
                     type="button"
-                    [disabled]="messageSubmitting()"
+                    [disabled]="messageSubmitting() || !!currentUpload()"
                     (click)="openAttachmentPicker()"
                     aria-label="Прикрепить файл"
                     title="Прикрепить файл"
@@ -1217,7 +1181,7 @@
                       (select)="onMessageComposerSelectionChange()"
                       (blur)="onMessageComposerBlur()"
                       (paste)="onMessageComposerPaste($event)"
-                      [disabled]="messageSubmitting()"
+                      [disabled]="messageSubmitting() || !!currentUpload()"
                       placeholder="Введите сообщение"
                       rows="1"
                     ></textarea>
@@ -1254,14 +1218,14 @@
                     }
                   </label>
 
-                  <div class="composer-emoji"><button type="button" aria-label="Эмодзи" [attr.aria-expanded]="composerEmojiOpen()" (click)="composerEmojiOpen.set(!composerEmojiOpen())" [disabled]="messageSubmitting()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 14.5c1.5 2.7 6.5 2.7 8 0"/><circle cx="8.5" cy="9" r=".8" fill="currentColor" stroke="none"/><circle cx="15.5" cy="9" r=".8" fill="currentColor" stroke="none"/></svg></button>@if(composerEmojiOpen() && session();as auth){@defer (on immediate) {<app-emoji-picker [token]="auth.access_token" (choose)="insertComposerEmoji($event)" (close)="composerEmojiOpen.set(false)"/>}}</div>
+                  <div class="composer-emoji"><button type="button" aria-label="Эмодзи" [attr.aria-expanded]="composerEmojiOpen()" (click)="composerEmojiOpen.set(!composerEmojiOpen())" [disabled]="messageSubmitting() || !!currentUpload()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 14.5c1.5 2.7 6.5 2.7 8 0"/><circle cx="8.5" cy="9" r=".8" fill="currentColor" stroke="none"/><circle cx="15.5" cy="9" r=".8" fill="currentColor" stroke="none"/></svg></button>@if(composerEmojiOpen() && session();as auth){@defer (on immediate) {<app-emoji-picker [token]="auth.access_token" (choose)="insertComposerEmoji($event)" (close)="composerEmojiOpen.set(false)"/>}}</div>
                   <button
                     class="primary-button composer__submit"
                     type="button"
-                    [disabled]="!messageSubmitting() && !canSendMessage()"
+                    [disabled]="uploadQueue.job()?.status==='finalizing' || (!messageSubmitting() && !canSendMessage())"
                     (click)="messageSubmitting() ? cancelMessageUpload() : submitMessage()"
-                    [attr.aria-label]="messageSubmitting() ? 'Отменить загрузку' : 'Отправить сообщение'"
-                    [attr.title]="messageSubmitting() ? 'Отменить загрузку' : 'Отправить сообщение'"
+                    [attr.aria-label]="messageSubmitting() ? 'Приостановить загрузку' : 'Отправить сообщение'"
+                    [attr.title]="messageSubmitting() ? 'Приостановить загрузку' : 'Отправить сообщение'"
                     [class.composer__submit--cancel]="messageSubmitting()"
                   >
                     @if (messageSubmitting()) {
@@ -3447,3 +3411,12 @@
 }
 
 @if(textFilePreview();as source){@defer(on immediate){<app-text-file-viewer [source]="source" (closed)="textFilePreview.set(null)"/>}}
+
+@if(session() && uploadQueue.job();as job){
+  @if(job.channelId!==activeMessagingChannel()?.id || job.status==='done'){
+    <aside class="upload-global" aria-label="Отправка файлов">
+      <button type="button" (click)="openUploadChat()">{{job.title}} · {{job.status==='done'?'Файлы отправлены':job.status==='failed'?'Ошибка отправки':job.status==='paused'?'Загрузка приостановлена':job.status==='finalizing'?'Отправляем сообщение…':'Загрузка: '+uploadQueue.ready()+' / '+job.entries.length}} ↗</button>
+      @if(job.status==='done'){<button type="button" aria-label="Скрыть уведомление" (click)="uploadQueue.job.set(null)">✕</button>}
+    </aside>
+  }
+}

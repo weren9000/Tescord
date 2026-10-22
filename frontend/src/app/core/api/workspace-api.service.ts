@@ -1,3 +1,4 @@
+import {UploadQueueService} from '../services/upload-queue.service';
 import { HttpClient, HttpEventType, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, filter, map } from 'rxjs';
@@ -56,6 +57,7 @@ import {
   providedIn: 'root'
 })
 export class WorkspaceApiService {
+  private readonly uploadQueue=inject(UploadQueueService);
   private readonly http = inject(HttpClient);
 
   getCurrentUser(token: string): Observable<CurrentUserResponse> {
@@ -473,6 +475,7 @@ export class WorkspaceApiService {
       clientMessageId: string;
     }
   ): Observable<WorkspaceMessageUploadEvent> {
+    if(payload.files.length)return this.uploadQueue.send(token,channelId,payload);
     const formData = new FormData();
     formData.append('content', payload.content);
     formData.append('client_message_id', payload.clientMessageId);
