@@ -1040,39 +1040,7 @@
                                     </div>
                                   </div>
                                 } @else {
-                                  <div class="attachment-card" [class.attachment-card--unavailable]="isAttachmentUnavailable(attachment)">
-                                    <div class="attachment-card__body">
-                                      <div class="attachment-card__copy">
-                                        <strong>{{ attachment.filename }}</strong>
-                                        <small>{{ attachmentMetaLabel(attachment) }}</small>
-                                      </div>
-                                      <span class="attachment-card__state">{{ attachmentStateLabel(attachment) }}</span>
-                                      <div class="attachment-card__actions">@if(isTextFile(attachment.filename)){<button type="button" class="secondary-button" [disabled]="isAttachmentUnavailable(attachment)" (click)="previewTextAttachment(attachment)">Просмотр</button>}
-                                        <button
-                                          class="attachment-download"
-                                          type="button"
-                                          [disabled]="isAttachmentDownloading(attachment)"
-                                          title="Скачать файл"
-                                          aria-label="Скачать файл"
-                                          (click)="downloadAttachment(attachment)"
-                                        >
-                                          <img src="/assets/Download_circle.svg" alt="" />
-                                        </button>
-                                        @if (canDeleteMessageAttachment(message, attachment)) {
-                                          <button
-                                            class="attachment-delete"
-                                            type="button"
-                                            [disabled]="isDeletingMessageAttachment(attachment.id)"
-                                            title="Удалить файл"
-                                            aria-label="Удалить файл"
-                                            (click)="deleteMessageAttachment(attachment)"
-                                          >
-                                            <img src="/assets/Trash.svg" alt="" />
-                                          </button>
-                                        }
-                                      </div>
-                                    </div>
-                                  </div>
+                                  @defer(on immediate){<app-file-attachment [name]="attachment.filename" [meta]="attachmentMetaLabel(attachment)" [state]="attachmentStateLabel(attachment)" [previewable]="isTextFile(attachment.filename)" [unavailable]="isAttachmentUnavailable(attachment)" [downloading]="isAttachmentDownloading(attachment)" [deleting]="isDeletingMessageAttachment(attachment.id)" [deletable]="canDeleteMessageAttachment(message, attachment)" (preview)="previewTextAttachment(attachment)" (download)="downloadAttachment(attachment)" (remove)="deleteMessageAttachment(attachment)"/>}
                                 }
                               }
                             </div>
