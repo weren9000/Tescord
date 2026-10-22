@@ -20,6 +20,8 @@
 }
 
 .desktop-sidebar-toolbar, .sidebar-resizer { display: none; }
+.conversation-sidebar-title { margin: 0; padding-left: 4px; font-size: 17px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.messenger-layout--sidebar-collapsed .conversation-sidebar-title { display: none; }
 .pin-error { color: var(--palette-danger); font-size: 13px; padding: 8px; }
 @media (min-width: 981px) {
   .messenger-shell .messenger-layout { grid-template-columns: 92px var(--sidebar-width, 280px) minmax(0, 1fr); }

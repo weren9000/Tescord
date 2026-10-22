@@ -8,7 +8,6 @@ interface Choice{id:string;name:string;description?:string|null;icon:string|null
  templateUrl:'./platform-list.component.html',
  styleUrl:'./platform-list.component.scss'})
 export class PlatformListComponent{
- readonly appearance=output<void>();
  readonly loading=input(false);
  readonly spaces=input.required<Choice[]>();readonly selected=input<string|null>(null);readonly collapsed=input(false);
  readonly select=output<string>();readonly create=output<void>();readonly toggle=output<void>();
