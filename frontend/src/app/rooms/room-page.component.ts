@@ -267,8 +267,9 @@ export class RoomPageComponent implements OnInit, OnDestroy {
     this.videos.set(videos.sort((a,b)=>Number(b.screen)-Number(a.screen)));
     this.microphoneStates.set(microphones);
   }
-  visiblePeople() {const people=this.state()?.participants || [];const last=Math.max(0,Math.ceil(people.length/9)-1);return people.slice(Math.min(this.page,last)*9,(Math.min(this.page,last)+1)*9);}
-  currentPage() {return Math.min(this.page,Math.max(0,Math.ceil((this.state()?.participants.length || 1)/9)-1));}
+  stagePeople() {return (this.state()?.participants || []).filter(p=>!!this.cameraFor(p.id));}
+  visiblePeople() {const people=this.stagePeople();const last=Math.max(0,Math.ceil(people.length/9)-1);return people.slice(Math.min(this.page,last)*9,(Math.min(this.page,last)+1)*9);}
+  currentPage() {return Math.min(this.page,Math.max(0,Math.ceil((this.stagePeople().length || 1)/9)-1));}
   cameraFor(id:string) {return this.videos().find(v=>v.participant===id && !v.screen);}
   screens() {return this.videos().filter(v=>v.screen);}
   presentation() {return this.screens().find(v=>v.id===this.selectedScreen()) || this.screens()[0];}

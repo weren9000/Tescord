@@ -25,7 +25,8 @@ async function register(){const id=crypto.randomUUID().slice(0,8);return json('/
   const restored=await member.evaluate(()=>JSON.parse(Object.entries(sessionStorage).find(([k,v])=>k.startsWith('kva.meeting.')&&v.includes('participant_id'))[1]));assert.equal(restored.participant_id,ticket.participant_id);
   await guest.goto(link);await guest.getByRole('textbox',{name:'Ваше имя'}).fill(memberAccount.user.nick);await guest.getByRole('button',{name:'Присоединиться',exact:true}).click();
   await owner.getByRole('button',{name:'Участники',exact:true}).click();
-  await owner.waitForFunction(id=>document.querySelectorAll('.participant-tile img[src*="'+id+'"]').length===1,memberAccount.user.id);
+  await owner.locator('.person img[src*="'+memberAccount.user.id+'"]').waitFor();
+  assert.equal(await owner.locator('.participant-tile').count(),0);
   assert.equal(await owner.locator('.person img[src*="'+memberAccount.user.id+'"]').count(),1);
   await owner.locator('.person').filter({hasText:'Гость'}).waitFor();
   await owner.screenshot({path:out+'/profiles-in-room.png'});
@@ -43,7 +44,7 @@ async function register(){const id=crypto.randomUUID().slice(0,8);return json('/
   await guest.goto(ui+'/room/'+next.invite);
   await guest.getByRole('textbox',{name:'Ваше имя'}).fill('Returning guest');
   await guest.getByRole('button',{name:'Присоединиться',exact:true}).click();
-  await guest.locator('.participant-tile').filter({hasText:'Returning guest'}).waitFor();
+  await guest.locator('.meeting-toolbar').waitFor();
   await guest.waitForFunction(()=>!document.querySelector('.connection'));
   await json('/api/rooms/control',next.token,{action:'end'});
   await guest.getByRole('heading',{name:'Встреча завершена',exact:true}).waitFor();

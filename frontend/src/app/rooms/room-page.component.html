@@ -43,6 +43,7 @@
             <video [meetingTrack]="v.track" autoplay playsinline muted></video><span class="tile-name"><app-ui-icon name="screen"/>{{v.name}}</span>
           </div>
         }
+        @if(!presentation() && visiblePeople().length){
         <div class="people-grid" [class.single]="visiblePeople().length===1" [class.pair]="visiblePeople().length===2" [style.--mobile-rows]="visiblePeople().length>8?5:visiblePeople().length>6?4:visiblePeople().length>4?3:visiblePeople().length>2?2:1" [style.--columns]="visiblePeople().length>4?3:2" [style.--rows]="visiblePeople().length===1?1:visiblePeople().length>6?3:visiblePeople().length>2?2:1">
           @for(p of visiblePeople();track p.id){
             <div class="participant-tile" [class.speaking]="speakers().includes(p.id) && !personMuted(p)">
@@ -53,7 +54,8 @@
             </div>
           }
         </div>
-        @if((state()?.participants?.length || 0)>9){<nav class="pages" aria-label="Страницы участников"><button class="icon-button" aria-label="Предыдущие участники" [disabled]="currentPage()===0" (click)="page=currentPage()-1"><app-ui-icon name="back"/></button><span>{{currentPage()+1}}</span><button class="icon-button" aria-label="Следующие участники" [disabled]="(currentPage()+1)*9 >= (state()?.participants?.length || 0)" (click)="page=currentPage()+1"><app-ui-icon name="forward"/></button></nav>}
+        @if(stagePeople().length>9){<nav class="pages" aria-label="Страницы участников"><button class="icon-button" aria-label="Предыдущие участники" [disabled]="currentPage()===0" (click)="page=currentPage()-1"><app-ui-icon name="back"/></button><span>{{currentPage()+1}}</span><button class="icon-button" aria-label="Следующие участники" [disabled]="(currentPage()+1)*9 >= stagePeople().length" (click)="page=currentPage()+1"><app-ui-icon name="forward"/></button></nav>}
+        }
       </section>
       @if(panel()){
         <aside class="side-panel" [attr.aria-label]="panel()==='chat'?'Чат встречи':'Участники'">

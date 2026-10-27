@@ -18,12 +18,11 @@ const assert=require('node:assert/strict'),fs=require('node:fs');
    await page.setViewportSize({width,height:900});
    for(const count of [1,2,6,50]){
     await page.evaluate(n=>peopleCount(n),count);
-    assert.equal(await page.locator('.participant-tile').count(),Math.min(count,9));
+    assert.equal(await page.locator('.participant-tile').count(),0);
     const layout=await page.evaluate(()=>({overflow:document.documentElement.scrollWidth>innerWidth,vertical:document.documentElement.scrollHeight>innerHeight+1,buttons:[...document.querySelectorAll('.meeting-toolbar button')].filter(b=>b.getBoundingClientRect().width).map(b=>{const r=b.getBoundingClientRect();return{x:r.x,y:r.y,w:r.width,h:r.height,right:r.right,bottom:r.bottom}})}));
     assert(!layout.overflow&&!layout.vertical,`No page overflow at ${width}/${count}`);
     assert(layout.buttons.every(b=>b.x>=0&&b.right<=width&&b.bottom<=900&&b.w>=44&&b.h>=44));
     assert(Math.max(...layout.buttons.map(b=>b.y))-Math.min(...layout.buttons.map(b=>b.y))<1,'Toolbar buttons align');
-    if(count===50){await page.getByRole('button',{name:'Следующие участники'}).click();assert.equal(await page.locator('.participant-tile').count(),9);}
     if([1,6].includes(count))await page.screenshot({path:`.local/room-design/room-${width}-${count}.png`});
    }
    await page.getByRole('button',{name:'Участники',exact:true}).click();
@@ -41,7 +40,10 @@ const assert=require('node:assert/strict'),fs=require('node:fs');
   await page.getByRole('button',{name:'Настройки встречи',exact:true}).click();await page.getByRole('dialog',{name:'Настройки встречи'}).waitFor();await page.keyboard.press('Escape');
   await page.getByRole('button',{name:'Выйти из встречи'}).click();await page.getByRole('button',{name:'Завершить для всех',exact:true}).waitFor();await page.keyboard.press('Escape');
   await page.setViewportSize({width:1440,height:900});await page.evaluate(()=>{peopleCount(6);const canvas=document.createElement('canvas');canvas.width=1280;canvas.height=720;const c=canvas.getContext('2d');c.fillStyle='#243344';c.fillRect(0,0,1280,720);c.fillStyle='white';c.font='36px sans-serif';c.fillText('Демонстрация экрана',80,120);const stream=canvas.captureStream();const track={attach:el=>{el.srcObject=stream;void el.play();},detach:el=>{el.srcObject=null;}};roomFixture.videos.set([{id:'screen',participant:'p0',name:'Александр',screen:true,track}]);ng.applyChanges(roomFixture);});
+  assert.equal(await page.locator('.participant-tile').count(),0);
+  const stage=await page.locator('.stage').boundingBox(),screen=await page.locator('.presentation').boundingBox();assert(Math.abs(stage.width-screen.width)<1);
   await page.screenshot({path:'.local/room-design/presentation.png'});
+  await page.evaluate(()=>{roomFixture.videos.set([]);ng.applyChanges(roomFixture);});assert.equal(await page.locator('.participant-tile').count(),0);
   await page.setViewportSize({width:393,height:470});await page.getByRole('button',{name:'Чат встречи',exact:true}).click();
   const send=await page.getByRole('button',{name:'Отправить',exact:true}).boundingBox();assert(send.y>=0&&send.y+send.height<=470,'Composer fits reduced keyboard viewport');
   assert.deepEqual(errors,[]);console.log('PASS: 1/2/6/50 people, 5 widths, toolbar, personal sliders, draft, invitation, dialogs, presentation, keyboard viewport');
