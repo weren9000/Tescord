@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select, func, tuple_
 from sqlalchemy.orm import Session
 
-from app.api.dependencies.auth import get_current_user
+from app.api.dependencies.auth import get_current_user, resolve_user_from_token
 from app.core.config import get_settings
 from app.core.security import decode_access_token
 from app.db.models import (User, MeetingRoom, RoomSession, RoomParticipant,
@@ -32,12 +32,14 @@ class InviteOptions(BaseModel):
 
 
 class JoinInput(BaseModel):
-    name: str = Field(min_length=1, max_length=64)
+    name: str | None = Field(default=None, min_length=1, max_length=64)
     nonce: str = Field(min_length=32, max_length=128, pattern=r'^[a-zA-Z0-9_-]+$')
 
     @field_validator('name')
     @classmethod
     def clean_name(cls, value):
+        if value is None:
+            return None
         value = ''.join(c for c in value.strip() if c.isprintable())
         if not value:
             raise ValueError('Введите имя')
@@ -81,7 +83,16 @@ def new_invite(meeting, options):
 
 def ticket(meeting, p):
     return {'token': service.issue_token(p), 'participant_id': str(p.id),
-            'session_id': str(meeting.id), 'is_owner': p.is_owner}
+            'session_id': str(meeting.id), 'is_owner': p.is_owner,
+            'user_id': str(p.user_id) if p.user_id else None}
+
+
+def profiles(db, people):
+    users = {u.id: u for u in db.scalars(select(User).where(User.id.in_({p.user_id for p in people if p.user_id})))}
+    return {p.id: {'name': users[p.user_id].username if p.user_id in users else p.name,
+                   'user_id': str(p.user_id) if p.user_id in users else None,
+                   'avatar_updated_at': users[p.user_id].avatar_updated_at if p.user_id in users else None}
+            for p in people}
 
 
 def find_invite(db, raw, *, lock=False):
@@ -135,10 +146,12 @@ def start(options: InviteOptions, user: User = Depends(get_current_user),
     p = db.scalar(select(RoomParticipant).where(RoomParticipant.session_id == meeting.id, RoomParticipant.is_owner.is_(True)))
     sid = UUID(decode_access_token(authorization[7:], get_settings().secret_key)['sid'])
     if not p:
-        p = RoomParticipant(session_id=meeting.id, name=user.username, is_owner=True,
+        p = RoomParticipant(session_id=meeting.id, user_id=user.id, name=user.username, is_owner=True,
                             join_hash=service.digest(secrets.token_urlsafe(32)), last_seen_at=service.now(), auth_session_id=sid)
         db.add(p)
     p.auth_session_id = sid
+    p.user_id = user.id
+    p.name = user.username
     p.last_seen_at = meeting.owner_seen_at = service.now()
     meeting.owner_left_at = None
     db.commit()
@@ -146,18 +159,41 @@ def start(options: InviteOptions, user: User = Depends(get_current_user),
 
 
 @router.get('/invite/{raw}')
-def invite_info(raw: str, db: Session = Depends(get_db)):
+def invite_info(raw: str, authorization: str | None = Header(default=None), db: Session = Depends(get_db)):
+    user = None
+    if authorization is not None:
+        if not authorization.startswith('Bearer '):
+            raise HTTPException(401, 'Войдите в аккаунт повторно')
+        user = resolve_user_from_token(authorization[7:], db)
     m = find_invite(db, raw)
     room = db.get(MeetingRoom, m.room_id)
+    previous = db.scalar(select(RoomParticipant).where(RoomParticipant.session_id == m.id, RoomParticipant.user_id == user.id)) if user else None
+    can_join = not previous.revoked if previous else not m.locked and m.invite_uses < m.invite_limit
     return {'name': room.name, 'locked': m.locked, 'remaining_uses': max(0, m.invite_limit-m.invite_uses),
-            'expires_at': m.invite_expires_at, 'capacity': 50}
+            'expires_at': m.invite_expires_at, 'capacity': 50, 'can_join': can_join,
+            'removed': bool(previous and previous.revoked)}
 
 
 @router.post('/invite/{raw}/join')
-def join(raw: str, body: JoinInput, request: Request, db: Session = Depends(get_db)):
+def join(raw: str, body: JoinInput, request: Request, authorization: str | None = Header(default=None), db: Session = Depends(get_db)):
     enforce_limit('meeting-join', request.client.host if request.client else '', 120, 300)
+    user = None
+    sid = None
+    if authorization is not None:
+        if not authorization.startswith('Bearer '):
+            raise HTTPException(401, 'Войдите в аккаунт повторно')
+        user = resolve_user_from_token(authorization[7:], db)
+        sid = UUID(decode_access_token(authorization[7:], get_settings().secret_key)['sid'])
+    elif not body.name:
+        raise HTTPException(422, 'Введите имя')
     m = find_invite(db, raw, lock=True)
-    p = db.scalar(select(RoomParticipant).where(RoomParticipant.session_id == m.id, RoomParticipant.join_hash == service.digest(body.nonce)))
+    # Account identity is authoritative; a caller-supplied guest nonce can never
+    # recover, impersonate, or overwrite a registered participant.
+    identity = RoomParticipant.user_id == user.id if user else (
+        RoomParticipant.user_id.is_(None) & (RoomParticipant.join_hash == service.digest(body.nonce)))
+    if user and db.get(MeetingRoom, m.room_id).owner_id == user.id:
+        identity = RoomParticipant.is_owner.is_(True)
+    p = db.scalar(select(RoomParticipant).where(RoomParticipant.session_id == m.id, identity))
     if p and p.revoked:
         raise HTTPException(403, 'Вы удалены из встречи')
     if not p:
@@ -166,12 +202,21 @@ def join(raw: str, body: JoinInput, request: Request, db: Session = Depends(get_
         if m.invite_uses >= m.invite_limit:
             raise HTTPException(410, 'Лимит входов по ссылке исчерпан')
         reserve(db, m)
-        p = RoomParticipant(session_id=m.id, name=body.name, join_hash=service.digest(body.nonce), last_seen_at=service.now())
+        p = RoomParticipant(session_id=m.id, name=user.username if user else body.name,
+                            user_id=user.id if user else None, auth_session_id=sid,
+                            join_hash=service.digest('account:'+str(user.id)) if user else service.digest(body.nonce), last_seen_at=service.now())
         db.add(p)
         m.invite_uses += 1
     else:
         reserve(db, m, p)
         p.last_seen_at = service.now()
+    if user:
+        p.user_id = user.id
+        p.auth_session_id = sid
+        p.name = user.username
+    if p.is_owner:
+        m.owner_seen_at = service.now()
+        m.owner_left_at = None
     db.commit()
     return ticket(m, p)
 
@@ -194,12 +239,13 @@ def state(authorization: str = Header(), db: Session = Depends(get_db)):
     people = db.scalars(select(RoomParticipant).where(RoomParticipant.session_id == m.id,
         RoomParticipant.revoked.is_(False), RoomParticipant.last_seen_at > service.now()-service.PRESENCE_TTL)).all()
     absent = m.owner_left_at is not None or m.owner_seen_at < service.now()-timedelta(seconds=30)
+    profile = profiles(db, people)
     return {'name': db.get(MeetingRoom, m.room_id).name, 'locked': m.locked,
             'chat_revision': m.chat_revision,
             'owner_deadline': service.owner_deadline(m) if absent else None,
             'server_time': service.now(), 'invite_expires_at': m.invite_expires_at if p.is_owner else None,
             'remaining_uses': m.invite_limit-m.invite_uses if p.is_owner else None,
-            'participants': [{'id': str(x.id), 'name': x.name, 'is_owner': x.is_owner, 'silenced': x.silenced} for x in people]}
+            'participants': [{'id': str(x.id), **profile[x.id], 'is_owner': x.is_owner, 'silenced': x.silenced} for x in people]}
 
 
 @router.post('/leave')
@@ -267,8 +313,8 @@ def media(authorization: str = Header(), db: Session = Depends(get_db)):
     if not settings.livekit_enabled:
         raise HTTPException(503, 'Сервер конференций недоступен')
     token = (api.AccessToken(settings.livekit_api_key, settings.livekit_api_secret)
-        .with_identity(str(p.id)).with_name(p.name)
-        .with_metadata(json.dumps({'meeting': str(m.id), 'auth_sid': str(p.auth_session_id) if p.is_owner else None})).with_ttl(timedelta(minutes=5))
+        .with_identity(str(p.id)).with_name(profiles(db, [p])[p.id]['name'])
+        .with_metadata(json.dumps({'meeting': str(m.id), 'auth_sid': str(p.auth_session_id) if p.user_id or p.is_owner else None})).with_ttl(timedelta(minutes=5))
         .with_room_config(api.RoomConfiguration(max_participants=50, empty_timeout=300, departure_timeout=300))
         .with_grants(api.VideoGrants(room_join=True, room=f'meeting-{m.id}', can_publish=not p.silenced, can_subscribe=True, can_publish_data=False))
         .to_jwt())
@@ -293,8 +339,9 @@ def messages(before: UUID | None = None, authorization: str = Header(), db: Sess
     ids = [x.id for x in items]
     uploads = db.scalars(select(RoomUpload).where(RoomUpload.message_id.in_(ids))).all() if ids else []
     reactions = db.scalars(select(RoomReaction).where(RoomReaction.message_id.in_(ids))).all() if ids else []
-    authors = {x.id: x.name for x in db.scalars(select(RoomParticipant).where(RoomParticipant.id.in_({x.author_id for x in items})))}
-    return [{'id': str(x.id), 'author_id': str(x.author_id), 'author': authors.get(x.author_id, 'Гость'),
+    authors = profiles(db, list(db.scalars(select(RoomParticipant).where(RoomParticipant.id.in_({x.author_id for x in items})))))
+    return [{'id': str(x.id), 'author_id': str(x.author_id), 'author': authors[x.author_id]['name'],
+             'author_user_id': authors[x.author_id]['user_id'], 'author_avatar_updated_at': authors[x.author_id]['avatar_updated_at'],
              'content': x.content, 'created_at': x.created_at, 'edited_at': x.edited_at,
              'reply_to_id': str(x.reply_to_id) if x.reply_to_id else None,
              'uploads': [{'id': str(u.id), 'filename': u.filename, 'size': u.size_bytes, 'mime_type': u.mime_type} for u in uploads if u.message_id == x.id],

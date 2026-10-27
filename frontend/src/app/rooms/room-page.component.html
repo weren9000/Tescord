@@ -1,4 +1,4 @@
-@if(account){<app-theme-controller [token]="account.access_token"/>}
+@if(account && profile()){<app-theme-controller [token]="account.access_token"/>}
 <main class="meeting-page" [class.in-call]="!!ticket()" [style.--meeting-height]="viewportHeight()+'px'">
   @if(ticket() && error()){<div class="alert" role="alert">{{error()}} <button (click)="error.set('')" aria-label="Закрыть ошибку">×</button></div>}
   @if(ticket() && notice()){<p class="notice" role="status">{{notice()}}</p>}
@@ -9,12 +9,23 @@
       @if(error() && !(ended() && error()==='Встреча завершена')){<div class="alert" role="alert">{{error()}}<button (click)="error.set('')" aria-label="Закрыть ошибку"><app-ui-icon name="close"/></button></div>}
       @if(notice()){<p class="entry-notice" role="status">{{notice()}}</p>}
       @if(ended() && !personal){<p class="hint">Для следующей встречи нужна новая ссылка.</p>}
-      @if(personal && !account){<a class="primary" href="/login">Войти, чтобы начать встречу</a>}
+      @if(checkingAccount()){<p class="hint" role="status">Проверяем вход…</p>}
+      @else if(accountExpired()){
+        <p class="hint">Сессия аккаунта истекла</p><a class="primary" href="/login" target="_blank" rel="noopener">Войти заново</a><button (click)="reloadAccount()">Я вошёл — продолжить</button>
+        @if(!personal){<button class="text-button" (click)="continueAsGuest()">Продолжить гостем</button>}
+      }
+      @else if(account && !guestMode() && !profile()){<button (click)="reloadAccount()">Повторить проверку входа</button>}
+      @else if(personal && !account){<a class="primary" href="/login">Войти, чтобы начать встречу</a>}
       @else if(personal){
         <details class="entry-settings"><summary>Настройки ссылки<app-ui-icon name="down"/></summary><div class="settings"><label>Ссылка действует <select [(ngModel)]="hours"><option [ngValue]="1">1 час</option><option [ngValue]="24">24 часа</option><option [ngValue]="168">7 дней</option></select></label><label>Количество входов <input type="number" min="1" max="1000" [(ngModel)]="uses"/></label></div></details>
         <button class="primary" [disabled]="busy()" (click)="join()">Начать / вернуться во встречу</button>
       }@else if(!ended()){
+        @if(profile();as user){
+          <div class="entry-profile"><img [src]="avatarUrl(user.id,user.avatar_updated_at)" [alt]="user.nick"/><strong>{{user.nick}}</strong></div>
+          <button class="primary" [disabled]="busy() || !inviteReady()" (click)="join()">Присоединиться</button>
+        }@else{
         <form (ngSubmit)="join()"><label>Ваше имя<input name="name" [(ngModel)]="name" maxlength="64" required autocomplete="nickname" placeholder="Как вас представить?"/></label><button class="primary" [disabled]="busy() || !name.trim() || !inviteReady()">Присоединиться</button></form>
+        }
       }
       <a class="entry-back" href="/"><app-ui-icon name="back"/>В Квачат</a>
     </section>
@@ -36,6 +47,7 @@
           @for(p of visiblePeople();track p.id){
             <div class="participant-tile" [class.speaking]="speakers().includes(p.id) && !personMuted(p)">
               @if(cameraFor(p.id);as camera){<video [meetingTrack]="camera.track" autoplay playsinline muted></video>}
+              @else if(avatarUrl(p.user_id,p.avatar_updated_at);as avatar){<img class="tile-profile-avatar" [src]="avatar" [alt]="p.name"/>}
               @else{<div class="tile-avatar" aria-hidden="true">{{initials(p.name)}}</div>}
               <span class="tile-name">@if(personalVolume[p.id]===0){<app-ui-icon name="soundOff"/>}{{p.name}}{{p.id===ticket()?.participant_id?' · Вы':''}}@if(personMuted(p)){<app-ui-icon name="micOff"/>}</span>
             </div>
@@ -46,14 +58,14 @@
       @if(panel()){
         <aside class="side-panel" [attr.aria-label]="panel()==='chat'?'Чат встречи':'Участники'">
           <div class="panel-head"><h2>{{panel()==='chat'?'Чат встречи':'Участники'}}</h2>@if(panel()==='participants'){<span class="count">{{state()?.participants?.length}}</span>}<button class="icon-button" aria-label="Закрыть панель" (click)="panel.set(null)"><app-ui-icon name="close"/></button></div>
-          @if(panel()==='participants'){<div class="participant-list">          @for(p of state()?.participants || [];track p.id){<div class="person" [class.speaking]="speakers().includes(p.id)"><span class="avatar">{{initials(p.name)}}</span><strong>{{p.name}}</strong><small><app-ui-icon [name]="personMuted(p)?'micOff':'mic'" [attr.aria-label]="personMuted(p)?'Микрофон выключен':'Микрофон включён'"/>{{p.is_owner?'Владелец':''}}{{p.id===ticket()?.participant_id?' · Вы':''}}{{p.silenced?' · Передача отключена':''}}</small>
+          @if(panel()==='participants'){<div class="participant-list">          @for(p of state()?.participants || [];track p.id){<div class="person" [class.speaking]="speakers().includes(p.id)"><span class="avatar">@if(avatarUrl(p.user_id,p.avatar_updated_at);as avatar){<img [src]="avatar" [alt]="p.name"/>}@else{ {{initials(p.name)}} }</span><strong>{{p.name}}</strong><small><app-ui-icon [name]="personMuted(p)?'micOff':'mic'" [attr.aria-label]="personMuted(p)?'Микрофон выключен':'Микрофон включён'"/>{{p.is_owner?'Владелец':p.user_id?'Аккаунт':'Гость'}}{{p.id===ticket()?.participant_id?' · Вы':''}}{{p.silenced?' · Передача отключена':''}}</small>
             @if(ticket()?.is_owner && !p.is_owner){<details class="person-actions"><summary [attr.aria-label]="'Действия: '+p.name">⋯</summary><div><button [disabled]="busy()" (click)="control(p.silenced?'unsilence':'silence',p.id)">{{p.silenced?'Разрешить передачу':'Отключить передачу'}}</button><button class="danger" [disabled]="busy()" (click)="control('kick',p.id)">Удалить</button></div></details>}
             @if(p.id!==ticket()?.participant_id){<div class="person-volume"><button (click)="togglePersonalMute(p.id)" [attr.aria-pressed]="personalVolume[p.id]===0" [attr.aria-label]="(personalVolume[p.id]===0?'Включить для себя: ':'Заглушить для себя: ')+p.name"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M11 5 6 9H3v6h3l5 4Z"/>@if(personalVolume[p.id]===0){<path d="m16 9 6 6m0-6-6 6"/>}@else{<path d="M15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/>}</svg></button><input type="range" min="0" max="100" [ngModel]="personalVolume[p.id] ?? 100" (ngModelChange)="personalVolume[p.id]=$event;updateVolumes()" [attr.aria-label]="'Громкость: '+p.name"/><output>{{personalVolume[p.id] ?? 100}}%</output></div>}
           </div>}
 </div>}
           @else{<p class="chat-hint">Сообщения удалятся после встречи</p>        <div #messageList class="messages" aria-live="polite">
           @if(hasOlder()){<button [disabled]="busy()" (click)="loadOlder()">Ранние сообщения</button>}
-          @for(m of allMessages();track m.id){<article><div class="message-by"><strong>{{m.author}}</strong><time>{{m.created_at | date:'HH:mm'}}</time>@if(m.edited_at){<small>изменено</small>}</div>
+          @for(m of allMessages();track m.id){<article><div class="message-by">@if(messageProfile(m);as author){@if(avatarUrl(author.user_id,author.avatar_updated_at);as avatar){<img class="message-avatar" [src]="avatar" [alt]="author.name" loading="lazy"/>}@else{<span class="message-initials" aria-hidden="true">{{initials(author.name)}}</span>}<strong>{{author.name}}</strong>@if(!author.user_id){<small>Гость</small>}}<time>{{m.created_at | date:'HH:mm'}}</time>@if(m.edited_at){<small>изменено</small>}</div>
             @if(m.reply_to_id){<blockquote>{{replyText(m.reply_to_id)}}</blockquote>}<p class="message-content">{{m.content}}</p>
             @for(u of m.uploads;track u.id){<div class="attachment"><button [disabled]="busy()" (click)="openFile(u)">↓ {{u.filename}}</button>@if(u.mime_type?.startsWith('image/')){<button [disabled]="busy()" (click)="openFile(u,true)">Посмотреть</button>}@else if(isTextFile(u.filename)){<button [disabled]="busy()" (click)="openText(u)">Посмотреть</button>}</div>}
             <details class="message-menu"><summary aria-label="Действия сообщения"><app-ui-icon name="more"/></summary><div class="message-actions"><button (click)="reply=m;editing=null">Ответить</button>@if(m.author_id===ticket()?.participant_id){<button (click)="edit(m)">Изменить</button>}@if(m.author_id===ticket()?.participant_id || ticket()?.is_owner){<button [disabled]="busy()" (click)="deleteMessage(m)">Удалить</button>}

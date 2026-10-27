@@ -59,7 +59,7 @@ def require_live(db: Session, meeting: RoomSession | None):
 def issue_token(participant: RoomParticipant):
     return create_signed_token({'purpose': 'meeting', 'pid': str(participant.id),
                                 'meeting': str(participant.session_id),
-                                'auth_sid': str(participant.auth_session_id) if participant.is_owner else None},
+                                'auth_sid': str(participant.auth_session_id) if participant.user_id or participant.is_owner else None},
                                get_settings().secret_key, 12 * 3600)
 
 
@@ -77,10 +77,11 @@ def principal(db: Session, token: str, *, lock=False):
     participant = db.get(RoomParticipant, pid)
     if not participant or participant.session_id != mid or participant.revoked:
         raise HTTPException(403, 'Доступ к встрече закрыт')
-    if participant.is_owner:
+    if participant.user_id or participant.is_owner:
         auth = db.get(AuthSession, participant.auth_session_id) if participant.auth_session_id else None
         room = db.get(MeetingRoom, meeting.room_id)
-        if (not auth or auth.revoked_at or auth.expires_at <= now() or auth.user_id != room.owner_id
+        expected_user = room.owner_id if participant.is_owner else participant.user_id
+        if (not auth or auth.revoked_at or auth.expires_at <= now() or auth.user_id != expected_user
                 or claims.get('auth_sid') != str(auth.id)):
             raise HTTPException(401, 'Войдите в аккаунт повторно')
     return meeting, participant
@@ -98,9 +99,10 @@ def media_permission(room: str, identity: str, metadata: str = '{}'):
             return None
         if not p or p.session_id != mid or p.revoked or p.last_seen_at < now() - PRESENCE_TTL:
             return None
-        if p.is_owner:
+        if p.user_id or p.is_owner:
             auth = db.get(AuthSession, p.auth_session_id) if p.auth_session_id else None
-            if not auth or auth.revoked_at or auth.expires_at <= now():
+            expected_user = db.get(MeetingRoom, meeting.room_id).owner_id if p.is_owner else p.user_id
+            if not auth or auth.revoked_at or auth.expires_at <= now() or auth.user_id != expected_user:
                 return None
             try:
                 if json.loads(metadata).get('auth_sid') != str(auth.id):

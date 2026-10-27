@@ -38,9 +38,11 @@ class RoomSession(Base):
 
 class RoomParticipant(Base):
     __tablename__ = 'room_participants'
-    __table_args__ = (UniqueConstraint('session_id', 'join_hash', name='uq_room_participant_join'),)
+    __table_args__ = (UniqueConstraint('session_id', 'join_hash', name='uq_room_participant_join'),
+                     UniqueConstraint('session_id', 'user_id', name='uq_room_participant_user'))
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     session_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('room_sessions.id', ondelete='CASCADE'), index=True)
+    user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('users.id', ondelete='CASCADE'), nullable=True)
     name: Mapped[str] = mapped_column(String(64))
     join_hash: Mapped[str] = mapped_column(String(64))
     is_owner: Mapped[bool] = mapped_column(Boolean, default=False)

@@ -12,12 +12,13 @@ import { TextFileViewerComponent, TextFileSource } from '../workspace/text-file-
 import { isTextFile } from '../shared/text-files';
 import { ParticipantAudioOutput } from '../shared/participant-audio-output';
 import { UiIconComponent } from '../workspace/ui-icon.component';
+import { AuthUser } from '../core/models/auth.models';
 
-interface Ticket { token: string; participant_id: string; session_id: string; is_owner: boolean; invite?: string | null; }
-interface Person { id: string; name: string; is_owner: boolean; silenced: boolean; }
+interface Ticket { token: string; participant_id: string; session_id: string; is_owner: boolean; user_id?: string | null; invite?: string | null; }
+interface Person { id: string; name: string; is_owner: boolean; silenced: boolean; user_id?: string | null; avatar_updated_at?: string | null; }
 interface MeetingState { name: string; locked: boolean; chat_revision: number; owner_deadline: string | null; server_time: string; remaining_uses: number | null; participants: Person[]; }
 interface Attachment { id: string; filename: string; size?: number; mime_type?: string; }
-interface Message { id: string; author_id: string; author: string; content: string; created_at: string; edited_at: string | null; reply_to_id: string | null; uploads: Attachment[]; reactions: {emoji: string; participant_id: string}[]; }
+interface Message { id: string; author_id: string; author: string; author_user_id?: string | null; author_avatar_updated_at?: string | null; content: string; created_at: string; edited_at: string | null; reply_to_id: string | null; uploads: Attachment[]; reactions: {emoji: string; participant_id: string}[]; }
 interface Video { id: string; participant: string; name: string; track: Track; screen: boolean; }
 
 @Directive({selector: 'video[meetingTrack]', standalone: true})
@@ -41,6 +42,10 @@ export class RoomPageComponent implements OnInit, OnDestroy {
   @ViewChild('messageList') messageList?: ElementRef<HTMLElement>;
   private readonly http = inject(HttpClient);
   readonly account = inject(SessionStorageService).read();
+  readonly profile = signal<AuthUser | null>(null);
+  readonly checkingAccount = signal(!!this.account);
+  readonly accountExpired = signal(false);
+  readonly guestMode = signal(false);
   readonly personal = location.pathname.replace(/\/$/, '') === '/my-room';
   readonly android = !!window.kvaAndroid;
   readonly canShareScreen = !!navigator.mediaDevices?.getDisplayMedia;
@@ -73,7 +78,7 @@ export class RoomPageComponent implements OnInit, OnDestroy {
   private outputDeviceId = 'default';
   private timer?: ReturnType<typeof setInterval>; private polling = false; private tick = 0;
   private readonly audio = new Map<string, {element: HTMLAudioElement; participant: string; track: RemoteTrack; playback: ParticipantAudioOutput}>();
-  private readonly storageKey = 'kva.meeting.' + (this.personal ? 'owner' : this.inviteCode);
+  private get storageKey() {return 'kva.meeting.'+(this.personal?'owner.'+this.account?.user.id:this.inviteCode+(this.account&&!this.guestMode()?'.account.'+this.account.user.id:''));}
   private disposed = false;
   private readonly unload = () => {
     const ticket = this.ticket();
@@ -85,28 +90,36 @@ export class RoomPageComponent implements OnInit, OnDestroy {
     window.addEventListener('resize', this.resizeViewport);
     window.addEventListener('pagehide', this.unload);
     try {
+      if(this.account){
+        try {this.profile.set(await firstValueFrom(this.http.get<AuthUser>(API_BASE_URL+'/api/me',{headers:{Authorization:'Bearer '+this.account.access_token}})));}
+        catch(error){if(error instanceof HttpErrorResponse && error.status===401)this.accountExpired.set(true);else throw error;}
+        finally{this.checkingAccount.set(false);}
+      }
       const saved = sessionStorage.getItem(this.storageKey);
       this.invite.set(this.personal ? sessionStorage.getItem(this.storageKey+'.invite') || '' : this.inviteUrl(this.inviteCode));
-      if (saved) {
-        this.ticket.set(JSON.parse(saved) as Ticket);
-        try { await this.enter(); return; }
+      if (saved && (!this.account || this.profile())) {
+        const restored=JSON.parse(saved) as Ticket;
+        if((restored.user_id || null)===(this.profile()?.id || null))this.ticket.set(restored);
+        try { if(this.ticket()){await this.enter(); return;} }
         catch { this.clearSession(); }
       }
-      if (this.personal && this.account) {
+      if (this.personal && this.account && this.profile()) {
         const info = await this.request<{active: boolean; cleanup_pending: boolean}>('GET', '/mine', undefined, this.account.access_token);
         this.notice.set(info.cleanup_pending ? 'Предыдущая встреча завершается. Попробуйте через несколько секунд.' : '');
       } else if (!this.personal) {
-        const info = await this.request<{locked: boolean; remaining_uses: number}>('GET', '/invite/'+this.inviteCode);
-        this.inviteReady.set(!info.locked && info.remaining_uses > 0);
-        if (info.locked) this.notice.set('Владелец закрыл вход во встречу.');
-        else if (info.remaining_uses <= 0) this.notice.set('Лимит входов по ссылке исчерпан.');
+        await this.loadInvitation();
       }
-    } catch (error) { this.showError(error); }
+    } catch (error) { this.showError(error);if(error instanceof HttpErrorResponse && error.status===401 && this.account){this.profile.set(null);this.accountExpired.set(true);} } finally {this.checkingAccount.set(false);}
   }
 
   private request<T>(method: string, path: string, body?: unknown, token = this.ticket()?.token) {
     return firstValueFrom(this.http.request<T>(method, API_BASE_URL+'/api/rooms'+path,
       {body, headers: token ? {Authorization: 'Bearer '+token} : {}}));
+  }
+  private async loadInvitation() {
+    const info=await this.request<{locked:boolean;remaining_uses:number;can_join?:boolean;removed?:boolean}>('GET','/invite/'+this.inviteCode,undefined,this.profile()?this.account!.access_token:undefined);
+    this.inviteReady.set(info.can_join ?? (!info.locked && info.remaining_uses>0));
+    this.notice.set(this.inviteReady()?'':info.removed?'Вы удалены из встречи.':info.locked?'Владелец закрыл вход во встречу.':'Лимит входов по ссылке исчерпан.');
   }
   private save() { try { sessionStorage.setItem(this.storageKey, JSON.stringify(this.ticket())); } catch {} }
   private clearSession() { this.ticket.set(null);this.messages.set([]);this.olderMessages.set([]);this.uploads=[];this.text='';this.reply=null;this.editing=null;this.panel.set(null);this.unread.set(0);this.messagesLoaded=false;this.page=0; try { sessionStorage.removeItem(this.storageKey); } catch {} }
@@ -117,18 +130,26 @@ export class RoomPageComponent implements OnInit, OnDestroy {
   async run(action: () => Promise<unknown>) {
     if (this.busy()) return;
     this.busy.set(true); this.error.set('');
-    try { await action(); } catch(error) { this.showError(error); } finally { this.busy.set(false); }
+    try { await action(); } catch(error) { this.showError(error);if(error instanceof HttpErrorResponse && error.status===401 && !this.ticket() && this.account && !this.guestMode()){this.profile.set(null);this.accountExpired.set(true);} } finally { this.busy.set(false); }
   }
   async join() {
     await this.run(async () => {
+      if(this.checkingAccount() || (this.account && !this.guestMode() && !this.profile()))return;
       let t: Ticket;
       if (this.personal) {
         if (!this.account) return;
         t = await this.request<Ticket>('POST', '/start', {hours: this.hours, uses: this.uses}, this.account.access_token);
+        // Migrate an old owner's saved invite only after the server confirms
+        // that the returned room participant belongs to this account.
+        if(!t.invite && !this.invite())try{
+          const legacy=JSON.parse(sessionStorage.getItem('kva.meeting.owner') || 'null');
+          if(t.user_id===this.profile()?.id && legacy?.participant_id===t.participant_id && legacy?.session_id===t.session_id)
+            this.invite.set(sessionStorage.getItem('kva.meeting.owner.invite') || '');
+        }catch{}
       } else {
         let nonce = sessionStorage.getItem(this.storageKey+'.nonce');
         if (!nonce) { nonce = crypto.randomUUID().replace(/-/g,'')+crypto.randomUUID().replace(/-/g,''); sessionStorage.setItem(this.storageKey+'.nonce', nonce); }
-        t = await this.request<Ticket>('POST', '/invite/'+this.inviteCode+'/join', {name: this.name, nonce});
+        t = await this.request<Ticket>('POST', '/invite/'+this.inviteCode+'/join', {...(this.profile()?{}:{name:this.name}), nonce}, this.profile()?this.account!.access_token:undefined);
       }
       this.ticket.set(t); this.save(); this.ended.set(false);
       if (t.invite) this.invite.set(this.inviteUrl(t.invite));
@@ -183,7 +204,9 @@ export class RoomPageComponent implements OnInit, OnDestroy {
       await this.refresh();
     } catch(error) {
       if (error instanceof HttpErrorResponse && [401,403,410].includes(error.status)) {
-        this.showError(error); await this.disconnect(); this.clearSession(); this.ended.set(true);
+        this.showError(error); await this.disconnect(); this.clearSession();
+        if(error.status===401 && this.profile()){this.profile.set(null);this.accountExpired.set(true);this.ended.set(false);}
+        else this.ended.set(true);
       } else { this.notice.set('Связь с сервером прервана. Пробуем восстановить…'); }
     } finally { this.polling = false; }
   }
@@ -242,6 +265,10 @@ export class RoomPageComponent implements OnInit, OnDestroy {
   screens() {return this.videos().filter(v=>v.screen);}
   presentation() {return this.screens().find(v=>v.id===this.selectedScreen()) || this.screens()[0];}
   initials(name:string) {return name.trim().split(/\s+/).slice(0,2).map(s=>Array.from(s)[0]).join('').toUpperCase();}
+  avatarUrl(id:string|null|undefined,version:string|null|undefined) {return id?API_BASE_URL+'/api/users/'+encodeURIComponent(id)+'/avatar?v='+encodeURIComponent(version || 'default')+'&motion='+!window.matchMedia('(prefers-reduced-motion: reduce)').matches:null;}
+  messageProfile(m:Message) {const p=this.state()?.participants.find(p=>p.id===m.author_id);return {name:p?.name || m.author,user_id:p?.user_id || m.author_user_id,avatar_updated_at:p?.avatar_updated_at || m.author_avatar_updated_at};}
+  reloadAccount() {location.reload();}
+  continueAsGuest() {this.clearSession();this.guestMode.set(true);this.profile.set(null);this.accountExpired.set(false);this.error.set('');this.name='';this.inviteReady.set(false);void this.run(()=>this.loadInvitation());}
   personMuted(p:Person) {return p.silenced || !this.microphoneStates()[p.id];}
   togglePanel(panel:'chat'|'participants') {this.panel.set(this.panel()===panel?null:panel);if(this.panel()==='chat'){this.unread.set(0);requestAnimationFrame(()=>{const el=this.messageList?.nativeElement;if(el)el.scrollTop=el.scrollHeight;});}}
   openSettings(dialog:HTMLDialogElement) {dialog.showModal();void this.loadDevices();}
