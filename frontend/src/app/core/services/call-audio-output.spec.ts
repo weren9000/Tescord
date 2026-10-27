@@ -50,9 +50,54 @@ describe('Call audio output', () => {
       expect(replacement.muted).toBeFalse();
     }
     call.updateMasterVolume(0);
-    expect(call.settings().masterVolume).toBe(10);
+    expect(call.settings().masterVolume).toBe(0);
     call.leave();
   });
+  it('changes active group outputs immediately across the full range without altering personal settings', () => {
+    TestBed.configureTestingModule({providers: [{provide: WorkspaceApiService, useValue: {}}]});
+    const call = TestBed.inject(VoiceRoomService);
+    const first = new Audio(), second = new Audio();
+    const internals = call as any;
+    internals.remoteAudioOutputs.set('one', {audioElement: first});
+    internals.remoteAudioOutputs.set('two', {audioElement: second});
+    call.updateParticipantVolume('two', 50);
+    for (const value of [100, 40, 9, 1, 0, 75]) {
+      call.updateMasterVolume(value);
+      expect(first.volume).toBeCloseTo(value / 100);
+      expect(second.volume).toBeCloseTo(value / 200);
+      expect(first.muted).toBe(value === 0);
+      expect(second.muted).toBe(value === 0);
+      expect(call.getParticipantVolume('two')).toBe(50);
+      expect(call.localMuted()).toBeFalse();
+    }
+    for (const invalid of [NaN, Infinity, -Infinity]) call.updateMasterVolume(invalid);
+    expect(call.settings().masterVolume).toBe(75);
+    expect(first.volume).toBeCloseTo(.75);
+    call.leave();
+  });
+
+  it('preserves zero master volume on reload and when a remote track arrives', () => {
+    TestBed.configureTestingModule({providers: [{provide: WorkspaceApiService, useValue: {}}]});
+    let call = TestBed.inject(VoiceRoomService);
+    call.updateMasterVolume(0);
+    call.leave();
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({providers: [{provide: WorkspaceApiService, useValue: {}}]});
+    call = TestBed.inject(VoiceRoomService);
+    const internals = call as any;
+    internals.ensureAudiblePlaybackSettings('one');
+    const audio = new Audio();
+    internals.remoteAudioOutputs.set('one', {audioElement: audio});
+    internals.applyVolumesForUser('one');
+    expect(call.settings().masterVolume).toBe(0);
+    expect(audio.volume).toBe(0);
+    expect(audio.muted).toBeTrue();
+    call.updateMasterVolume(25);
+    expect(audio.volume).toBeCloseTo(.25);
+    expect(audio.muted).toBeFalse();
+    call.leave();
+  });
+
   it('restores the last audible personal volume after mute, reload and repeated zero updates', () => {
     TestBed.configureTestingModule({providers: [{provide: WorkspaceApiService, useValue: {}}]});
     let call = TestBed.inject(VoiceRoomService);

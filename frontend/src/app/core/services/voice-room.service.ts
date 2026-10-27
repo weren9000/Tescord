@@ -127,7 +127,7 @@ const VOICE_SOCKET_PING_INTERVAL_MS = 20000;
 const VOICE_RECONNECT_BASE_MS = 1000;
 const VOICE_RECONNECT_MAX_MS = 10000;
 const MIN_MICROPHONE_GAIN_PERCENT = 10;
-const MIN_OUTPUT_VOLUME_PERCENT = 10;
+const MIN_OUTPUT_VOLUME_PERCENT = 0;
 const MIN_PARTICIPANT_VOLUME_PERCENT = 0;
 const MAX_MICROPHONE_GAIN_PERCENT = 200;
 const MAX_OUTPUT_VOLUME_PERCENT = 100;
@@ -731,6 +731,7 @@ export class VoiceRoomService {
   }
 
   updateMasterVolume(value: number): void {
+    if (!Number.isFinite(value)) return;
     this.updateSettings({
       masterVolume: clamp(value, MIN_OUTPUT_VOLUME_PERCENT, MAX_OUTPUT_VOLUME_PERCENT),
     });
@@ -1402,7 +1403,7 @@ export class VoiceRoomService {
     }
 
     const effectiveGain = this.getRemoteParticipantGain(userId);
-    remoteAudioOutput.audioElement.muted = this.outputMuted() || this.getParticipantVolume(userId) === 0;
+    remoteAudioOutput.audioElement.muted = effectiveGain === 0;
     remoteAudioOutput.audioElement.volume = clamp(effectiveGain, 0, 1);
   }
 
