@@ -13,6 +13,75 @@ class Base(DeclarativeBase):
     pass
 
 
+class MeetingRoom(Base):
+    __tablename__ = 'meeting_rooms'
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    owner_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('users.id', ondelete='CASCADE'), unique=True)
+    name: Mapped[str] = mapped_column(String(80), default='Моя комната')
+
+
+class RoomSession(Base):
+    __tablename__ = 'room_sessions'
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    room_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('meeting_rooms.id', ondelete='CASCADE'), unique=True)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    owner_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    owner_left_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    invite_hash: Mapped[str | None] = mapped_column(String(64), unique=True)
+    invite_expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    invite_limit: Mapped[int] = mapped_column(Integer, default=49)
+    invite_uses: Mapped[int] = mapped_column(Integer, default=0)
+    locked: Mapped[bool] = mapped_column(Boolean, default=False)
+    chat_revision: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class RoomParticipant(Base):
+    __tablename__ = 'room_participants'
+    __table_args__ = (UniqueConstraint('session_id', 'join_hash', name='uq_room_participant_join'),)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    session_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('room_sessions.id', ondelete='CASCADE'), index=True)
+    name: Mapped[str] = mapped_column(String(64))
+    join_hash: Mapped[str] = mapped_column(String(64))
+    is_owner: Mapped[bool] = mapped_column(Boolean, default=False)
+    auth_session_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('auth_sessions.id', ondelete='SET NULL'))
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    revoked: Mapped[bool] = mapped_column(Boolean, default=False)
+    silenced: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class RoomMessage(Base):
+    __tablename__ = 'room_messages'
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    session_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('room_sessions.id', ondelete='CASCADE'), index=True)
+    author_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('room_participants.id', ondelete='CASCADE'))
+    content: Mapped[str] = mapped_column(Text, default='')
+    reply_to_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('room_messages.id', ondelete='SET NULL'))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    edited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class RoomUpload(Base):
+    __tablename__ = 'room_uploads'
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    session_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('room_sessions.id', ondelete='CASCADE'), index=True)
+    author_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('room_participants.id', ondelete='CASCADE'))
+    message_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('room_messages.id', ondelete='CASCADE'), index=True)
+    filename: Mapped[str] = mapped_column(String(255))
+    mime_type: Mapped[str] = mapped_column(String(128))
+    size_bytes: Mapped[int] = mapped_column(BigInteger)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class RoomReaction(Base):
+    __tablename__ = 'room_reactions'
+    __table_args__ = (UniqueConstraint('message_id', 'participant_id', 'emoji', name='uq_room_reaction'),)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    message_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('room_messages.id', ondelete='CASCADE'), index=True)
+    participant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('room_participants.id', ondelete='CASCADE'))
+    emoji: Mapped[str] = mapped_column(String(32))
+
+
 class WalletBatch(Base):
     __tablename__ = 'wallet_batches'
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True)

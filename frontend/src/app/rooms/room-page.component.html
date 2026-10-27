@@ -1,0 +1,84 @@
+@if(account){<app-theme-controller [token]="account.access_token"/>}
+<main class="meeting-page">
+  <header><a href="/" class="brand"><img src="/assets/kva-wordmark-v2.png" alt="Квачат" width="90"/></a><span>Комната</span><a href="/">Вернуться в Квачат</a></header>
+  @if(error()){<div class="alert" role="alert">{{error()}} <button (click)="error.set('')" aria-label="Закрыть ошибку">×</button></div>}
+  @if(notice()){<p class="notice" role="status">{{notice()}}</p>}
+  @if(!ticket()){
+    <section class="welcome">
+      <div class="room-symbol" aria-hidden="true">◉</div>
+      <h1>{{personal ? 'Моя комната' : 'Вас пригласили на встречу'}}</h1>
+      <p>Общайтесь голосом, включайте видео и делитесь экраном.<br/>До 50 участников. Гостям регистрация не нужна.</p>
+      @if(ended()){<p>Встреча завершена. Для следующей встречи нужна новая ссылка.</p>}
+      @if(personal && !account){<a class="primary" href="/login">Войти, чтобы начать встречу</a>}
+      @else if(personal){
+        <div class="settings"><label>Ссылка действует <select [(ngModel)]="hours"><option [ngValue]="1">1 час</option><option [ngValue]="24">24 часа</option><option [ngValue]="168">7 дней</option></select></label><label>Количество входов <input type="number" min="1" max="1000" [(ngModel)]="uses"/></label></div>
+        <button class="primary" [disabled]="busy()" (click)="join()">Начать / вернуться во встречу</button>
+        <p class="hint">После вашего выхода комната работает ещё 5 минут.<br/>После завершения чат и файлы очищаются.</p>
+      }@else if(!ended()){
+        <form (ngSubmit)="join()"><label>Ваше имя<input name="name" [(ngModel)]="name" maxlength="64" required autocomplete="nickname" placeholder="Как вас представить?"/></label><button class="primary" [disabled]="busy() || !name.trim() || !inviteReady()">Присоединиться</button></form>
+        <p class="hint">Микрофон и камера выключены при входе. Вы включите их сами.<br/>Сообщения и файлы доступны только до завершения встречи.</p>
+      }
+    </section>
+  }@else{
+    @if(state()?.owner_deadline){<div class="owner-away" role="status">Владелец отключился. Встреча продолжится ещё {{countdown()}}. Если он вернётся, завершение отменится.</div>}
+    <div class="meeting-heading"><h1>{{state()?.name || 'Комната'}}</h1><span>{{state()?.participants?.length || 1}} / 50 участников</span><span class="connection" [class.online]="connected()">{{connected()?'На связи':'Звук не подключён'}}</span></div>
+    @if(ticket()?.is_owner){
+      <details class="invitation"><summary>Пригласить участников · настройки встречи</summary>
+        <div class="settings"><label>Срок ссылки<select [(ngModel)]="hours"><option [ngValue]="1">1 час</option><option [ngValue]="24">24 часа</option><option [ngValue]="168">7 дней</option></select></label><label>Лимит входов<input type="number" min="1" max="1000" [(ngModel)]="uses"/></label><button [disabled]="busy()" (click)="rotate()">Выдать новую ссылку</button><button [disabled]="busy()" (click)="control(state()?.locked?'unlock':'lock')">{{state()?.locked?'Открыть вход':'Закрыть вход'}}</button></div>
+        @if(invite()){<div class="invite-link"><input readonly [value]="invite()" aria-label="Ссылка на встречу"/><button (click)="copyInvite()">Скопировать</button></div>}
+        <p class="hint">Осталось входов по текущей ссылке: {{state()?.remaining_uses}}. Новая ссылка заменяет предыдущую. Переподключение уже вошедших гостей лимит не расходует.</p>
+      </details>
+    }
+    <div class="conference">
+      <section class="stage" aria-label="Конференция">
+        <div class="videos">
+          @for(v of visibleVideos();track v.id){<div class="video-tile" [class.screen]="v.screen" [class.speaking]="speakers().includes(v.participant)"><video [meetingTrack]="v.track" autoplay playsinline muted></video><span>{{v.name}}{{v.screen?' · экран':''}}</span></div>}
+          @if(!videos().length){<div class="empty-stage"><span aria-hidden="true">◉</span><h2>Вы в комнате</h2><p>Включите микрофон, чтобы говорить.<br/>Камера и демонстрация экрана — по желанию.</p></div>}
+        </div>
+        @if(videos().length>9){<div class="pages"><button [disabled]="page===0" (click)="page=page-1">Назад</button><span>{{page+1}}</span><button [disabled]="(page+1)*9>=videos().length" (click)="page=page+1">Далее</button></div>}
+        <div class="call-controls">
+          <button [class.enabled]="microphone()" [attr.aria-pressed]="microphone()" [disabled]="busy() || !connected()" (click)="toggle('microphone')">{{microphone()?'Микрофон вкл.':'Микрофон выкл.'}}</button>
+          <button [class.enabled]="camera()" [attr.aria-pressed]="camera()" [disabled]="busy() || !connected()" (click)="toggle('camera')">{{camera()?'Камера вкл.':'Камера выкл.'}}</button>
+          @if(canShareScreen){<button [class.enabled]="screen()" [attr.aria-pressed]="screen()" [disabled]="busy() || !connected()" (click)="toggle('screen')">{{screen()?'Остановить показ':'Показать экран'}}</button>}
+          @if(!connected()){<button [disabled]="busy()" (click)="run(connectMedia.bind(this))">Подключить звук</button>}
+          @if(audioBlocked()){<button (click)="run(resumeAudio.bind(this))">Включить звук</button>}
+          <label class="volume">{{volume===0?'Звук выключен':'Громкость'}} {{volume}}%<input type="range" min="0" max="100" [(ngModel)]="volume" (ngModelChange)="updateVolumes()" aria-label="Общая громкость"/></label>
+          @if(android && connected()){<app-android-call-output/>}
+          <button class="danger" [disabled]="busy()" (click)="leave()">Выйти</button>
+          @if(ticket()?.is_owner){<button class="danger" [disabled]="busy()" (click)="leave(true)">Завершить для всех</button>}
+        </div>
+        <details class="participants"><summary (click)="loadDevices()">Устройства звука и видео</summary><div class="settings">
+          <label>Микрофон<select (change)="chooseDevice('audioinput',$any($event.target).value)"><option value="default">По умолчанию</option>@for(d of devicesOf('audioinput');track d.deviceId){<option [value]="d.deviceId">{{d.label || 'Микрофон'}}</option>}</select></label>
+          <label>Камера<select (change)="chooseDevice('videoinput',$any($event.target).value)"><option value="default">По умолчанию</option>@for(d of devicesOf('videoinput');track d.deviceId){<option [value]="d.deviceId">{{d.label || 'Камера'}}</option>}</select></label>
+          @if(!android){<label>Динамики<select (change)="chooseDevice('audiooutput',$any($event.target).value)"><option value="default">По умолчанию</option>@for(d of devicesOf('audiooutput');track d.deviceId){<option [value]="d.deviceId">{{d.label || 'Динамики'}}</option>}</select></label>}
+        </div><p class="hint">Названия устройств появятся после разрешения доступа к микрофону или камере.</p></details>
+        <details class="participants" open><summary>Участники · {{state()?.participants?.length || 1}}</summary>
+          @for(p of state()?.participants || [];track p.id){<div class="person" [class.speaking]="speakers().includes(p.id)"><span class="avatar">{{p.name.slice(0,1).toUpperCase()}}</span><strong>{{p.name}}</strong><small>{{p.is_owner?'Владелец':''}}{{p.id===ticket()?.participant_id?' · Вы':''}}{{p.silenced?' · Передача отключена':''}}</small>
+            @if(p.id!==ticket()?.participant_id){<label class="person-volume">{{(personalVolume[p.id] ?? 100)===0?'Без звука':(personalVolume[p.id] ?? 100)+'%'}}<input type="range" min="0" max="100" [ngModel]="personalVolume[p.id] ?? 100" (ngModelChange)="personalVolume[p.id]=$event;updateVolumes()" [attr.aria-label]="'Громкость: '+p.name"/></label>}
+            @if(ticket()?.is_owner && !p.is_owner){<button [disabled]="busy()" (click)="control(p.silenced?'unsilence':'silence',p.id)">{{p.silenced?'Разрешить передачу':'Отключить передачу'}}</button><button class="danger" [disabled]="busy()" (click)="control('kick',p.id)">Удалить</button>}
+          </div>}
+        </details>
+      </section>
+      <section class="chat" aria-label="Чат встречи"><h2>Чат встречи</h2><p class="hint">Удалится после завершения</p>
+        <div #messageList class="messages" aria-live="polite">
+          @if(hasOlder()){<button [disabled]="busy()" (click)="loadOlder()">Ранние сообщения</button>}
+          @for(m of allMessages();track m.id){<article><div class="message-by"><strong>{{m.author}}</strong><time>{{m.created_at | date:'HH:mm'}}</time>@if(m.edited_at){<small>изменено</small>}</div>
+            @if(m.reply_to_id){<blockquote>{{replyText(m.reply_to_id)}}</blockquote>}<p class="message-content">{{m.content}}</p>
+            @for(u of m.uploads;track u.id){<div class="attachment"><button [disabled]="busy()" (click)="openFile(u)">↓ {{u.filename}}</button>@if(u.mime_type?.startsWith('image/')){<button [disabled]="busy()" (click)="openFile(u,true)">Посмотреть</button>}@else if(isTextFile(u.filename)){<button [disabled]="busy()" (click)="openText(u)">Посмотреть</button>}</div>}
+            <div class="message-actions"><button (click)="reply=m;editing=null">Ответить</button>@if(m.author_id===ticket()?.participant_id){<button (click)="edit(m)">Изменить</button>}@if(m.author_id===ticket()?.participant_id || ticket()?.is_owner){<button [disabled]="busy()" (click)="deleteMessage(m)">Удалить</button>}
+              <details><summary aria-label="Добавить реакцию">☺</summary><div class="reactions">@for(e of emojis;track e){<button [disabled]="busy()" (click)="react(m,e)">{{e}}</button>}</div></details>
+            </div><div class="reactions">@for(e of emojis;track e){@if(reactionCount(m,e)){<button [disabled]="busy()" (click)="react(m,e)">{{e}} {{reactionCount(m,e)}}</button>}}</div>
+          </article>}@empty{<p class="hint">Поздоровайтесь с участниками встречи</p>}
+        </div>
+        <form class="composer" (ngSubmit)="send()">
+          @if(reply || editing){<div class="reply">{{editing?'Редактирование': 'Ответ: '+reply?.author}}<button type="button" (click)="reply=null;editing=null;text=''" aria-label="Отменить">×</button></div>}
+          @for(u of uploads;track u.id){<div class="reply">{{u.filename}}<button type="button" [disabled]="busy()" (click)="discard(u)" aria-label="Убрать файл">×</button></div>}
+          <textarea name="message" [(ngModel)]="text" maxlength="10000" placeholder="Сообщение участникам…" aria-label="Сообщение" rows="3"></textarea>
+          <div><label class="file-button">Прикрепить<input type="file" multiple [disabled]="busy() || !!editing" (change)="pickFiles($event)"/></label><button class="primary" [disabled]="busy() || (!text.trim() && !uploads.length)">{{busy()?'Подождите…':editing?'Сохранить':'Отправить'}}</button></div>
+        </form>
+      </section>
+    </div>
+  }
+  @if(preview();as image){<div class="preview" role="dialog" aria-modal="true" [attr.aria-label]="image.filename" (click)="closePreview()"><button (click)="closePreview()" aria-label="Закрыть предпросмотр">×</button><img [src]="image.url" [alt]="image.filename"/></div>}
+  @if(textPreview();as source){<app-text-file-viewer [source]="source" (closed)="textPreview.set(null)"/>}
+</main>

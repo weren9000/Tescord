@@ -25,7 +25,7 @@ function clearNotifications() {
   notifications.clear();
 }
 const trusted = (url: string) => { try {const origin=new URL(url).origin;return origin === ORIGIN || (developmentTest && origin === 'http://localhost:4200');} catch {return false;} };
-const appPage = (url: string) => {try {return trusted(url) && /^\/(?:login\/?|invite\/[A-Za-z0-9_-]+\/?|channels\/[a-fA-F0-9-]+\/[a-fA-F0-9-]+\/?)?$/.test(new URL(url).pathname);}catch{return false;}};
+const appPage = (url: string) => {try {return trusted(url) && /^\/(?:login\/?|my-room\/?|room\/[A-Za-z0-9_-]+\/?|invite\/[A-Za-z0-9_-]+\/?|channels\/[a-fA-F0-9-]+\/[a-fA-F0-9-]+\/?)?$/.test(new URL(url).pathname);}catch{return false;}};
 const isMain = (event: IpcMainEvent | Electron.IpcMainInvokeEvent) => !!main && event.sender === main.webContents && event.senderFrame === main.webContents.mainFrame && trusted(event.senderFrame.url);
 const isPicker = (event: Electron.IpcMainEvent | Electron.IpcMainInvokeEvent) => !!picker && event.sender === picker.webContents && event.senderFrame === picker.webContents.mainFrame;
 const stateFile = () => path.join(app.getPath('userData'), 'window.json');

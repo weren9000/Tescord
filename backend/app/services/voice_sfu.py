@@ -48,6 +48,9 @@ async def prepare_voice_room(channel_id, user_id):
 
 def media_permission(room: str, identity: str, metadata: str, *, joining: bool) -> bool | None:
     """None denies participation, False permits listening, True permits publishing."""
+    if room.startswith('meeting-'):
+        from app.services.meeting_rooms import media_permission as meeting_permission
+        return meeting_permission(room, identity, metadata)
     try:
         user_id = UUID(identity)
         session_id = UUID(json.loads(metadata)['session_id'])
@@ -87,7 +90,7 @@ async def enforce_participant(channel_id, user_id, *, can_publish: bool | None):
             if can_publish is None:
                 await client.room.remove_participant(api.RoomParticipantIdentity(room=str(channel_id), identity=str(user_id)))
             else:
-                await client.room.update_participant(api.UpdateParticipantRequest(room=str(channel_id), identity=str(user_id), permission=api.ParticipantPermission(can_publish=can_publish, can_subscribe=True, can_publish_data=True)))
+                await client.room.update_participant(api.UpdateParticipantRequest(room=str(channel_id), identity=str(user_id), permission=api.ParticipantPermission(can_publish=can_publish, can_subscribe=True, can_publish_data=not str(channel_id).startswith('meeting-'))))
     except api.TwirpError as exc:
         if exc.code == 'not_found':
             return

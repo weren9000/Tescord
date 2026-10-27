@@ -664,6 +664,7 @@ const DEFAULT_SERVER_ICON_ASSET_BY_NAME: Record<string, string> = {
     styleUrls: ['./app.component.scss', './app-layout.scss', './call-workspace.scss', './platform-workspace.scss', './invite-entry.scss', './palette-theme.scss', './avatar-presets.scss', './mobile-workspace.scss', './chat-bubbles.scss', './conference-stage.scss', './platform-calm.scss']
 })
 export class AppComponent {
+  openMeetingRoom() { window.location.assign('/my-room'); }
   readonly platformApi = inject(PlatformApiService);
   private readonly platformLastChats = new Map<string,string>();
   readonly platformEntryInvite = signal('');

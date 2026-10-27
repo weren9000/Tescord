@@ -1,5 +1,6 @@
 from __future__ import annotations
 from app.services.pending_uploads import run_upload_cleanup
+from app.services.meeting_rooms import run_room_cleanup
 
 import asyncio
 import logging
@@ -67,10 +68,13 @@ async def lifespan(_: FastAPI):
     outbox_task = asyncio.create_task(run_message_outbox())
     upload_cleanup_task = asyncio.create_task(run_upload_cleanup())
     media_task = asyncio.create_task(cluster.singleton('media', reconcile_media_permissions))
+    rooms_task = asyncio.create_task(cluster.singleton('meetings', run_room_cleanup))
     monitoring_task = asyncio.create_task(cluster.singleton('monitoring', collect_metrics))
     try:
         yield
     finally:
+        rooms_task.cancel()
+        await asyncio.gather(rooms_task, return_exceptions=True)
         performance_task.cancel()
         await asyncio.gather(performance_task, return_exceptions=True)
         monitoring_task.cancel()

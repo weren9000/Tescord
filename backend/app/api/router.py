@@ -27,6 +27,8 @@ from app.api.routes.voice import router as voice_router
 from app.api.routes.wallpapers import router as wallpapers_router
 
 api_router = APIRouter()
+from app.api.routes.rooms import router as rooms_router
+api_router.include_router(rooms_router)
 from app.api.routes.platforms import router as platforms_router
 api_router.include_router(platforms_router)
 api_router.include_router(wallets_router)

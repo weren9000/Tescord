@@ -362,6 +362,7 @@
       <app-action-menu label="Меню" (close)="closeSideMenu()">
         <section>
           <button type="button" (click)="closeSideMenu(); openProfileEditor()"><app-ui-icon name="profile" />Мой профиль</button>
+          <button type="button" (click)="openMeetingRoom()"><app-ui-icon name="groups"/>Моя комната</button>
           <app-wallet-balance [token]="session()!.access_token" (open)="closeSideMenu();walletOpen.set(true)"/>
           <button type="button" (click)="closeSideMenu(); shopOpen.set(true)"><app-ui-icon name="shop" />Магазин</button>
           <button type="button" (click)="closeSideMenu(); inventoryMode.set('inventory')"><app-ui-icon name="inventory" />Инвентарь @if(inventoryUnread()){ · {{inventoryUnread()}} }</button>

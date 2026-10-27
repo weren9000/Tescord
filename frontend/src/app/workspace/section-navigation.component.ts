@@ -10,6 +10,7 @@ export type WorkspaceSection = 'chats' | 'groups' | 'platforms';
     <nav aria-label="Основные разделы">
       <div class="brand"><img src="/assets/kva-wordmark-v2.png" alt="Квачат" width="70" height="35" /></div>
       <div class="sections">
+        <button type="button" (click)="openRoom()"><app-ui-icon name="groups"/><span>Моя комната</span></button>
         @for (section of sections; track section.id) {
           <button type="button" [attr.title]="section.label" [class.active]="!adminSelected() && selected() === section.id" [attr.aria-current]="!adminSelected() && selected() === section.id ? 'page' : null" (click)="selectSection.emit(section.id)">
             <app-ui-icon [name]="section.icon" /><span>{{ section.label }}</span>
@@ -45,6 +46,7 @@ export type WorkspaceSection = 'chats' | 'groups' | 'platforms';
   `],
 })
 export class SectionNavigationComponent {
+  openRoom() { window.location.assign('/my-room'); }
   readonly selected = input<WorkspaceSection>('chats');
   readonly isSystemAdmin = input(false);
   readonly adminSelected = input(false);
