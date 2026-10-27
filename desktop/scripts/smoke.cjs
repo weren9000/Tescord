@@ -36,6 +36,8 @@ let instance;
   await picker.screenshot({path:path.join(profile,'capture-picker.png')});
   await picker.getByRole('button',{name:'Отмена',exact:true}).click({noWaitAfter:true});
   assert.notEqual(await page.evaluate(()=>window.captureTest),'granted');
+  await instance.evaluate(({BrowserWindow})=>{const w=BrowserWindow.getAllWindows()[0];w.restore();w.show();w.focus();});
+  await page.bringToFront();
   await page.screenshot({path:path.join(profile,'login.png')});
   await instance.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].close());
   assert.equal(await instance.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].isVisible()),false);
