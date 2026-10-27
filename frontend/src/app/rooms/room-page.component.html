@@ -1,23 +1,22 @@
 @if(account){<app-theme-controller [token]="account.access_token"/>}
 <main class="meeting-page" [class.in-call]="!!ticket()" [style.--meeting-height]="viewportHeight()+'px'">
-  <header [hidden]="!!ticket()"><a href="/" class="brand"><img src="/assets/kva-wordmark-v2.png" alt="Квачат" width="90"/></a><span>Комната</span><a href="/">Вернуться в Квачат</a></header>
-  @if(error()){<div class="alert" role="alert">{{error()}} <button (click)="error.set('')" aria-label="Закрыть ошибку">×</button></div>}
-  @if(notice()){<p class="notice" role="status">{{notice()}}</p>}
+  @if(ticket() && error()){<div class="alert" role="alert">{{error()}} <button (click)="error.set('')" aria-label="Закрыть ошибку">×</button></div>}
+  @if(ticket() && notice()){<p class="notice" role="status">{{notice()}}</p>}
   @if(!ticket()){
     <section class="welcome">
-      <div class="room-symbol" aria-hidden="true">◉</div>
-      <h1>{{personal ? 'Моя комната' : 'Вас пригласили на встречу'}}</h1>
-      <p>Общайтесь голосом, включайте видео и делитесь экраном.<br/>До 50 участников. Гостям регистрация не нужна.</p>
-      @if(ended()){<p>Встреча завершена. Для следующей встречи нужна новая ссылка.</p>}
+      <a href="/" class="welcome-brand" aria-label="Квачат"><img src="/assets/kva-wordmark-v2.png" alt="Квачат" width="88"/></a>
+      <h1>{{ended() ? 'Встреча завершена' : personal ? 'Моя комната' : 'Войти в комнату'}}</h1>
+      @if(error()){<div class="alert" role="alert">{{error()}}<button (click)="error.set('')" aria-label="Закрыть ошибку"><app-ui-icon name="close"/></button></div>}
+      @if(notice()){<p class="entry-notice" role="status">{{notice()}}</p>}
+      @if(ended() && !personal){<p class="hint">Для следующей встречи нужна новая ссылка.</p>}
       @if(personal && !account){<a class="primary" href="/login">Войти, чтобы начать встречу</a>}
       @else if(personal){
-        <div class="settings"><label>Ссылка действует <select [(ngModel)]="hours"><option [ngValue]="1">1 час</option><option [ngValue]="24">24 часа</option><option [ngValue]="168">7 дней</option></select></label><label>Количество входов <input type="number" min="1" max="1000" [(ngModel)]="uses"/></label></div>
+        <details class="entry-settings"><summary>Настройки ссылки<app-ui-icon name="down"/></summary><div class="settings"><label>Ссылка действует <select [(ngModel)]="hours"><option [ngValue]="1">1 час</option><option [ngValue]="24">24 часа</option><option [ngValue]="168">7 дней</option></select></label><label>Количество входов <input type="number" min="1" max="1000" [(ngModel)]="uses"/></label></div></details>
         <button class="primary" [disabled]="busy()" (click)="join()">Начать / вернуться во встречу</button>
-        <p class="hint">После вашего выхода комната работает ещё 5 минут.<br/>После завершения чат и файлы очищаются.</p>
       }@else if(!ended()){
         <form (ngSubmit)="join()"><label>Ваше имя<input name="name" [(ngModel)]="name" maxlength="64" required autocomplete="nickname" placeholder="Как вас представить?"/></label><button class="primary" [disabled]="busy() || !name.trim() || !inviteReady()">Присоединиться</button></form>
-        <p class="hint">Микрофон и камера выключены при входе. Вы включите их сами.<br/>Сообщения и файлы доступны только до завершения встречи.</p>
       }
+      <a class="entry-back" href="/"><app-ui-icon name="back"/>В Квачат</a>
     </section>
   }@else{
     <div class="meeting-status">

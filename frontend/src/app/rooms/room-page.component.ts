@@ -94,7 +94,7 @@ export class RoomPageComponent implements OnInit, OnDestroy {
       }
       if (this.personal && this.account) {
         const info = await this.request<{active: boolean; cleanup_pending: boolean}>('GET', '/mine', undefined, this.account.access_token);
-        this.notice.set(info.active ? 'Ваша встреча уже идёт. Вернитесь в неё.' : info.cleanup_pending ? 'Предыдущая встреча завершается. Попробуйте через несколько секунд.' : 'Начните встречу и отправьте ссылку гостям.');
+        this.notice.set(info.cleanup_pending ? 'Предыдущая встреча завершается. Попробуйте через несколько секунд.' : '');
       } else if (!this.personal) {
         const info = await this.request<{locked: boolean; remaining_uses: number}>('GET', '/invite/'+this.inviteCode);
         this.inviteReady.set(!info.locked && info.remaining_uses > 0);
@@ -283,7 +283,7 @@ export class RoomPageComponent implements OnInit, OnDestroy {
     await this.run(async()=>{
       await this.request('POST', end ? '/control' : '/leave', end ? {action:'end'} : undefined);
       await this.disconnect();this.clearSession();this.ended.set(end);this.state.set(null);
-      this.notice.set(end ? 'Встреча завершена. Чат и файлы удаляются.' : 'Вы вышли из встречи.');
+      this.notice.set('');
     });
   }
   private inviteUrl(raw:string) {return (API_BASE_URL.startsWith('https://') ? API_BASE_URL : location.origin)+'/room/'+raw;}
