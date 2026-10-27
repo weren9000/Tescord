@@ -10,6 +10,23 @@ import { DirectCallService } from './core/services/direct-call.service';
 import { VoiceRoomService } from './core/services/voice-room.service';
 
 describe('AppComponent', () => {
+  it('applies the general settings volume to the active direct call audio', () => {
+    const direct = new DirectCallService();
+    TestBed.overrideProvider(DirectCallService, {useValue: direct});
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance;
+    spyOn(app, 'activeCallSurface').and.returnValue({kind: 'direct'} as any);
+    const audio = new Audio();
+    (direct as any).remoteAudioElement = audio;
+    for (const value of [35, 0, 80]) {
+      app.changeMasterVolume(String(value));
+      expect(app.activeCallVolume()).toBe(value);
+      expect(audio.volume).toBeCloseTo(value / 100);
+      expect(direct.localMuted()).toBeFalse();
+    }
+    fixture.destroy();
+  });
+
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [AppComponent],

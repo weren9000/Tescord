@@ -1991,7 +1991,7 @@ export class AppComponent {
     const surface = this.activeCallSurface();
     return surface?.kind === 'direct' ? this.directCallRemoteVolume() : this.voiceSettings().masterVolume;
   });
-  readonly activeCallVolumeMin = computed(() => (this.activeCallSurface()?.kind === 'direct' ? 0 : 10));
+  readonly activeCallVolumeMin = computed(() => 0);
   readonly activeCallVolumeMax = computed(() => 100);
   readonly activeCallCanUseCamera = computed(() => {
     const surface = this.activeCallSurface();
@@ -6932,6 +6932,10 @@ export class AppComponent {
   }
 
   changeMasterVolume(value: number | string): void {
+    if (this.activeCallSurface()?.kind === 'direct') {
+      this.directCall.updateRemoteVolume(value);
+      return;
+    }
     this.voiceRoom.updateMasterVolume(this.toRangeValue(value));
   }
 
