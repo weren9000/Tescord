@@ -11,6 +11,7 @@ import { AndroidCallOutputComponent } from '../workspace/android-call-output.com
 import { TextFileViewerComponent, TextFileSource } from '../workspace/text-file-viewer.component';
 import { isTextFile } from '../shared/text-files';
 import { ParticipantAudioOutput } from '../shared/participant-audio-output';
+import { UiIconComponent } from '../workspace/ui-icon.component';
 
 interface Ticket { token: string; participant_id: string; session_id: string; is_owner: boolean; invite?: string | null; }
 interface Person { id: string; name: string; is_owner: boolean; silenced: boolean; }
@@ -33,7 +34,7 @@ export class MeetingTrackDirective implements OnDestroy {
 
 @Component({
   selector: 'app-root', standalone: true,
-  imports: [CommonModule, FormsModule, MeetingTrackDirective, ThemeControllerComponent, AndroidCallOutputComponent, TextFileViewerComponent],
+  imports: [CommonModule, FormsModule, MeetingTrackDirective, ThemeControllerComponent, AndroidCallOutputComponent, TextFileViewerComponent, UiIconComponent],
   templateUrl: './room-page.component.html', styleUrl: './room-page.component.scss',
 })
 export class RoomPageComponent implements OnInit, OnDestroy {
@@ -54,6 +55,15 @@ export class RoomPageComponent implements OnInit, OnDestroy {
   readonly textPreview = signal<TextFileSource | null>(null); readonly isTextFile = isTextFile;
   readonly invite = signal(''); readonly ended = signal(false); readonly inviteReady = signal(false);
   readonly preview = signal<{url: string; filename: string} | null>(null);
+  readonly panel = signal<'chat' | 'participants' | null>(null);
+  readonly unread = signal(0);
+  readonly copied = signal(false);
+  readonly microphoneStates = signal<Record<string, boolean>>({});
+  readonly selectedScreen = signal<string | null>(null);
+  readonly viewportHeight = signal(window.visualViewport?.height || window.innerHeight);
+  private readonly resizeViewport = () => this.viewportHeight.set(window.visualViewport?.height || window.innerHeight);
+  private messagesLoaded = false;
+  private copyTimer?: ReturnType<typeof setTimeout>;
   name = this.account?.user.nick || ''; hours = 24; uses = 49; text = ''; reply: Message | null = null;
   editing: Message | null = null; uploads: Attachment[] = []; page = 0;
   private readonly restoreVolume: Partial<Record<string, number>> = {};
@@ -71,9 +81,12 @@ export class RoomPageComponent implements OnInit, OnDestroy {
   };
 
   async ngOnInit() {
+    window.visualViewport?.addEventListener('resize', this.resizeViewport);
+    window.addEventListener('resize', this.resizeViewport);
     window.addEventListener('pagehide', this.unload);
     try {
       const saved = sessionStorage.getItem(this.storageKey);
+      this.invite.set(this.personal ? sessionStorage.getItem(this.storageKey+'.invite') || '' : this.inviteUrl(this.inviteCode));
       if (saved) {
         this.ticket.set(JSON.parse(saved) as Ticket);
         try { await this.enter(); return; }
@@ -96,7 +109,7 @@ export class RoomPageComponent implements OnInit, OnDestroy {
       {body, headers: token ? {Authorization: 'Bearer '+token} : {}}));
   }
   private save() { try { sessionStorage.setItem(this.storageKey, JSON.stringify(this.ticket())); } catch {} }
-  private clearSession() { this.ticket.set(null);this.messages.set([]);this.olderMessages.set([]);this.uploads=[];this.text='';this.reply=null;this.editing=null; try { sessionStorage.removeItem(this.storageKey); } catch {} }
+  private clearSession() { this.ticket.set(null);this.messages.set([]);this.olderMessages.set([]);this.uploads=[];this.text='';this.reply=null;this.editing=null;this.panel.set(null);this.unread.set(0);this.messagesLoaded=false;this.page=0; try { sessionStorage.removeItem(this.storageKey); } catch {} }
   private showError(error: unknown) {
     const detail = error instanceof HttpErrorResponse ? error.error?.detail : null;
     this.error.set(typeof detail === 'string' ? detail : error instanceof Error ? error.message : 'Не удалось выполнить действие. Попробуйте ещё раз.');
@@ -119,6 +132,7 @@ export class RoomPageComponent implements OnInit, OnDestroy {
       }
       this.ticket.set(t); this.save(); this.ended.set(false);
       if (t.invite) this.invite.set(this.inviteUrl(t.invite));
+      this.saveInvite();
       await this.enter();
     });
   }
@@ -149,6 +163,11 @@ export class RoomPageComponent implements OnInit, OnDestroy {
         if(this.disposed || !this.ticket())return;
         this.olderMessages.set(history);
       }
+      if(this.messagesLoaded && this.panel()!=='chat') {
+        const known=new Set(this.messages().map(m=>m.id));
+        this.unread.update(n=>n+messages.filter(m=>!known.has(m.id) && m.author_id!==this.ticket()?.participant_id).length);
+      }
+      this.messagesLoaded=true;
       this.messages.set(messages);if(!this.olderMessages().length)this.hasOlder.set(messages.length === 200);
       if(bottom)requestAnimationFrame(()=>{const el=this.messageList?.nativeElement;if(el)el.scrollTop=el.scrollHeight;});
     }
@@ -207,14 +226,28 @@ export class RoomPageComponent implements OnInit, OnDestroy {
     this.camera.set(room.localParticipant.isCameraEnabled);
     this.screen.set(room.localParticipant.isScreenShareEnabled);
     const videos: Video[] = [];
+    const microphones: Record<string, boolean> = {};
     for (const p of [room.localParticipant, ...room.remoteParticipants.values()]) {
+      microphones[p.identity] = p.isMicrophoneEnabled;
       p.videoTrackPublications.forEach((pub: TrackPublication) => {
         if (pub.track && !pub.isMuted) videos.push({id: pub.trackSid, participant: p.identity, name:p.name || 'Гость', track: pub.track, screen:pub.source===Track.Source.ScreenShare});
       });
     }
     this.videos.set(videos.sort((a,b)=>Number(b.screen)-Number(a.screen)));
+    this.microphoneStates.set(microphones);
   }
-  visibleVideos() { return this.videos().slice(this.page*9, this.page*9+9); }
+  visiblePeople() {const people=this.state()?.participants || [];const last=Math.max(0,Math.ceil(people.length/9)-1);return people.slice(Math.min(this.page,last)*9,(Math.min(this.page,last)+1)*9);}
+  currentPage() {return Math.min(this.page,Math.max(0,Math.ceil((this.state()?.participants.length || 1)/9)-1));}
+  cameraFor(id:string) {return this.videos().find(v=>v.participant===id && !v.screen);}
+  screens() {return this.videos().filter(v=>v.screen);}
+  presentation() {return this.screens().find(v=>v.id===this.selectedScreen()) || this.screens()[0];}
+  initials(name:string) {return name.trim().split(/\s+/).slice(0,2).map(s=>Array.from(s)[0]).join('').toUpperCase();}
+  personMuted(p:Person) {return p.silenced || !this.microphoneStates()[p.id];}
+  togglePanel(panel:'chat'|'participants') {this.panel.set(this.panel()===panel?null:panel);if(this.panel()==='chat'){this.unread.set(0);requestAnimationFrame(()=>{const el=this.messageList?.nativeElement;if(el)el.scrollTop=el.scrollHeight;});}}
+  openSettings(dialog:HTMLDialogElement) {dialog.showModal();void this.loadDevices();}
+  exitMeeting(dialog:HTMLDialogElement) {if(this.ticket()?.is_owner)dialog.showModal();else void this.leave();}
+  async finishMeeting(dialog:HTMLDialogElement,end=false) {await this.leave(end);if(!this.error())dialog.close();}
+  private saveInvite() {try {sessionStorage.setItem(this.storageKey+'.invite',this.invite());}catch{}}
   async resumeAudio() {await this.room?.startAudio();await Promise.all([...this.audio.values()].map(a=>a.playback.play()));this.audioBlocked.set(false);}
   async loadDevices() {await this.run(async()=>this.devices.set(await navigator.mediaDevices.enumerateDevices()));}
   devicesOf(kind:MediaDeviceKind){return this.devices().filter(d=>d.kind===kind);}
@@ -248,15 +281,14 @@ export class RoomPageComponent implements OnInit, OnDestroy {
   private async disconnect() { if(this.timer)clearInterval(this.timer);this.timer=undefined;await this.disconnectMedia();this.closePreview();this.textPreview.set(null); }
   async leave(end = false) {
     await this.run(async()=>{
-      if(end && !confirm('Завершить встречу для всех и удалить весь чат и файлы?'))return;
       await this.request('POST', end ? '/control' : '/leave', end ? {action:'end'} : undefined);
       await this.disconnect();this.clearSession();this.ended.set(end);this.state.set(null);
       this.notice.set(end ? 'Встреча завершена. Чат и файлы удаляются.' : 'Вы вышли из встречи.');
     });
   }
   private inviteUrl(raw:string) {return (API_BASE_URL.startsWith('https://') ? API_BASE_URL : location.origin)+'/room/'+raw;}
-  async rotate() { await this.run(async()=>{const r=await this.request<{invite:string}>('POST','/invite',{hours:this.hours,uses:this.uses});this.invite.set(this.inviteUrl(r.invite));await this.refresh();}); }
-  async copyInvite() { await this.run(async()=>{await navigator.clipboard.writeText(this.invite());this.notice.set('Ссылка скопирована');}); }
+  async rotate() { await this.run(async()=>{const r=await this.request<{invite:string}>('POST','/invite',{hours:this.hours,uses:this.uses});this.invite.set(this.inviteUrl(r.invite));this.saveInvite();this.copied.set(false);await this.refresh();}); }
+  async copyInvite() { await this.run(async()=>{if(!this.invite())return;await navigator.clipboard.writeText(this.invite());this.copied.set(true);clearTimeout(this.copyTimer);this.copyTimer=setTimeout(()=>this.copied.set(false),2500);}); }
   async control(action:string, participant_id?:string) { await this.run(async()=>{await this.request('POST','/control',{action,participant_id});await this.refresh();}); }
   async send() {
     await this.run(async()=>{
@@ -290,5 +322,5 @@ export class RoomPageComponent implements OnInit, OnDestroy {
   }
   closePreview(){const current=this.preview();if(current)URL.revokeObjectURL(current.url);this.preview.set(null);}
   countdown(){const s=this.state();if(!s?.owner_deadline)return '';const seconds=Math.max(0,Math.ceil((Date.parse(s.owner_deadline)-Date.parse(s.server_time))/1000));return Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0');}
-  ngOnDestroy(){this.disposed=true;window.removeEventListener('pagehide',this.unload);this.unload();void this.disconnect();}
+  ngOnDestroy(){this.disposed=true;clearTimeout(this.copyTimer);window.visualViewport?.removeEventListener('resize',this.resizeViewport);window.removeEventListener('resize',this.resizeViewport);window.removeEventListener('pagehide',this.unload);this.unload();void this.disconnect();}
 }

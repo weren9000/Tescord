@@ -22,28 +22,36 @@ async function json(route,method='GET',body,token){const r=await fetch(api+route
  for(const p of [owner,guest])p.on('pageerror',e=>errors.push(e.message));
  try{
   await owner.goto(ui+'/my-room');await owner.getByRole('button',{name:'Начать / вернуться во встречу'}).click();
-  await owner.getByRole('heading',{name:'Моя комната',exact:true}).waitFor();
-  await owner.getByText('Пригласить участников · настройки встречи').click();
+  await owner.getByRole('button',{name:'Пригласить по ссылке'}).click();
   const link=await owner.getByRole('textbox',{name:'Ссылка на встречу'}).inputValue();
   assert.ok(link.includes('/room/'));
+  await owner.keyboard.press('Escape');
+  await owner.reload();
+  await owner.getByRole('button',{name:'Пригласить по ссылке'}).click();
+  assert.equal(await owner.getByRole('textbox',{name:'Ссылка на встречу'}).inputValue(),link,'Invitation survives reload');
+  await owner.keyboard.press('Escape');
   await guest.goto(link);await guest.getByRole('textbox',{name:'Ваше имя'}).fill('Гость без аккаунта');
   await guest.getByRole('button',{name:'Присоединиться',exact:true}).click();
-  await guest.getByRole('button',{name:'Микрофон выкл.',exact:true}).waitFor();
+  await guest.getByRole('button',{name:'Включить микрофон',exact:true}).waitFor();
+  await guest.getByRole('button',{name:'Чат встречи',exact:true}).click();
   await guest.getByRole('textbox',{name:'Сообщение',exact:true}).fill('Привет из гостевой комнаты');
   await guest.getByRole('button',{name:'Отправить',exact:true}).click();
+  await owner.locator('.badge.unread').waitFor();
+  await owner.getByRole('button',{name:'Чат встречи',exact:true}).click();
   await owner.getByText('Привет из гостевой комнаты',{exact:true}).waitFor();
   await guest.locator('input[type=file]').setInputFiles({name:'note.txt',mimeType:'text/plain',buffer:Buffer.from('meeting file')});
   await guest.locator('.reply').filter({hasText:'note.txt'}).waitFor();await guest.getByRole('button',{name:'Отправить',exact:true}).click();
   await owner.getByRole('button',{name:'↓ note.txt'}).waitFor();
+  await owner.getByLabel('Действия сообщения').first().click();
   await owner.getByRole('button',{name:'Ответить',exact:true}).first().click();
   await owner.getByRole('textbox',{name:'Сообщение',exact:true}).fill('Ответ владельца');await owner.getByRole('button',{name:'Отправить',exact:true}).click();
   await guest.getByText('Ответ владельца',{exact:true}).waitFor();
   assert.equal(await guest.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
   if(media){
-   await owner.getByText('На связи',{exact:true}).waitFor();await guest.getByText('На связи',{exact:true}).waitFor();
-   await owner.getByRole('button',{name:'Микрофон выкл.',exact:true}).click();
+   await owner.getByRole('button',{name:'Включить микрофон',exact:true}).click();
    await guest.waitForFunction(()=>[...document.querySelectorAll('audio')].some(a=>a.srcObject?.getAudioTracks().length));
-   await owner.getByRole('button',{name:'Камера выкл.',exact:true}).click();
+   await owner.getByRole('button',{name:'Включить камеру',exact:true}).click();
+   await guest.getByRole('button',{name:'Участники',exact:true}).click();
    await guest.waitForFunction(()=>[...document.querySelectorAll('video')].some(v=>v.videoWidth>0));
    assert.equal(await guest.getByRole('slider',{name:'Общая громкость',exact:true}).count(),0);
    await guest.waitForFunction(()=>pcs.flatMap(p=>p.getReceivers()).some(r=>r.track.kind==='audio' && !r.track.muted && r.track.readyState==='live'));
@@ -61,10 +69,12 @@ async function json(route,method='GET',body,token){const r=await fetch(api+route
    console.log('Live room PCM:',JSON.stringify(levels));
   }
   await owner.screenshot({path:path.join(out,'room-desktop.png'),fullPage:true});await guest.screenshot({path:path.join(out,'room-mobile.png'),fullPage:true});
+  await owner.getByRole('button',{name:'Выйти из встречи',exact:true}).click();
   await owner.getByRole('button',{name:'Выйти',exact:true}).click();await guest.getByText(/Владелец отключился/).waitFor();
   await owner.getByRole('button',{name:'Начать / вернуться во встречу'}).click();
   await guest.waitForFunction(()=>!document.querySelector('.owner-away'));
-  owner.once('dialog',d=>d.accept());await owner.getByRole('button',{name:'Завершить для всех'}).click();
+  await owner.getByRole('button',{name:'Выйти из встречи',exact:true}).click();
+  await owner.getByRole('button',{name:'Завершить для всех'}).click();
   await guest.getByText('Встреча завершена. Для следующей встречи нужна новая ссылка.',{exact:true}).waitFor();
   assert.deepEqual(errors,[]);
   console.log(JSON.stringify({guestChat:true,files:true,replies:true,ownerReturn:true,endForAll:true,mobileFits:true,media,errors}));

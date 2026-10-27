@@ -1,6 +1,10 @@
 import { Component, input } from '@angular/core';
 
 const paths: Record<string, string> = {
+  link: 'M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-2 2M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l2-2',
+  send: 'M22 2L9 15M22 2l-7 20-6-7-7-6z',
+  attach: 'M8 12l7-7a4 4 0 0 1 6 6L10 22a6 6 0 0 1-8-8L13 3M6 16l10-10',
+  cameraOff: 'M3 3l18 18M4 6h11a1 1 0 0 1 1 1v5M16 16v1a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V7M16 10l5-3v10',
   eye: 'M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12M15 12a3 3 0 1 0-6 0 3 3 0 0 0 6 0',
   download: 'M12 3v12M7 10l5 5 5-5M4 16v5h16v-5',
   code: 'M8 7l-5 5 5 5M16 7l5 5-5 5M14 4l-4 16',
