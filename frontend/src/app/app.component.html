@@ -1,9 +1,11 @@
 <ng-template #callVolumePanel>
+  @if (activeCallSurface()?.kind === 'direct') {
   <div class="call-output-volume" [class.call-output-volume--silent]="activeCallOutputSilent()">
     <button type="button" class="call-control-button" [attr.aria-label]="activeCallOutputSilent() ? 'Включить звук звонка' : 'Выключить звук звонка'" [attr.aria-pressed]="activeCallOutputSilent()" (click)="toggleActiveCallOutput()"><app-ui-icon [name]="activeCallOutputSilent() ? 'soundOff' : 'sound'" /></button>
-    <label><span>{{ activeCallOutputSilent() ? 'Звук выключен' : 'Громкость звонка' }}</span><input type="range" min="0" max="100" step="1" aria-label="Общая громкость звонка" [value]="activeCallVolume()" (input)="changeActiveCallVolume($any($event.target).value)" /></label>
+    <label><span>{{ activeCallOutputSilent() ? 'Собеседник заглушён для вас' : 'Громкость собеседника' }}</span><input type="range" min="0" max="100" step="1" aria-label="Громкость собеседника" [value]="activeCallVolume()" (input)="changeActiveCallVolume($any($event.target).value)" /></label>
     <output>{{ activeCallVolume() }}%</output>
   </div>
+  }
 </ng-template>
 <ng-template #activeCallTray>
 @if(activeCallSurface(); as call){
@@ -177,7 +179,7 @@
                   <div class="group-voice-roster__participants call-window__participants">
                     @if (activeCallVoiceParticipants().length) {
                       @for (participant of activeCallVoiceParticipants(); track participant.id) {
-                        <div class="group-voice-roster__member">
+                        <div class="call-participant" [class.call-participant--self]="participant.is_self">
                           <div class="group-voice-roster__avatar">
                             @if (userAvatarUrl(participant.user_id, participant.avatar_updated_at); as avatarUrl) {
                               <img [appUserCard]="participant.user_id" [src]="avatarUrl" [alt]="displayNick(participant.nick)" loading="lazy" />
@@ -185,27 +187,23 @@
                               <span>{{ displayNickInitials(participant.nick) }}</span>
                             }
                           </div>
-                          <div class="group-voice-roster__copy">
+                          <div class="call-participant__name">
                             <strong>{{ displayNick(participant.nick) }}</strong>
                             @if (participant.is_self) {
                               <small>{{ groupVoiceSelfStatusLabel(participant) }}</small>
-                            } @else {
-                              <button class="participant-menu-trigger" type="button" [attr.aria-label]="'Меню участника: ' + displayNick(participant.nick)" aria-haspopup="dialog" (click)="callParticipantId.set(participant.user_id)"><app-ui-icon name="more" />Действия</button>
+                            }
+                          </div>
+                          @if (!participant.is_self) {
+                            <button class="call-participant__menu" type="button" [attr.aria-label]="'Меню участника: ' + displayNick(participant.nick)" aria-haspopup="dialog" (click)="callParticipantId.set(participant.user_id)"><app-ui-icon name="more" /></button>
+                          }
+                          <span class="group-voice-roster__state-shell" [attr.title]="groupVoiceStateIconAlt(participant)"><img class="group-voice-roster__state" [src]="groupVoiceStateIconPath(participant)" [alt]="groupVoiceStateIconAlt(participant)" /></span>
+                          @if (!participant.is_self) {
                               <div class="participant-inline-volume" [class.participant-inline-volume--silent]="groupVoiceParticipantVolume(participant) === 0">
                                 <button type="button" [attr.aria-label]="(groupVoiceParticipantVolume(participant) === 0 ? 'Включить для себя: ' : 'Заглушить для себя: ') + displayNick(participant.nick)" [attr.aria-pressed]="groupVoiceParticipantVolume(participant) === 0" (click)="toggleParticipantLocalMute(participant.user_id)"><app-ui-icon [name]="groupVoiceParticipantVolume(participant) === 0 ? 'soundOff' : 'sound'" /></button>
                                 <input type="range" min="0" max="100" step="1" [attr.aria-label]="'Громкость участника: ' + displayNick(participant.nick)" [value]="groupVoiceParticipantVolume(participant)" (input)="setGroupVoiceParticipantVolume(participant, $any($event.target).value)" />
                                 <output>{{ groupVoiceParticipantVolume(participant) }}%</output>
                               </div>
-                              <small>{{ groupVoiceStateIconAlt(participant) }}</small>
-                            }
-                          </div>
-                          <span class="group-voice-roster__state-shell" [attr.title]="groupVoiceStateIconAlt(participant)">
-                            <img
-                              class="group-voice-roster__state"
-                              [src]="groupVoiceStateIconPath(participant)"
-                              [alt]="groupVoiceStateIconAlt(participant)"
-                            />
-                          </span>
+                          }
                         </div>
                       }
                     }
@@ -322,9 +320,9 @@
       <app-action-menu label="Настройки звонка" (close)="callAudioSettingsOpen.set(false)">
           <section class="call-device-settings">
             <label>Камера<select aria-label="Камера звонка" [value]="callCameraDeviceId() ?? ''" [disabled]="callDeviceChanging() || !activeCallMediaControlsVisible()" (change)="changeCallCamera($any($event.target).value)"><option value="">По умолчанию</option>@for(device of callCameraDevices();track device.deviceId){<option [value]="device.deviceId">{{device.label || 'Камера ' + ($index + 1)}}</option>}</select></label>
-            @if (callMenuPage() !== 'input') {
-              <label>Громкость: {{ activeCallVolume() }}%<input type="range" aria-label="Громкость звонка" [min]="activeCallVolumeMin()" max="100" [value]="activeCallVolume()" (input)="changeActiveCallVolume($any($event.target).value)" /></label>
-              <button type="button" [attr.aria-pressed]="activeCallOutputMuted()" (click)="toggleActiveCallOutput()"><app-ui-icon [name]="activeCallOutputMuted() ? 'soundOff' : 'sound'" />{{ activeCallOutputMuted() ? 'Включить звук звонка' : 'Заглушить для меня' }}</button>
+            @if (callMenuPage() !== 'input' && activeCallSurface()?.kind === 'direct') {
+              <label>Громкость собеседника: {{ activeCallVolume() }}%<input type="range" aria-label="Громкость собеседника в настройках" [min]="activeCallVolumeMin()" max="100" [value]="activeCallVolume()" (input)="changeActiveCallVolume($any($event.target).value)" /></label>
+              @if (activeCallSurface()?.kind === 'direct') {<button type="button" [attr.aria-pressed]="activeCallOutputMuted()" (click)="toggleActiveCallOutput()"><app-ui-icon [name]="activeCallOutputMuted() ? 'soundOff' : 'sound'" />{{ activeCallOutputMuted() ? 'Включить звук звонка' : 'Заглушить для меня' }}</button>}
               @if (activeCallOutputMuted()) {<p class="menu-note">Звук выключен только для вас. Выбранная громкость сохранена.</p>}
             }
             @if (callMenuPage() !== 'output') {
@@ -1422,6 +1420,7 @@
             }
           </button>
         }
+        @if (activeCallSurface()?.kind === 'direct') {
         <label class="call-volume-control call-volume-control--fullscreen">
           <span>Громкость</span>
           <input
@@ -1433,6 +1432,7 @@
             (input)="changeActiveCallVolume($any($event.target).value)"
           />
         </label>
+        }
         <button class="call-control-button call-control-button--danger" type="button" title="Завершить звонок" aria-label="Завершить звонок" (click)="endActiveCall($event)">
           <img src="/assets/Phone outgoing.svg" alt="" />
         </button>
@@ -2079,21 +2079,7 @@
           </label>
 
 
-          <label class="range-field">
-            <span>Общая громкость</span>
-            <div class="range-field__control">
-              <input
-                type="range"
-                min="0"
-                max="100"
-                step="1"
-                [ngModel]="activeCallVolume()"
-                name="master_volume"
-                (ngModelChange)="changeMasterVolume($event)"
-              />
-              <strong>{{ activeCallVolume() }}%</strong>
-            </div>
-          </label>
+
         </div>
 
         @if (!outputDeviceSupported()) {

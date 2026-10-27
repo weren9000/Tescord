@@ -42,7 +42,6 @@
           @if(canShareScreen){<button [class.enabled]="screen()" [attr.aria-pressed]="screen()" [disabled]="busy() || !connected()" (click)="toggle('screen')">{{screen()?'Остановить показ':'Показать экран'}}</button>}
           @if(!connected()){<button [disabled]="busy()" (click)="run(connectMedia.bind(this))">Подключить звук</button>}
           @if(audioBlocked()){<button (click)="run(resumeAudio.bind(this))">Включить звук</button>}
-          <label class="volume">{{volume===0?'Звук выключен':'Громкость'}} {{volume}}%<input type="range" min="0" max="100" [(ngModel)]="volume" (ngModelChange)="updateVolumes()" aria-label="Общая громкость"/></label>
           @if(android && connected()){<app-android-call-output/>}
           <button class="danger" [disabled]="busy()" (click)="leave()">Выйти</button>
           @if(ticket()?.is_owner){<button class="danger" [disabled]="busy()" (click)="leave(true)">Завершить для всех</button>}
@@ -54,8 +53,8 @@
         </div><p class="hint">Названия устройств появятся после разрешения доступа к микрофону или камере.</p></details>
         <details class="participants" open><summary>Участники · {{state()?.participants?.length || 1}}</summary>
           @for(p of state()?.participants || [];track p.id){<div class="person" [class.speaking]="speakers().includes(p.id)"><span class="avatar">{{p.name.slice(0,1).toUpperCase()}}</span><strong>{{p.name}}</strong><small>{{p.is_owner?'Владелец':''}}{{p.id===ticket()?.participant_id?' · Вы':''}}{{p.silenced?' · Передача отключена':''}}</small>
-            @if(p.id!==ticket()?.participant_id){<label class="person-volume">{{(personalVolume[p.id] ?? 100)===0?'Без звука':(personalVolume[p.id] ?? 100)+'%'}}<input type="range" min="0" max="100" [ngModel]="personalVolume[p.id] ?? 100" (ngModelChange)="personalVolume[p.id]=$event;updateVolumes()" [attr.aria-label]="'Громкость: '+p.name"/></label>}
-            @if(ticket()?.is_owner && !p.is_owner){<button [disabled]="busy()" (click)="control(p.silenced?'unsilence':'silence',p.id)">{{p.silenced?'Разрешить передачу':'Отключить передачу'}}</button><button class="danger" [disabled]="busy()" (click)="control('kick',p.id)">Удалить</button>}
+            @if(ticket()?.is_owner && !p.is_owner){<details class="person-actions"><summary [attr.aria-label]="'Действия: '+p.name">⋯</summary><div><button [disabled]="busy()" (click)="control(p.silenced?'unsilence':'silence',p.id)">{{p.silenced?'Разрешить передачу':'Отключить передачу'}}</button><button class="danger" [disabled]="busy()" (click)="control('kick',p.id)">Удалить</button></div></details>}
+            @if(p.id!==ticket()?.participant_id){<div class="person-volume"><button (click)="togglePersonalMute(p.id)" [attr.aria-pressed]="personalVolume[p.id]===0" [attr.aria-label]="(personalVolume[p.id]===0?'Включить для себя: ':'Заглушить для себя: ')+p.name"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M11 5 6 9H3v6h3l5 4Z"/>@if(personalVolume[p.id]===0){<path d="m16 9 6 6m0-6-6 6"/>}@else{<path d="M15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/>}</svg></button><input type="range" min="0" max="100" [ngModel]="personalVolume[p.id] ?? 100" (ngModelChange)="personalVolume[p.id]=$event;updateVolumes()" [attr.aria-label]="'Громкость: '+p.name"/><output>{{personalVolume[p.id] ?? 100}}%</output></div>}
           </div>}
         </details>
       </section>

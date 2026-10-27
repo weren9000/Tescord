@@ -2687,6 +2687,9 @@ export class AppComponent {
       return 100;
     }
 
+    if (this.activeCallSurface()?.kind === 'direct' && this.directCallPeer()?.user_id === member.userId) {
+      return this.directCall.outputMuted() ? 0 : this.directCall.remoteVolume();
+    }
     return this.voiceRoom.getParticipantVolume(member.userId);
   });
   readonly selectedMemberDirectCallActive = computed(() => {
@@ -7210,6 +7213,9 @@ export class AppComponent {
   }
 
   changeMemberVolume(userId: string, value: number | string): void {
+    if (this.activeCallSurface()?.kind === 'direct' && this.directCallPeer()?.user_id === userId) {
+      this.directCall.updateRemoteVolume(value);return;
+    }
     this.voiceRoom.updateParticipantVolume(userId, this.toRangeValue(value));
   }
 
@@ -7566,6 +7572,9 @@ export class AppComponent {
   }
 
   toggleParticipantLocalMute(userId: string): void {
+    if (this.activeCallSurface()?.kind === 'direct' && this.directCallPeer()?.user_id === userId) {
+      this.toggleActiveCallOutput();return;
+    }
     if (userId !== this.currentUser()?.id) this.voiceRoom.toggleParticipantMuted(userId);
   }
 

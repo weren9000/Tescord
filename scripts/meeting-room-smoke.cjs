@@ -10,9 +10,13 @@ async function json(route,method='GET',body,token){const r=await fetch(api+route
 (async()=>{
  const suffix=crypto.randomUUID().slice(0,8);
  const account=await json('/api/auth/register','POST',{email:`room_${suffix}@example.test`,nick:`room_${suffix}`,password:'testpass123',password_confirmation:'testpass123'});
- const browser=await chromium.launch({executablePath:process.env.CHROME_BIN,headless:true,args:['--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream','--autoplay-policy=no-user-gesture-required']});
+ const browser=await chromium.launch({executablePath:process.env.CHROME_BIN,headless:true,args:['--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream','--autoplay-policy=no-user-gesture-required','--mute-audio',...(process.env.KVA_TEST_AUDIO?['--use-file-for-fake-audio-capture='+process.env.KVA_TEST_AUDIO]:[])]});
  const ownerCtx=await browser.newContext({permissions:['microphone','camera','clipboard-read','clipboard-write'],viewport:{width:1440,height:1000}});
  const guestCtx=await browser.newContext({permissions:['microphone','camera'],viewport:{width:390,height:844}});
+ // A steady calibration sine is not speech; disable capture noise suppression
+ // for the test source so it cannot remove the signal being measured.
+ for(const context of [ownerCtx,guestCtx])await context.addInitScript(()=>{const capture=navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);navigator.mediaDevices.getUserMedia=c=>capture({...c,...(c.audio?{audio:{...(typeof c.audio==='object'?c.audio:{}),echoCancellation:false,noiseSuppression:false,autoGainControl:false}}:{})});});
+ await guestCtx.addInitScript(()=>{window.pcs=[];window.RTCPeerConnection=new Proxy(window.RTCPeerConnection,{construct(Target,args){const pc=new Target(...args);window.pcs.push(pc);return pc;}});});
  await ownerCtx.addInitScript(session=>localStorage.setItem('tescord.session',JSON.stringify(session)),account);
  const owner=await ownerCtx.newPage(),guest=await guestCtx.newPage();const errors=[];
  for(const p of [owner,guest])p.on('pageerror',e=>errors.push(e.message));
@@ -41,10 +45,20 @@ async function json(route,method='GET',body,token){const r=await fetch(api+route
    await guest.waitForFunction(()=>[...document.querySelectorAll('audio')].some(a=>a.srcObject?.getAudioTracks().length));
    await owner.getByRole('button',{name:'Камера выкл.',exact:true}).click();
    await guest.waitForFunction(()=>[...document.querySelectorAll('video')].some(v=>v.videoWidth>0));
-   await guest.getByRole('slider',{name:'Общая громкость',exact:true}).fill('40');
-   await guest.waitForFunction(()=>[...document.querySelectorAll('audio')].every(a=>Math.abs(a.volume-.4)<.01));
-   await guest.getByRole('slider',{name:/Громкость: room_/}).fill('50');
-   await guest.waitForFunction(()=>[...document.querySelectorAll('audio')].every(a=>Math.abs(a.volume-.2)<.01));
+   assert.equal(await guest.getByRole('slider',{name:'Общая громкость',exact:true}).count(),0);
+   await guest.waitForFunction(()=>pcs.flatMap(p=>p.getReceivers()).some(r=>r.track.kind==='audio' && !r.track.muted && r.track.readyState==='live'));
+   await guest.evaluate(async()=>{
+    const ctx=new AudioContext();await ctx.resume();
+    const raw=pcs.flatMap(p=>p.getReceivers()).find(r=>r.track.kind==='audio' && !r.track.muted && r.track.readyState==='live').track;
+    window.audioMeters=[new MediaStream([raw]),document.querySelector('audio').srcObject].map(stream=>{const source=ctx.createMediaStreamSource(stream),analyser=ctx.createAnalyser();analyser.fftSize=8192;source.connect(analyser);const sink=ctx.createGain();sink.gain.value=0;analyser.connect(sink).connect(ctx.destination);return {ctx,source,analyser,sink};});
+   });
+   const levels=[];
+   for(const value of [100,50,10,0,75]){
+    await guest.getByRole('slider',{name:/Громкость: room_/}).fill(String(value));await guest.waitForTimeout(400);
+    const rms=await guest.evaluate(()=>audioMeters.map(({analyser})=>{const b=new Float32Array(analyser.fftSize);analyser.getFloatTimeDomainData(b);return Math.sqrt(b.reduce((s,x)=>s+x*x,0)/b.length);}));
+    if(rms[0]<=.001)console.log('Audio diagnostics',await guest.evaluate(async()=>({contexts:audioMeters.map(m=>m.ctx.state),tracks:pcs.flatMap(p=>p.getReceivers()).map(r=>({kind:r.track.kind,enabled:r.track.enabled,muted:r.track.muted,state:r.track.readyState})),stats:(await Promise.all(pcs.map(p=>p.getStats()))).flatMap(s=>[...s.values()].filter(x=>x.type==='inbound-rtp' && x.kind==='audio').map(x=>({packets:x.packetsReceived,energy:x.totalAudioEnergy,samples:x.totalSamplesReceived}))),elements:[...document.querySelectorAll('audio')].map(a=>({paused:a.paused,ready:a.readyState,muted:a.muted,tracks:a.srcObject?.getAudioTracks().map(t=>({enabled:t.enabled,muted:t.muted,state:t.readyState}))}))})));assert(rms[0]>.001,'Real incoming audio exists: '+JSON.stringify(rms));assert(Math.abs(rms[1]/rms[0]-value/100)<.07,`Live room PCM ${rms[1]/rms[0]} vs ${value/100}`);levels.push({value,ratio:rms[1]/rms[0]});
+   }
+   console.log('Live room PCM:',JSON.stringify(levels));
   }
   await owner.screenshot({path:path.join(out,'room-desktop.png'),fullPage:true});await guest.screenshot({path:path.join(out,'room-mobile.png'),fullPage:true});
   await owner.getByRole('button',{name:'Выйти',exact:true}).click();await guest.getByText(/Владелец отключился/).waitFor();

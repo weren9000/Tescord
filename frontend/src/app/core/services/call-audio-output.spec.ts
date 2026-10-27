@@ -4,6 +4,28 @@ import { DirectCallService } from './direct-call.service';
 import { VoiceRoomService } from './voice-room.service';
 
 describe('Call audio output', () => {
+  it('retries the decoder and processed output together after autoplay is blocked', async () => {
+    TestBed.configureTestingModule({providers: [{provide: WorkspaceApiService, useValue: {}}]});
+    const call = TestBed.inject(VoiceRoomService), internals = call as any;
+    const playback = {play: jasmine.createSpy().and.resolveTo(), dispose: () => {}};
+    internals.remoteAudioOutputs.set('peer', {audioElement: new Audio(), playback});
+    internals.pendingPlaybackUnlock.add('peer');
+    spyOn(internals, 'ensureAudioContext').and.resolveTo(null);
+    await internals.retryPendingAudioPlayback();
+    expect(playback.play).toHaveBeenCalled();
+    expect(internals.pendingPlaybackUnlock.size).toBe(0);
+    call.leave();
+  });
+  it('applies personal gain when saving settings throws', () => {
+    TestBed.configureTestingModule({providers: [{provide: WorkspaceApiService, useValue: {}}]});
+    const call = TestBed.inject(VoiceRoomService), audio = new Audio();
+    (call as any).remoteAudioOutputs.set('peer', {audioElement: audio});
+    spyOn(Storage.prototype, 'setItem').and.throwError('QuotaExceededError');
+    expect(() => call.updateParticipantVolume('peer', 23)).not.toThrow();
+    expect(audio.volume).toBeCloseTo(.23);
+    expect(call.getParticipantVolume('peer')).toBe(23);
+    call.leave();
+  });
   let savedSettings: string | null;
   beforeEach(() => {
     savedSettings = localStorage.getItem('tescord.voice.settings');
@@ -53,7 +75,7 @@ describe('Call audio output', () => {
     expect(call.settings().masterVolume).toBe(0);
     call.leave();
   });
-  it('changes active group outputs immediately across the full range without altering personal settings', () => {
+  it('ignores retired general volume without attenuating individual outputs', () => {
     TestBed.configureTestingModule({providers: [{provide: WorkspaceApiService, useValue: {}}]});
     const call = TestBed.inject(VoiceRoomService);
     const first = new Audio(), second = new Audio();
@@ -63,20 +85,20 @@ describe('Call audio output', () => {
     call.updateParticipantVolume('two', 50);
     for (const value of [100, 40, 9, 1, 0, 75]) {
       call.updateMasterVolume(value);
-      expect(first.volume).toBeCloseTo(value / 100);
-      expect(second.volume).toBeCloseTo(value / 200);
-      expect(first.muted).toBe(value === 0);
-      expect(second.muted).toBe(value === 0);
+      expect(first.volume).toBe(1);
+      expect(second.volume).toBeCloseTo(.5);
+      expect(first.muted).toBeFalse();
+      expect(second.muted).toBeFalse();
       expect(call.getParticipantVolume('two')).toBe(50);
       expect(call.localMuted()).toBeFalse();
     }
     for (const invalid of [NaN, Infinity, -Infinity]) call.updateMasterVolume(invalid);
     expect(call.settings().masterVolume).toBe(75);
-    expect(first.volume).toBeCloseTo(.75);
+    expect(first.volume).toBe(1);
     call.leave();
   });
 
-  it('preserves zero master volume on reload and when a remote track arrives', () => {
+  it('does not let retired zero master volume silence a new participant', () => {
     TestBed.configureTestingModule({providers: [{provide: WorkspaceApiService, useValue: {}}]});
     let call = TestBed.inject(VoiceRoomService);
     call.updateMasterVolume(0);
@@ -90,10 +112,10 @@ describe('Call audio output', () => {
     internals.remoteAudioOutputs.set('one', {audioElement: audio});
     internals.applyVolumesForUser('one');
     expect(call.settings().masterVolume).toBe(0);
-    expect(audio.volume).toBe(0);
-    expect(audio.muted).toBeTrue();
+    expect(audio.volume).toBe(1);
+    expect(audio.muted).toBeFalse();
     call.updateMasterVolume(25);
-    expect(audio.volume).toBeCloseTo(.25);
+    expect(audio.volume).toBe(1);
     expect(audio.muted).toBeFalse();
     call.leave();
   });
@@ -133,7 +155,9 @@ describe('Call audio output', () => {
     expect(audio.muted).toBeTrue();
     expect(call.localMuted()).toBeFalse();
     call.updateRemoteVolume(42);
-    expect(audio.volume).toBe(0);
+    expect(audio.volume).toBeCloseTo(.42);
+    expect(call.outputMuted()).toBeFalse();
+    call.toggleOutputMuted();
     call.toggleOutputMuted();
     expect(audio.volume).toBeCloseTo(.42);
     expect(audio.muted).toBeFalse();
@@ -148,15 +172,15 @@ describe('Call audio output', () => {
     internals.remoteAudioOutputs.set('one', {audioElement: first});
     call.updateMasterVolume(60);
     call.updateParticipantVolume('one', 50);
-    expect(first.volume).toBeCloseTo(.3);
+    expect(first.volume).toBeCloseTo(.5);
     call.toggleOutputMuted();
     expect(first.volume).toBe(0);
     internals.remoteAudioOutputs.set('two', {audioElement: second});
     call.updateParticipantVolume('two', 80);
     expect(second.volume).toBe(0);
     call.toggleOutputMuted();
-    expect(first.volume).toBeCloseTo(.3);
-    expect(second.volume).toBeCloseTo(.48);
+    expect(first.volume).toBeCloseTo(.5);
+    expect(second.volume).toBeCloseTo(.8);
     call.leave();
   });
 });

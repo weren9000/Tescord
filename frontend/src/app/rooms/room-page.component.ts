@@ -10,6 +10,7 @@ import { ThemeControllerComponent } from '../workspace/theme-controller.componen
 import { AndroidCallOutputComponent } from '../workspace/android-call-output.component';
 import { TextFileViewerComponent, TextFileSource } from '../workspace/text-file-viewer.component';
 import { isTextFile } from '../shared/text-files';
+import { ParticipantAudioOutput } from '../shared/participant-audio-output';
 
 interface Ticket { token: string; participant_id: string; session_id: string; is_owner: boolean; invite?: string | null; }
 interface Person { id: string; name: string; is_owner: boolean; silenced: boolean; }
@@ -54,12 +55,14 @@ export class RoomPageComponent implements OnInit, OnDestroy {
   readonly invite = signal(''); readonly ended = signal(false); readonly inviteReady = signal(false);
   readonly preview = signal<{url: string; filename: string} | null>(null);
   name = this.account?.user.nick || ''; hours = 24; uses = 49; text = ''; reply: Message | null = null;
-  editing: Message | null = null; uploads: Attachment[] = []; volume = 100; page = 0;
+  editing: Message | null = null; uploads: Attachment[] = []; page = 0;
+  private readonly restoreVolume: Partial<Record<string, number>> = {};
   readonly personalVolume: Partial<Record<string, number>> = {};
   readonly emojis = ['👍', '❤️', '😂', '🎉', '👀', '😢'];
   private room: Room | null = null;
+  private outputDeviceId = 'default';
   private timer?: ReturnType<typeof setInterval>; private polling = false; private tick = 0;
-  private readonly audio = new Map<string, {element: HTMLAudioElement; participant: string; track: RemoteTrack}>();
+  private readonly audio = new Map<string, {element: HTMLAudioElement; participant: string; track: RemoteTrack; playback: ParticipantAudioOutput}>();
   private readonly storageKey = 'kva.meeting.' + (this.personal ? 'owner' : this.inviteCode);
   private disposed = false;
   private readonly unload = () => {
@@ -172,13 +175,18 @@ export class RoomPageComponent implements OnInit, OnDestroy {
     const room = new Room({adaptiveStream: true, dynacast: true}); this.room = room;
     room.on(RoomEvent.TrackSubscribed, (track, _publication, p) => {
       if (track.kind === Track.Kind.Audio) {
-        const element = track.attach() as HTMLAudioElement;
+        this.removeAudio(track.sid!);
+        const element = new Audio();
         element.autoplay = true; element.style.display = 'none'; document.body.appendChild(element);
-        this.audio.set(track.sid!, {element, participant:p.identity, track}); this.updateVolumes();
+        const playback = new ParticipantAudioOutput(element);
+        playback.setStream(new MediaStream([track.mediaStreamTrack]));
+        this.audio.set(track.sid!, {element, participant:p.identity, track, playback}); this.updateVolumes();
+        if(this.outputDeviceId!=='default' && 'setSinkId' in element) void element.setSinkId(this.outputDeviceId).catch(error=>this.showError(error));
+        void playback.play().catch(()=>this.audioBlocked.set(true));
       }
       this.updateVideos();
     });
-    room.on(RoomEvent.TrackUnsubscribed, track => { this.removeAudio(track.sid!); this.updateVideos(); });
+    room.on(RoomEvent.TrackUnsubscribed, track => { if(this.audio.get(track.sid!)?.track===track)this.removeAudio(track.sid!); this.updateVideos(); });
     room.on(RoomEvent.LocalTrackPublished, ()=>this.updateVideos());
     room.on(RoomEvent.LocalTrackUnpublished, ()=>this.updateVideos());
     room.on(RoomEvent.TrackMuted, ()=>this.updateVideos());
@@ -207,10 +215,18 @@ export class RoomPageComponent implements OnInit, OnDestroy {
     this.videos.set(videos.sort((a,b)=>Number(b.screen)-Number(a.screen)));
   }
   visibleVideos() { return this.videos().slice(this.page*9, this.page*9+9); }
-  async resumeAudio() {await this.room?.startAudio();}
+  async resumeAudio() {await this.room?.startAudio();await Promise.all([...this.audio.values()].map(a=>a.playback.play()));this.audioBlocked.set(false);}
   async loadDevices() {await this.run(async()=>this.devices.set(await navigator.mediaDevices.enumerateDevices()));}
   devicesOf(kind:MediaDeviceKind){return this.devices().filter(d=>d.kind===kind);}
-  async chooseDevice(kind:MediaDeviceKind,id:string){await this.run(async()=>{await this.room?.switchActiveDevice(kind,id);});}
+  async chooseDevice(kind:MediaDeviceKind,id:string){await this.run(async()=>{
+    if(kind==='audiooutput'){
+      for(const {element} of this.audio.values()){
+        if(!('setSinkId' in element))throw new Error('Этот браузер не поддерживает выбор динамиков');
+        await element.setSinkId(id);
+      }
+      this.outputDeviceId=id;
+    }else await this.room?.switchActiveDevice(kind,id);
+  });}
   async toggle(kind: 'microphone'|'camera'|'screen') {
     await this.run(async()=>{
       if (!this.room || !this.connected()) return;
@@ -220,8 +236,9 @@ export class RoomPageComponent implements OnInit, OnDestroy {
       this.updateVideos();
     });
   }
-  updateVolumes() { for (const a of this.audio.values()) a.element.volume = (this.volume/100)*(this.personalVolume[a.participant] ?? 100)/100; }
-  private removeAudio(id: string) { const a = this.audio.get(id); if(a) {a.track.detach(a.element);a.element.remove();this.audio.delete(id);} }
+  updateVolumes() { for (const a of this.audio.values()) a.playback.setVolume((this.personalVolume[a.participant] ?? 100)/100); }
+  togglePersonalMute(id:string){const value=this.personalVolume[id] ?? 100;if(value>0)this.restoreVolume[id]=value;this.personalVolume[id]=value===0?(this.restoreVolume[id] ?? 100):0;this.updateVolumes();}
+  private removeAudio(id: string) { const a = this.audio.get(id); if(a) {a.playback.dispose();a.element.remove();this.audio.delete(id);} }
   private async disconnectMedia() {
     window.kvaAndroid?.directAudio?.(false);
     const room = this.room; this.room=null; if (room) {room.removeAllListeners();await room.disconnect();}

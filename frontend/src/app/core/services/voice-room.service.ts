@@ -1,4 +1,5 @@
 import {observeCall} from './call-telemetry';
+import {ParticipantAudioOutput} from '../../shared/participant-audio-output';
 import { authenticatedWebSocket } from './authenticated-websocket';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
@@ -103,6 +104,7 @@ interface LocalAudioPipeline {
 }
 
 interface RemoteAudioOutput {
+  playback?: ParticipantAudioOutput;
   audioElement: HTMLAudioElement;
   inputStream: MediaStream | null;
 }
@@ -217,7 +219,8 @@ function saveVoiceSettings(settings: VoiceSettings): void {
     return;
   }
 
-  localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+  try { localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings)); }
+  catch { /* Storage failure must never interrupt an active audio adjustment. */ }
 }
 
 @Injectable({
@@ -254,6 +257,7 @@ export class VoiceRoomService {
   private activeSpeakerUserIds = new Set<string>();
   private readonly participantUserIds = new Map<string, string>();
   private readonly remoteAudioOutputs = new Map<string, RemoteAudioOutput>();
+  private readonly remoteAudioTracks = new Map<string, Map<string, RemoteAudioTrack>>();
   private readonly remoteVideoTracks = new Map<string, RemoteVideoTrack>();
   private readonly remoteVideoStreamsByUserId = new Map<string, MediaStream>();
   private readonly remoteScreenShareTracks = new Map<string, RemoteVideoTrack>();
@@ -1008,7 +1012,11 @@ export class VoiceRoomService {
 
   private handleTrackUnsubscribed(track: RemoteTrack, source: Track.Source | undefined, userId: string): void {
     if (track.kind === this.sdk.Track.Kind.Audio) {
-      this.clearRemoteAudioForUser(userId);
+      const tracks = this.remoteAudioTracks.get(userId);
+      if (tracks?.get(track.mediaStreamTrack.id) !== track) return;
+      tracks.delete(track.mediaStreamTrack.id);
+      if (!tracks.size) this.clearRemoteAudioForUser(userId);
+      else void this.attachRemoteAudio(userId, tracks.values().next().value!);
       return;
     }
 
@@ -1290,7 +1298,10 @@ export class VoiceRoomService {
 
   private async attachRemoteAudio(userId: string, track: RemoteAudioTrack): Promise<void> {
     this.ensureAudiblePlaybackSettings(userId);
-    const stream = new MediaStream([track.mediaStreamTrack]);
+    let tracks = this.remoteAudioTracks.get(userId);
+    if (!tracks) { tracks = new Map(); this.remoteAudioTracks.set(userId, tracks); }
+    tracks.set(track.mediaStreamTrack.id, track);
+    const stream = new MediaStream([...tracks.values()].map(t => t.mediaStreamTrack));
     const remoteAudioOutput = await this.ensureRemoteAudioOutput(userId, stream);
     await this.applyOutputDevice(remoteAudioOutput.audioElement).catch(() => undefined);
     this.applyVolumeToAudioElement(userId);
@@ -1320,7 +1331,8 @@ export class VoiceRoomService {
 
   private async playRemoteAudio(userId: string, audioElement: HTMLAudioElement): Promise<void> {
     try {
-      await audioElement.play();
+      const playback = this.remoteAudioOutputs.get(userId)?.playback;
+      if (playback) await playback.play(); else await audioElement.play();
       this.pendingPlaybackUnlock.delete(userId);
       this.pendingPlaybackUnlock.delete('__room__');
       if (!this.pendingPlaybackUnlock.size) {
@@ -1345,6 +1357,7 @@ export class VoiceRoomService {
       document.body.appendChild(audioElement);
 
       remoteAudioOutput = {
+        playback: new ParticipantAudioOutput(audioElement),
         audioElement,
         inputStream: null,
       };
@@ -1352,7 +1365,7 @@ export class VoiceRoomService {
     }
 
     remoteAudioOutput.inputStream = stream;
-    remoteAudioOutput.audioElement.srcObject = stream;
+    remoteAudioOutput.playback!.setStream(stream);
     return remoteAudioOutput;
   }
 
@@ -1403,13 +1416,14 @@ export class VoiceRoomService {
     }
 
     const effectiveGain = this.getRemoteParticipantGain(userId);
+    if (remoteAudioOutput.playback) { remoteAudioOutput.playback.setVolume(effectiveGain); return; }
     remoteAudioOutput.audioElement.muted = effectiveGain === 0;
     remoteAudioOutput.audioElement.volume = clamp(effectiveGain, 0, 1);
   }
 
   private getRemoteParticipantGain(userId: string): number {
     if (this.outputMuted()) return 0;
-    const effectiveGain = (this.settings().masterVolume / 100) * (this.getParticipantVolume(userId) / 100);
+    const effectiveGain = this.getParticipantVolume(userId) / 100;
     return clamp(effectiveGain, 0, 1);
   }
 
@@ -1485,11 +1499,13 @@ export class VoiceRoomService {
   }
 
   private clearRemoteAudioForUser(userId: string): void {
+    this.remoteAudioTracks.delete(userId);
     const remoteAudioOutput = this.remoteAudioOutputs.get(userId);
     if (!remoteAudioOutput) {
       return;
     }
 
+    remoteAudioOutput.playback?.dispose();
     remoteAudioOutput.audioElement.srcObject = null;
     remoteAudioOutput.audioElement.remove();
     this.remoteAudioOutputs.delete(userId);
@@ -1973,7 +1989,8 @@ export class VoiceRoomService {
       }
 
       try {
-        await audioElement.play();
+        const playback = this.remoteAudioOutputs.get(userId)?.playback;
+        if (playback) await playback.play(); else await audioElement.play();
         this.pendingPlaybackUnlock.delete(userId);
       } catch {
         return;
