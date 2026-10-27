@@ -37,6 +37,16 @@ async function register(){const id=crypto.randomUUID().slice(0,8);return json('/
   await expired.screenshot({path:out+'/explicit-guest.png'});
   await owner.getByRole('button',{name:'Выйти из встречи',exact:true}).click();await owner.getByRole('button',{name:'Завершить для всех',exact:true}).click();
   await guest.getByRole('heading',{name:'Встреча завершена',exact:true}).waitFor();
-  assert.deepEqual(errors,[]);console.log('PASS: fresh account name, no name input, avatar in entry/stage/roster/chat, distinct guest, reload, explicit expired-session fallback');
+  // Reuse the same browser after a 410 from the previous meeting. Browser
+  // caches stay enabled: route interception would hide this regression.
+  const next=await json('/api/rooms/start',memberAccount.access_token,{hours:1,uses:5});
+  await guest.goto(ui+'/room/'+next.invite);
+  await guest.getByRole('textbox',{name:'Ваше имя'}).fill('Returning guest');
+  await guest.getByRole('button',{name:'Присоединиться',exact:true}).click();
+  await guest.locator('.participant-tile').filter({hasText:'Returning guest'}).waitFor();
+  await guest.waitForFunction(()=>!document.querySelector('.connection'));
+  await json('/api/rooms/control',next.token,{action:'end'});
+  await guest.getByRole('heading',{name:'Встреча завершена',exact:true}).waitFor();
+  assert.deepEqual(errors,[]);console.log('PASS: account profiles, explicit guest fallback, next meeting in same browser after 410, media connection');
  }catch(e){for(const [name,page] of Object.entries({owner,member,guest,expired}))await page.screenshot({path:out+'/'+name+'-failure.png'});throw e;}finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

@@ -139,3 +139,15 @@ def read_root() -> dict[str, str]:
 
 app.add_middleware(ResourceEventsMiddleware)
 app.add_middleware(PerformanceMiddleware)
+
+
+@app.middleware('http')
+async def meeting_no_store(request, call_next):
+    response = await call_next(request)
+    # Includes 410/403 responses: a completed meeting must never poison the
+    # shared state URL for the next meeting in the same browser.
+    if request.url.path.startswith(settings.api_prefix + '/rooms/'):
+        response.headers['Cache-Control'] = 'no-store'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+    return response

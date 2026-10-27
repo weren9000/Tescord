@@ -10,6 +10,17 @@ from test_auth_workspace import register_regular_user, delete_user
 from test_meeting_rooms import meeting, auth, join
 
 
+def test_meeting_success_and_errors_are_never_cached(meeting):
+    c, _, owner = meeting
+    for response in [c.get('/api/rooms/state', headers=auth(owner['token'])),
+                     c.get('/api/rooms/state')]:
+        assert response.headers['cache-control'] == 'no-store'
+    c.post('/api/rooms/control', headers=auth(owner['token']), json={'action':'end'})
+    response = c.get('/api/rooms/state', headers=auth(owner['token']))
+    assert response.status_code == 410
+    assert response.headers['cache-control'] == 'no-store'
+
+
 def test_registered_profile_is_server_authoritative_and_guest_is_separate(meeting):
     c, _, owner = meeting
     token, registration = register_regular_user(c)

@@ -113,6 +113,8 @@ export class RoomPageComponent implements OnInit, OnDestroy {
   }
 
   private request<T>(method: string, path: string, body?: unknown, token = this.ticket()?.token) {
+    // Bypass error responses cached by browsers before the server sent no-store.
+    if(method==='GET')path+=(path.includes('?')?'&':'?')+'_fresh='+crypto.randomUUID();
     return firstValueFrom(this.http.request<T>(method, API_BASE_URL+'/api/rooms'+path,
       {body, headers: token ? {Authorization: 'Bearer '+token} : {}}));
   }
@@ -158,8 +160,14 @@ export class RoomPageComponent implements OnInit, OnDestroy {
     });
   }
   private async enter() {
+    try {
     this.ticket.set(await this.request<Ticket>('POST', '/heartbeat')); this.save();
     await this.refresh();
+    } catch(error) {
+      await this.disconnect();this.clearSession();this.state.set(null);
+      if(error instanceof HttpErrorResponse && error.status===410)this.ended.set(true);
+      throw error;
+    }
     this.timer = setInterval(()=>void this.poll(), 3000);
     // The click grants audio playback; microphone/camera are only enabled explicitly.
     try { await this.connectMedia(); } catch(error) { this.showError(error); }
