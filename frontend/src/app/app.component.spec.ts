@@ -60,6 +60,35 @@ describe('AppComponent', () => {
     fixture.destroy();
   });
 
+  it('restores sound from zero and preserves the selected level through mute', () => {
+    const direct = new DirectCallService();
+    TestBed.overrideProvider(DirectCallService, {useValue: direct});
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance;
+    spyOn(app, 'activeCallSurface').and.returnValue({kind: 'direct'} as any);
+    const audio = new Audio();
+    (direct as any).remoteAudioElement = audio;
+    app.changeActiveCallVolume(0);
+    expect(app.activeCallOutputSilent()).toBeTrue();
+    app.toggleActiveCallOutput();
+    expect(app.activeCallOutputSilent()).toBeFalse();
+    expect(audio.volume).toBe(1);
+    app.changeActiveCallVolume(37);
+    app.toggleActiveCallOutput();
+    expect(app.activeCallOutputSilent()).toBeTrue();
+    expect(audio.muted).toBeTrue();
+    app.toggleActiveCallOutput();
+    expect(audio.volume).toBeCloseTo(.37);
+    expect(audio.muted).toBeFalse();
+    expect(direct.localMuted()).toBeFalse();
+    app.toggleActiveCallOutput();
+    app.changeActiveCallVolume(0);
+    app.toggleActiveCallOutput();
+    expect(app.activeCallOutputSilent()).toBeFalse();
+    expect(audio.volume).toBe(1);
+    fixture.destroy();
+  });
+
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [AppComponent],

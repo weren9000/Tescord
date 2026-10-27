@@ -1393,7 +1393,13 @@ export class AppComponent {
   readonly activeCallOutputMuted = computed(() => this.activeCallSurface()?.kind === 'direct'
     ? this.directCall.outputMuted() : this.voiceRoom.outputMuted());
 
+  readonly activeCallOutputSilent = computed(() => this.activeCallOutputMuted() || this.activeCallVolume() === 0);
+
   toggleActiveCallOutput(): void {
+    if (this.activeCallVolume() === 0) {
+      this.changeActiveCallVolume(100);
+      if (!this.activeCallOutputMuted()) return;
+    }
     if (this.activeCallSurface()?.kind === 'direct') this.directCall.toggleOutputMuted();
     else this.voiceRoom.toggleOutputMuted();
   }
