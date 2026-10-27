@@ -6,7 +6,7 @@
     <section class="welcome">
       <a href="/" class="welcome-brand" aria-label="Квачат"><img src="/assets/kva-wordmark-v2.png" alt="Квачат" width="88"/></a>
       <h1>{{ended() ? 'Встреча завершена' : personal ? 'Моя комната' : 'Войти в комнату'}}</h1>
-      @if(error()){<div class="alert" role="alert">{{error()}}<button (click)="error.set('')" aria-label="Закрыть ошибку"><app-ui-icon name="close"/></button></div>}
+      @if(error() && !(ended() && error()==='Встреча завершена')){<div class="alert" role="alert">{{error()}}<button (click)="error.set('')" aria-label="Закрыть ошибку"><app-ui-icon name="close"/></button></div>}
       @if(notice()){<p class="entry-notice" role="status">{{notice()}}</p>}
       @if(ended() && !personal){<p class="hint">Для следующей встречи нужна новая ссылка.</p>}
       @if(personal && !account){<a class="primary" href="/login">Войти, чтобы начать встречу</a>}

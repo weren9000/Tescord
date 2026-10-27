@@ -75,7 +75,8 @@ async function json(route,method='GET',body,token){const r=await fetch(api+route
   await guest.waitForFunction(()=>!document.querySelector('.owner-away'));
   await owner.getByRole('button',{name:'Выйти из встречи',exact:true}).click();
   await owner.getByRole('button',{name:'Завершить для всех'}).click();
-  await guest.getByText('Встреча завершена. Для следующей встречи нужна новая ссылка.',{exact:true}).waitFor();
+  await guest.getByRole('heading',{name:'Встреча завершена',exact:true}).waitFor();
+  await guest.getByText('Для следующей встречи нужна новая ссылка.',{exact:true}).waitFor();
   assert.deepEqual(errors,[]);
   console.log(JSON.stringify({guestChat:true,files:true,replies:true,ownerReturn:true,endForAll:true,mobileFits:true,media,errors}));
  }catch(error){await owner.screenshot({path:path.join(out,'room-owner-failure.png'),fullPage:true});await guest.screenshot({path:path.join(out,'room-guest-failure.png'),fullPage:true});console.error('Page errors:',errors);throw error;}finally{await browser.close();}
