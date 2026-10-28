@@ -37,6 +37,10 @@ cp "$previous/frontend/dist/frontend/browser/runtime-config.js" "$release/fronte
 sha256sum "$release/frontend/dist/frontend/browser/runtime-config.js" > "$release/RUNTIME.sha256"
 # Keep immutable bundles referenced by browsers which loaded the previous HTML.
 find "$previous/frontend/dist/frontend/browser" -maxdepth 1 -type f \( -name '*-*.js' -o -name '*-*.css' \) -exec cp -n -- {} "$release/frontend/dist/frontend/browser/" \;
+# Copies made after chown inherit root ownership and umask 027. Public assets
+# must remain readable by nginx, including runtime config and retained bundles.
+find "$release/frontend/dist/frontend/browser" -type d -exec chmod 755 {} +
+find "$release/frontend/dist/frontend/browser" -type f -exec chmod 644 {} +
 rollback() {
     ln -sfn "$previous" /srv/tescord/current.next
     mv -Tf /srv/tescord/current.next /srv/tescord/current
@@ -55,6 +59,7 @@ done
 test "$healthy" = true
 nginx -t
 systemctl reload nginx
+curl --fail --silent --max-time 15 --resolve kvachat.ru:443:127.0.0.1 https://kvachat.ru/runtime-config.js >/dev/null
 trap - ERR
 if [ "${TESCORD_PRUNE_RELEASES:-false}" = true ] && [ -f "$release/scripts/prune-releases.py" ]; then
     python3 "$release/scripts/prune-releases.py" "$previous" --apply || echo 'Release cleanup failed; check disk space.' >&2
