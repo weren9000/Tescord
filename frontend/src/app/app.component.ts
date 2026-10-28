@@ -1,5 +1,11 @@
-import {MessageTextComponent, RenderedMessageSegment} from './workspace/message-text.component';
-import {BoundedCache} from './shared/bounded-cache';
+import { MessageUploadStore, MessageUploadProgressState } from './core/services/message-upload.store';
+import { AttachmentPreviewStore, AttachmentActionSurface, AttachmentPreviewOptions } from './core/services/attachment-preview.store';
+import { UnreadStateCollection } from './core/services/unread-state';
+import {MessageTextComponent} from './workspace/message-text.component';
+import { MessageTextPresenter } from './core/services/message-text.presenter';
+import { MessageContentSegment, MessageMentionContext, RenderedMessageSegment, TextHighlightChunk } from './core/models/message-text.models';
+import { buildSearchTerms, matchesSearchTerms } from './core/services/text-search';
+import { formatPublicUserId } from './shared/user-identity';
 import {ShopComponent} from './workspace/shop.component';
 import {UserCardDirective} from './workspace/user-card.directive';
 import {UserCardService} from './workspace/user-card.service';
@@ -59,14 +65,13 @@ import {
   switchMap,
   throwError,
   map,
-  takeUntil,
   tap
 } from 'rxjs';
 
 import { AuthFormStore } from './core/services/auth-form.store';
 import { API_BASE_URL } from './core/api/api-base';
 import { SystemApiService } from './core/api/system-api.service';
-import { WorkspaceApiService, WorkspaceMessageUploadEvent } from './core/api/workspace-api.service';
+import { WorkspaceApiService } from './core/api/workspace-api.service';
 import { AttentionMentionItem } from './core/models/attention.models';
 import {
   ConversationDirectoryUser,
@@ -138,8 +143,6 @@ type ConversationCreateTab = 'direct' | 'group';
 type PushFeedbackTone = 'success' | 'warning' | 'error';
 type MessageFocusKind = 'unread' | 'mention' | 'search' | 'restore';
 type ChatMediaTab = 'gallery' | 'files';
-type AttachmentActionSurface = 'message' | 'chat';
-type MessageUploadOutcome = 'idle' | 'uploading' | 'cancelled' | 'failed';
 type VoiceVideoSource = 'camera' | 'screen-share';
 type VoiceVideoLayoutMode = 'grid-1' | 'grid-2' | 'grid-4' | 'grid-6' | 'grid-9' | 'presentation';
 type CallSurfaceKind = 'direct' | 'group' | 'platform';
@@ -254,16 +257,6 @@ interface ComposerMentionQueryState {
   start: number;
   end: number;
   query: string;
-}
-
-interface MessageContentSegment {
-  text: string;
-  mentionUserId: string | null;
-}
-
-interface TextHighlightChunk {
-  text: string;
-  highlighted: boolean;
 }
 
 interface ProfileUpdateTrigger {
@@ -414,41 +407,10 @@ interface DeleteChannelTrigger {
   channel: WorkspaceChannel;
 }
 
-interface SendMessageTrigger {
-  token: string;
-  channelId: string;
-  payload: {
-    content: string;
-    files: File[];
-    replyToMessageId?: string | null;
-    clientMessageId: string;
-  };
-}
-
-interface MessageUploadProgressState {
-  loaded: number;
-  total: number | null;
-  percent: number | null;
-}
-
 interface MarkChannelReadTrigger {
   token: string;
   channelId: string;
   lastMessageId: string | null;
-}
-
-interface DownloadAttachmentTrigger {
-  token: string;
-  attachment: WorkspaceMessageAttachment;
-  surface: AttachmentActionSurface;
-}
-
-interface LoadAttachmentPreviewTrigger {
-  token: string;
-  attachment: WorkspaceMessageAttachment;
-  openImageAfterLoad?: boolean;
-  reportErrors?: boolean;
-  surface?: AttachmentActionSurface;
 }
 
 interface LoadChatAttachmentsTrigger {
@@ -648,7 +610,7 @@ const DEFAULT_SERVER_ICON_ASSET_BY_NAME: Record<string, string> = {
 };
 
 @Component({
-  providers: [AuthFormStore],
+  providers: [AuthFormStore, MessageUploadStore, AttachmentPreviewStore],
     selector: 'app-root',
     imports: [MessageTextComponent, ShopComponent, UserCardDirective, UserCardComponent, WalletDialogComponent, WalletBalanceComponent, AndroidCallOutputComponent, GuestHeaderComponent, LandingComponent, FriendLinkComponent, FriendInviteComponent, MobileViewportDirective, PlatformListComponent, AdminDirectoryComponent, AvatarPickerComponent, AudioDevicePickerComponent, InfoPanelComponent, ActionMenuComponent, CommonModule, FormsModule, MediaStreamSrcDirective, SectionNavigationComponent, UiIconComponent, ConversationListComponent, QuickSwitchComponent, InviteManagerComponent, InventoryComponent, WallpapersComponent, ThemeControllerComponent, MessageGestureDirective, MessageActionsComponent, EmojiPickerComponent, DesktopPreferencesComponent, SidebarResizeDirective],
     templateUrl: './app.component.html',
@@ -784,21 +746,21 @@ export class AppComponent {
   readonly composerEmojiOpen=signal(false);
   private readonly bubbleDayFormat=new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',year:'numeric'});
   private readonly bubbleClockFormat=new Intl.DateTimeFormat('ru-RU',{hour:'2-digit',minute:'2-digit'});
-  private readonly messageViewCache = new WeakMap<WorkspaceMessage, {query:string;source:MessageContentSegment[];value:RenderedMessageSegment[]}>();
-  messageTextModel(message:WorkspaceMessage):RenderedMessageSegment[]{
-    const source=this.messageContentSegments(message),query=this.messageSearchQuery();
-    const cached=this.messageViewCache.get(message);
-    if(cached&&cached.query===query&&cached.source===source)return cached.value;
-    const value=source.map(segment=>({...segment,chunks:this.messageTextHighlightChunks(segment.text).map(chunk=>({...chunk,links:!segment.mentionUserId&&!chunk.highlighted?this.messageLinks(chunk.text):[]}))}));
-    this.messageViewCache.set(message,{query,source,value});return value;
+  private readonly messageText = new MessageTextPresenter();
+  private readonly mentionContext = computed<MessageMentionContext>(() => ({
+    members: this.members(),
+    conversation: this.activeConversation()?.members,
+  }));
+
+  messageTextModel(message: WorkspaceMessage): RenderedMessageSegment[] {
+    return this.messageText.render(message, this.messageSearchQuery(), this.mentionContext());
   }
-  private readonly linkCache = new BoundedCache<{text:string;url:string|null}[]>();
-  private readonly highlightCache = new BoundedCache<TextHighlightChunk[]>();
-  private readonly previewCache = new BoundedCache<string>();
-  private segmentCache = new WeakMap<WorkspaceMessage, {content:string;mentions:string;context:object;value:MessageContentSegment[]}>();
-  private readonly mentionContext = computed(() => ({members:this.members(), conversation:this.activeConversation()?.members}));
-  messageLinks(text:string):{text:string;url:string|null}[]{return this.linkCache.get(text,()=>this.parseMessageLinks(text));}
-  private parseMessageLinks(text:string):{text:string;url:string|null}[]{return text.split(/(https?:\/\/[^\s<>]+)/g).filter(Boolean).flatMap(part=>{if(!/^https?:\/\//i.test(part))return [{text:part,url:null}];const clean=part.replace(/[.,!?]+$/,'');try{const url=new URL(clean);if(!['http:','https:'].includes(url.protocol))return [{text:part,url:null}];return [{text:clean,url:clean},...(clean.length<part.length?[{text:part.slice(clean.length),url:null}]:[])];}catch{return [{text:part,url:null}];}});}
+
+  messageSearchPreviewChunks(result: WorkspaceMessageSearchResult): TextHighlightChunk[] {
+    const query = this.messageSearchQuery();
+    return this.messageText.highlight(this.messageText.preview(result.content, query), query);
+  }
+
   insertComposerEmoji(emoji:string):void {const field=this.messageTextareaRef?.nativeElement;const draft=this.messageDraft();const at=field?.selectionStart??draft.length;const end=field?.selectionEnd??at;this.onMessageDraftChange(draft.slice(0,at)+emoji+draft.slice(end));this.composerEmojiOpen.set(false);requestAnimationFrame(()=>{field?.focus();field?.setSelectionRange(at+emoji.length,at+emoji.length);});}
   reactFromMenu(code:WorkspaceMessageReactionCode):void {const target=this.messageActionsTarget();this.closeMessageActions();if(target)this.toggleMessageReaction(target,this.messageReactionOptions.find(item=>item.emoji===code)?.code??code);}
   messageDay(value:string):string{return this.bubbleDayFormat.format(new Date(value));}
@@ -952,6 +914,7 @@ export class AppComponent {
     return match ? {spaceId: match[1], channelId: match[2]} : undefined;
   }
   private rememberChannelVisit(channelId: string): void {
+    this.messageUpload.resetView();
     this.messageActionsTarget.set(null);
     if (this.pendingInviteCode() || this.pendingFriendInvite()) return;
     const spaceId = this.selectedServerId();
@@ -1000,8 +963,8 @@ export class AppComponent {
   private readonly directCall = inject(DirectCallService);
   private readonly voiceRoom = inject(VoiceRoomService);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly attachmentPreviewUrls = signal<Record<string, string>>({});
-  private readonly loadingAttachmentPreviewIds = new Set<string>();
+  private readonly messageUpload = inject(MessageUploadStore);
+  private readonly attachmentPreviews = inject(AttachmentPreviewStore);
   private authenticatedServicesStarted = false;
   private wakeLock: BrowserWakeLockSentinel | null = null;
   private wakeLockRequestInFlight = false;
@@ -1042,12 +1005,7 @@ export class AppComponent {
   private readonly createChannelSubmit$ = new Subject<CreateChannelTrigger>();
   private readonly deleteChannelTrigger$ = new Subject<DeleteChannelTrigger>();
   private messageRefreshInFlight = false;
-  private readonly pendingMessageIds = new Map<string, { signature: string; id: string }>();
-  private readonly sendMessageTrigger$ = new Subject<SendMessageTrigger>();
-  private readonly cancelMessageUploadTrigger$ = new Subject<void>();
   private readonly markChannelReadTrigger$ = new Subject<MarkChannelReadTrigger>();
-  private readonly downloadAttachmentTrigger$ = new Subject<DownloadAttachmentTrigger>();
-  private readonly loadAttachmentPreviewTrigger$ = new Subject<LoadAttachmentPreviewTrigger>();
   private readonly loadChatAttachmentsTrigger$ = new Subject<LoadChatAttachmentsTrigger>();
   private readonly deleteChatAttachmentTrigger$ = new Subject<DeleteChatAttachmentTrigger>();
   private readonly voiceMemberRoleTrigger$ = new Subject<VoiceMemberRoleTrigger>();
@@ -1062,7 +1020,6 @@ export class AppComponent {
   private readonly messageSearchQuery$ = new Subject<{ channelId: string | null; query: string }>();
   private readonly pendingMessageReactionKeys = new Set<string>();
   private readonly lastMarkedReadMessageIdByChannel = new Map<string, string | null>();
-  private messageUploadCancelRequested = false;
   private pendingPushConversationId: string | null = null;
   private profileAvatarSelectionMode: 'instant' | 'editor' = 'instant';
   private profileAvatarPreviewObjectUrl: string | null = null;
@@ -1188,19 +1145,19 @@ export class AppComponent {
   readonly workspaceLoading = signal(false);
   readonly messagesLoading = signal(false);
   readonly messagesLoadingMore = signal(false);
-  readonly messageSubmitting = signal(false);
-  readonly messageUploadProgress = signal<MessageUploadProgressState | null>(null);
-  readonly messageUploadOutcome = signal<MessageUploadOutcome>('idle');
+  readonly messageSubmitting = this.messageUpload.submitting;
+  readonly messageUploadProgress = this.messageUpload.progress;
+  readonly messageUploadOutcome = this.messageUpload.outcome;
   readonly composerMentionQueryState = signal<ComposerMentionQueryState | null>(null);
   readonly composerMentionActiveIndex = signal(0);
-  readonly downloadingAttachmentIds = signal<string[]>([]);
+  readonly downloadingAttachmentIds = this.attachmentPreviews.downloadingIds;
   readonly chatFilesModalOpen = signal(false);
   readonly chatFilesLoading = signal(false);
   readonly chatFilesError = signal<string | null>(null);
   readonly chatMediaTab = signal<ChatMediaTab>('gallery');
   readonly chatAttachments = signal<WorkspaceChatAttachmentSummary[]>([]);
   readonly deletingChatAttachmentId = signal<string | null>(null);
-  readonly attachmentAvailabilityLabels = signal<Record<string, string>>({});
+  readonly attachmentAvailabilityLabels = this.attachmentPreviews.availabilityLabels;
   readonly friendRequestsModalOpen = signal(false);
   readonly spaceInvitations = signal<FriendSpaceInvitation[]>([]);
   readonly spaceInviteBusy = signal(false);
@@ -1352,6 +1309,10 @@ export class AppComponent {
   readonly conversations = signal<ConversationSummary[]>([]);
   readonly conversationDirectory = signal<ConversationDirectoryUser[]>([]);
   readonly channels = signal<WorkspaceChannel[]>([]);
+  private readonly conversationUnread = new UnreadStateCollection(this.conversations, item => item.id);
+  private readonly conversationUnreadByChannel = new UnreadStateCollection(this.conversations, item => item.primary_channel_id);
+  private readonly serverUnread = new UnreadStateCollection(this.servers, item => item.id);
+  private readonly channelUnread = new UnreadStateCollection(this.channels, item => item.id);
   readonly members = signal<WorkspaceMember[]>([]);
   readonly voicePresence = signal<WorkspaceVoicePresenceChannel[]>([]);
   readonly messages = signal<WorkspaceMessage[]>([]);
@@ -1385,12 +1346,12 @@ export class AppComponent {
   readonly groupOwnershipTransferUserId = signal('');
   readonly selectedMemberUserId = signal<string | null>(null);
   readonly selectedVoiceMemberChannelId = signal<string | null>(null);
-  readonly openedImageAttachmentId = signal<string | null>(null);
+  readonly openedImageAttachmentId = this.attachmentPreviews.openedImageId;
   readonly openedMessageReactionPickerId = signal<string | null>(null);
   readonly mobilePanel = signal<MobilePanel>(null);
   readonly voiceWorkspaceTab = signal<VoiceWorkspaceTab>('chat');
   readonly messageDraft = signal('');
-  readonly pendingFiles = signal<File[]>([]);
+  readonly pendingFiles = this.messageUpload.files;
   readonly voiceAdminChannelsLoading = signal(false);
   readonly voiceAdminUsersLoading = signal(false);
   readonly voiceAdminAccessLoading = signal(false);
@@ -1813,9 +1774,9 @@ export class AppComponent {
   readonly personalChatEntries = computed(() => this.directConversationSpaces());
   readonly groupChatEntries = computed(() => this.groupConversationSpaces());
   readonly platformEntries = computed(() => this.platformSpaces());
-  readonly hasGlobalSearchQuery = computed(() => this.buildSearchTerms(this.globalSearchQuery()).length > 0);
+  readonly hasGlobalSearchQuery = computed(() => buildSearchTerms(this.globalSearchQuery()).length > 0);
   readonly globalSearchDirectResults = computed(() => {
-    const terms = this.buildSearchTerms(this.globalSearchQuery());
+    const terms = buildSearchTerms(this.globalSearchQuery());
     if (!terms.length) {
       return [];
     }
@@ -1823,7 +1784,7 @@ export class AppComponent {
     const currentUserId = this.currentUser()?.id ?? null;
     return this.directConversations().filter((conversation) => {
       const peer = conversation.members.find((member) => member.user_id !== currentUserId) ?? conversation.members[0] ?? null;
-      return this.matchesSearchTerms(terms, [
+      return matchesSearchTerms(terms, [
         conversation.title,
         conversation.subtitle,
         peer?.login,
@@ -1832,26 +1793,26 @@ export class AppComponent {
     });
   });
   readonly globalSearchGroupResults = computed(() => {
-    const terms = this.buildSearchTerms(this.globalSearchQuery());
+    const terms = buildSearchTerms(this.globalSearchQuery());
     if (!terms.length) {
       return [];
     }
 
     return this.groupConversations().filter((conversation) =>
-      this.matchesSearchTerms(terms, [
+      matchesSearchTerms(terms, [
         conversation.title,
         conversation.subtitle,
       ])
     );
   });
   readonly globalSearchPlatformResults = computed(() => {
-    const terms = this.buildSearchTerms(this.globalSearchQuery());
+    const terms = buildSearchTerms(this.globalSearchQuery());
     if (!terms.length) {
       return [];
     }
 
     return this.platformSpaces().filter((server) =>
-      this.matchesSearchTerms(terms, [
+      matchesSearchTerms(terms, [
         server.name,
         server.description,
         server.slug,
@@ -3428,66 +3389,38 @@ export class AppComponent {
   }
 
   private bindMessagePipelines(): void {
-    this.sendMessageTrigger$
-      .pipe(
-        exhaustMap(({ token, channelId, payload }) => {
-          let completed = false;
-          let failed = false;
-
-          return this.workspaceApi.sendMessage(token, channelId, payload).pipe(
-            takeUntil(this.cancelMessageUploadTrigger$),
-            tap((event: WorkspaceMessageUploadEvent) => {
-              if (event.kind === 'progress') {
-                this.messageUploadProgress.set({
-                  loaded: event.loaded,
-                  total: event.total,
-                  percent: event.percent,
-                });
-                return;
-              }
-
-              completed = true;
-              const message = event.message;
-              this.pendingMessageIds.delete(channelId);
-              const unchangedDraft = (this.workspaceMemory.channel(channelId).draft ?? '').trim() === payload.content.trim();
-              if (unchangedDraft) this.workspaceMemory.remember(channelId, {draft: ''});
-              if (this.selectedChannelId() !== channelId) { return; }
-              if (unchangedDraft) this.messageDraft.set('');
-              this.pendingFiles.set([]);
-              this.selectedReplyMessage.set(null);
-              this.clearComposerMentionState();
-              this.scheduleMessageTextareaResize();
-              this.messageUploadOutcome.set('idle');
-
-              if (this.selectedChannelId() !== channelId) {
-                return;
-              }
-
-              this.messages.update((messages) => this.mergeMessagesChronologically([...messages, message]));
-              this.preloadInlineImagePreviews([message]);
-              this.scrollMessagesToBottom();
-              this.markChannelAsRead(channelId, message.id);
-            }),
-            catchError((error) => {
-              failed = true;
-              this.messageUploadOutcome.set('failed');
-              this.messageError.set(this.extractErrorMessage(error, 'Не удалось отправить сообщение'));
-              return EMPTY;
-            }),
-            finalize(() => {
-              if (!completed && !failed && this.messageUploadCancelRequested) {
-                this.messageUploadOutcome.set('cancelled');
-              }
-
-              this.messageUploadCancelRequested = false;
-              this.messageSubmitting.set(false);
-              this.messageUploadProgress.set(null);
-            })
-          )
-        }),
-        takeUntilDestroyed(this.destroyRef)
-      )
-      .subscribe();
+    this.messageUpload.sent.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(({channelId, payload, message}) => {
+      const unchangedDraft = (this.workspaceMemory.channel(channelId).draft ?? '').trim() === payload.content.trim();
+      if (unchangedDraft) this.workspaceMemory.remember(channelId, {draft: ''});
+      if (this.selectedChannelId() !== channelId) return;
+      if (unchangedDraft) this.messageDraft.set('');
+      this.pendingFiles.set([]);
+      this.selectedReplyMessage.set(null);
+      this.clearComposerMentionState();
+      this.scheduleMessageTextareaResize();
+      this.messages.update(messages => this.mergeMessagesChronologically([...messages, message]));
+      this.preloadInlineImagePreviews([message]);
+      this.scrollMessagesToBottom();
+      this.markChannelAsRead(channelId, message.id);
+    });
+    this.messageUpload.failed.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(({channelId, error}) => {
+      if (this.selectedChannelId() === channelId) {
+        this.messageError.set(this.extractErrorMessage(error, 'Не удалось отправить сообщение'));
+      }
+    });
+    this.attachmentPreviews.failed.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(event => {
+      this.handleAttachmentActionError(event.error, event.attachmentId, event.surface, event.fallback, event.reportErrors);
+    });
+    this.attachmentPreviews.downloadReady.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(({url, filename}) => {
+      const anchor = document.createElement('a');
+      anchor.href = this.resolveApiUrl(url);
+      anchor.download = filename;
+      anchor.rel = 'noopener';
+      anchor.style.display = 'none';
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+    });
 
     this.markChannelReadTrigger$
       .pipe(
@@ -3498,34 +3431,6 @@ export class AppComponent {
             }
             return EMPTY;
           }))
-        ),
-        takeUntilDestroyed(this.destroyRef)
-      )
-      .subscribe();
-
-    this.downloadAttachmentTrigger$
-      .pipe(
-        exhaustMap(({ token, attachment, surface }) =>
-          this.workspaceApi.createAttachmentDownloadLink(token, attachment.id).pipe(
-            tap(({ url }) => {
-              this.clearAttachmentAvailability(attachment.id);
-              const anchor = document.createElement('a');
-              anchor.href = this.resolveApiUrl(url);
-              anchor.download = attachment.filename;
-              anchor.rel = 'noopener';
-              anchor.style.display = 'none';
-              document.body.appendChild(anchor);
-              anchor.click();
-              anchor.remove();
-            }),
-            catchError((error) => {
-              this.handleAttachmentActionError(error, attachment.id, surface, 'Не удалось скачать файл');
-              return EMPTY;
-            }),
-            finalize(() => {
-              this.downloadingAttachmentIds.update((ids) => ids.filter((id) => id !== attachment.id));
-            })
-          )
         ),
         takeUntilDestroyed(this.destroyRef)
       )
@@ -3583,51 +3488,6 @@ export class AppComponent {
             }),
             finalize(() => {
               this.deletingChatAttachmentId.set(null);
-            })
-          )
-        ),
-        takeUntilDestroyed(this.destroyRef)
-      )
-      .subscribe();
-
-    this.loadAttachmentPreviewTrigger$
-      .pipe(
-        mergeMap(({ token, attachment, openImageAfterLoad, reportErrors, surface }) =>
-          this.workspaceApi.downloadAttachment(token, attachment.id).pipe(
-            tap((blob) => {
-              const objectUrl = URL.createObjectURL(blob);
-              if (!this.shouldKeepAttachmentPreview(attachment.id)) {
-                URL.revokeObjectURL(objectUrl);
-                return;
-              }
-
-              this.clearAttachmentAvailability(attachment.id);
-              const previousUrl = this.attachmentPreviewUrls()[attachment.id];
-              if (previousUrl) {
-                URL.revokeObjectURL(previousUrl);
-              }
-
-              this.attachmentPreviewUrls.update((currentUrls) => ({
-                ...currentUrls,
-                [attachment.id]: objectUrl
-              }));
-
-              if (openImageAfterLoad) {
-                this.openedImageAttachmentId.set(attachment.id);
-              }
-            }),
-            catchError((error) => {
-              this.handleAttachmentActionError(
-                error,
-                attachment.id,
-                surface ?? 'message',
-                'Не удалось загрузить вложение',
-                reportErrors !== false
-              );
-              return EMPTY;
-            }),
-            finalize(() => {
-              this.loadingAttachmentPreviewIds.delete(attachment.id);
             })
           )
         ),
@@ -6682,25 +6542,13 @@ export class AppComponent {
       return;
     }
 
-    const payload = {
+    this.messageError.set(null);
+    this.schedulePresenceHeartbeat(true);
+    this.messageUpload.send(token, activeChannel.id, {
       content: this.messageDraft().trim(),
       files: this.pendingFiles(),
       replyToMessageId: this.selectedReplyMessage()?.id ?? null,
-      clientMessageId: '',
-    };
-    const channelId = activeChannel.id;
-    const signature = JSON.stringify([payload.content, payload.replyToMessageId, payload.files.map(file => [file.name, file.size, file.lastModified])]);
-    const pending = this.pendingMessageIds.get(channelId);
-    payload.clientMessageId = pending?.signature === signature ? pending.id : crypto.randomUUID();
-    this.pendingMessageIds.set(channelId, { signature, id: payload.clientMessageId });
-
-    this.messageUploadCancelRequested = false;
-    this.messageSubmitting.set(true);
-    this.messageUploadOutcome.set(payload.files.length ? 'uploading' : 'idle');
-    this.messageUploadProgress.set(payload.files.length ? { loaded: 0, total: null, percent: null } : null);
-    this.messageError.set(null);
-    this.schedulePresenceHeartbeat(true);
-    this.sendMessageTrigger$.next({ token, channelId, payload });
+    });
   }
 
   selectComposerMentionCandidate(candidate: ComposerMentionCandidate): void {
@@ -6735,12 +6583,7 @@ export class AppComponent {
   }
 
   cancelMessageUpload(): void {
-    if (!this.messageSubmitting()) {
-      return;
-    }
-
-    this.messageUploadCancelRequested = true;
-    this.cancelMessageUploadTrigger$.next();
+    this.messageUpload.cancel();
   }
 
   messageUploadPercent(progress: MessageUploadProgressState | null): number {
@@ -6848,8 +6691,7 @@ export class AppComponent {
       return;
     }
 
-    this.downloadingAttachmentIds.update((ids) => (ids.includes(attachment.id) ? ids : [...ids, attachment.id]));
-    this.downloadAttachmentTrigger$.next({ token, attachment, surface });
+    this.attachmentPreviews.download(token, attachment, surface);
   }
 
   isAttachmentDownloading(attachment: WorkspaceMessageAttachment): boolean {
@@ -7494,7 +7336,7 @@ export class AppComponent {
   }
 
   attachmentPreviewUrl(attachment: WorkspaceMessageAttachment): string | null {
-    return this.attachmentPreviewUrls()[attachment.id] ?? null;
+    return this.attachmentPreviews.urls()[attachment.id] ?? null;
   }
 
   imagePreviewUrl(attachment: WorkspaceMessageAttachment): string | null {
@@ -7502,7 +7344,7 @@ export class AppComponent {
   }
 
   isAttachmentPreviewLoading(attachment: WorkspaceMessageAttachment): boolean {
-    return this.loadingAttachmentPreviewIds.has(attachment.id);
+    return this.attachmentPreviews.loadingIds().includes(attachment.id);
   }
 
   isInlineImageAttachment(attachment: WorkspaceMessageAttachment): boolean {
@@ -8199,17 +8041,17 @@ export class AppComponent {
     if (!isSelectedConversation) {
       if (!isOwnMessage) {
         if (isWorkspaceServer) {
-          this.bumpServerUnreadCount(event.server_id);
+          this.serverUnread.bumpUnreadCount(event.server_id);
           if (mentionsCurrentUser) {
-            this.bumpServerMentionUnreadCount(event.server_id);
+            this.serverUnread.bumpMentionUnreadCount(event.server_id);
             void this.refreshAttentionInboxIfOpen();
           }
         } else {
-          this.bumpConversationUnreadCount(event.server_id);
-          this.setConversationFirstUnreadMessageIdIfMissing(event.server_id, event.message.id);
+          this.conversationUnread.bumpUnreadCount(event.server_id);
+          this.conversationUnread.setFirstUnreadMessageIdIfMissing(event.server_id, event.message.id);
           if (mentionsCurrentUser) {
-            this.bumpConversationMentionUnreadCount(event.server_id);
-            this.setConversationFirstMentionUnreadMessageIdIfMissing(event.server_id, event.message.id);
+            this.conversationUnread.bumpMentionUnreadCount(event.server_id);
+            this.conversationUnread.setFirstMentionUnreadMessageIdIfMissing(event.server_id, event.message.id);
             void this.refreshAttentionInboxIfOpen();
           }
         }
@@ -8225,21 +8067,21 @@ export class AppComponent {
     ) {
       if (!isOwnMessage) {
         if (isWorkspaceServer) {
-          this.bumpChannelUnreadCount(event.message.channel_id);
-          this.bumpServerUnreadCount(event.server_id);
-          this.setChannelFirstUnreadMessageIdIfMissing(event.message.channel_id, event.message.id);
+          this.channelUnread.bumpUnreadCount(event.message.channel_id);
+          this.serverUnread.bumpUnreadCount(event.server_id);
+          this.channelUnread.setFirstUnreadMessageIdIfMissing(event.message.channel_id, event.message.id);
           if (mentionsCurrentUser) {
-            this.bumpChannelMentionUnreadCount(event.message.channel_id);
-            this.bumpServerMentionUnreadCount(event.server_id);
-            this.setChannelFirstMentionUnreadMessageIdIfMissing(event.message.channel_id, event.message.id);
+            this.channelUnread.bumpMentionUnreadCount(event.message.channel_id);
+            this.serverUnread.bumpMentionUnreadCount(event.server_id);
+            this.channelUnread.setFirstMentionUnreadMessageIdIfMissing(event.message.channel_id, event.message.id);
             void this.refreshAttentionInboxIfOpen();
           }
         } else {
-          this.bumpConversationUnreadCount(event.server_id);
-          this.setConversationFirstUnreadMessageIdIfMissing(event.server_id, event.message.id);
+          this.conversationUnread.bumpUnreadCount(event.server_id);
+          this.conversationUnread.setFirstUnreadMessageIdIfMissing(event.server_id, event.message.id);
           if (mentionsCurrentUser) {
-            this.bumpConversationMentionUnreadCount(event.server_id);
-            this.setConversationFirstMentionUnreadMessageIdIfMissing(event.server_id, event.message.id);
+            this.conversationUnread.bumpMentionUnreadCount(event.server_id);
+            this.conversationUnread.setFirstMentionUnreadMessageIdIfMissing(event.server_id, event.message.id);
             void this.refreshAttentionInboxIfOpen();
           }
         }
@@ -8265,21 +8107,21 @@ export class AppComponent {
 
     if (!isOwnMessage) {
       if (isWorkspaceServer) {
-        this.bumpChannelUnreadCount(event.message.channel_id);
-        this.bumpServerUnreadCount(event.server_id);
-        this.setChannelFirstUnreadMessageIdIfMissing(event.message.channel_id, event.message.id);
+        this.channelUnread.bumpUnreadCount(event.message.channel_id);
+        this.serverUnread.bumpUnreadCount(event.server_id);
+        this.channelUnread.setFirstUnreadMessageIdIfMissing(event.message.channel_id, event.message.id);
         if (mentionsCurrentUser) {
-          this.bumpChannelMentionUnreadCount(event.message.channel_id);
-          this.bumpServerMentionUnreadCount(event.server_id);
-          this.setChannelFirstMentionUnreadMessageIdIfMissing(event.message.channel_id, event.message.id);
+          this.channelUnread.bumpMentionUnreadCount(event.message.channel_id);
+          this.serverUnread.bumpMentionUnreadCount(event.server_id);
+          this.channelUnread.setFirstMentionUnreadMessageIdIfMissing(event.message.channel_id, event.message.id);
           void this.refreshAttentionInboxIfOpen();
         }
       } else {
-        this.bumpConversationUnreadCount(event.server_id);
-        this.setConversationFirstUnreadMessageIdIfMissing(event.server_id, event.message.id);
+        this.conversationUnread.bumpUnreadCount(event.server_id);
+        this.conversationUnread.setFirstUnreadMessageIdIfMissing(event.server_id, event.message.id);
         if (mentionsCurrentUser) {
-          this.bumpConversationMentionUnreadCount(event.server_id);
-          this.setConversationFirstMentionUnreadMessageIdIfMissing(event.server_id, event.message.id);
+          this.conversationUnread.bumpMentionUnreadCount(event.server_id);
+          this.conversationUnread.setFirstMentionUnreadMessageIdIfMissing(event.server_id, event.message.id);
           void this.refreshAttentionInboxIfOpen();
         }
       }
@@ -8311,20 +8153,20 @@ export class AppComponent {
       if (activeServer?.kind === 'workspace' && activeServer.id === event.server_id) {
         const channelUnreadCount = this.channels().find((channel) => channel.id === event.channel_id)?.unread_count ?? 0;
         const channelMentionUnreadCount = this.channels().find((channel) => channel.id === event.channel_id)?.mention_unread_count ?? 0;
-        this.setChannelUnreadCount(event.channel_id, 0);
-        this.setChannelMentionUnreadCount(event.channel_id, 0);
-        this.setChannelFirstUnreadMessageId(event.channel_id, null);
+        this.channelUnread.setUnreadCount(event.channel_id, 0);
+        this.channelUnread.setMentionUnreadCount(event.channel_id, 0);
+        this.channelUnread.setFirstUnreadMessageId(event.channel_id, null);
         if (channelUnreadCount > 0) {
-          this.bumpServerUnreadCount(activeServer.id, -channelUnreadCount);
+          this.serverUnread.bumpUnreadCount(activeServer.id, -channelUnreadCount);
         }
         if (channelMentionUnreadCount > 0) {
-          this.bumpServerMentionUnreadCount(activeServer.id, -channelMentionUnreadCount);
+          this.serverUnread.bumpMentionUnreadCount(activeServer.id, -channelMentionUnreadCount);
         }
       } else {
-        this.setConversationUnreadCountByChannelId(event.channel_id, 0);
-        this.setConversationMentionUnreadCountByChannelId(event.channel_id, 0);
-        this.setConversationFirstUnreadMessageIdByChannelId(event.channel_id, null);
-        this.setConversationFirstMentionUnreadMessageIdByChannelId(event.channel_id, null);
+        this.conversationUnreadByChannel.setUnreadCount(event.channel_id, 0);
+        this.conversationUnreadByChannel.setMentionUnreadCount(event.channel_id, 0);
+        this.conversationUnreadByChannel.setFirstUnreadMessageId(event.channel_id, null);
+        this.conversationUnreadByChannel.setFirstMentionUnreadMessageId(event.channel_id, null);
       }
       void this.refreshAttentionInboxIfOpen();
     }
@@ -8483,8 +8325,8 @@ export class AppComponent {
 
     const unreadCount = channels.reduce((total, channel) => total + Math.max(0, channel.unread_count ?? 0), 0);
     const mentionUnreadCount = channels.reduce((total, channel) => total + Math.max(0, channel.mention_unread_count ?? 0), 0);
-    this.setServerUnreadCount(activeServer.id, unreadCount);
-    this.setServerMentionUnreadCount(activeServer.id, mentionUnreadCount);
+    this.serverUnread.setUnreadCount(activeServer.id, unreadCount);
+    this.serverUnread.setMentionUnreadCount(activeServer.id, mentionUnreadCount);
   }
 
   private applyMembersSnapshot(members: WorkspaceMember[]): void {
@@ -9514,53 +9356,14 @@ export class AppComponent {
     return nextChannel?.channel_id ?? null;
   }
 
-  private requestAttachmentPreview(
-    attachment: WorkspaceMessageAttachment,
-    options?: {
-      openImageAfterLoad?: boolean;
-      reportErrors?: boolean;
-      surface?: AttachmentActionSurface;
-    }
-  ): void {
+  private requestAttachmentPreview(attachment: WorkspaceMessageAttachment, options: AttachmentPreviewOptions = {}): void {
     const token = this.session()?.access_token;
-    if (!token) {
-      return;
+    if (!token || attachment.deleted_at || this.attachmentAvailabilityLabel(attachment.id)) return;
+    if (!this.attachmentPreviewUrl(attachment) && !this.isAttachmentPreviewLoading(attachment)) {
+      if (options.surface === 'chat') this.chatFilesError.set(null);
+      else this.messageError.set(null);
     }
-
-    if (attachment.deleted_at) {
-      return;
-    }
-
-    if (this.attachmentAvailabilityLabel(attachment.id)) {
-      return;
-    }
-
-    if (this.attachmentPreviewUrl(attachment)) {
-      if (options?.openImageAfterLoad) {
-        this.openedImageAttachmentId.set(
-          this.openedImageAttachmentId() === attachment.id ? null : attachment.id
-        );
-      }
-      return;
-    }
-
-    if (this.loadingAttachmentPreviewIds.has(attachment.id)) {
-      return;
-    }
-
-    if (options?.surface === 'chat') {
-      this.chatFilesError.set(null);
-    } else {
-      this.messageError.set(null);
-    }
-    this.loadingAttachmentPreviewIds.add(attachment.id);
-    this.loadAttachmentPreviewTrigger$.next({
-      token,
-      attachment,
-      openImageAfterLoad: options?.openImageAfterLoad === true,
-      reportErrors: options?.reportErrors,
-      surface: options?.surface,
-    });
+    this.attachmentPreviews.load(token, attachment, options, () => this.shouldKeepAttachmentPreview(attachment.id));
   }
 
   private preloadInlineImagePreviews(messages: WorkspaceMessage[]): void {
@@ -9645,15 +9448,7 @@ export class AppComponent {
   }
 
   private clearAttachmentAvailability(attachmentId: string): void {
-    if (!this.attachmentAvailabilityLabels()[attachmentId]) {
-      return;
-    }
-
-    this.attachmentAvailabilityLabels.update((labels) => {
-      const nextLabels = { ...labels };
-      delete nextLabels[attachmentId];
-      return nextLabels;
-    });
+    this.attachmentPreviews.clearAvailability(attachmentId);
   }
 
   private attachmentKindLabel(attachment: WorkspaceMessageAttachment): string {
@@ -9801,7 +9596,7 @@ export class AppComponent {
     this.messagesCursor.set(null);
     this.messagesLoading.set(false);
     this.messagesLoadingMore.set(false);
-    this.messageSubmitting.set(false);
+    this.messageUpload.resetView();
     this.messageUploadOutcome.set('idle');
     this.messageDraft.set('');
     this.clearComposerMentionState();
@@ -9827,23 +9622,7 @@ export class AppComponent {
   }
 
   private applyAttachmentDeletedLocally(attachmentId: string): void {
-    this.downloadingAttachmentIds.update((ids) => ids.filter((id) => id !== attachmentId));
-    this.loadingAttachmentPreviewIds.delete(attachmentId);
-    this.clearAttachmentAvailability(attachmentId);
-
-    const currentPreviewUrl = this.attachmentPreviewUrls()[attachmentId];
-    if (currentPreviewUrl) {
-      URL.revokeObjectURL(currentPreviewUrl);
-      this.attachmentPreviewUrls.update((currentUrls) => {
-        const nextUrls = { ...currentUrls };
-        delete nextUrls[attachmentId];
-        return nextUrls;
-      });
-    }
-
-    if (this.openedImageAttachmentId() === attachmentId) {
-      this.openedImageAttachmentId.set(null);
-    }
+    this.attachmentPreviews.remove(attachmentId);
 
     const deletedAt = new Date().toISOString();
     this.messages.update((messages) =>
@@ -10031,15 +9810,7 @@ export class AppComponent {
   }
 
   private clearAttachmentPreviews(): void {
-    const currentUrls = this.attachmentPreviewUrls();
-    for (const objectUrl of Object.values(currentUrls)) {
-      URL.revokeObjectURL(objectUrl);
-    }
-
-    this.loadingAttachmentPreviewIds.clear();
-    this.attachmentPreviewUrls.set({});
-    this.attachmentAvailabilityLabels.set({});
-    this.openedImageAttachmentId.set(null);
+    this.attachmentPreviews.clear();
   }
 
   private markLatestMessageAsRead(): void {
@@ -10068,21 +9839,21 @@ export class AppComponent {
     if (activeServer?.kind === 'workspace') {
       const channelUnreadCount = this.channels().find((channel) => channel.id === channelId)?.unread_count ?? 0;
       const channelMentionUnreadCount = this.channels().find((channel) => channel.id === channelId)?.mention_unread_count ?? 0;
-      this.setChannelUnreadCount(channelId, 0);
-      this.setChannelMentionUnreadCount(channelId, 0);
-      this.setChannelFirstUnreadMessageId(channelId, null);
-      this.setChannelFirstMentionUnreadMessageId(channelId, null);
+      this.channelUnread.setUnreadCount(channelId, 0);
+      this.channelUnread.setMentionUnreadCount(channelId, 0);
+      this.channelUnread.setFirstUnreadMessageId(channelId, null);
+      this.channelUnread.setFirstMentionUnreadMessageId(channelId, null);
       if (channelUnreadCount > 0) {
-        this.bumpServerUnreadCount(activeServer.id, -channelUnreadCount);
+        this.serverUnread.bumpUnreadCount(activeServer.id, -channelUnreadCount);
       }
       if (channelMentionUnreadCount > 0) {
-        this.bumpServerMentionUnreadCount(activeServer.id, -channelMentionUnreadCount);
+        this.serverUnread.bumpMentionUnreadCount(activeServer.id, -channelMentionUnreadCount);
       }
     } else {
-      this.setConversationUnreadCountByChannelId(channelId, 0);
-      this.setConversationMentionUnreadCountByChannelId(channelId, 0);
-      this.setConversationFirstUnreadMessageIdByChannelId(channelId, null);
-      this.setConversationFirstMentionUnreadMessageIdByChannelId(channelId, null);
+      this.conversationUnreadByChannel.setUnreadCount(channelId, 0);
+      this.conversationUnreadByChannel.setMentionUnreadCount(channelId, 0);
+      this.conversationUnreadByChannel.setFirstUnreadMessageId(channelId, null);
+      this.conversationUnreadByChannel.setFirstMentionUnreadMessageId(channelId, null);
     }
     this.markChannelReadTrigger$.next({ token, channelId, lastMessageId });
   }
@@ -10433,6 +10204,7 @@ export class AppComponent {
   }
 
   private clearStoredSession(): void {
+    this.messageUpload.resetSession();
     if (typeof localStorage === 'undefined') {
       return;
     }
@@ -10731,13 +10503,7 @@ export class AppComponent {
     return label.slice(0, 2).toUpperCase();
   }
 
-  formatPublicUserId(publicId: number | null | undefined): string {
-    if (typeof publicId !== 'number' || !Number.isFinite(publicId)) {
-      return '00000';
-    }
-
-    return Math.trunc(publicId).toString().padStart(5, '0');
-  }
+  readonly formatPublicUserId = formatPublicUserId;
 
   composerMentionLabel(candidate: ComposerMentionCandidate): string {
     const nick = this.displayNick(candidate.nick);
@@ -10850,126 +10616,6 @@ export class AppComponent {
     }
 
     return message.mentioned_user_ids.includes(currentUserId);
-  }
-
-  messageContentSegments(message: WorkspaceMessage): MessageContentSegment[] {
-    const content=message.content??'', mentions=message.mentioned_user_ids.join(','), context=this.mentionContext();
-    const cached=this.segmentCache.get(message);
-    if(cached&&cached.content===content&&cached.mentions===mentions&&cached.context===context)return cached.value;
-    const value=this.buildMessageContentSegments(message);
-    this.segmentCache.set(message,{content,mentions,context,value});return value;
-  }
-
-  private buildMessageContentSegments(message: WorkspaceMessage): MessageContentSegment[] {
-    const content = message.content ?? '';
-    if (!content || !message.mentioned_user_ids.length) {
-      return [{ text: content, mentionUserId: null }];
-    }
-
-    const mentionCandidates = this.messageMentionCandidatesByUserId(message);
-    if (!mentionCandidates.size) {
-      return [{ text: content, mentionUserId: null }];
-    }
-
-    const orderedCandidates = [...mentionCandidates.entries()]
-      .flatMap(([userId, tokens]) => [...tokens].map((token) => ({ userId, token })))
-      .sort((left, right) => right.token.length - left.token.length);
-
-    const normalizedContent = content;
-    const contentFolded = normalizedContent.toLocaleLowerCase('ru-RU');
-    const segments: MessageContentSegment[] = [];
-
-    let segmentStart = 0;
-    let searchFrom = 0;
-    while (searchFrom < normalizedContent.length) {
-      const mentionStart = contentFolded.indexOf('@', searchFrom);
-      if (mentionStart < 0) {
-        break;
-      }
-
-      if (!this.hasMentionBoundaryAt(normalizedContent, mentionStart)) {
-        searchFrom = mentionStart + 1;
-        continue;
-      }
-
-      const matchedCandidate = orderedCandidates.find((candidate) => {
-        const mentionEnd = mentionStart + candidate.token.length;
-        return (
-          contentFolded.startsWith(candidate.token, mentionStart)
-          && this.hasMentionBoundaryAfter(normalizedContent, mentionEnd)
-        );
-      });
-
-      if (!matchedCandidate) {
-        searchFrom = mentionStart + 1;
-        continue;
-      }
-
-      if (mentionStart > segmentStart) {
-        segments.push({
-          text: normalizedContent.slice(segmentStart, mentionStart),
-          mentionUserId: null,
-        });
-      }
-
-      const mentionEnd = mentionStart + matchedCandidate.token.length;
-      segments.push({
-        text: normalizedContent.slice(mentionStart, mentionEnd),
-        mentionUserId: matchedCandidate.userId,
-      });
-      segmentStart = mentionEnd;
-      searchFrom = mentionEnd;
-    }
-
-    if (segmentStart < normalizedContent.length) {
-      segments.push({
-        text: normalizedContent.slice(segmentStart),
-        mentionUserId: null,
-      });
-    }
-
-    return segments.length ? segments : [{ text: normalizedContent, mentionUserId: null }];
-  }
-
-  isMentionSegmentCurrentUser(segment: MessageContentSegment): boolean {
-    return !!segment.mentionUserId && segment.mentionUserId === this.currentUser()?.id;
-  }
-
-  messageTextHighlightChunks(text: string): TextHighlightChunk[] {
-    const query=this.messageSearchQuery();
-    return this.highlightCache.get(JSON.stringify([query,text]),()=>this.buildTextHighlightChunks(text,query));
-  }
-
-  messageSearchPreviewChunks(result: WorkspaceMessageSearchResult): TextHighlightChunk[] {
-    return this.messageTextHighlightChunks(this.messageSearchPreviewText(result));
-  }
-
-  messageSearchPreviewText(result: WorkspaceMessageSearchResult): string {
-    return this.previewCache.get(JSON.stringify([result.content,this.messageSearchQuery()]),()=>this.buildMessageSearchPreviewText(result));
-  }
-  private buildMessageSearchPreviewText(result: WorkspaceMessageSearchResult): string {
-    const content = (result.content ?? '').trim();
-    if (!content) {
-      return 'Сообщение без текста';
-    }
-
-    const terms = this.buildSearchTerms(this.messageSearchQuery());
-    if (!terms.length) {
-      return content.length > 180 ? `${content.slice(0, 177).trimEnd()}...` : content;
-    }
-
-    const foldedContent = content.toLocaleLowerCase('ru-RU');
-    const matchIndex = terms
-      .map((term) => foldedContent.indexOf(term))
-      .filter((index) => index >= 0)
-      .sort((left, right) => left - right)[0] ?? 0;
-
-    const previewRadius = 72;
-    const start = Math.max(0, matchIndex - previewRadius);
-    const end = Math.min(content.length, matchIndex + previewRadius + 48);
-    const prefix = start > 0 ? '... ' : '';
-    const suffix = end < content.length ? ' ...' : '';
-    return `${prefix}${content.slice(start, end).trim()}${suffix}`;
   }
 
   isSearchFocusedMessage(message: WorkspaceMessage): boolean {
@@ -11112,133 +10758,6 @@ export class AppComponent {
     return message.mentioned_user_ids.includes(userId);
   }
 
-  private messageMentionCandidatesByUserId(message: WorkspaceMessage): Map<string, Set<string>> {
-    const candidatesByUserId = new Map<string, Set<string>>();
-    const activeConversationMembers = (this.activeConversation()?.members ?? []).map((member) => ({
-      userId: member.user_id,
-      publicId: member.public_id,
-      nick: member.nick,
-    }));
-    const serverMembers = this.members().map((member) => ({
-      userId: member.user_id,
-      publicId: member.public_id,
-      nick: member.nick,
-    }));
-    const users = [
-      ...activeConversationMembers,
-      ...serverMembers,
-    ];
-
-    for (const user of users) {
-      if (!message.mentioned_user_ids.includes(user.userId) || candidatesByUserId.has(user.userId)) {
-        continue;
-      }
-
-      const tokens = new Set<string>();
-      const normalizedNick = this.displayNick(user.nick).trim();
-      if (normalizedNick) {
-        tokens.add(`@${normalizedNick.toLocaleLowerCase('ru-RU')}`);
-      }
-      tokens.add(`@${this.formatPublicUserId(user.publicId)}`);
-      candidatesByUserId.set(user.userId, tokens);
-    }
-
-    return candidatesByUserId;
-  }
-
-  private hasMentionBoundaryAt(content: string, index: number): boolean {
-    if (index <= 0) {
-      return true;
-    }
-
-    return this.isMentionBoundaryChar(content[index - 1] ?? '');
-  }
-
-  private buildSearchTerms(value: string): string[] {
-    return value
-      .trim()
-      .toLocaleLowerCase('ru-RU')
-      .split(/\s+/)
-      .filter((part) => part.length > 0);
-  }
-
-  private buildTextHighlightChunks(text: string, query: string): TextHighlightChunk[] {
-    if (!text) {
-      return [{ text: '', highlighted: false }];
-    }
-
-    const escapedTerms = [...new Set(this.buildSearchTerms(query))]
-      .sort((left, right) => right.length - left.length)
-      .map((term) => this.escapeRegExp(term));
-
-    if (!escapedTerms.length) {
-      return [{ text, highlighted: false }];
-    }
-
-    const chunks: TextHighlightChunk[] = [];
-    const matcher = new RegExp(`(${escapedTerms.join('|')})`, 'giu');
-    let lastIndex = 0;
-
-    for (const match of text.matchAll(matcher)) {
-      const matchIndex = match.index ?? 0;
-      const matchedText = match[0] ?? '';
-      if (!matchedText) {
-        continue;
-      }
-
-      if (matchIndex > lastIndex) {
-        chunks.push({
-          text: text.slice(lastIndex, matchIndex),
-          highlighted: false,
-        });
-      }
-
-      chunks.push({
-        text: matchedText,
-        highlighted: true,
-      });
-      lastIndex = matchIndex + matchedText.length;
-    }
-
-    if (lastIndex < text.length) {
-      chunks.push({
-        text: text.slice(lastIndex),
-        highlighted: false,
-      });
-    }
-
-    return chunks.length ? chunks : [{ text, highlighted: false }];
-  }
-
-  private matchesSearchTerms(terms: string[], values: Array<string | null | undefined>): boolean {
-    if (!terms.length) {
-      return false;
-    }
-
-    const haystack = values
-      .filter((value): value is string => Boolean(value))
-      .join(' ')
-      .toLocaleLowerCase('ru-RU');
-
-    return terms.every((term) => haystack.includes(term));
-  }
-
-  private hasMentionBoundaryAfter(content: string, index: number): boolean {
-    if (index >= content.length) {
-      return true;
-    }
-
-    return this.isMentionBoundaryChar(content[index] ?? '');
-  }
-
-  private isMentionBoundaryChar(character: string): boolean {
-    return !/[\p{L}\p{N}_]/u.test(character);
-  }
-
-  private escapeRegExp(value: string): string {
-    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  }
-
   private focusMessageSearchInput(): void {
     queueMicrotask(() => this.messageSearchInputRef?.nativeElement.focus());
   }
@@ -11305,86 +10824,6 @@ export class AppComponent {
     }
   }
 
-  private setConversationUnreadCount(serverId: string, unreadCount: number): void {
-    const normalizedUnreadCount = Math.max(0, unreadCount);
-    this.conversations.update((conversations) =>
-      conversations.map((conversation) =>
-        conversation.id === serverId
-          ? {
-              ...conversation,
-              unread_count: normalizedUnreadCount,
-            }
-          : conversation
-      )
-    );
-  }
-
-  private setConversationMentionUnreadCount(serverId: string, mentionUnreadCount: number): void {
-    const normalizedMentionUnreadCount = Math.max(0, mentionUnreadCount);
-    this.conversations.update((conversations) =>
-      conversations.map((conversation) =>
-        conversation.id === serverId
-          ? {
-              ...conversation,
-              mention_unread_count: normalizedMentionUnreadCount,
-            }
-          : conversation
-      )
-    );
-  }
-
-  private setConversationFirstUnreadMessageId(serverId: string, messageId: string | null): void {
-    this.conversations.update((conversations) =>
-      conversations.map((conversation) =>
-        conversation.id === serverId
-          ? {
-              ...conversation,
-              first_unread_message_id: messageId,
-            }
-          : conversation
-      )
-    );
-  }
-
-  private setConversationFirstMentionUnreadMessageId(serverId: string, messageId: string | null): void {
-    this.conversations.update((conversations) =>
-      conversations.map((conversation) =>
-        conversation.id === serverId
-          ? {
-              ...conversation,
-              first_mention_unread_message_id: messageId,
-            }
-          : conversation
-      )
-    );
-  }
-
-  private setConversationFirstUnreadMessageIdIfMissing(serverId: string, messageId: string): void {
-    this.conversations.update((conversations) =>
-      conversations.map((conversation) =>
-        conversation.id === serverId && !conversation.first_unread_message_id
-          ? {
-              ...conversation,
-              first_unread_message_id: messageId,
-            }
-          : conversation
-      )
-    );
-  }
-
-  private setConversationFirstMentionUnreadMessageIdIfMissing(serverId: string, messageId: string): void {
-    this.conversations.update((conversations) =>
-      conversations.map((conversation) =>
-        conversation.id === serverId && !conversation.first_mention_unread_message_id
-          ? {
-              ...conversation,
-              first_mention_unread_message_id: messageId,
-            }
-          : conversation
-      )
-    );
-  }
-
   private setConversationPushEnabled(serverId: string, pushEnabled: boolean): void {
     this.conversations.update((conversations) =>
       conversations.map((conversation) =>
@@ -11392,270 +10831,6 @@ export class AppComponent {
           ? {
               ...conversation,
               push_enabled: pushEnabled,
-            }
-          : conversation
-      )
-    );
-  }
-
-  private setServerUnreadCount(serverId: string, unreadCount: number): void {
-    const normalizedUnreadCount = Math.max(0, unreadCount);
-    this.servers.update((servers) =>
-      servers.map((server) =>
-        server.id === serverId
-          ? {
-              ...server,
-              unread_count: normalizedUnreadCount,
-            }
-          : server
-      )
-    );
-  }
-
-  private setServerMentionUnreadCount(serverId: string, mentionUnreadCount: number): void {
-    const normalizedMentionUnreadCount = Math.max(0, mentionUnreadCount);
-    this.servers.update((servers) =>
-      servers.map((server) =>
-        server.id === serverId
-          ? {
-              ...server,
-              mention_unread_count: normalizedMentionUnreadCount,
-            }
-          : server
-      )
-    );
-  }
-
-  private setChannelUnreadCount(channelId: string, unreadCount: number): void {
-    const normalizedUnreadCount = Math.max(0, unreadCount);
-    this.channels.update((channels) =>
-      channels.map((channel) =>
-        channel.id === channelId
-          ? {
-              ...channel,
-              unread_count: normalizedUnreadCount,
-            }
-          : channel
-      )
-    );
-  }
-
-  private setChannelMentionUnreadCount(channelId: string, mentionUnreadCount: number): void {
-    const normalizedMentionUnreadCount = Math.max(0, mentionUnreadCount);
-    this.channels.update((channels) =>
-      channels.map((channel) =>
-        channel.id === channelId
-          ? {
-              ...channel,
-              mention_unread_count: normalizedMentionUnreadCount,
-            }
-          : channel
-      )
-    );
-  }
-
-  private setChannelFirstUnreadMessageId(channelId: string, messageId: string | null): void {
-    this.channels.update((channels) =>
-      channels.map((channel) =>
-        channel.id === channelId
-          ? {
-              ...channel,
-              first_unread_message_id: messageId,
-            }
-          : channel
-      )
-    );
-  }
-
-  private setChannelFirstMentionUnreadMessageId(channelId: string, messageId: string | null): void {
-    this.channels.update((channels) =>
-      channels.map((channel) =>
-        channel.id === channelId
-          ? {
-              ...channel,
-              first_mention_unread_message_id: messageId,
-            }
-          : channel
-      )
-    );
-  }
-
-  private setChannelFirstUnreadMessageIdIfMissing(channelId: string, messageId: string): void {
-    this.channels.update((channels) =>
-      channels.map((channel) =>
-        channel.id === channelId && !channel.first_unread_message_id
-          ? {
-              ...channel,
-              first_unread_message_id: messageId,
-            }
-          : channel
-      )
-    );
-  }
-
-  private setChannelFirstMentionUnreadMessageIdIfMissing(channelId: string, messageId: string): void {
-    this.channels.update((channels) =>
-      channels.map((channel) =>
-        channel.id === channelId && !channel.first_mention_unread_message_id
-          ? {
-              ...channel,
-              first_mention_unread_message_id: messageId,
-            }
-          : channel
-      )
-    );
-  }
-
-  private bumpServerUnreadCount(serverId: string, delta = 1): void {
-    if (!delta) {
-      return;
-    }
-
-    this.servers.update((servers) =>
-      servers.map((server) =>
-        server.id === serverId
-          ? {
-              ...server,
-              unread_count: Math.max(0, (server.unread_count ?? 0) + delta),
-            }
-          : server
-      )
-    );
-  }
-
-  private bumpServerMentionUnreadCount(serverId: string, delta = 1): void {
-    if (!delta) {
-      return;
-    }
-
-    this.servers.update((servers) =>
-      servers.map((server) =>
-        server.id === serverId
-          ? {
-              ...server,
-              mention_unread_count: Math.max(0, (server.mention_unread_count ?? 0) + delta),
-            }
-          : server
-      )
-    );
-  }
-
-  private bumpChannelUnreadCount(channelId: string, delta = 1): void {
-    if (!delta) {
-      return;
-    }
-
-    this.channels.update((channels) =>
-      channels.map((channel) =>
-        channel.id === channelId
-          ? {
-              ...channel,
-              unread_count: Math.max(0, (channel.unread_count ?? 0) + delta),
-            }
-          : channel
-      )
-    );
-  }
-
-  private bumpChannelMentionUnreadCount(channelId: string, delta = 1): void {
-    if (!delta) {
-      return;
-    }
-
-    this.channels.update((channels) =>
-      channels.map((channel) =>
-        channel.id === channelId
-          ? {
-              ...channel,
-              mention_unread_count: Math.max(0, (channel.mention_unread_count ?? 0) + delta),
-            }
-          : channel
-      )
-    );
-  }
-
-  private setConversationUnreadCountByChannelId(channelId: string, unreadCount: number): void {
-    const normalizedUnreadCount = Math.max(0, unreadCount);
-    this.conversations.update((conversations) =>
-      conversations.map((conversation) =>
-        conversation.primary_channel_id === channelId
-          ? {
-              ...conversation,
-              unread_count: normalizedUnreadCount,
-            }
-          : conversation
-      )
-    );
-  }
-
-  private setConversationMentionUnreadCountByChannelId(channelId: string, mentionUnreadCount: number): void {
-    const normalizedMentionUnreadCount = Math.max(0, mentionUnreadCount);
-    this.conversations.update((conversations) =>
-      conversations.map((conversation) =>
-        conversation.primary_channel_id === channelId
-          ? {
-              ...conversation,
-              mention_unread_count: normalizedMentionUnreadCount,
-            }
-          : conversation
-      )
-    );
-  }
-
-  private setConversationFirstUnreadMessageIdByChannelId(channelId: string, messageId: string | null): void {
-    this.conversations.update((conversations) =>
-      conversations.map((conversation) =>
-        conversation.primary_channel_id === channelId
-          ? {
-              ...conversation,
-              first_unread_message_id: messageId,
-            }
-          : conversation
-      )
-    );
-  }
-
-  private setConversationFirstMentionUnreadMessageIdByChannelId(channelId: string, messageId: string | null): void {
-    this.conversations.update((conversations) =>
-      conversations.map((conversation) =>
-        conversation.primary_channel_id === channelId
-          ? {
-              ...conversation,
-              first_mention_unread_message_id: messageId,
-            }
-          : conversation
-      )
-    );
-  }
-
-  private bumpConversationUnreadCount(serverId: string, delta = 1): void {
-    if (!delta) {
-      return;
-    }
-
-    this.conversations.update((conversations) =>
-      conversations.map((conversation) =>
-        conversation.id === serverId
-          ? {
-              ...conversation,
-              unread_count: Math.max(0, (conversation.unread_count ?? 0) + delta),
-            }
-          : conversation
-      )
-    );
-  }
-
-  private bumpConversationMentionUnreadCount(serverId: string, delta = 1): void {
-    if (!delta) {
-      return;
-    }
-
-    this.conversations.update((conversations) =>
-      conversations.map((conversation) =>
-        conversation.id === serverId
-          ? {
-              ...conversation,
-              mention_unread_count: Math.max(0, (conversation.mention_unread_count ?? 0) + delta),
             }
           : conversation
       )

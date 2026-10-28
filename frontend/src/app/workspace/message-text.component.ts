@@ -1,10 +1,6 @@
 import {ChangeDetectionStrategy, Component, input, output} from '@angular/core';
 
-export interface RenderedMessageSegment {
-  text: string;
-  mentionUserId: string | null;
-  chunks: {text: string; highlighted: boolean; links: {text:string;url:string|null}[]}[];
-}
+import { RenderedMessageSegment } from '../core/models/message-text.models';
 
 /** Isolate text rendering from audio levels, presence and unrelated workspace updates. */
 @Component({
