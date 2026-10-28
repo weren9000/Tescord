@@ -1,76 +1,748 @@
-@if(mobile()){
- <section class="store-shell mobile-page" role="dialog" aria-modal="true" aria-labelledby="shop-title" (keydown)="keydown($event)"><ng-container *ngTemplateOutlet="storeContent"/></section>
-}@else{
- <dialog #dialog class="store-shell" aria-labelledby="shop-title" (cancel)="escape($event)" (keydown)="keydown($event)"><ng-container *ngTemplateOutlet="storeContent"/></dialog>
+@if (mobile()) {
+  <section
+    class="store-shell mobile-page"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="shop-title"
+    (keydown)="keydown($event)"
+  >
+    <ng-container *ngTemplateOutlet="storeContent" />
+  </section>
+} @else {
+  <dialog
+    #dialog
+    class="store-shell"
+    aria-labelledby="shop-title"
+    (cancel)="escape($event)"
+    (keydown)="keydown($event)"
+  >
+    <ng-container *ngTemplateOutlet="storeContent" />
+  </dialog>
 }
 <ng-template #storeContent>
- <header class="head" [attr.inert]="filtersOpen()||roleTarget()?'':null"><button class="shell-back" [disabled]="busy()" [attr.aria-label]="hasNested()?'Назад':'Закрыть магазин'" (click)="backStep()">{{mobile()?'←':'×'}}</button><div><h2 id="shop-title">Магазин</h2><small>Предметы для вашего Квачата</small></div><span class="balance" aria-label="Баланс кристаллов"><img src="/assets/crystal.svg" alt="Кристаллы"/>{{wallet.balance() ? (wallet.balance()!.crystals | number) : '—'}}</span></header>
- <nav class="section-links" aria-label="Разделы магазина" [attr.inert]="filtersOpen()||roleTarget()?'':null">@for(t of tabs;track t.id){@if(t.id!=='roles'||systemAdmin()){<button [class.active]="mode()===t.id" [attr.aria-current]="mode()===t.id?'page':null" [disabled]="busy()||inventoryNested()" (click)="switchMode(t.id)">{{t.label}}</button>}}</nav>
- <div class="content" [class.inventory-content]="mode()==='inventory'" [attr.inert]="filtersOpen()||roleTarget()?'':null">
- @if(pending()){<div class="pending" role="status"><b>Проверяем результат покупки</b><p>Повторная проверка безопасна: кристаллы не спишутся дважды.</p><button [disabled]="busy()" (click)="recover()">{{busy()?'Проверяем…':'Проверить и завершить покупку'}}</button></div>}
- @if(error()){<p class="error" role="alert">{{error()}}</p>}
- @if(success()){<p class="success" role="status">{{success()}}</p>}
- @if(result();as receipt){
-  <section class="purchased"><span class="done">✓</span><h3>Предмет в вашем инвентаре</h3><img class="receipt-image" [src]="image(receipt.catalog_id)" alt=""/><strong>{{receipt.name}}</strong><p>Покупка за {{receipt.price | number}} кристаллов · Остаток после покупки: {{receipt.balance_after | number}}</p><div class="buttons"><button class="primary" [disabled]="busy()" (click)="apply()">Применить</button><button [disabled]="busy()" (click)="switchMode('inventory')">Открыть инвентарь</button><button [disabled]="busy()" (click)="back();load()">Продолжить покупки</button></div></section>
- } @else if(selected();as item){
-  <button class="back" [disabled]="busy()" (click)="back()">← К списку</button>
-  <div class="detail"><app-collectible-preview [catalogId]="item.id" [kind]="item.kind" [name]="item.name" [avatarUrl]="avatarUrl()"/><section class="details"><small>{{item.kind==='avatar'?'Аватарка':item.kind==='frame'?'Рамка':item.kind==='theme'?'Тема':'Обои'}}</small><h3>{{item.name}}</h3><app-rarity-badge [value]="item.rarity"/>
-  @if(mode()==='offers'){
-   <form (ngSubmit)="save()"><label>Цена в кристаллах<input name="price" type="number" min="1" max="1000000000" step="1" [(ngModel)]="price" required [disabled]="busy()"/></label><label>Публикация<select name="status" [(ngModel)]="status" [disabled]="busy()"><option value="draft">Черновик</option><option value="published">В продаже</option><option value="withdrawn">Снято с продажи</option></select></label><label>Порядок показа<input name="position" type="number" min="0" max="100000" step="1" [(ngModel)]="position" [disabled]="busy()"/></label><label>Редкость<select name="rarity" [(ngModel)]="editRarity" [disabled]="busy()"><option value="">Не задана</option>@for(r of rarities;track r.id){<option [value]="r.id">{{r.label}}</option>}</select></label><label class="check"><input name="recommended" type="checkbox" [(ngModel)]="recommended" [disabled]="busy()"/>Рекомендуем</label>@if(item.hidden){<p>Предмет скрыт в каталоге. Публикация недоступна.</p>}<button class="primary" type="submit" [disabled]="busy()||price<1||price>1000000000||(item.hidden&&status==='published')">{{busy()?'Сохраняем…':'Сохранить предложение'}}</button></form><p>Изменение цены не затронет совершённые покупки. Снятие с продажи сохранит выданные предметы.</p>
-  }@else{
-   <p>Можно использовать для себя или подарить другу.</p>@if(item.owned){<p class="owned">У вас: {{item.owned}} · Покупка добавит ещё один экземпляр.</p>}
-   <div class="price"><img src="/assets/crystal.svg" alt="Кристаллы"/>{{item.price | number}}</div>
-   @if(confirming()){
-    <section class="confirmation" aria-label="Подтверждение покупки"><h4>{{item.owned?'Купить ещё один экземпляр?':'Подтвердите покупку'}}</h4><p>Баланс: {{wallet.balance()?.crystals | number}} → {{(wallet.balance()?.crystals ?? 0)-(item.price ?? 0) | number}}</p><div class="buttons"><button [disabled]="busy()" (click)="confirming.set(false)">Отмена</button><button class="primary" [disabled]="busy()||!!pending()||missing()>0" (click)="buy()">{{busy()?'Покупаем…':'Подтвердить покупку'}}</button></div></section>
-   }@else{<button class="primary" [disabled]="busy()||!!pending()||!wallet.balance()||missing()>0" (click)="prepare()">{{item.owned?'Купить ещё один':'Купить'}} за {{item.price | number}} кристаллов</button>}
-   @if(wallet.balance()&&missing()>0){<p class="shortfall">Не хватает {{missing() | number}} кристаллов</p>}
-   @if(wallet.error()){<button (click)="wallet.refresh()">Повторить загрузку баланса</button>}
+  <header class="head" [attr.inert]="filtersOpen() || roleTarget() ? '' : null">
+    <button
+      class="shell-back"
+      [disabled]="busy()"
+      [attr.aria-label]="hasNested() ? 'Назад' : 'Закрыть магазин'"
+      (click)="backStep()"
+    >
+      {{ mobile() ? '←' : '×' }}
+    </button>
+    <div>
+      <h2 id="shop-title">Магазин</h2>
+      <small>Предметы для вашего Квачата</small>
+    </div>
+    <span class="balance" aria-label="Баланс кристаллов"
+      ><img src="/assets/crystal.svg" alt="Кристаллы" />{{
+        wallet.balance() ? (wallet.balance()!.crystals | number) : '—'
+      }}</span
+    >
+  </header>
+  <nav
+    class="section-links"
+    aria-label="Разделы магазина"
+    [attr.inert]="filtersOpen() || roleTarget() ? '' : null"
+  >
+    @for (t of tabs; track t.id) {
+      @if (t.id !== 'roles' || systemAdmin()) {
+        <button
+          [class.active]="mode() === t.id"
+          [attr.aria-current]="mode() === t.id ? 'page' : null"
+          [disabled]="busy() || inventoryNested()"
+          (click)="switchMode(t.id)"
+        >
+          {{ t.label }}
+        </button>
+      }
+    }
+  </nav>
+  <div
+    class="content"
+    [class.inventory-content]="mode() === 'inventory'"
+    [attr.inert]="filtersOpen() || roleTarget() ? '' : null"
+  >
+    @if (pending()) {
+      <div class="pending" role="status">
+        <b>Проверяем результат покупки</b>
+        <p>Повторная проверка безопасна: кристаллы не спишутся дважды.</p>
+        <button [disabled]="busy()" (click)="recover()">
+          {{ busy() ? 'Проверяем…' : 'Проверить и завершить покупку' }}
+        </button>
+      </div>
+    }
+    @if (error()) {
+      <p class="error" role="alert">{{ error() }}</p>
+    }
+    @if (success()) {
+      <p class="success" role="status">{{ success() }}</p>
+    }
+    @if (result(); as receipt) {
+      <section class="purchased">
+        <span class="done">✓</span>
+        <h3>Предмет в вашем инвентаре</h3>
+        <img class="receipt-image" [src]="image(receipt.catalog_id)" alt="" /><strong>{{
+          receipt.name
+        }}</strong>
+        <p>
+          Покупка за {{ receipt.price | number }} кристаллов · Остаток после покупки:
+          {{ receipt.balance_after | number }}
+        </p>
+        <div class="buttons">
+          <button class="primary" [disabled]="busy()" (click)="apply()">Применить</button
+          ><button [disabled]="busy()" (click)="switchMode('inventory')">Открыть инвентарь</button
+          ><button [disabled]="busy()" (click)="back(); load()">Продолжить покупки</button>
+        </div>
+      </section>
+    } @else if (selected(); as item) {
+      <button class="back" [disabled]="busy()" (click)="back()">← К списку</button>
+      <div class="detail">
+        <app-collectible-preview
+          [catalogId]="item.id"
+          [kind]="item.kind"
+          [name]="item.name"
+          [avatarUrl]="avatarUrl()"
+        />
+        <section class="details">
+          <small>{{
+            item.kind === 'avatar'
+              ? 'Аватарка'
+              : item.kind === 'frame'
+                ? 'Рамка'
+                : item.kind === 'theme'
+                  ? 'Тема'
+                  : 'Обои'
+          }}</small>
+          <h3>{{ item.name }}</h3>
+          <app-rarity-badge [value]="item.rarity" />
+          @if (mode() === 'offers') {
+            <form (ngSubmit)="save()">
+              <label
+                >Цена в кристаллах<input
+                  name="price"
+                  type="number"
+                  min="1"
+                  max="1000000000"
+                  step="1"
+                  [(ngModel)]="price"
+                  required
+                  [disabled]="busy()" /></label
+              ><label
+                >Публикация<select name="status" [(ngModel)]="status" [disabled]="busy()">
+                  <option value="draft">Черновик</option>
+                  <option value="published">В продаже</option>
+                  <option value="withdrawn">Снято с продажи</option>
+                </select></label
+              ><label
+                >Порядок показа<input
+                  name="position"
+                  type="number"
+                  min="0"
+                  max="100000"
+                  step="1"
+                  [(ngModel)]="position"
+                  [disabled]="busy()" /></label
+              ><label
+                >Редкость<select name="rarity" [(ngModel)]="editRarity" [disabled]="busy()">
+                  <option value="">Не задана</option>
+                  @for (r of rarities; track r.id) {
+                    <option [value]="r.id">{{ r.label }}</option>
+                  }
+                </select></label
+              ><label class="check"
+                ><input
+                  name="recommended"
+                  type="checkbox"
+                  [(ngModel)]="recommended"
+                  [disabled]="busy()"
+                />Рекомендуем</label
+              >
+              @if (item.hidden) {
+                <p>Предмет скрыт в каталоге. Публикация недоступна.</p>
+              }
+              <button
+                class="primary"
+                type="submit"
+                [disabled]="
+                  busy() ||
+                  price < 1 ||
+                  price > 1000000000 ||
+                  (item.hidden && status === 'published')
+                "
+              >
+                {{ busy() ? 'Сохраняем…' : 'Сохранить предложение' }}
+              </button>
+            </form>
+            <p>
+              Изменение цены не затронет совершённые покупки. Снятие с продажи сохранит выданные
+              предметы.
+            </p>
+          } @else {
+            <p>Можно использовать для себя или подарить другу.</p>
+            @if (item.owned) {
+              <p class="owned">У вас: {{ item.owned }} · Покупка добавит ещё один экземпляр.</p>
+            }
+            <div class="price">
+              <img src="/assets/crystal.svg" alt="Кристаллы" />{{ item.price | number }}
+            </div>
+            @if (confirming()) {
+              <section class="confirmation" aria-label="Подтверждение покупки">
+                <h4>{{ item.owned ? 'Купить ещё один экземпляр?' : 'Подтвердите покупку' }}</h4>
+                <p>
+                  Баланс: {{ wallet.balance()?.crystals | number }} →
+                  {{ (wallet.balance()?.crystals ?? 0) - (item.price ?? 0) | number }}
+                </p>
+                <div class="buttons">
+                  <button [disabled]="busy()" (click)="confirming.set(false)">Отмена</button
+                  ><button
+                    class="primary"
+                    [disabled]="busy() || !!pending() || missing() > 0"
+                    (click)="buy()"
+                  >
+                    {{ busy() ? 'Покупаем…' : 'Подтвердить покупку' }}
+                  </button>
+                </div>
+              </section>
+            } @else {
+              <button
+                class="primary"
+                [disabled]="busy() || !!pending() || !wallet.balance() || missing() > 0"
+                (click)="prepare()"
+              >
+                {{ item.owned ? 'Купить ещё один' : 'Купить' }} за
+                {{ item.price | number }} кристаллов
+              </button>
+            }
+            @if (wallet.balance() && missing() > 0) {
+              <p class="shortfall">Не хватает {{ missing() | number }} кристаллов</p>
+            }
+            @if (wallet.error()) {
+              <button (click)="wallet.refresh()">Повторить загрузку баланса</button>
+            }
+          }
+        </section>
+      </div>
+    } @else if (purchaseDetail(); as receipt) {
+      <button class="back" (click)="closeReceipt()">← Мои покупки</button>
+      <section class="purchased">
+        <img class="receipt-image" [src]="image(receipt.catalog_id)" alt="" />
+        <h3>{{ receipt.name }}</h3>
+        <span class="status">✓ Покупка завершена</span>
+        <p>
+          {{ receipt.created_at | date: 'dd.MM.yyyy HH:mm' }} ·
+          {{ receipt.price | number }} кристаллов
+        </p>
+        <small>Номер покупки: {{ receipt.id }}</small>
+        <p>
+          {{
+            receipt.owned
+              ? receipt.in_use
+                ? 'Сейчас используется'
+                : 'В вашем инвентаре'
+              : 'Экземпляр больше не в вашем инвентаре'
+          }}
+        </p>
+        @if (receipt.owned) {
+          <button class="primary" (click)="switchMode('inventory')">Открыть инвентарь</button>
+        }
+      </section>
+    } @else {
+      @if (mode() === 'collections') {
+        <app-store-collections #collectionPanel [token]="token()" (changed)="loadCollections()" />
+      } @else if (mode() !== 'inventory') {
+        <div class="section-heading" [class.catalog-heading]="mode() === 'browse'">
+          <div>
+            <h3>{{ title() }}</h3>
+            <p>{{ subtitle() }}</p>
+          </div>
+          @if (manage()) {
+            <div class="manager-tools">
+              <button [class.active]="mode() === 'collections'" (click)="switchMode('collections')">
+                Подборки</button
+              ><button [class.active]="mode() === 'offers'" (click)="switchMode('offers')">
+                Товары и цены</button
+              ><button [class.active]="mode() === 'sales'" (click)="switchMode('sales')">
+                Все продажи</button
+              ><button [class.active]="mode() === 'audit'" (click)="switchMode('audit')">
+                Журнал управления
+              </button>
+            </div>
+          }
+        </div>
+        <div
+          class="catalog-layout"
+          [class.with-filters]="catalogMode() || mode() === 'purchases' || mode() === 'journal'"
+        >
+          @if (catalogMode() || mode() === 'purchases' || mode() === 'journal') {
+            <aside class="sidebar">
+              <ng-container *ngTemplateOutlet="filters" />
+              @if (collections()[0]; as group) {
+                <button class="side-promo" (click)="chooseCollection(group)">
+                  <img [src]="collectionImage(group)" alt="" /><app-ui-icon name="gift" /><strong>{{
+                    group.name
+                  }}</strong
+                  ><small>{{ group.total }} предметов в подборке</small><span>Смотреть →</span>
+                </button>
+              }
+            </aside>
+          }
+          <main class="catalog-main">
+            @if (mode() === 'browse' && bannerPair().length) {
+              <section class="banners" aria-label="Подборки магазина">
+                @for (group of bannerPair(); track group.id; let first = $first) {
+                  <button
+                    class="catalog-banner"
+                    [class.secondary]="!first"
+                    (click)="chooseCollection(group)"
+                  >
+                    <img [src]="collectionImage(group)" alt="" /><span class="banner-copy"
+                      ><small>{{ first ? 'ПОДБОРКА' : 'СМОТРИТЕ ТАКЖЕ' }}</small
+                      ><strong>{{ group.name }}</strong
+                      ><span>{{ group.description }}</span
+                      ><b>Смотреть {{ group.total }} предметов →</b></span
+                    >
+                  </button>
+                }
+                @if (collections().length > 1) {
+                  <button
+                    class="banner-next"
+                    aria-label="Следующая подборка"
+                    (click)="bannerIndex.update(nextBanner)"
+                  >
+                    ›
+                  </button>
+                }
+              </section>
+            }
+            @if (collection) {
+              <div class="collection-selected">
+                <strong>{{ collectionName() }}</strong
+                ><button (click)="collection = ''; load(true)" aria-label="Закрыть подборку">
+                  ×
+                </button>
+              </div>
+            }
+            @if (mode() === 'recommendations') {
+              <section class="collection-banner">
+                <span class="eyebrow">ВЫБРАНО ДЛЯ ВАС</span>
+                <h3>Найдите свой стиль</h3>
+                <p>
+                  Рекомендованные предметы из каталога Квачата. Любой предмет можно оставить себе
+                  или подарить.
+                </p>
+              </section>
+            }
+            @if (mode() === 'roles') {
+              <section class="collection-banner">
+                <h3>Кто управляет магазином</h3>
+                <p>
+                  Покупки и использование предметов доступны участникам. Управляющий меняет товары и
+                  цены, просматривает продажи и журнал. Администратор системы назначает управляющих.
+                </p>
+              </section>
+            }
+            <div class="catalog-toolbar">
+              <form class="tools" (ngSubmit)="submitSearch()">
+                @if (mode() !== 'audit') {
+                  <span class="search-field"
+                    ><app-ui-icon name="search" /><input
+                      name="search"
+                      [(ngModel)]="q"
+                      (ngModelChange)="searchChanged()"
+                      [placeholder]="
+                        mode() === 'roles' ? 'Ник, ID или email' : 'Поиск по названию…'
+                      "
+                      aria-label="Поиск в магазине"
+                      maxlength="80"
+                    />
+                    @if (q) {
+                      <button
+                        type="button"
+                        class="clear-search"
+                        aria-label="Очистить поиск"
+                        (click)="q = ''; submitSearch()"
+                      >
+                        ×
+                      </button>
+                    }</span
+                  ><button class="search-submit" type="submit">Найти</button>
+                }
+                @if (
+                  mode() === 'browse' || mode() === 'recommendations' || mode() === 'purchases'
+                ) {
+                  <select
+                    name="sort"
+                    aria-label="Сортировка магазина"
+                    [(ngModel)]="sort"
+                    (ngModelChange)="load(true)"
+                  >
+                    <option value="new">Сначала новые</option>
+                    <option value="cheap">Сначала дешевле</option>
+                    <option value="expensive">Сначала дороже</option>
+                  </select>
+                }
+                @if (catalogMode() || mode() === 'purchases' || mode() === 'journal') {
+                  <button
+                    class="mobile-filter"
+                    type="button"
+                    (click)="openFilters()"
+                    [attr.aria-expanded]="filtersOpen()"
+                    aria-label="Фильтры"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M3 4h18l-7 8v7l-4 2v-9z" />
+                    </svg>
+                  </button>
+                }
+              </form>
+              @if (mode() === 'browse' || mode() === 'recommendations') {
+                <div class="segments">
+                  <button
+                    [class.active]="!unowned && !favorites"
+                    (click)="unowned = false; favorites = false; load(true)"
+                  >
+                    Все</button
+                  ><button [class.active]="unowned" (click)="unowned = !unowned; load(true)">
+                    Не куплено</button
+                  ><button [class.active]="favorites" (click)="favorites = !favorites; load(true)">
+                    Избранное
+                  </button>
+                </div>
+              }
+            </div>
+            @if (loading()) {
+              <p class="loading-note" role="status">Загружаем…</p>
+            }
+            @if (catalogMode()) {
+              <div class="grid" [attr.aria-busy]="loading()">
+                @for (item of items(); track item.id) {
+                  <app-store-product-card
+                    [avatarUrl]="avatarUrl()"
+                    [item]="item"
+                    [src]="image(item.id)"
+                    [kindLabel]="kindLabel(item.kind)"
+                    [managed]="mode() === 'offers'"
+                    [showKind]="!kind"
+                    [favoriteBusy]="favoriteBusy().has(item.id)"
+                    (favorite)="toggleFavorite(item)"
+                    [disabled]="loading()"
+                    [retry]="previewRetry()"
+                    (open)="open(item, $event)"
+                    (failed)="previewErrors.set(true)"
+                  />
+                }
+              </div>
+            } @else if (mode() === 'purchases' || mode() === 'sales') {
+              <div class="records">
+                @for (r of receipts(); track r.id) {
+                  <article>
+                    <img loading="lazy" [src]="image(r.catalog_id)" alt="" />
+                    <div>
+                      <strong>{{ r.name }}</strong>
+                      <p>
+                        {{ mode() === 'sales' ? r.buyer_name : kindLabel(r.kind) }} ·
+                        {{ r.created_at | date: 'dd.MM.yyyy HH:mm' }}
+                      </p>
+                      <span class="status">✓ Покупка завершена</span>
+                    </div>
+                    <span class="balance"
+                      ><img src="/assets/crystal.svg" alt="Кристаллы" />{{ r.price | number }}</span
+                    >
+                    @if (mode() === 'purchases') {
+                      <button
+                        [attr.aria-label]="'Детали покупки: ' + r.name"
+                        (click)="showReceipt(r, $event)"
+                      >
+                        Подробнее →
+                      </button>
+                    }
+                  </article>
+                }
+              </div>
+            } @else if (mode() === 'journal') {
+              <div class="records">
+                @for (e of journal(); track e.id) {
+                  <article>
+                    <img loading="lazy" [src]="image(e.catalog_id)" alt="" />
+                    <div>
+                      <small>{{ e.created_at | date: 'dd.MM.yyyy HH:mm' }}</small
+                      ><strong>{{
+                        e.action === 'gift' && e.direction === 'sent'
+                          ? 'Подарок отправлен'
+                          : labels[e.action]
+                      }}</strong>
+                      <p>{{ e.name }} · {{ kindLabel(e.kind) }}</p>
+                    </div>
+                    <span class="status">✓ Выполнено</span>
+                  </article>
+                }
+              </div>
+            } @else if (mode() === 'roles') {
+              <div class="records">
+                @for (person of people(); track person.id) {
+                  <article>
+                    <div>
+                      <strong>{{ person.name }}</strong>
+                      <p>
+                        ID {{ person.public_id }} ·
+                        {{
+                          person.is_admin
+                            ? 'Администратор системы'
+                            : person.is_shop_admin
+                              ? 'Управляющий магазином'
+                              : 'Участник'
+                        }}
+                      </p>
+                    </div>
+                    <button
+                      [disabled]="busy() || loading() || person.is_admin"
+                      (click)="confirmRole(person)"
+                    >
+                      {{
+                        person.is_admin
+                          ? 'Полный доступ'
+                          : person.is_shop_admin
+                            ? 'Забрать управление'
+                            : 'Разрешить управление'
+                      }}
+                    </button>
+                  </article>
+                }
+              </div>
+            } @else {
+              <div class="records">
+                @for (a of audits(); track a.id) {
+                  <article>
+                    <div>
+                      <strong
+                        >{{ a.actor_name }} · {{ a.created_at | date: 'dd.MM.yyyy HH:mm' }}</strong
+                      ><small>{{ a.target }}</small>
+                      <p>{{ auditText(a.before) }} → {{ auditText(a.after) }}</p>
+                    </div>
+                  </article>
+                }
+              </div>
+            }
+            @if (!total() && !loading() && !error()) {
+              <div class="empty">
+                <h3>{{ hasFilters() ? 'Ничего не найдено' : 'Здесь пока пусто' }}</h3>
+                <p>
+                  {{
+                    hasFilters()
+                      ? 'Попробуйте изменить условия поиска.'
+                      : mode() === 'purchases'
+                        ? 'Здесь появятся ваши покупки.'
+                        : mode() === 'journal'
+                          ? 'Здесь появятся операции с вашими предметами.'
+                          : 'Новые предметы появятся после публикации.'
+                  }}
+                </p>
+                @if (hasFilters()) {
+                  <button (click)="resetFilters()">Сбросить фильтры</button>
+                }
+              </div>
+            }
+            @if (error() && !loading()) {
+              <button (click)="load()">Повторить загрузку</button>
+            }
+            @if (previewErrors()) {
+              <button (click)="retryPreviews()">Повторить загрузку превью</button>
+            }
+            @if (pages() > 1) {
+              <footer class="pagination">
+                <small>Всего {{ total() }}</small
+                ><button
+                  aria-label="Предыдущая страница"
+                  [disabled]="page() === 1 || loading()"
+                  (click)="go(page() - 1)"
+                >
+                  ←
+                </button>
+                @for (n of pageNumbers(); track n) {
+                  <button
+                    [class.active]="page() === n"
+                    [attr.aria-current]="page() === n ? 'page' : null"
+                    [disabled]="loading()"
+                    (click)="go(n)"
+                  >
+                    {{ n }}
+                  </button>
+                }
+                <button
+                  aria-label="Следующая страница"
+                  [disabled]="page() === pages() || loading()"
+                  (click)="go(page() + 1)"
+                >
+                  →
+                </button>
+              </footer>
+            }
+          </main>
+        </div>
+      }
+    }
+    @if (inventoryVisited()) {
+      <app-inventory
+        #inventoryPanel
+        [hidden]="mode() !== 'inventory' || !!result() || !!selected()"
+        [token]="token()"
+        mode="inventory"
+        [embedded]="true"
+        [storeLayout]="true"
+        [avatarUrl]="avatarUrl()"
+        (shop)="switchMode('browse')"
+        (changed)="changed.emit()"
+        (wallpaper)="wallpaper.emit($event)"
+      />
+    }
+  </div>
+  @if (filtersOpen()) {
+    <dialog appModalLayer class="sheet-shade" (click)="filtersOpen.set(false)">
+      <section
+        class="filter-sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Фильтры магазина"
+        (click)="$event.stopPropagation()"
+      >
+        <header>
+          <h3>Фильтры</h3>
+          <button aria-label="Закрыть фильтры" (click)="filtersOpen.set(false)">×</button>
+        </header>
+        <ng-container *ngTemplateOutlet="filters" />
+        @if (draftError()) {
+          <p role="alert">Не удалось посчитать результаты.</p>
+          <button (click)="countDraft()">Повторить</button>
+        }
+        <button class="primary" [disabled]="draftTotal() === null" (click)="applyDraft()">
+          {{
+            draftTotal() === null
+              ? 'Считаем…'
+              : 'Показать ' + draftTotal() + (catalogMode() ? ' товаров' : ' записей')
+          }}
+        </button>
+      </section>
+    </dialog>
   }
-  </section></div>
- }@else if(purchaseDetail();as receipt){
- <button class="back" (click)="closeReceipt()">← Мои покупки</button><section class="purchased"><img class="receipt-image" [src]="image(receipt.catalog_id)" alt=""/><h3>{{receipt.name}}</h3><span class="status">✓ Покупка завершена</span><p>{{receipt.created_at | date:'dd.MM.yyyy HH:mm'}} · {{receipt.price | number}} кристаллов</p><small>Номер покупки: {{receipt.id}}</small><p>{{receipt.owned ? (receipt.in_use?'Сейчас используется':'В вашем инвентаре'):'Экземпляр больше не в вашем инвентаре'}}</p>@if(receipt.owned){<button class="primary" (click)="switchMode('inventory')">Открыть инвентарь</button>}</section>
- }@else{
- @if(mode()==='collections'){<app-store-collections #collectionPanel [token]="token()" (changed)="loadCollections()"/>}@else if(mode()!=='inventory'){
- <div class="section-heading" [class.catalog-heading]="mode()==='browse'"><div><h3>{{title()}}</h3><p>{{subtitle()}}</p></div>@if(manage()){<div class="manager-tools"><button [class.active]="mode()==='collections'" (click)="switchMode('collections')">Подборки</button><button [class.active]="mode()==='offers'" (click)="switchMode('offers')">Товары и цены</button><button [class.active]="mode()==='sales'" (click)="switchMode('sales')">Все продажи</button><button [class.active]="mode()==='audit'" (click)="switchMode('audit')">Журнал управления</button></div>}</div>
- <div class="catalog-layout" [class.with-filters]="catalogMode()||mode()==='purchases'||mode()==='journal'">
- @if(catalogMode()||mode()==='purchases'||mode()==='journal'){<aside class="sidebar"><ng-container *ngTemplateOutlet="filters"/>@if(collections()[0];as group){<button class="side-promo" (click)="chooseCollection(group)"><img [src]="collectionImage(group)" alt=""/><app-ui-icon name="gift"/><strong>{{group.name}}</strong><small>{{group.total}} предметов в подборке</small><span>Смотреть →</span></button>}</aside>}
- <main class="catalog-main">
- @if(mode()==='browse'&&bannerPair().length){<section class="banners" aria-label="Подборки магазина">@for(group of bannerPair();track group.id;let first=$first){<button class="catalog-banner" [class.secondary]="!first" (click)="chooseCollection(group)"><img [src]="collectionImage(group)" alt=""/><span class="banner-copy"><small>{{first?'ПОДБОРКА':'СМОТРИТЕ ТАКЖЕ'}}</small><strong>{{group.name}}</strong><span>{{group.description}}</span><b>Смотреть {{group.total}} предметов →</b></span></button>}@if(collections().length>1){<button class="banner-next" aria-label="Следующая подборка" (click)="bannerIndex.update(nextBanner)">›</button>}</section>}
- @if(collection){<div class="collection-selected"><strong>{{collectionName()}}</strong><button (click)="collection='';load(true)" aria-label="Закрыть подборку">×</button></div>}
- @if(mode()==='recommendations'){<section class="collection-banner"><span class="eyebrow">ВЫБРАНО ДЛЯ ВАС</span><h3>Найдите свой стиль</h3><p>Рекомендованные предметы из каталога Квачата. Любой предмет можно оставить себе или подарить.</p></section>}
- @if(mode()==='roles'){<section class="collection-banner"><h3>Кто управляет магазином</h3><p>Покупки и использование предметов доступны участникам. Управляющий меняет товары и цены, просматривает продажи и журнал. Администратор системы назначает управляющих.</p></section>}
- <div class="catalog-toolbar"><form class="tools" (ngSubmit)="submitSearch()">@if(mode()!=='audit'){<span class="search-field"><app-ui-icon name="search"/><input name="search" [(ngModel)]="q" (ngModelChange)="searchChanged()" [placeholder]="mode()==='roles'?'Ник, ID или email':'Поиск по названию…'" aria-label="Поиск в магазине" maxlength="80"/>@if(q){<button type="button" class="clear-search" aria-label="Очистить поиск" (click)="q='';submitSearch()">×</button>}</span><button class="search-submit" type="submit">Найти</button>}
- @if(mode()==='browse'||mode()==='recommendations'||mode()==='purchases'){<select name="sort" aria-label="Сортировка магазина" [(ngModel)]="sort" (ngModelChange)="load(true)"><option value="new">Сначала новые</option><option value="cheap">Сначала дешевле</option><option value="expensive">Сначала дороже</option></select>}
- @if(catalogMode()||mode()==='purchases'||mode()==='journal'){<button class="mobile-filter" type="button" (click)="openFilters()" [attr.aria-expanded]="filtersOpen()" aria-label="Фильтры"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h18l-7 8v7l-4 2v-9z"/></svg></button>}
- </form>
- @if(mode()==='browse'||mode()==='recommendations'){<div class="segments"><button [class.active]="!unowned&&!favorites" (click)="unowned=false;favorites=false;load(true)">Все</button><button [class.active]="unowned" (click)="unowned=!unowned;load(true)">Не куплено</button><button [class.active]="favorites" (click)="favorites=!favorites;load(true)">Избранное</button></div>}
- </div>
- @if(loading()){<p class="loading-note" role="status">Загружаем…</p>}
- @if(catalogMode()){
- <div class="grid" [attr.aria-busy]="loading()">@for(item of items();track item.id){<app-store-product-card [avatarUrl]="avatarUrl()" [item]="item" [src]="image(item.id)" [kindLabel]="kindLabel(item.kind)" [managed]="mode()==='offers'" [showKind]="!kind" [favoriteBusy]="favoriteBusy().has(item.id)" (favorite)="toggleFavorite(item)" [disabled]="loading()" [retry]="previewRetry()" (open)="open(item,$event)" (failed)="previewErrors.set(true)"/>}</div>
- }@else if(mode()==='purchases'||mode()==='sales'){
- <div class="records">@for(r of receipts();track r.id){<article><img loading="lazy" [src]="image(r.catalog_id)" alt=""/><div><strong>{{r.name}}</strong><p>{{mode()==='sales'?r.buyer_name:kindLabel(r.kind)}} · {{r.created_at | date:'dd.MM.yyyy HH:mm'}}</p><span class="status">✓ Покупка завершена</span></div><span class="balance"><img src="/assets/crystal.svg" alt="Кристаллы"/>{{r.price | number}}</span>@if(mode()==='purchases'){<button [attr.aria-label]="'Детали покупки: '+r.name" (click)="showReceipt(r,$event)">Подробнее →</button>}</article>}</div>
- }@else if(mode()==='journal'){
- <div class="records">@for(e of journal();track e.id){<article><img loading="lazy" [src]="image(e.catalog_id)" alt=""/><div><small>{{e.created_at | date:'dd.MM.yyyy HH:mm'}}</small><strong>{{e.action==='gift'&&e.direction==='sent'?'Подарок отправлен':labels[e.action]}}</strong><p>{{e.name}} · {{kindLabel(e.kind)}}</p></div><span class="status">✓ Выполнено</span></article>}</div>
- }@else if(mode()==='roles'){
- <div class="records">@for(person of people();track person.id){<article><div><strong>{{person.name}}</strong><p>ID {{person.public_id}} · {{person.is_admin?'Администратор системы':person.is_shop_admin?'Управляющий магазином':'Участник'}}</p></div><button [disabled]="busy()||loading()||person.is_admin" (click)="confirmRole(person)">{{person.is_admin?'Полный доступ':person.is_shop_admin?'Забрать управление':'Разрешить управление'}}</button></article>}</div>
- }@else{<div class="records">@for(a of audits();track a.id){<article><div><strong>{{a.actor_name}} · {{a.created_at | date:'dd.MM.yyyy HH:mm'}}</strong><small>{{a.target}}</small><p>{{auditText(a.before)}} → {{auditText(a.after)}}</p></div></article>}</div>}
- @if(!total()&&!loading()&&!error()){<div class="empty"><h3>{{hasFilters()?'Ничего не найдено':'Здесь пока пусто'}}</h3><p>{{hasFilters()?'Попробуйте изменить условия поиска.':mode()==='purchases'?'Здесь появятся ваши покупки.':mode()==='journal'?'Здесь появятся операции с вашими предметами.':'Новые предметы появятся после публикации.'}}</p>@if(hasFilters()){<button (click)="resetFilters()">Сбросить фильтры</button>}</div>}
- @if(error()&&!loading()){<button (click)="load()">Повторить загрузку</button>}
- @if(previewErrors()){<button (click)="retryPreviews()">Повторить загрузку превью</button>}
- @if(pages()>1){<footer class="pagination"><small>Всего {{total()}}</small><button aria-label="Предыдущая страница" [disabled]="page()===1||loading()" (click)="go(page()-1)">←</button>@for(n of pageNumbers();track n){<button [class.active]="page()===n" [attr.aria-current]="page()===n?'page':null" [disabled]="loading()" (click)="go(n)">{{n}}</button>}<button aria-label="Следующая страница" [disabled]="page()===pages()||loading()" (click)="go(page()+1)">→</button></footer>}
- </main></div>
- }
- }
- @if(inventoryVisited()){<app-inventory #inventoryPanel [hidden]="mode()!=='inventory'||!!result()||!!selected()" [token]="token()" mode="inventory" [embedded]="true" [storeLayout]="true" [avatarUrl]="avatarUrl()" (shop)="switchMode('browse')" (changed)="changed.emit()" (wallpaper)="wallpaper.emit($event)"/>}
- </div>
- @if(filtersOpen()){<dialog appModalLayer class="sheet-shade" (click)="filtersOpen.set(false)"><section class="filter-sheet" role="dialog" aria-modal="true" aria-label="Фильтры магазина" (click)="$event.stopPropagation()"><header><h3>Фильтры</h3><button aria-label="Закрыть фильтры" (click)="filtersOpen.set(false)">×</button></header><ng-container *ngTemplateOutlet="filters"/>@if(draftError()){<p role="alert">Не удалось посчитать результаты.</p><button (click)="countDraft()">Повторить</button>}<button class="primary" [disabled]="draftTotal()===null" (click)="applyDraft()">{{draftTotal()===null?'Считаем…':'Показать '+draftTotal()+(catalogMode()?' товаров':' записей')}}</button></section></dialog>}
- @if(roleTarget();as person){<dialog appModalLayer class="sheet-shade"><section class="role-confirm" role="alertdialog" aria-modal="true" aria-label="Изменение прав"><h3>{{person.is_shop_admin?'Забрать управление магазином?':'Разрешить управление магазином?'}}</h3><p>{{person.name}} · ID {{person.public_id}}</p><p>Право позволяет менять ассортимент и цены, просматривать продажи и журнал магазина.</p><div class="buttons"><button [disabled]="busy()" (click)="roleTarget.set(null)">Отмена</button><button class="primary" [disabled]="busy()" (click)="role(person)">Подтвердить</button></div></section></dialog>}
+  @if (roleTarget(); as person) {
+    <dialog appModalLayer class="sheet-shade">
+      <section
+        class="role-confirm"
+        role="alertdialog"
+        aria-modal="true"
+        aria-label="Изменение прав"
+      >
+        <h3>
+          {{
+            person.is_shop_admin
+              ? 'Забрать управление магазином?'
+              : 'Разрешить управление магазином?'
+          }}
+        </h3>
+        <p>{{ person.name }} · ID {{ person.public_id }}</p>
+        <p>Право позволяет менять ассортимент и цены, просматривать продажи и журнал магазина.</p>
+        <div class="buttons">
+          <button [disabled]="busy()" (click)="roleTarget.set(null)">Отмена</button
+          ><button class="primary" [disabled]="busy()" (click)="role(person)">Подтвердить</button>
+        </div>
+      </section>
+    </dialog>
+  }
 </ng-template>
 <ng-template #filters>
- <fieldset><legend>Категории</legend><button [class.active]="!filterValue('kind')" (click)="category('')">Все категории</button>@for(c of categories;track c.id){<button [class.active]="filterValue('kind')===c.id" (click)="category(c.id)"><app-ui-icon [name]="c.id==='avatar'?'profile':c.id==='wallpaper'?'appearance':c.id==='frame'?'inventory':'settings'"/><span>{{c.label}}</span>@if(!filtersOpen()&&catalogMode()){<small>{{counts()[c.id]??0}}</small>}</button>}</fieldset>
- @if(mode()==='browse'||mode()==='recommendations'){<fieldset><legend>Редкость</legend><label class="check"><input type="radio" name="rarity-filter" value="" [ngModel]="filterValue('rarity')" (ngModelChange)="setFilter('rarity',$event)"/>Любая</label>@for(r of rarities;track r.id){<label class="check"><input type="radio" name="rarity-filter" [value]="r.id" [ngModel]="filterValue('rarity')" (ngModelChange)="setFilter('rarity',$event)"/>{{r.label}}</label>}</fieldset><fieldset><legend>Цена, кристаллы</legend>@for(b of priceBands;track b.id){<label class="check"><input type="radio" name="price-band" [value]="b.id" [ngModel]="filterValue('priceBand')" (ngModelChange)="setFilter('priceBand',$event)"/>{{b.label}}</label>}</fieldset>}
- @if(mode()==='purchases'||mode()==='journal'){<fieldset><legend>Период (UTC)</legend><label>С<input type="date" [ngModel]="filterValue('start')" (ngModelChange)="setFilter('start',$event)"/></label><label>По<input type="date" [ngModel]="filterValue('end')" (ngModelChange)="setFilter('end',$event)"/></label></fieldset>}
- @if(mode()==='journal'){<fieldset><legend>События</legend><select aria-label="Тип события" [ngModel]="filterValue('action')" (ngModelChange)="setFilter('action',$event)"><option value="">Все события</option>@for(a of actionOptions;track a){<option [value]="a">{{labels[a]}}</option>}</select></fieldset>}
- <button class="reset" (click)="filtersOpen()?resetDraft():resetFilters()">Сбросить фильтры</button>
+  <fieldset>
+    <legend>Категории</legend>
+    <button [class.active]="!filterValue('kind')" (click)="category('')">Все категории</button>
+    @for (c of categories; track c.id) {
+      <button [class.active]="filterValue('kind') === c.id" (click)="category(c.id)">
+        <app-ui-icon
+          [name]="
+            c.id === 'avatar'
+              ? 'profile'
+              : c.id === 'wallpaper'
+                ? 'appearance'
+                : c.id === 'frame'
+                  ? 'inventory'
+                  : 'settings'
+          "
+        /><span>{{ c.label }}</span>
+        @if (!filtersOpen() && catalogMode()) {
+          <small>{{ counts()[c.id] ?? 0 }}</small>
+        }
+      </button>
+    }
+  </fieldset>
+  @if (mode() === 'browse' || mode() === 'recommendations') {
+    <fieldset>
+      <legend>Редкость</legend>
+      <label class="check"
+        ><input
+          type="radio"
+          name="rarity-filter"
+          value=""
+          [ngModel]="filterValue('rarity')"
+          (ngModelChange)="setFilter('rarity', $event)"
+        />Любая</label
+      >
+      @for (r of rarities; track r.id) {
+        <label class="check"
+          ><input
+            type="radio"
+            name="rarity-filter"
+            [value]="r.id"
+            [ngModel]="filterValue('rarity')"
+            (ngModelChange)="setFilter('rarity', $event)"
+          />{{ r.label }}</label
+        >
+      }
+    </fieldset>
+    <fieldset>
+      <legend>Цена, кристаллы</legend>
+      @for (b of priceBands; track b.id) {
+        <label class="check"
+          ><input
+            type="radio"
+            name="price-band"
+            [value]="b.id"
+            [ngModel]="filterValue('priceBand')"
+            (ngModelChange)="setFilter('priceBand', $event)"
+          />{{ b.label }}</label
+        >
+      }
+    </fieldset>
+  }
+  @if (mode() === 'purchases' || mode() === 'journal') {
+    <fieldset>
+      <legend>Период (UTC)</legend>
+      <label
+        >С<input
+          type="date"
+          [ngModel]="filterValue('start')"
+          (ngModelChange)="setFilter('start', $event)" /></label
+      ><label
+        >По<input
+          type="date"
+          [ngModel]="filterValue('end')"
+          (ngModelChange)="setFilter('end', $event)"
+      /></label>
+    </fieldset>
+  }
+  @if (mode() === 'journal') {
+    <fieldset>
+      <legend>События</legend>
+      <select
+        aria-label="Тип события"
+        [ngModel]="filterValue('action')"
+        (ngModelChange)="setFilter('action', $event)"
+      >
+        <option value="">Все события</option>
+        @for (a of actionOptions; track a) {
+          <option [value]="a">{{ labels[a] }}</option>
+        }
+      </select>
+    </fieldset>
+  }
+  <button class="reset" (click)="filtersOpen() ? resetDraft() : resetFilters()">
+    Сбросить фильтры
+  </button>
 </ng-template>
