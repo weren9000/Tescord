@@ -1940,6 +1940,7 @@ export class AppComponent {
 
   readonly session = signal<AuthSessionResponse | null>(null);
   readonly shopOpen = signal(false);
+  readonly shopInitialMode = signal<'inventory' | 'browse'>('inventory');
   readonly inventoryMode = signal<'inventory' | 'admin' | null>(null);
   readonly inventoryUnread = signal(0);
   readonly wallpaperSuggestedItem = signal<string | null>(null);

@@ -28,11 +28,8 @@ export type WorkspaceSection = 'chats' | 'groups' | 'platforms';
         </button>
       }
       <button type="button" (click)="shop.emit()">
-        <app-ui-icon name="shop" /><span>Магазин</span>
-      </button>
-      <button type="button" (click)="inventory.emit('inventory')">
         <app-ui-icon name="inventory" /><span
-          >Инвентарь
+          >Предметы
           @if (inventoryUnread()) {
             · {{ inventoryUnread() }}
           }

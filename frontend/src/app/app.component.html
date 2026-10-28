@@ -1016,11 +1016,11 @@
             [token]="session()!.access_token"
             (open)="closeSideMenu(); walletOpen.set(true)"
           />
-          <button type="button" (click)="closeSideMenu(); shopOpen.set(true)">
-            <app-ui-icon name="shop" />Магазин
-          </button>
-          <button type="button" (click)="closeSideMenu(); inventoryMode.set('inventory')">
-            <app-ui-icon name="inventory" />Инвентарь
+          <button
+            type="button"
+            (click)="closeSideMenu(); shopInitialMode.set('inventory'); shopOpen.set(true)"
+          >
+            <app-ui-icon name="inventory" />Предметы
             @if (inventoryUnread()) {
               · {{ inventoryUnread() }}
             }
@@ -1216,7 +1216,7 @@
       [style.--message-text-size]="desktopPreferences.value().textSize + 'px'"
     >
       <app-section-navigation
-        (shop)="shopOpen.set(true)"
+        (shop)="shopInitialMode.set('inventory'); shopOpen.set(true)"
         [userId]="currentUser()?.id ?? null"
         [isSystemAdmin]="isAdmin()"
         [adminSelected]="adminDirectoryOpen() && (isAdmin() || !!currentUser()?.is_avatar_admin)"
@@ -5769,6 +5769,7 @@
   @if (shopOpen()) {
     @defer (on immediate) {
       <app-shop
+        [initialMode]="shopInitialMode()"
         [token]="auth.access_token"
         [actorId]="currentUser()!.id"
         [manage]="isAdmin() || !!currentUser()?.is_shop_admin"
@@ -5803,7 +5804,7 @@
   }
   @defer (on immediate) {
     <app-inventory
-      (shop)="inventoryMode.set(null); shopOpen.set(true)"
+      (shop)="inventoryMode.set(null); shopInitialMode.set('browse'); shopOpen.set(true)"
       (wallpaper)="
         inventoryMode.set(null); wallpaperSuggestedItem.set($event); wallpaperOpen.set(true)
       "

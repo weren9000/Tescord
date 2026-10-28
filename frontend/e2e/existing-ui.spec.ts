@@ -8,6 +8,7 @@ const root = path.resolve(__dirname, '../..');
 for (const [name, script, artifactDir] of [
   ['Room layout and controls', 'meeting-layout-smoke.cjs', 'room-design'],
   ['Individual audio and controls', 'participant-audio-smoke.cjs', 'participant-audio'],
+  ['Workspace navigation and icons', 'workspace-navigation-smoke.cjs', 'workspace-navigation'],
 ]) {
   test(name, async ({}, testInfo) => {
     try {

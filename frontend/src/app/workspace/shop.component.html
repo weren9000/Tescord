@@ -24,14 +24,14 @@
     <button
       class="shell-back"
       [disabled]="busy()"
-      [attr.aria-label]="hasNested() ? 'Назад' : 'Закрыть магазин'"
+      [attr.aria-label]="hasNested() ? 'Назад' : 'Закрыть предметы'"
       (click)="backStep()"
     >
       {{ mobile() ? '←' : '×' }}
     </button>
     <div>
-      <h2 id="shop-title">Магазин</h2>
-      <small>Предметы для вашего Квачата</small>
+      <h2 id="shop-title">Предметы</h2>
+      <small>Ваш инвентарь и магазин</small>
     </div>
     <span class="balance" aria-label="Баланс кристаллов"
       ><img src="/assets/crystal.svg" alt="Кристаллы" />{{
@@ -41,7 +41,7 @@
   </header>
   <nav
     class="section-links"
-    aria-label="Разделы магазина"
+    aria-label="Разделы предметов"
     [attr.inert]="filtersOpen() || roleTarget() ? '' : null"
   >
     @for (t of tabs; track t.id) {

@@ -14,6 +14,23 @@
 .modal .primary-button {
   @include ui.primary;
 }
+.messenger-shell .secondary-button.group-voice-card__action,
+.messenger-shell .secondary-button.conversation-head__action--icon,
+.messenger-shell .secondary-button.platform-channel-entry__voice-action {
+  @include ui.icon;
+  > svg,
+  > img {
+    width: 20px;
+    height: 20px;
+    flex: 0 0 20px;
+  }
+}
+.messenger-shell .secondary-button.group-voice-card__action--active,
+.messenger-shell .secondary-button.platform-channel-entry__voice-action--active,
+.messenger-shell .secondary-button.conversation-head__settings-toggle--active {
+  color: var(--palette-primary-text);
+  background: var(--palette-selected);
+}
 .modal .modal__header {
   @include ui.panel-heading;
   padding: 8px 16px;

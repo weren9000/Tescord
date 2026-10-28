@@ -2,6 +2,7 @@ import { ModalLayerDirective } from '../shared/modal-layer.directive';
 import { RarityBadgeComponent } from './rarity-badge.component';
 import {
   AfterViewInit,
+  OnInit,
   Component,
   DestroyRef,
   ElementRef,
@@ -137,7 +138,7 @@ interface ViewState {
   templateUrl: './shop.component.html',
   styleUrl: './shop.component.scss',
 })
-export class ShopComponent implements AfterViewInit, OnDestroy {
+export class ShopComponent implements OnInit, AfterViewInit, OnDestroy {
   readonly token = input.required<string>();
   readonly actorId = input.required<string>();
   readonly manage = input(false);
@@ -151,6 +152,7 @@ export class ShopComponent implements AfterViewInit, OnDestroy {
   @ViewChild('collectionPanel') collectionPanel?: StoreCollectionsComponent;
   @ViewChild('inventoryPanel') inventoryPanel?: InventoryComponent;
   private readonly host: ElementRef<HTMLElement> = inject(ElementRef);
+  readonly initialMode = input<'inventory' | 'browse'>('inventory');
   readonly inventoryVisited = signal(false);
   readonly priceBands = [
     { id: '', label: 'Любая' },
@@ -166,8 +168,8 @@ export class ShopComponent implements AfterViewInit, OnDestroy {
   readonly purchaseDetail = signal<Receipt | null>(null);
   readonly roleTarget = signal<Manager | null>(null);
   readonly tabs: { id: Mode; label: string }[] = [
-    { id: 'browse', label: 'Витрина' },
     { id: 'inventory', label: 'Мой инвентарь' },
+    { id: 'browse', label: 'Витрина' },
     { id: 'recommendations', label: 'Предложения' },
     { id: 'purchases', label: 'Покупки' },
     { id: 'journal', label: 'Журнал' },
@@ -321,6 +323,10 @@ export class ShopComponent implements AfterViewInit, OnDestroy {
         void this.load();
     });
     inject(DestroyRef).onDestroy(() => sub.unsubscribe());
+  }
+  ngOnInit() {
+    this.mode.set(this.initialMode());
+    this.inventoryVisited.set(this.initialMode() === 'inventory');
   }
   ngAfterViewInit() {
     this.origin = document.activeElement as HTMLElement;
