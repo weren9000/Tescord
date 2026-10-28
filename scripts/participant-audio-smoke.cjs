@@ -38,6 +38,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs');
    // baseline; startup samples can contain a partly empty analysis window.
    await page.waitForTimeout(1200);
    const base=await measure();assert(base[0]>.02,'Audible PCM baseline exists');
+   if(kind==='direct')await page.getByRole('button',{name:'\u0423\u0447\u0430\u0441\u0442\u043d\u0438\u043a\u0438',exact:true}).click();
    const slider=page.getByRole('slider',{name:kind==='group'?'Громкость участника: Тестер 2 апреля':'Громкость собеседника',exact:true});
    await slider.waitFor();assert.equal(await page.getByRole('slider',{name:/Общая громкость/}).count(),0);
    for(const value of [50,10,0,100]){
@@ -59,6 +60,9 @@ const assert=require('node:assert/strict'),fs=require('node:fs');
    }
    for(const width of [1440,393,320]){
     await page.setViewportSize({width,height:900});const box=await slider.boundingBox();assert(box&&box.width>=140&&box.x>=0&&box.x+box.width<=width+1,`Usable slider at ${width}: ${JSON.stringify(box)}`);
+    const panel=await page.locator('.call-window__roster').boundingBox();
+    assert(panel&&panel.x>=0&&panel.x+panel.width<=width+1,'Participant panel fits viewport');
+    if(kind==='direct')assert(panel.height<300,'Direct participant controls remain compact');
     await page.mouse.click(box.x+box.width*.36,box.y+box.height/2);const level=Number(await slider.inputValue());assert(level>20&&level<55);assert(Math.abs((await measure())[0]/base[0]-level/100)<.035);
     await page.screenshot({path:`.local/participant-audio/${kind}-${width}.png`});
    }

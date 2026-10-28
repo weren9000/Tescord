@@ -336,6 +336,25 @@
                   </div>
                 }
               </div>
+              @if (!isIncomingDirectCall() && conferenceRosterOpen()) {
+                <aside
+                  class="call-window__roster direct-participant-panel"
+                  aria-label="Участники звонка"
+                >
+                  <div class="call-window__roster-head">
+                    <strong>Участники</strong><span>2</span
+                    ><button
+                      type="button"
+                      aria-label="Закрыть участников"
+                      (click)="conferenceRosterOpen.set(false)"
+                    >
+                      <app-ui-icon name="close" />
+                    </button>
+                  </div>
+                  <p class="direct-participant-name">{{ displayNick(peer.nick) }}</p>
+                  <ng-container *ngTemplateOutlet="callVolumePanel" />
+                </aside>
+              }
             </div>
           } @else {
             <div
@@ -454,7 +473,7 @@
                     aria-label="Закрыть участников"
                     (click)="conferenceRosterOpen.set(false)"
                   >
-                    ×
+                    <app-ui-icon name="close" />
                   </button>
                 </div>
                 @if (call.kind === 'platform' && activeCallPendingRequestCount() > 0) {
@@ -566,9 +585,6 @@
           }
 
           <div class="call-window__bottom">
-            @if (!isIncomingDirectCall()) {
-              <ng-container *ngTemplateOutlet="callVolumePanel" />
-            }
             <footer class="call-window__controls">
               @if (isIncomingDirectCall()) {
                 <button class="call-tray__answer" type="button" (click)="acceptDirectCall()">
@@ -632,18 +648,17 @@
                   </button>
                 }
 
-                @if (call.kind !== 'direct') {
-                  <button
-                    class="call-control-button"
-                    type="button"
-                    aria-label="Участники"
-                    title="Участники"
-                    [attr.aria-expanded]="conferenceRosterOpen()"
-                    (click)="conferenceRosterOpen.set(!conferenceRosterOpen())"
-                  >
-                    <app-ui-icon name="groups" />
-                  </button>
-                }
+                <button
+                  class="call-control-button"
+                  type="button"
+                  aria-label="Участники"
+                  title="Участники"
+                  [class.call-control-button--active]="conferenceRosterOpen()"
+                  [attr.aria-expanded]="conferenceRosterOpen()"
+                  (click)="conferenceRosterOpen.set(!conferenceRosterOpen())"
+                >
+                  <app-ui-icon name="groups" />
+                </button>
                 <button
                   class="call-control-button"
                   type="button"
@@ -2682,9 +2697,18 @@
           <app-chat-skeleton kind="messages" label="Загрузка переписки" />
         } @else {
           <section class="workspace-empty-state">
-            <img class="workspace-empty-state__logo" src="/assets/KVA-chat.png" alt="KVA Chat" />
-            <strong>Выберите друга, группу или площадку</strong>
-            <small>Слева можно открыть личный диалог, мини-группу или площадку с каналами</small>
+            <img
+              class="workspace-empty-state__logo"
+              src="/assets/kva-wordmark-v2.png"
+              alt="Квачат"
+            />
+            <strong>Начните общение</strong>
+            <small>Откройте беседу в списке или пригласите друга.</small>
+            <div class="empty-actions">
+              <button class="primary-button" type="button" (click)="openProfileEditor()">
+                Пригласить друга</button
+              ><a class="secondary-button" href="/my-room">Моя комната</a>
+            </div>
           </section>
         }
       </main>
@@ -3060,7 +3084,7 @@
           [disabled]="profileSaving()"
           (click)="closeProfileEditor()"
         >
-          ×
+          <app-ui-icon name="close" />
         </button>
       </div>
       <div class="modal__body">
@@ -3100,7 +3124,6 @@
             <dd>{{ currentUser()?.public_id }}</dd>
           </div>
         </dl>
-        <app-friend-link [token]="session()!.access_token" />
         <div class="profile-card__feedback" aria-live="polite">
           @if (profileError()) {
             <p class="modal-note modal-note--error">{{ profileError() }}</p>
@@ -3124,6 +3147,7 @@
           {{ profileSaving() ? 'Сохраняем…' : 'Сохранить' }}
         </button>
       </div>
+      <div class="profile-invitation"><app-friend-link [token]="session()!.access_token" /></div>
     </section>
   </div>
   @if (profileAvatarChooserOpen()) {

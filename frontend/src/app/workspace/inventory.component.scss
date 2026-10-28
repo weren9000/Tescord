@@ -1,3 +1,4 @@
+@use '../shared/catalog-ui' as ui;
 @use '../shared/modal-layer' as modal;
 ﻿ :host {
   color: var(--palette-text);
@@ -1474,3 +1475,5 @@ form {
 }
 
 @include modal.modal-layer;
+
+@include ui.controls;

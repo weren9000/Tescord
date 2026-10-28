@@ -69,11 +69,11 @@ interface FriendLink {
     `
       :host {
         display: block;
-        margin-top: 12px;
+        margin-top: 16px;
+        font-family: var(--ui-font);
       }
       section {
-        border-top: 1px solid var(--palette-border);
-        padding-top: 12px;
+        padding-top: 0;
       }
       strong {
         font-size: 14px;
@@ -102,20 +102,21 @@ interface FriendLink {
         min-width: 0;
         padding: 9px;
         border: 1px solid var(--palette-border);
-        border-radius: 7px;
+        border-radius: var(--ui-radius-control);
         background: var(--palette-canvas);
         color: var(--palette-text);
         font: inherit;
+        min-height: 44px;
       }
       button {
         padding: 9px 12px;
         min-height: 44px;
         border: 1px solid var(--palette-border);
-        border-radius: 7px;
+        border-radius: var(--ui-radius-control);
         background: var(--palette-raised);
         color: var(--palette-text);
         font: inherit;
-        font-size: 12px;
+        font-size: 14px;
         cursor: pointer;
       }
       .actions {

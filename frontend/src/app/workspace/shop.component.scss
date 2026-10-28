@@ -1,3 +1,4 @@
+@use '../shared/catalog-ui' as ui;
 @use '../shared/modal-layer' as modal;
 :host {
   color: var(--palette-text);
@@ -1366,3 +1367,5 @@ fieldset:not(:first-child) {
 }
 
 @include modal.modal-layer;
+
+@include ui.controls;

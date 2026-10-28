@@ -1,3 +1,4 @@
+@use '../shared/ui-controls' as ui;
 :host {
   --room-bg: var(--palette-canvas, #10121d);
   --room-tile: var(--palette-surface, #1d2030);
@@ -1054,4 +1055,104 @@ dialog .panel-head {
   flex: 1;
   min-height: 0;
   width: 100%;
+}
+
+:host {
+  font: 400 var(--ui-text) / 1.5 var(--ui-font);
+}
+button,
+.primary {
+  @include ui.button;
+}
+.primary {
+  @include ui.primary;
+}
+input:not([type='range']),
+select,
+textarea {
+  @include ui.field;
+}
+.welcome input,
+.welcome .primary {
+  min-height: 48px;
+}
+.icon-button,
+.meeting-toolbar .icon-button {
+  @include ui.icon;
+}
+.panel-head {
+  @include ui.panel-heading;
+}
+.panel-head > .icon-button {
+  width: 44px;
+  height: 44px;
+  flex-basis: 44px;
+}
+.side-panel {
+  border-radius: var(--ui-radius-panel);
+}
+dialog {
+  border-radius: var(--ui-radius-dialog);
+}
+.person {
+  padding: 8px 0;
+  gap: 2px 8px;
+  align-items: center;
+}
+.person strong {
+  font-size: 14px;
+}
+.person small,
+.count {
+  font-size: 12px;
+}
+.person-volume {
+  @include ui.volume;
+}
+.person-actions summary {
+  display: grid;
+  place-items: center;
+  min-width: 36px;
+  min-height: 36px;
+}
+.meeting-toolbar .icon-button.muted {
+  color: var(--palette-muted);
+  background: var(--palette-hover);
+}
+.meeting-toolbar .icon-button[aria-pressed='true'],
+.meeting-toolbar .icon-button[aria-expanded='true'] {
+  background: var(--palette-selected);
+  color: var(--palette-primary-text);
+}
+.meeting-toolbar .danger {
+  background: var(--palette-danger-surface);
+  color: var(--palette-danger-text);
+}
+.message-content {
+  font-size: 15px;
+}
+.message-by strong {
+  font-size: 14px;
+}
+.message-by time,
+.message-by small {
+  font-size: 12px;
+}
+.meeting-idle {
+  margin: auto;
+  color: var(--palette-muted);
+  font-size: 14px;
+  text-align: center;
+}
+@media (pointer: coarse) {
+  .person-actions summary {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 440px) {
+  .meeting-toolbar .desktop-share {
+    display: none;
+  }
 }

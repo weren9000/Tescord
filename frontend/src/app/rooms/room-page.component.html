@@ -115,6 +115,11 @@
     </div>
     <div class="conference" [class.has-panel]="!!panel()">
       <section class="stage" [class.presenting]="!!presentation()" aria-label="Конференция">
+        @if (!presentation() && !visiblePeople().length && connected()) {
+          <p class="meeting-idle" role="status">
+            Голосовая встреча · {{ state()?.participants?.length || 1 }}
+          </p>
+        }
         @if (presentation(); as v) {
           <div class="presentation">
             @if (screens().length > 1) {

@@ -1,3 +1,4 @@
+@use 'shared/workspace-ui';
 // The platform presentation stays isolated from standalone groups and direct messages.
 .messenger-layout--platform[data-density='compact'] {
   --conversation-height: 48px;
