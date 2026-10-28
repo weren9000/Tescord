@@ -145,6 +145,7 @@ export class RoomPageComponent implements OnInit, OnDestroy {
   readonly copied = signal(false);
   readonly microphoneStates = signal<Record<string, boolean>>({});
   readonly selectedScreen = signal<string | null>(null);
+  readonly camerasHidden = signal(false);
   readonly viewportHeight = signal(window.visualViewport?.height || window.innerHeight);
   private readonly resizeViewport = () =>
     this.viewportHeight.set(window.visualViewport?.height || window.innerHeight);
@@ -515,8 +516,14 @@ export class RoomPageComponent implements OnInit, OnDestroy {
     });
     room.on(RoomEvent.TrackUnsubscribed, (track) => {
       if (this.audio.get(track.sid!)?.track === track) this.removeAudio(track.sid!);
-      this.updateVideos();
+      // LiveKit emits Unsubscribed before clearing publication.track. Read the
+      // updated publication after the event finishes, otherwise a stopped
+      // screen or camera can remain visible until another media event arrives.
+      queueMicrotask(() => {
+        if (this.room === room) this.updateVideos();
+      });
     });
+    room.on(RoomEvent.TrackUnpublished, () => this.updateVideos());
     room.on(RoomEvent.LocalTrackPublished, () => this.updateVideos());
     room.on(RoomEvent.LocalTrackUnpublished, () => this.updateVideos());
     room.on(RoomEvent.TrackMuted, () => this.updateVideos());
@@ -570,14 +577,17 @@ export class RoomPageComponent implements OnInit, OnDestroy {
           });
       });
     }
+    if (!this.screens().length && videos.some((v) => v.screen)) this.camerasHidden.set(false);
     this.videos.set(videos.sort((a, b) => Number(b.screen) - Number(a.screen)));
     this.microphoneStates.set(microphones);
   }
   stagePeople() {
-    return (this.state()?.participants || []).filter((p) => !!this.cameraFor(p.id));
+    const people = this.state()?.participants || [];
+    return this.presentation() ? people.filter((p) => !!this.cameraFor(p.id)) : people;
   }
   visiblePeople() {
     const people = this.stagePeople();
+    if (this.presentation()) return people;
     const last = Math.max(0, Math.ceil(people.length / 9) - 1);
     return people.slice(Math.min(this.page, last) * 9, (Math.min(this.page, last) + 1) * 9);
   }

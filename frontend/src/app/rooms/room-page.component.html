@@ -114,14 +114,26 @@
       }
     </div>
     <div class="conference" [class.has-panel]="!!panel()">
-      <section class="stage" [class.presenting]="!!presentation()" aria-label="Конференция">
-        @if (!presentation() && !visiblePeople().length && connected()) {
-          <p class="meeting-idle" role="status">
-            Голосовая встреча · {{ state()?.participants?.length || 1 }}
-          </p>
-        }
+      <section
+        class="stage"
+        [class.presenting]="!!presentation()"
+        [class.has-cameras]="!!presentation() && !!stagePeople().length && !camerasHidden()"
+        aria-label="Конференция"
+      >
         @if (presentation(); as v) {
           <div class="presentation">
+            @if (stagePeople().length) {
+              <button
+                class="icon-button camera-strip-toggle"
+                [attr.aria-label]="camerasHidden() ? 'Показать камеры' : 'Скрыть камеры'"
+                [attr.title]="camerasHidden() ? 'Показать камеры' : 'Скрыть камеры'"
+                [attr.aria-expanded]="!camerasHidden()"
+                aria-controls="room-people"
+                (click)="camerasHidden.set(!camerasHidden())"
+              >
+                <app-ui-icon [name]="camerasHidden() ? 'cameraOff' : 'camera'" />
+              </button>
+            }
             @if (screens().length > 1) {
               <div class="screen-tabs">
                 @for (screen of screens(); track screen.id) {
@@ -138,8 +150,9 @@
             ><span class="tile-name"><app-ui-icon name="screen" />{{ v.name }}</span>
           </div>
         }
-        @if (!presentation() && visiblePeople().length) {
+        @if (visiblePeople().length && (!presentation() || !camerasHidden())) {
           <div
+            id="room-people"
             class="people-grid"
             [class.single]="visiblePeople().length === 1"
             [class.pair]="visiblePeople().length === 2"
@@ -189,7 +202,7 @@
               </div>
             }
           </div>
-          @if (stagePeople().length > 9) {
+          @if (!presentation() && stagePeople().length > 9) {
             <nav class="pages" aria-label="Страницы участников">
               <button
                 class="icon-button"
@@ -447,13 +460,13 @@
     <footer class="meeting-toolbar" aria-label="Управление встречей">
       <div class="toolbar-start">
         <button
-          class="icon-button"
+          class="invite-button"
           popovertarget="meeting-invite"
           title="Пригласить по ссылке"
           aria-label="Пригласить по ссылке"
         >
-          <app-ui-icon name="link" /></button
-        ><span class="meeting-title">{{ state()?.name || 'Комната' }}</span>
+          <app-ui-icon name="link" /><span>Пригласить</span>
+        </button>
       </div>
       <div class="toolbar-center">
         <button

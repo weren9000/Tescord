@@ -26,10 +26,26 @@ async function register(){const id=crypto.randomUUID().slice(0,8);return json('/
   await guest.goto(link);await guest.getByRole('textbox',{name:'Ваше имя'}).fill(memberAccount.user.nick);await guest.getByRole('button',{name:'Присоединиться',exact:true}).click();
   await owner.getByRole('button',{name:'Участники',exact:true}).click();
   await owner.locator('.person img[src*="'+memberAccount.user.id+'"]').waitFor();
-  assert.equal(await owner.locator('.participant-tile').count(),0);
+  assert.equal(await owner.locator('.participant-tile').count(),3);
   assert.equal(await owner.locator('.person img[src*="'+memberAccount.user.id+'"]').count(),1);
   await owner.locator('.person').filter({hasText:'Гость'}).waitFor();
   await owner.screenshot({path:out+'/profiles-in-room.png'});
+  await owner.getByRole('button',{name:'Закрыть панель',exact:true}).click();
+  // Publish distinct real WebRTC camera and screen streams through local LiveKit.
+  await owner.evaluate(()=>{navigator.mediaDevices.getDisplayMedia=async()=>{const canvas=document.createElement('canvas');canvas.width=1280;canvas.height=720;const ctx=canvas.getContext('2d');window.fixtureScreenTimer=setInterval(()=>{ctx.fillStyle='#305070';ctx.fillRect(0,0,1280,720);ctx.fillStyle='white';ctx.font='48px sans-serif';ctx.fillText('Screen '+Date.now(),60,100);},100);return canvas.captureStream(10);};});
+  await owner.getByRole('button',{name:'Включить камеру',exact:true}).click();
+  await guest.waitForFunction(()=>document.querySelector('.participant-tile video')?.videoWidth>0);
+  for(let attempt=0;attempt<2;attempt++){
+    await owner.getByRole('button',{name:'Показать экран',exact:true}).click();
+    await guest.waitForFunction(()=>document.querySelector('.presentation video')?.videoWidth>0&&document.querySelector('.participant-tile video')?.videoWidth>0);
+    await guest.screenshot({path:out+'/camera-and-screen-'+attempt+'.png'});
+    await owner.getByRole('button',{name:'Остановить показ',exact:true}).click();
+    await guest.locator('.presentation').waitFor({state:'detached'});
+    await guest.waitForFunction(()=>document.querySelectorAll('.participant-tile').length===3&&document.querySelector('.participant-tile video')?.videoWidth>0);
+  }
+  await owner.getByRole('button',{name:'Выключить камеру',exact:true}).click();
+  await guest.locator('.participant-tile video').waitFor({state:'detached'});
+  await owner.evaluate(()=>clearInterval(window.fixtureScreenTimer));
   await member.getByRole('button',{name:'Чат встречи',exact:true}).click();await member.getByRole('textbox',{name:'Сообщение',exact:true}).fill('Message with account profile');await member.getByRole('button',{name:'Отправить',exact:true}).click();
   await guest.getByRole('button',{name:'Чат встречи',exact:true}).click();await guest.getByText('Message with account profile',{exact:true}).waitFor();
   const avatar=guest.locator('.message-avatar[src*="'+memberAccount.user.id+'"]');await avatar.waitFor();await avatar.evaluate(img=>img.decode());
