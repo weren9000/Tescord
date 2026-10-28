@@ -252,6 +252,40 @@ import type { Offer } from './shop.component';
           font-size: 12px;
         }
       }
+      @media (max-width: 980px) {
+        .card {
+          padding: 8px;
+          gap: 4px;
+          border-radius: 12px;
+        }
+        .art {
+          height: auto;
+          aspect-ratio: 1;
+          border-radius: 8px;
+        }
+        .favorite,
+        .badge,
+        .foot > small,
+        .card > small:not(.kind) {
+          display: none;
+        }
+        strong {
+          font-size: 13px;
+          line-height: 18px;
+          min-height: 36px;
+          white-space: normal;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+        .kind {
+          font-size: 11px;
+        }
+        .price {
+          font-size: 12px;
+        }
+      }
     `,
   ],
 })

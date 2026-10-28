@@ -37,6 +37,38 @@
         wallet.balance() ? (wallet.balance()!.crystals | number) : '—'
       }}</span
     >
+    @if (mobile() && (manage() || mode() === 'inventory')) {
+      <details
+        class="mobile-store-menu"
+        #mobileMenu
+        (focusout)="!mobileMenu.contains($any($event.relatedTarget)) && (mobileMenu.open = false)"
+      >
+        <summary aria-label="Действия раздела">
+          ⋯
+          @if (mode() === 'inventory' && inventoryPanel?.unreadCount()) {
+            <span class="menu-dot"></span>
+          }
+        </summary>
+        <div>
+          @if (mode() === 'inventory') {
+            <button (click)="inventoryPanel?.eventsOpen?.set(true); mobileMenu.open = false">
+              События
+              @if (inventoryPanel?.unreadCount()) {
+                · {{ inventoryPanel?.unreadCount() }}
+              }
+            </button>
+          }
+          @if (manage()) {
+            <button (click)="switchMode('collections'); mobileMenu.open = false">Подборки</button>
+            <button (click)="switchMode('offers'); mobileMenu.open = false">Товары и цены</button>
+            <button (click)="switchMode('sales'); mobileMenu.open = false">Все продажи</button>
+            <button (click)="switchMode('audit'); mobileMenu.open = false">
+              Журнал управления
+            </button>
+          }
+        </div>
+      </details>
+    }
   </header>
   <nav
     class="section-links"
@@ -115,6 +147,11 @@
                   : 'Обои'
           }}</small>
           <h3>{{ item.name }}</h3>
+          @if (mobile() && mode() !== 'offers') {
+            <button (click)="toggleFavorite(item)" [disabled]="favoriteBusy().has(item.id)">
+              {{ item.favorite ? 'Убрать из избранного' : 'В избранное' }}
+            </button>
+          }
           <app-rarity-badge [value]="item.rarity" />
           @if (mode() === 'offers') {
             <form (ngSubmit)="save()">
@@ -368,6 +405,7 @@
                 @if (catalogMode() || mode() === 'purchases' || mode() === 'journal') {
                   <button
                     class="mobile-filter"
+                    [class.active]="activeFilters() > 0"
                     type="button"
                     (click)="openFilters()"
                     [attr.aria-expanded]="filtersOpen()"
@@ -376,6 +414,9 @@
                     <svg viewBox="0 0 24 24" aria-hidden="true">
                       <path d="M3 4h18l-7 8v7l-4 2v-9z" />
                     </svg>
+                    @if (activeFilters()) {
+                      <span class="filter-count">{{ activeFilters() }}</span>
+                    }
                   </button>
                 }
               </form>
@@ -404,9 +445,9 @@
                     [avatarUrl]="avatarUrl()"
                     [item]="item"
                     [src]="image(item.id)"
-                    [kindLabel]="kindLabel(item.kind)"
+                    [kindLabel]="mobile() ? mobileKindLabel(item.kind) : kindLabel(item.kind)"
                     [managed]="mode() === 'offers'"
-                    [showKind]="!kind"
+                    [showKind]="mobile() || !kind"
                     [favoriteBusy]="favoriteBusy().has(item.id)"
                     (favorite)="toggleFavorite(item)"
                     [disabled]="loading()"
@@ -582,18 +623,48 @@
           <h3>Фильтры</h3>
           <button aria-label="Закрыть фильтры" (click)="filtersOpen.set(false)">×</button>
         </header>
-        <ng-container *ngTemplateOutlet="filters" />
-        @if (draftError()) {
-          <p role="alert">Не удалось посчитать результаты.</p>
-          <button (click)="countDraft()">Повторить</button>
-        }
-        <button class="primary" [disabled]="draftTotal() === null" (click)="applyDraft()">
-          {{
-            draftTotal() === null
-              ? 'Считаем…'
-              : 'Показать ' + draftTotal() + (catalogMode() ? ' товаров' : ' записей')
-          }}
-        </button>
+        <div class="filter-sheet-body">
+          @if (catalogMode() || mode() === 'purchases') {
+            <label
+              >Сортировка<select aria-label="Сортировка" [(ngModel)]="mobileFilterOptions.sort">
+                <option value="new">Сначала новые</option>
+                <option value="cheap">Сначала дешевле</option>
+                <option value="expensive">Сначала дороже</option>
+              </select></label
+            >
+          }
+          @if (catalogMode()) {
+            <label class="mobile-filter-check"
+              ><input
+                type="checkbox"
+                [(ngModel)]="mobileFilterOptions.favorites"
+                (ngModelChange)="countDraft()"
+              />Избранное</label
+            >
+            <label class="mobile-filter-check"
+              ><input
+                type="checkbox"
+                [(ngModel)]="mobileFilterOptions.unowned"
+                (ngModelChange)="countDraft()"
+              />Не куплено</label
+            >
+          }
+          <ng-container *ngTemplateOutlet="filters" />
+          @if (draftError()) {
+            <p role="alert">Не удалось посчитать результаты.</p>
+            <button (click)="countDraft()">Повторить</button>
+          }
+        </div>
+        <footer class="filter-footer">
+          <button (click)="resetDraft()">Сбросить</button
+          ><button class="primary" [disabled]="draftTotal() === null" (click)="applyDraft()">
+            {{
+              draftTotal() === null
+                ? 'Считаем…'
+                : 'Показать ' + draftTotal() + (catalogMode() ? ' товаров' : ' записей')
+            }}
+          </button>
+        </footer>
       </section>
     </dialog>
   }

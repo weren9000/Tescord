@@ -1,7 +1,7 @@
 @use '../shared/compact-ui' as compact;
 @use '../shared/catalog-ui' as ui;
 @use '../shared/modal-layer' as modal;
-﻿ :host {
+РїВ»С— :host {
   color: var(--palette-text);
 }
 .collection-tools {
@@ -1537,5 +1537,180 @@ form {
   .store-layout .inventory-segments button {
     min-height: 44px;
     padding: 6px 10px;
+  }
+}
+
+.mobile-item-caption,
+.mobile-used,
+.mobile-detail-favorite {
+  display: none;
+}
+@media (max-width: 980px) {
+  .store-layout .inventory-toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 44px;
+    gap: 8px;
+    margin: 0;
+  }
+  .store-layout .inventory-toolbar .inventory-search {
+    grid-area: 1 / 1;
+  }
+  .store-layout .inventory-toolbar .inventory-mobile-filter {
+    grid-area: 1 / 2;
+    position: relative;
+    min-height: 44px;
+  }
+  .store-layout .inventory-toolbar .find,
+  .store-layout .inventory-toolbar select,
+  .store-layout .inventory-events,
+  .store-layout .inventory-segments {
+    display: none;
+  }
+  .store-layout .inventory-results {
+    gap: 10px;
+  }
+  .store-layout .inventory .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    align-items: stretch;
+  }
+  .store-layout .grid .tile,
+  .store-layout .grid .tile.wallpaper-tile {
+    position: relative;
+    padding: 8px;
+    border-radius: 12px;
+    align-self: stretch;
+  }
+  .store-layout .inventory .item-open {
+    height: auto;
+    aspect-ratio: 1;
+    width: 100%;
+    border-radius: 8px;
+  }
+  .store-layout .card-caption,
+  .store-layout .inventory-favorite {
+    display: none;
+  }
+  .store-layout .mobile-item-caption {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px 0 0;
+    border: 0;
+    background: transparent;
+    text-align: left;
+    width: 100%;
+    min-width: 0;
+    color: var(--palette-text);
+  }
+  .mobile-item-caption strong {
+    font-size: 13px;
+    line-height: 18px;
+    min-height: 36px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+  }
+  .mobile-item-caption small {
+    font-size: 11px;
+    color: var(--palette-muted);
+  }
+  .store-layout .tile.equipped {
+    box-shadow: inset 0 0 0 1px var(--palette-primary);
+  }
+  .mobile-used {
+    display: grid;
+    place-items: center;
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--palette-primary);
+    color: #fff;
+    pointer-events: none;
+  }
+  .mobile-detail-favorite {
+    display: inline-flex;
+  }
+  .inventory-filters {
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    max-height: 85dvh !important;
+  }
+  .inventory-filters .panel-body {
+    overflow-y: auto;
+    min-height: 0;
+    padding: 12px 16px;
+  }
+  .inventory-filters .filter-reset-inline {
+    display: none;
+  }
+  .inventory-filters label select {
+    width: 100%;
+    margin-top: 6px;
+  }
+  .filter-footer {
+    display: flex;
+    gap: 8px;
+    padding: 12px 16px max(12px, env(safe-area-inset-bottom));
+    border-top: 1px solid var(--palette-border);
+  }
+  .filter-footer button {
+    min-height: 44px;
+  }
+  .filter-footer .primary {
+    flex: 1;
+  }
+  .filter-count {
+    position: absolute;
+    top: -3px;
+    right: -3px;
+    border-radius: 10px;
+    min-width: 16px;
+    padding: 1px 3px;
+    background: var(--palette-primary);
+    color: #fff;
+    font-size: 10px;
+  }
+}
+
+@media (max-width: 980px) {
+  .inventory-filters fieldset:first-child {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+  }
+  .inventory-filters fieldset:first-child legend {
+    grid-column: 1 / -1;
+  }
+  .inventory-filters fieldset button {
+    min-height: 44px;
+  }
+  .filter-footer .primary {
+    margin: 0;
+    width: auto;
+    background: var(--palette-primary);
+    color: #fff;
+  }
+  .mobile-item-caption {
+    cursor: pointer;
+  }
+}
+
+@media (max-width: 980px) {
+  dialog[appModalLayer].panel-shade:has(> .inventory-filters) {
+    padding: 0;
+    align-items: end;
+  }
+  dialog[appModalLayer].panel-shade > .inventory-filters {
+    width: 100%;
+    max-height: 85dvh !important;
+    overflow: hidden;
+    border-radius: 18px 18px 0 0;
   }
 }

@@ -1,6 +1,7 @@
 import { Component, input } from '@angular/core';
 
 const paths: Record<string, string> = {
+  filter: 'M3 4h18l-7 8v7l-4 2v-9z',
   refresh: 'M20 7v5h-5M4 17v-5h5M5.5 7a7 7 0 0 1 11.6-2L20 8M4 16l2.9 3a7 7 0 0 0 11.6-2',
   room: 'M7 3h10a5 5 0 0 1 5 5v5a5 5 0 0 1-5 5H9l-5 4v-5a5 5 0 0 1-2-4V8a5 5 0 0 1 5-5M7 8h6v5H7zM13 10l4-2v5l-4-2',
   link: 'M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-2 2M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l2-2',

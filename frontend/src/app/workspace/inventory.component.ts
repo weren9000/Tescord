@@ -173,12 +173,37 @@ export class InventoryComponent implements OnDestroy {
   rarity = '';
   usage = 'all';
   favorites = false;
-  draft = { kind: 'all', rarity: '', usage: 'all', favorites: false };
+  draft = { kind: 'all', rarity: '', usage: 'all', favorites: false, sort: 'new' };
+  private searchTimer?: ReturnType<typeof setTimeout>;
+  searchChanged() {
+    clearTimeout(this.searchTimer);
+    if (window.matchMedia('(max-width: 980px)').matches)
+      this.searchTimer = setTimeout(() => void this.filterChanged(), 300);
+  }
+  activeFilters() {
+    return [
+      this.tab() !== 'all',
+      !!this.rarity,
+      this.usage !== 'all',
+      this.favorites,
+      this.sort !== 'new',
+    ].filter(Boolean).length;
+  }
   private readonly cancelRead = new Subject<void>();
   sort = 'new';
   equippedOnly = false;
   kindLabel(kind: string) {
     return this.categories.find((c) => c.id === kind)?.label ?? kind;
+  }
+  mobileKindLabel(kind: string) {
+    return (
+      (
+        { frame: 'Рамка', avatar: 'Аватар', wallpaper: 'Обои', theme: 'Тема' } as Record<
+          string,
+          string
+        >
+      )[kind] ?? 'Предмет'
+    );
   }
   categoryTotal() {
     return Object.values(this.counts()).reduce<number>((a, b) => a + (b ?? 0), 0);
@@ -189,6 +214,7 @@ export class InventoryComponent implements OnDestroy {
       rarity: this.rarity,
       usage: this.usage,
       favorites: this.favorites,
+      sort: this.sort,
     };
     this.filtersOpen.set(true);
   }
@@ -197,6 +223,7 @@ export class InventoryComponent implements OnDestroy {
     this.rarity = this.draft.rarity;
     this.usage = this.draft.usage;
     this.favorites = this.draft.favorites;
+    this.sort = this.draft.sort;
     this.filtersOpen.set(false);
     void this.filterChanged();
   }
@@ -225,6 +252,7 @@ export class InventoryComponent implements OnDestroy {
           row.catalog_id === item.catalog_id ? { ...row, favorite: !item.favorite } : row,
         ),
       );
+      if (this.detail()?.id === item.id) this.detail.set({ ...item, favorite: !item.favorite });
       if (this.favorites) await this.reload(true);
     } catch (e) {
       this.fail(e);
@@ -284,6 +312,7 @@ export class InventoryComponent implements OnDestroy {
     await this.reload();
   }
   async filterChanged() {
+    clearTimeout(this.searchTimer);
     this.currentPage.set(1);
     this.selectedCatalog = '';
     await this.reload();
@@ -311,6 +340,7 @@ export class InventoryComponent implements OnDestroy {
     this.zoom = 1;
   }
   ngOnDestroy() {
+    clearTimeout(this.searchTimer);
     this.favoriteEvents.unsubscribe();
     this.cancelRead.next();
     this.cancelRead.complete();

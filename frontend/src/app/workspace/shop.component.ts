@@ -263,6 +263,20 @@ export class ShopComponent implements OnInit, AfterViewInit, OnDestroy {
     { id: 'epic', label: 'Эпический' },
     { id: 'legendary', label: 'Легендарный' },
   ];
+  mobileFilterOptions = { sort: 'new', favorites: false, unowned: false };
+  activeFilters() {
+    return [
+      !!this.kind,
+      !!this.rarity,
+      !!this.priceBand,
+      !!this.start,
+      !!this.end,
+      !!this.action,
+      this.favorites,
+      this.unowned,
+      this.sort !== 'new',
+    ].filter(Boolean).length;
+  }
   draft = { kind: '', priceBand: '', rarity: '', start: '', end: '', action: '' };
   readonly draftTotal = signal<number | null>(null);
   readonly draftError = signal(false);
@@ -397,6 +411,16 @@ export class ShopComponent implements OnInit, AfterViewInit, OnDestroy {
   }
   kindLabel(kind?: string) {
     return this.categories.find((c) => c.id === kind)?.label ?? 'Предмет';
+  }
+  mobileKindLabel(kind: string) {
+    return (
+      (
+        { frame: 'Рамка', avatar: 'Аватар', wallpaper: 'Обои', theme: 'Тема' } as Record<
+          string,
+          string
+        >
+      )[kind] ?? 'Предмет'
+    );
   }
   pageNumbers() {
     const start = Math.max(1, Math.min(this.page() - 2, this.pages() - 4));
@@ -647,7 +671,9 @@ export class ShopComponent implements OnInit, AfterViewInit, OnDestroy {
     this.page.set(page);
     await this.load();
   }
+  private itemScroll = 0;
   open(item: Offer, event: Event) {
+    this.itemScroll = this.content()?.scrollTop ?? 0;
     this.trigger = event.currentTarget as HTMLElement;
     this.selected.set(item);
     this.result.set(null);
@@ -667,7 +693,11 @@ export class ShopComponent implements OnInit, AfterViewInit, OnDestroy {
     this.confirming.set(false);
     this.result.set(null);
     this.error.set('');
-    setTimeout(() => this.trigger?.isConnected && this.trigger.focus());
+    setTimeout(() => {
+      const content = this.content();
+      if (content) content.scrollTop = this.itemScroll;
+      if (this.trigger?.isConnected) this.trigger.focus({ preventScroll: true });
+    });
   }
   dismiss() {
     if (this.busy() || this.collectionPanel?.busy() || this.inventoryPanel?.busy()) return;
@@ -712,6 +742,13 @@ export class ShopComponent implements OnInit, AfterViewInit, OnDestroy {
     );
   }
   backStep() {
+    const menu = this.host.nativeElement.querySelector<HTMLDetailsElement>(
+      '.mobile-store-menu[open]',
+    );
+    if (menu) {
+      menu.open = false;
+      return;
+    }
     if (this.busy() || this.collectionPanel?.busy() || this.inventoryPanel?.busy()) return;
     if (this.collectionPanel?.editing()) {
       this.collectionPanel.editing.set(null);
@@ -763,6 +800,11 @@ export class ShopComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
   openFilters() {
+    this.mobileFilterOptions = {
+      sort: this.sort,
+      favorites: this.favorites,
+      unowned: this.unowned,
+    };
     this.draft = {
       kind: this.kind,
       priceBand: this.priceBand,
@@ -827,6 +869,8 @@ export class ShopComponent implements OnInit, AfterViewInit, OnDestroy {
       this.items.update((items) =>
         items.map((i) => (i.id === item.id ? { ...i, favorite: result.favorite } : i)),
       );
+      if (this.selected()?.id === item.id)
+        this.selected.set({ ...item, favorite: result.favorite });
       if (this.favorites) await this.load();
     } catch (e) {
       if (this.alive) this.fail(e);
@@ -849,8 +893,8 @@ export class ShopComponent implements OnInit, AfterViewInit, OnDestroy {
     if (catalog) {
       params.set('count_only', 'true');
       if (d.rarity) params.set('rarity', d.rarity);
-      if (this.favorites) params.set('favorites', 'true');
-      if (this.unowned) params.set('unowned', 'true');
+      if (this.mobileFilterOptions.favorites) params.set('favorites', 'true');
+      if (this.mobileFilterOptions.unowned) params.set('unowned', 'true');
       if (this.collection) params.set('collection', this.collection);
       if (this.mode() === 'recommendations') params.set('recommended', 'true');
       if (d.priceBand === 'low') params.set('max_price', '100');
@@ -877,12 +921,13 @@ export class ShopComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
   resetDraft() {
+    this.mobileFilterOptions = { sort: 'new', favorites: false, unowned: false };
     this.draft = { kind: '', priceBand: '', rarity: '', start: '', end: '', action: '' };
     void this.countDraft();
   }
   applyDraft() {
     if (this.draftTotal() === null) return;
-    Object.assign(this, this.draft);
+    Object.assign(this, this.draft, this.mobileFilterOptions);
     this.filtersOpen.set(false);
     void this.load(true);
   }

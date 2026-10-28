@@ -144,10 +144,8 @@
         <div class="inventory-catalog-layout">
           @if (storeLayout()) {
             <aside class="inventory-sidebar">
-              <ng-container *ngTemplateOutlet="inventoryFilters" /><button
-                class="browse-link"
-                (click)="shop.emit()"
-              >
+              <ng-container *ngTemplateOutlet="inventoryFilters" />
+              <button class="browse-link" (click)="shop.emit()">
                 <app-ui-icon name="gift" />Пополнить коллекцию →
               </button>
             </aside>
@@ -161,6 +159,7 @@
                     aria-label="Поиск по инвентарю"
                     placeholder="Поиск по инвентарю…"
                     [(ngModel)]="filter"
+                    (ngModelChange)="searchChanged()"
                     maxlength="80" /></label
                 ><button class="find compact-action" type="submit" aria-label="Найти" title="Найти">
                   <app-ui-icon name="search" /><span class="compact-label">Найти</span></button
@@ -175,12 +174,16 @@
                   <option value="name">По названию</option></select
                 ><button
                   class="inventory-mobile-filter"
+                  [class.active]="activeFilters() > 0"
                   type="button"
                   (click)="openFilters()"
                   aria-label="Фильтры"
                   [attr.aria-expanded]="filtersOpen()"
                 >
-                  <app-ui-icon name="settings" />
+                  <app-ui-icon name="filter" />
+                  @if (activeFilters()) {
+                    <span class="filter-count">{{ activeFilters() }}</span>
+                  }
                 </button>
                 <button
                   class="compact-action inventory-events"
@@ -259,6 +262,17 @@
                         >
                           {{ item.favorite ? '♥' : '♡' }}
                         </button>
+                        <button
+                          class="mobile-item-caption"
+                          (click)="showHistory(item)"
+                          [attr.aria-label]="'О предмете: ' + item.name"
+                        >
+                          <strong>{{ item.name }}</strong
+                          ><small>{{ mobileKindLabel(item.kind) }}</small>
+                        </button>
+                        @if (item.in_use ?? item.equipped) {
+                          <span class="mobile-used" aria-label="Используется">✓</span>
+                        }
                         <div class="card-caption">
                           <strong [title]="item.name">{{ item.name }}</strong
                           ><small
@@ -461,13 +475,24 @@
               <button aria-label="Закрыть фильтры" (click)="filtersOpen.set(false)">×</button>
             </header>
             <div class="panel-body">
-              <ng-container *ngTemplateOutlet="inventoryFilters" /><button
-                class="primary full"
-                (click)="applyFilters()"
+              <ng-container *ngTemplateOutlet="inventoryFilters" />
+              <label
+                >Сортировка<select aria-label="Сортировка" [(ngModel)]="draft.sort">
+                  <option value="new">Сначала новые</option>
+                  <option value="old">Сначала старые</option>
+                  <option value="name">По названию</option>
+                </select></label
               >
-                Показать предметы
-              </button>
             </div>
+            <footer class="filter-footer">
+              <button
+                (click)="
+                  draft = { kind: 'all', rarity: '', usage: 'all', favorites: false, sort: 'new' }
+                "
+              >
+                Сбросить</button
+              ><button class="primary full" (click)="applyFilters()">Показать</button>
+            </footer>
           </section>
         </dialog>
       }
@@ -630,6 +655,13 @@
                 </div>
                 @if (mode() === 'inventory') {
                   <div class="detail-actions">
+                    <button
+                      class="mobile-detail-favorite"
+                      (click)="favorite(item)"
+                      [disabled]="favoriteBusy().has(item.catalog_id)"
+                    >
+                      {{ item.favorite ? 'Убрать из избранного' : 'В избранное' }}
+                    </button>
                     @if (item.kind === 'wallpaper') {
                       <button (click)="wallpaper.emit(item.id)">Выбрать, где использовать</button>
                     }
@@ -1052,9 +1084,10 @@
     >
   </fieldset>
   <button
+    class="filter-reset-inline"
     (click)="
       filtersOpen()
-        ? (draft = { kind: 'all', rarity: '', usage: 'all', favorites: false })
+        ? (draft = { kind: 'all', rarity: '', usage: 'all', favorites: false, sort: 'new' })
         : resetFilters()
     "
   >

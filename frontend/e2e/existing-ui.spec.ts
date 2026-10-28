@@ -10,6 +10,7 @@ for (const [name, script, artifactDir] of [
   ['Individual audio and controls', 'participant-audio-smoke.cjs', 'participant-audio'],
   ['Workspace navigation and icons', 'workspace-navigation-smoke.cjs', 'workspace-navigation'],
   ['Compact workspace forms', 'compact-workspace-smoke.cjs', 'compact-workspace'],
+  ['Mobile catalog', 'mobile-catalog-smoke.cjs', 'mobile-catalog'],
 ]) {
   test(name, async ({}, testInfo) => {
     try {
