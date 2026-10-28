@@ -1,3 +1,4 @@
+import { UnreadStateCollection } from './unread-state';
 import { Injectable, signal } from '@angular/core';
 import { ConversationSummary } from '../models/conversation.models';
 import { WorkspaceChannel, WorkspaceServer } from '../models/workspace.models';
@@ -8,85 +9,39 @@ export class WorkspaceStateStore {
   readonly servers = signal<WorkspaceServer[]>([]);
   readonly conversations = signal<ConversationSummary[]>([]);
   readonly channels = signal<WorkspaceChannel[]>([]);
+  private readonly conversationUnread = new UnreadStateCollection(
+    this.conversations,
+    (item) => item.id,
+  );
+  private readonly conversationUnreadByChannel = new UnreadStateCollection(
+    this.conversations,
+    (item) => item.primary_channel_id,
+  );
+  private readonly serverUnread = new UnreadStateCollection(this.servers, (item) => item.id);
+  private readonly channelUnread = new UnreadStateCollection(this.channels, (item) => item.id);
 
   setConversationUnreadCount(serverId: string, unreadCount: number): void {
-    const normalizedUnreadCount = Math.max(0, unreadCount);
-    this.conversations.update((conversations) =>
-      conversations.map((conversation) =>
-        conversation.id === serverId
-          ? {
-              ...conversation,
-              unread_count: normalizedUnreadCount,
-            }
-          : conversation
-      )
-    );
+    this.conversationUnread.setUnreadCount(serverId, unreadCount);
   }
 
   setConversationMentionUnreadCount(serverId: string, mentionUnreadCount: number): void {
-    const normalizedMentionUnreadCount = Math.max(0, mentionUnreadCount);
-    this.conversations.update((conversations) =>
-      conversations.map((conversation) =>
-        conversation.id === serverId
-          ? {
-              ...conversation,
-              mention_unread_count: normalizedMentionUnreadCount,
-            }
-          : conversation
-      )
-    );
+    this.conversationUnread.setMentionUnreadCount(serverId, mentionUnreadCount);
   }
 
   setConversationFirstUnreadMessageId(serverId: string, messageId: string | null): void {
-    this.conversations.update((conversations) =>
-      conversations.map((conversation) =>
-        conversation.id === serverId
-          ? {
-              ...conversation,
-              first_unread_message_id: messageId,
-            }
-          : conversation
-      )
-    );
+    this.conversationUnread.setFirstUnreadMessageId(serverId, messageId);
   }
 
   setConversationFirstMentionUnreadMessageId(serverId: string, messageId: string | null): void {
-    this.conversations.update((conversations) =>
-      conversations.map((conversation) =>
-        conversation.id === serverId
-          ? {
-              ...conversation,
-              first_mention_unread_message_id: messageId,
-            }
-          : conversation
-      )
-    );
+    this.conversationUnread.setFirstMentionUnreadMessageId(serverId, messageId);
   }
 
   setConversationFirstUnreadMessageIdIfMissing(serverId: string, messageId: string): void {
-    this.conversations.update((conversations) =>
-      conversations.map((conversation) =>
-        conversation.id === serverId && !conversation.first_unread_message_id
-          ? {
-              ...conversation,
-              first_unread_message_id: messageId,
-            }
-          : conversation
-      )
-    );
+    this.conversationUnread.setFirstUnreadMessageIdIfMissing(serverId, messageId);
   }
 
   setConversationFirstMentionUnreadMessageIdIfMissing(serverId: string, messageId: string): void {
-    this.conversations.update((conversations) =>
-      conversations.map((conversation) =>
-        conversation.id === serverId && !conversation.first_mention_unread_message_id
-          ? {
-              ...conversation,
-              first_mention_unread_message_id: messageId,
-            }
-          : conversation
-      )
-    );
+    this.conversationUnread.setFirstMentionUnreadMessageIdIfMissing(serverId, messageId);
   }
 
   setConversationPushEnabled(serverId: string, pushEnabled: boolean): void {
@@ -97,273 +52,89 @@ export class WorkspaceStateStore {
               ...conversation,
               push_enabled: pushEnabled,
             }
-          : conversation
-      )
+          : conversation,
+      ),
     );
   }
 
   setServerUnreadCount(serverId: string, unreadCount: number): void {
-    const normalizedUnreadCount = Math.max(0, unreadCount);
-    this.servers.update((servers) =>
-      servers.map((server) =>
-        server.id === serverId
-          ? {
-              ...server,
-              unread_count: normalizedUnreadCount,
-            }
-          : server
-      )
-    );
+    this.serverUnread.setUnreadCount(serverId, unreadCount);
   }
 
   setServerMentionUnreadCount(serverId: string, mentionUnreadCount: number): void {
-    const normalizedMentionUnreadCount = Math.max(0, mentionUnreadCount);
-    this.servers.update((servers) =>
-      servers.map((server) =>
-        server.id === serverId
-          ? {
-              ...server,
-              mention_unread_count: normalizedMentionUnreadCount,
-            }
-          : server
-      )
-    );
+    this.serverUnread.setMentionUnreadCount(serverId, mentionUnreadCount);
   }
 
   setChannelUnreadCount(channelId: string, unreadCount: number): void {
-    const normalizedUnreadCount = Math.max(0, unreadCount);
-    this.channels.update((channels) =>
-      channels.map((channel) =>
-        channel.id === channelId
-          ? {
-              ...channel,
-              unread_count: normalizedUnreadCount,
-            }
-          : channel
-      )
-    );
+    this.channelUnread.setUnreadCount(channelId, unreadCount);
   }
 
   setChannelMentionUnreadCount(channelId: string, mentionUnreadCount: number): void {
-    const normalizedMentionUnreadCount = Math.max(0, mentionUnreadCount);
-    this.channels.update((channels) =>
-      channels.map((channel) =>
-        channel.id === channelId
-          ? {
-              ...channel,
-              mention_unread_count: normalizedMentionUnreadCount,
-            }
-          : channel
-      )
-    );
+    this.channelUnread.setMentionUnreadCount(channelId, mentionUnreadCount);
   }
 
   setChannelFirstUnreadMessageId(channelId: string, messageId: string | null): void {
-    this.channels.update((channels) =>
-      channels.map((channel) =>
-        channel.id === channelId
-          ? {
-              ...channel,
-              first_unread_message_id: messageId,
-            }
-          : channel
-      )
-    );
+    this.channelUnread.setFirstUnreadMessageId(channelId, messageId);
   }
 
   setChannelFirstMentionUnreadMessageId(channelId: string, messageId: string | null): void {
-    this.channels.update((channels) =>
-      channels.map((channel) =>
-        channel.id === channelId
-          ? {
-              ...channel,
-              first_mention_unread_message_id: messageId,
-            }
-          : channel
-      )
-    );
+    this.channelUnread.setFirstMentionUnreadMessageId(channelId, messageId);
   }
 
   setChannelFirstUnreadMessageIdIfMissing(channelId: string, messageId: string): void {
-    this.channels.update((channels) =>
-      channels.map((channel) =>
-        channel.id === channelId && !channel.first_unread_message_id
-          ? {
-              ...channel,
-              first_unread_message_id: messageId,
-            }
-          : channel
-      )
-    );
+    this.channelUnread.setFirstUnreadMessageIdIfMissing(channelId, messageId);
   }
 
   setChannelFirstMentionUnreadMessageIdIfMissing(channelId: string, messageId: string): void {
-    this.channels.update((channels) =>
-      channels.map((channel) =>
-        channel.id === channelId && !channel.first_mention_unread_message_id
-          ? {
-              ...channel,
-              first_mention_unread_message_id: messageId,
-            }
-          : channel
-      )
-    );
+    this.channelUnread.setFirstMentionUnreadMessageIdIfMissing(channelId, messageId);
   }
 
   bumpServerUnreadCount(serverId: string, delta = 1): void {
-    if (!delta) {
-      return;
-    }
-
-    this.servers.update((servers) =>
-      servers.map((server) =>
-        server.id === serverId
-          ? {
-              ...server,
-              unread_count: Math.max(0, (server.unread_count ?? 0) + delta),
-            }
-          : server
-      )
-    );
+    this.serverUnread.bumpUnreadCount(serverId, delta);
   }
 
   bumpServerMentionUnreadCount(serverId: string, delta = 1): void {
-    if (!delta) {
-      return;
-    }
-
-    this.servers.update((servers) =>
-      servers.map((server) =>
-        server.id === serverId
-          ? {
-              ...server,
-              mention_unread_count: Math.max(0, (server.mention_unread_count ?? 0) + delta),
-            }
-          : server
-      )
-    );
+    this.serverUnread.bumpMentionUnreadCount(serverId, delta);
   }
 
   bumpChannelUnreadCount(channelId: string, delta = 1): void {
-    if (!delta) {
-      return;
-    }
-
-    this.channels.update((channels) =>
-      channels.map((channel) =>
-        channel.id === channelId
-          ? {
-              ...channel,
-              unread_count: Math.max(0, (channel.unread_count ?? 0) + delta),
-            }
-          : channel
-      )
-    );
+    this.channelUnread.bumpUnreadCount(channelId, delta);
   }
 
   bumpChannelMentionUnreadCount(channelId: string, delta = 1): void {
-    if (!delta) {
-      return;
-    }
-
-    this.channels.update((channels) =>
-      channels.map((channel) =>
-        channel.id === channelId
-          ? {
-              ...channel,
-              mention_unread_count: Math.max(0, (channel.mention_unread_count ?? 0) + delta),
-            }
-          : channel
-      )
-    );
+    this.channelUnread.bumpMentionUnreadCount(channelId, delta);
   }
 
   setConversationUnreadCountByChannelId(channelId: string, unreadCount: number): void {
-    const normalizedUnreadCount = Math.max(0, unreadCount);
-    this.conversations.update((conversations) =>
-      conversations.map((conversation) =>
-        conversation.primary_channel_id === channelId
-          ? {
-              ...conversation,
-              unread_count: normalizedUnreadCount,
-            }
-          : conversation
-      )
-    );
+    this.conversationUnreadByChannel.setUnreadCount(channelId, unreadCount);
   }
 
-  setConversationMentionUnreadCountByChannelId(channelId: string, mentionUnreadCount: number): void {
-    const normalizedMentionUnreadCount = Math.max(0, mentionUnreadCount);
-    this.conversations.update((conversations) =>
-      conversations.map((conversation) =>
-        conversation.primary_channel_id === channelId
-          ? {
-              ...conversation,
-              mention_unread_count: normalizedMentionUnreadCount,
-            }
-          : conversation
-      )
-    );
+  setConversationMentionUnreadCountByChannelId(
+    channelId: string,
+    mentionUnreadCount: number,
+  ): void {
+    this.conversationUnreadByChannel.setMentionUnreadCount(channelId, mentionUnreadCount);
   }
 
-  setConversationFirstUnreadMessageIdByChannelId(channelId: string, messageId: string | null): void {
-    this.conversations.update((conversations) =>
-      conversations.map((conversation) =>
-        conversation.primary_channel_id === channelId
-          ? {
-              ...conversation,
-              first_unread_message_id: messageId,
-            }
-          : conversation
-      )
-    );
+  setConversationFirstUnreadMessageIdByChannelId(
+    channelId: string,
+    messageId: string | null,
+  ): void {
+    this.conversationUnreadByChannel.setFirstUnreadMessageId(channelId, messageId);
   }
 
-  setConversationFirstMentionUnreadMessageIdByChannelId(channelId: string, messageId: string | null): void {
-    this.conversations.update((conversations) =>
-      conversations.map((conversation) =>
-        conversation.primary_channel_id === channelId
-          ? {
-              ...conversation,
-              first_mention_unread_message_id: messageId,
-            }
-          : conversation
-      )
-    );
+  setConversationFirstMentionUnreadMessageIdByChannelId(
+    channelId: string,
+    messageId: string | null,
+  ): void {
+    this.conversationUnreadByChannel.setFirstMentionUnreadMessageId(channelId, messageId);
   }
 
   bumpConversationUnreadCount(serverId: string, delta = 1): void {
-    if (!delta) {
-      return;
-    }
-
-    this.conversations.update((conversations) =>
-      conversations.map((conversation) =>
-        conversation.id === serverId
-          ? {
-              ...conversation,
-              unread_count: Math.max(0, (conversation.unread_count ?? 0) + delta),
-            }
-          : conversation
-      )
-    );
+    this.conversationUnread.bumpUnreadCount(serverId, delta);
   }
 
   bumpConversationMentionUnreadCount(serverId: string, delta = 1): void {
-    if (!delta) {
-      return;
-    }
-
-    this.conversations.update((conversations) =>
-      conversations.map((conversation) =>
-        conversation.id === serverId
-          ? {
-              ...conversation,
-              mention_unread_count: Math.max(0, (conversation.mention_unread_count ?? 0) + delta),
-            }
-          : conversation
-      )
-    );
+    this.conversationUnread.bumpMentionUnreadCount(serverId, delta);
   }
-
 }
