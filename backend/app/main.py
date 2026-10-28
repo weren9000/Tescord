@@ -1,4 +1,6 @@
 from __future__ import annotations
+from app.services.pending_uploads import run_upload_cleanup
+from app.services.meeting_rooms import run_room_cleanup
 
 import asyncio
 import logging
@@ -64,11 +66,15 @@ async def lifespan(_: FastAPI):
     performance_task = asyncio.create_task(flush_metrics())
     presence_sweeper_task = asyncio.create_task(run_presence_sweeper())
     outbox_task = asyncio.create_task(run_message_outbox())
+    upload_cleanup_task = asyncio.create_task(run_upload_cleanup())
     media_task = asyncio.create_task(cluster.singleton('media', reconcile_media_permissions))
+    rooms_task = asyncio.create_task(cluster.singleton('meetings', run_room_cleanup))
     monitoring_task = asyncio.create_task(cluster.singleton('monitoring', collect_metrics))
     try:
         yield
     finally:
+        rooms_task.cancel()
+        await asyncio.gather(rooms_task, return_exceptions=True)
         performance_task.cancel()
         await asyncio.gather(performance_task, return_exceptions=True)
         monitoring_task.cancel()
@@ -77,6 +83,8 @@ async def lifespan(_: FastAPI):
         await stop_event_bus(event_bus_task)
         media_task.cancel()
         await asyncio.gather(media_task, return_exceptions=True)
+        upload_cleanup_task.cancel()
+        await asyncio.gather(upload_cleanup_task, return_exceptions=True)
         outbox_task.cancel()
         await asyncio.gather(outbox_task, return_exceptions=True)
         presence_sweeper_task.cancel()
@@ -131,3 +139,15 @@ def read_root() -> dict[str, str]:
 
 app.add_middleware(ResourceEventsMiddleware)
 app.add_middleware(PerformanceMiddleware)
+
+
+@app.middleware('http')
+async def meeting_no_store(request, call_next):
+    response = await call_next(request)
+    # Includes 410/403 responses: a completed meeting must never poison the
+    # shared state URL for the next meeting in the same browser.
+    if request.url.path.startswith(settings.api_prefix + '/rooms/'):
+        response.headers['Cache-Control'] = 'no-store'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+    return response

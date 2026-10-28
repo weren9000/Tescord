@@ -1,0 +1,262 @@
+@use 'ui-controls' as ui;
+
+:host {
+  --font-ui: var(--ui-font);
+  font-family: var(--ui-font);
+}
+@media (max-width: 980px) {
+  .messenger-shell .mobile-mode-footer {
+    grid-template-columns: 44px repeat(4, minmax(0, 1fr));
+    gap: 4px;
+    padding: 4px;
+  }
+  .messenger-shell .mobile-mode-footer > button {
+    position: relative;
+    width: 100%;
+    min-width: 0;
+    height: 44px;
+    min-height: 44px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--ui-radius-control);
+    background: transparent;
+    color: var(--palette-secondary);
+    box-shadow: none;
+    app-ui-icon {
+      width: 24px;
+      height: 24px;
+    }
+    &:hover,
+    &.mobile-mode-footer__button--active,
+    &.mobile-mode-footer__action--active {
+      background: var(--palette-selected);
+      color: var(--palette-primary-text);
+    }
+  }
+  .mobile-mode-footer__badge {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--palette-primary-text);
+  }
+}
+.messenger-shell .primary-button,
+.messenger-shell .secondary-button,
+.modal .primary-button,
+.modal .secondary-button {
+  @include ui.button;
+}
+.messenger-shell .primary-button,
+.modal .primary-button {
+  @include ui.primary;
+}
+.messenger-shell .secondary-button.group-voice-card__action,
+.messenger-shell .secondary-button.conversation-head__action--icon,
+.messenger-shell .secondary-button.platform-channel-entry__voice-action {
+  @include ui.icon;
+  > svg,
+  > img {
+    width: 20px;
+    height: 20px;
+    flex: 0 0 20px;
+  }
+}
+.messenger-shell .secondary-button.group-voice-card__action--active,
+.messenger-shell .secondary-button.platform-channel-entry__voice-action--active,
+.messenger-shell .secondary-button.conversation-head__settings-toggle--active {
+  color: var(--palette-primary-text);
+  background: var(--palette-selected);
+}
+.modal .modal__header {
+  @include ui.panel-heading;
+  padding: 8px 16px;
+}
+.modal .modal__header > div h3 {
+  font: 600 var(--ui-heading) / 1.3 var(--ui-font);
+}
+.modal {
+  border-radius: var(--ui-radius-dialog);
+}
+.modal .modal__actions {
+  gap: 8px;
+  padding: 16px;
+}
+.modal .modal__body {
+  padding: 16px;
+}
+.modal input:not([type='range']):not([type='checkbox']):not([type='radio']):not([type='file']),
+.modal select,
+.modal textarea {
+  @include ui.field;
+}
+.profile-card {
+  width: min(480px, calc(100vw - 24px));
+}
+.profile-card .profile-card__identity {
+  gap: 16px;
+}
+.profile-card .profile-card__avatar > span {
+  color: var(--palette-text);
+}
+.profile-card .profile-card__details {
+  margin-block: 24px 8px;
+  font-size: var(--ui-text);
+}
+.profile-card .profile-invitation {
+  padding: 0 16px 20px;
+  border-top: 1px solid var(--palette-border);
+}
+.profile-card .profile-card__feedback:empty {
+  display: none;
+}
+.workspace-empty-state {
+  gap: 16px;
+  padding: 24px;
+}
+.workspace-empty-state .workspace-empty-state__logo {
+  width: 120px;
+  height: 60px;
+  object-fit: contain;
+  margin: 0;
+}
+.workspace-empty-state > strong {
+  font-size: 18px;
+}
+.workspace-empty-state > small {
+  max-width: 440px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.workspace-empty-state .empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+.messenger-shell .call-window__roster {
+  width: 320px;
+  box-sizing: border-box;
+  border-radius: var(--ui-radius-panel);
+  padding: 0 12px 12px;
+}
+.messenger-shell .call-window__roster-head {
+  @include ui.panel-heading;
+  padding-inline: 0;
+}
+.messenger-shell .call-window__roster-head > span {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: var(--palette-raised);
+}
+.messenger-shell .call-participant {
+  padding: 8px 0;
+  gap: 4px 8px;
+}
+.messenger-shell .call-participant__name strong {
+  font-size: 14px;
+}
+.messenger-shell .call-participant__name small {
+  font-size: 12px;
+}
+.messenger-shell .call-participant .participant-inline-volume {
+  @include ui.volume;
+}
+.messenger-shell .call-window__controls .call-control-button {
+  @include ui.icon;
+}
+.messenger-shell .call-window__controls .call-control-button--active {
+  color: var(--palette-primary-text);
+  background: var(--palette-selected);
+}
+.messenger-shell .call-window__controls .call-control-button--muted {
+  color: var(--palette-muted);
+  background: var(--palette-hover);
+}
+.messenger-shell .call-window__controls .call-control-button--danger {
+  background: var(--palette-danger-surface);
+  color: var(--palette-danger-text);
+}
+.call-window__body--direct {
+  position: relative;
+}
+.messenger-shell .call-window__body--direct > .direct-participant-panel {
+  position: absolute;
+  display: block;
+  height: auto;
+  align-self: start;
+  z-index: 5;
+  inset: 8px 8px auto auto;
+  max-width: calc(100% - 16px);
+  max-height: calc(100% - 16px);
+  overflow: auto;
+  box-sizing: border-box;
+}
+@media (min-width: 981px) {
+  .messenger-shell .call-window__body--voice.conference-roster-open {
+    grid-template-columns: minmax(0, 1fr) 320px;
+  }
+}
+.direct-participant-panel .call-output-volume {
+  width: 100%;
+  padding: 8px 0;
+}
+.direct-participant-panel .direct-participant-name {
+  margin: 12px 0 0;
+  font-size: 14px;
+}
+.messenger-shell .call-window__bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+@media (max-width: 980px) {
+  .messenger-shell .call-window__roster {
+    width: auto;
+  }
+  .messenger-shell .direct-participant-panel {
+    width: min(320px, calc(100% - 16px));
+  }
+  .messenger-shell--call-window-open .mobile-mode-footer {
+    display: none;
+  }
+  .messenger-shell .call-window__empty-stage > strong,
+  .messenger-shell .call-window__empty-stage > small {
+    display: none;
+  }
+}
+
+.modal .modal__body {
+  padding: 12px 14px;
+}
+.modal .modal__actions {
+  padding: 10px 14px;
+}
+.modal--entity-create .entity-create {
+  gap: 10px;
+}
+.modal--entity-create .entity-create__section {
+  gap: 10px;
+}
+.modal--entity-create .entity-create__status:empty {
+  display: none;
+}
+.modal--entity-create .modal__header h3 {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.modal--entity-create .modal__header {
+  justify-content: flex-end;
+  border-bottom: 0;
+}
+.workspace-empty-state {
+  padding: 16px;
+  gap: 12px;
+}
+.profile-card .profile-card__details {
+  margin-top: 12px;
+}

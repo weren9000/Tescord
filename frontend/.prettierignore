@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.angular/
+public/
+src/assets/
+src/index.html
+package-lock.json
+eslint-suppressions.json
+format-baseline.json
+test-results/
+playwright-report/

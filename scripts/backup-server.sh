@@ -7,15 +7,16 @@ flock -w 300 9
 stamp=$(date -u +%Y%m%dT%H%M%SZ)
 backup="$base/backups/daily-$stamp"
 mkdir -p "$backup"
-runuser -u postgres -- pg_dump --format=custom tescord > "$backup/database.dump"
+runuser -u postgres -- pg_dump --format=custom --exclude-table-data='public.room_*' tescord > "$backup/database.dump"
 # Preserve files before pruning anything. User uploads live outside release directories.
 storage="$base/shared/storage"
 if [ ! -d "$storage" ]; then storage="$base/app/backend/storage"; fi
-tar -czf "$backup/storage.tar.gz" -C "$storage" .
-tar -czf "$backup/config.tar.gz" --exclude='*.log' -C / \
-    etc/nginx etc/livekit etc/systemd/system/tescord-backend.service \
-    etc/systemd/system/tescord-backend.service.d \
-    srv/tescord/shared/backend.env
+tar -czf "$backup/storage.tar.gz" --exclude='./meeting-files' -C "$storage" .
+configs=(etc/nginx etc/systemd/system/tescord-backend.service srv/tescord/shared/backend.env)
+for optional in etc/livekit etc/systemd/system/tescord-backend.service.d; do
+    if [ -e "/$optional" ]; then configs+=("$optional"); fi
+done
+tar -czf "$backup/config.tar.gz" --exclude='*.log' -C / "${configs[@]}"
 if [ -L "$base/current" ]; then readlink -f "$base/current" > "$backup/release.txt"; fi
 cd "$backup"
 sha256sum database.dump storage.tar.gz config.tar.gz > SHA256SUMS

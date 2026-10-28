@@ -1,4 +1,5 @@
 import {observeCall} from './call-telemetry';
+import {ParticipantAudioOutput} from '../../shared/participant-audio-output';
 import {computed, signal} from '@angular/core';
 import type {Room, LocalAudioTrack, LocalVideoTrack, RemoteTrack, Track} from 'livekit-client';
 import {SFU_BASE_URL, VOICE_ICE_SERVERS} from '../api/api-base';
@@ -17,6 +18,9 @@ export abstract class DirectCallMedia {
   private cameraTrack: LocalVideoTrack | null = null;
   private screenTrack: LocalVideoTrack | null = null;
   private remoteAudioElement: HTMLAudioElement | null = null;
+  private remotePlayback: ParticipantAudioOutput | null = null;
+  private readonly remoteAudioTracks = new Map<string, RemoteTrack>();
+  private audioPeerId: string | null = null;
   private cameraBusy = false;
   private screenBusy = false;
   private readonly unlockAudio = () => {void this.playAudio();};
@@ -52,6 +56,12 @@ export abstract class DirectCallMedia {
   }
 
   protected async connectMedia(credentials: {url: string; token: string}, peerId: string, telemetryToken: () => string | null): Promise<void> {
+    this.audioPeerId = peerId;
+    this.remoteVolume.set(100); this.outputMuted.set(false);
+    try {
+      const saved = JSON.parse(localStorage.getItem('tescord.direct.output.'+peerId) || 'null');
+      if (saved && Number.isFinite(saved.volume)) {this.remoteVolume.set(Math.max(0,Math.min(100,saved.volume)));this.outputMuted.set(saved.muted === true);}
+    } catch { /* Use defaults when storage is unavailable. */ }
     const generation = this.mediaGeneration;
     const sdk = await import('livekit-client');
     if (generation !== this.mediaGeneration) return;
@@ -68,7 +78,11 @@ export abstract class DirectCallMedia {
       if (!current()) return;
       if (publication.source === sdk.Track.Source.Camera && this.remoteCameraStream()?.getTracks().includes(track.mediaStreamTrack)) this.remoteCameraStream.set(null);
       if (publication.source === sdk.Track.Source.ScreenShare && this.remoteScreenStream()?.getTracks().includes(track.mediaStreamTrack)) this.remoteScreenStream.set(null);
-      if (track.kind === sdk.Track.Kind.Audio && (this.remoteAudioElement?.srcObject as MediaStream | null)?.getTracks().includes(track.mediaStreamTrack)) this.clearRemoteAudio();
+      if (track.kind === sdk.Track.Kind.Audio && this.remoteAudioTracks.get(track.mediaStreamTrack.id) === track) {
+        this.remoteAudioTracks.delete(track.mediaStreamTrack.id);
+        if (!this.remoteAudioTracks.size) this.clearRemoteAudio();
+        else this.syncRemoteAudio();
+      }
     });
     const reconnecting = () => {if(current()){this.state.set('connecting');this.notice.set('Восстанавливаем соединение…');}};
     room.on(sdk.RoomEvent.Reconnecting, reconnecting);
@@ -107,11 +121,8 @@ export abstract class DirectCallMedia {
     if (source === this.sdk!.Track.Source.Camera) this.remoteCameraStream.set(stream);
     else if (source === this.sdk!.Track.Source.ScreenShare) this.remoteScreenStream.set(stream);
     else if (track.kind === this.sdk!.Track.Kind.Audio) {
-      this.clearRemoteAudio();
-      const audio = new Audio();
-      prepareInlineMediaElement(audio);
-      audio.srcObject = stream;
-      this.remoteAudioElement = audio;
+      this.remoteAudioTracks.set(track.mediaStreamTrack.id, track);
+      this.syncRemoteAudio();
       this.applyRemoteVolume();
       void this.updateOutputDevice(this.outputDeviceId()).then(() => this.playAudio());
     }
@@ -120,7 +131,7 @@ export abstract class DirectCallMedia {
   private async playAudio(): Promise<void> {
     try {
       await this.room?.startAudio();
-      await this.remoteAudioElement?.play();
+      if (this.remotePlayback) await this.remotePlayback.play(); else await this.remoteAudioElement?.play();
       if (this.notice() === 'Коснитесь экрана, чтобы включить звук') this.notice.set(null);
     } catch {if(this.room)this.notice.set('Коснитесь экрана, чтобы включить звук');}
   }
@@ -158,12 +169,17 @@ export abstract class DirectCallMedia {
     if (this.localAudioTrack) void (muted ? this.localAudioTrack.mute() : this.localAudioTrack.unmute()).catch(() => {});
   }
   toggleLocalMute(): void {this.setLocalMuted(!this.localMuted());}
-  toggleOutputMuted(): void {this.outputMuted.update(value => !value);this.applyRemoteVolume();}
+  toggleOutputMuted(): void {this.outputMuted.update(value => !value);this.applyRemoteVolume();this.savePersonalVolume();}
   updateRemoteVolume(value: number | string): void {
     if (!Number.isFinite(Number(value))) return;
-    this.remoteVolume.set(Math.max(0, Math.min(100, Number(value))));this.applyRemoteVolume();
+    this.remoteVolume.set(Math.max(0, Math.min(100, Number(value))));this.outputMuted.set(false);this.applyRemoteVolume();this.savePersonalVolume();
+  }
+  private savePersonalVolume(): void {
+    if (!this.audioPeerId) return;
+    try {localStorage.setItem('tescord.direct.output.'+this.audioPeerId,JSON.stringify({volume:this.remoteVolume(),muted:this.outputMuted()}));} catch {}
   }
   private applyRemoteVolume(): void {
+    if (this.remotePlayback) { this.remotePlayback.setVolume(this.outputMuted() ? 0 : this.remoteVolume()/100); return; }
     if(this.remoteAudioElement){this.remoteAudioElement.volume=this.outputMuted()?0:this.remoteVolume()/100;this.remoteAudioElement.muted=this.outputMuted();}
   }
   async setCameraDevice(deviceId: string | null): Promise<void> {
@@ -200,9 +216,20 @@ export abstract class DirectCallMedia {
     if(track && room)await room.localParticipant.unpublishTrack(track,false).catch(()=>{});
   }
   private clearRemoteAudio(): void {
+    this.remotePlayback?.dispose();this.remotePlayback=null;this.remoteAudioTracks.clear();
     if(this.remoteAudioElement){this.remoteAudioElement.pause();this.remoteAudioElement.srcObject=null;this.remoteAudioElement=null;}
   }
+  private syncRemoteAudio(): void {
+    if (!this.remoteAudioElement) {
+      this.remoteAudioElement = new Audio();prepareInlineMediaElement(this.remoteAudioElement);
+      this.remotePlayback = new ParticipantAudioOutput(this.remoteAudioElement);
+    }
+    this.remotePlayback!.setStream(new MediaStream([...this.remoteAudioTracks.values()].map(t => t.mediaStreamTrack)));
+    this.applyRemoteVolume();
+    void this.playAudio();
+  }
   protected disconnectMedia(): void {
+    this.audioPeerId = null;
     this.stopTelemetry?.(); this.stopTelemetry = null;
     this.mediaGeneration++;
     const room=this.room;this.room=null;

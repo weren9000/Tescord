@@ -1,5 +1,5 @@
 import {UserCardDirective} from './user-card.directive';
-import {Component, ElementRef, OnDestroy, OnInit, ViewChild, inject, input, output, signal} from '@angular/core';
+import {Component, ElementRef, OnDestroy, OnInit, ViewChild, computed, inject, input, output, signal} from '@angular/core';
 import {CommonModule} from '@angular/common';
 import {FormsModule} from '@angular/forms';
 import {HttpClient, HttpErrorResponse} from '@angular/common/http';
@@ -8,9 +8,12 @@ import {API_BASE_URL} from '../core/api/api-base';
 import {AdminStatisticsComponent} from './admin-statistics.component';
 import {AdminItemsComponent} from './admin-items.component';
 import {WalletComponent} from './wallet.component';
+import {AdminWalletBatchComponent} from './admin-wallet-batch.component';
+import {AdminUserInventoryComponent} from './admin-user-inventory.component';
 
 type Tab = 'users' | 'groups' | 'platforms';
 interface Entry {
+  coins?:number;crystals?:number;inventory_count?:number;
   id: string; name: string; public_id?: number; email?: string; created_at: string;
   is_admin?: boolean; is_avatar_admin?: boolean; avatar_updated_at?: string;
   owner_id?: string; owner_name?: string; members_count?: number; channels_count?: number;
@@ -20,9 +23,32 @@ interface Page {items: Entry[]; total: number; page: number; pages: number}
 interface Filter {q: string; owner: string; role: string; sort: string; page: number; size: number; scroll: number; sortBy:string; direction:'asc'|'desc'; columns:Record<string,string>}
 const emptyPage = (): Page => ({items: [], total: 0, page: 1, pages: 1});
 
-@Component({selector:'app-admin-directory', standalone:true, imports: [UserCardDirective, WalletComponent, CommonModule, FormsModule, AdminItemsComponent, AdminStatisticsComponent],
+@Component({selector:'app-admin-directory', standalone:true, imports: [AdminWalletBatchComponent, AdminUserInventoryComponent, UserCardDirective, WalletComponent, CommonModule, FormsModule, AdminItemsComponent, AdminStatisticsComponent],
   templateUrl:'./admin-directory.component.html', styleUrl:'./admin-directory.component.scss'})
 export class AdminDirectoryComponent implements OnInit, OnDestroy {
+  readonly selection=signal<Set<string>>(new Set());
+  readonly selecting=signal(false);
+  readonly batchActive=signal(false);
+  readonly savedBatch=signal(false);
+  readonly userSection=signal<'profile'|'wallet'|'inventory'>('profile');
+  clearSelection(){this.selection.set(new Set());}
+  get selectedIds(){return [...this.selection()];}
+  get pageSelected(){return this.result().items.length>0&&this.result().items.every(r=>this.selection().has(r.id));}
+  toggleUser(id:string){this.selection.update(old=>{const next=new Set(old);if(next.has(id))next.delete(id);else if(next.size<1000)next.add(id);else this.error.set('Можно выбрать не более 1000 пользователей.');return next;});}
+  togglePage(){const remove=this.pageSelected;this.selection.update(old=>{const next=new Set(old);for(const row of this.result().items){if(remove)next.delete(row.id);else if(next.size<1000)next.add(row.id);}return next;});}
+  selectFiltered(){
+    if(this.selecting()||this.loading())return;this.selecting.set(true);
+    this.get<{user_ids:string[]}>('/users',{...this.queryParams(),selection:'true'}).subscribe({
+      next:data=>{this.selection.set(new Set(data.user_ids));this.selecting.set(false);},
+      error:e=>{this.error.set(e instanceof HttpErrorResponse&&typeof e.error?.detail==='string'?e.error.detail:this.message(e));this.selecting.set(false);}
+    });
+  }
+  private queryParams(){const f=this.filter;const params:Record<string,string|number>={q:f.q,sort:f.sort,page:f.page,size:f.size,sort_by:f.sortBy,direction:f.direction};
+    if(this.tab()==='users')params['role']=f.role;else params['owner']=f.owner;
+    for(const [key,value] of Object.entries(f.columns))if(value!==''&&value!=null)params[key]=value;
+    return params;
+  }
+  readonly walletTarget=computed(()=>{const row=this.detail();return row?{id:row.id,name:row.name,public_id:row.public_id??0}:null;});
   readonly token = input.required<string>();
   readonly systemAdmin=input(true);
   readonly actorId=input.required<string>();
@@ -62,7 +88,7 @@ export class AdminDirectoryComponent implements OnInit, OnDestroy {
   private opener?: HTMLElement;
   private detailKey = '';
   private readonly filters: Record<Tab,Filter> = Object.fromEntries(['users','groups','platforms'].map(k=>[k,{q:'',owner:'',role:'all',sort:'new',page:1,size:24,scroll:0,sortBy:'created_at',direction:'desc',columns:{}}])) as Record<Tab,Filter>;
-  get columns(){return this.tab()==='users'?[{key:'name',label:'Пользователь',type:'text'},{key:'public_id',label:'ID',type:'number'},{key:'role',label:'Роль',type:'role'},{key:'created_at',label:'Регистрация · UTC',type:'date'}]:[{key:'name',label:'Название',type:'text'},{key:'owner',label:'Владелец',type:'text'},{key:'members',label:'Участники',type:'range'},...(this.tab()==='platforms'?[{key:'channels',label:'Каналы',type:'range'}]:[]),{key:'created_at',label:'Создано · UTC',type:'date'}];}
+  get columns(){return this.tab()==='users'?[{key:'name',label:'Пользователь',type:'text'},{key:'public_id',label:'ID',type:'number'},{key:'role',label:'Роль',type:'role'},{key:'coins',label:'Монеты',type:'none'},{key:'crystals',label:'Кристаллы',type:'none'},{key:'inventory_count',label:'Предметы',type:'none'},{key:'created_at',label:'Регистрация · UTC',type:'date'}]:[{key:'name',label:'Название',type:'text'},{key:'owner',label:'Владелец',type:'text'},{key:'members',label:'Участники',type:'range'},...(this.tab()==='platforms'?[{key:'channels',label:'Каналы',type:'range'}]:[]),{key:'created_at',label:'Создано · UTC',type:'date'}];}
   sortColumn(key:string){this.filter.direction=this.filter.sortBy===key&&this.filter.direction==='asc'?'desc':'asc';this.filter.sortBy=key;this.change();}
   sortState(key:string){return this.filter.sortBy===key?(this.filter.direction==='asc'?'ascending':'descending'):'none';}
   @ViewChild('list') list?: ElementRef<HTMLElement>;
@@ -78,6 +104,7 @@ export class AdminDirectoryComponent implements OnInit, OnDestroy {
   reset(){Object.assign(this.filter,{q:'',owner:'',role:'all',sort:'new',page:1,scroll:0,sortBy:'created_at',direction:'desc',columns:{}});this.load();}
   go(page:number){this.filter.page=page;this.filter.scroll=0;this.load();}
   load(restore=false){
+    try{this.savedBatch.set(!!localStorage.getItem('kva.admin.batch.'+this.actorId()));}catch{this.savedBatch.set(false);}
     this.listSub?.unsubscribe();this.loading.set(false);
     const fields=this.filter.columns;
     const present=(key:string)=>fields[key]!=null&&fields[key]!=='';
@@ -94,6 +121,7 @@ export class AdminDirectoryComponent implements OnInit, OnDestroy {
     },error:e=>{this.error.set(this.message(e));this.loading.set(false);}});
   }
   open(row:Entry,kind:Tab=this.tab()){
+    this.userSection.set('profile');
     this.opener=document.activeElement as HTMLElement;this.detailKey=row.id;this.detailKind.set(kind);this.detailOpen.set(true);
     this.detail.set(null);this.detailLoading.set(true);this.detailError.set('');this.copied.set('');this.memberSearch='';
     this.relatedSub?.unsubscribe();this.related.set(emptyPage());this.relatedError.set('');this.detailSub?.unsubscribe();

@@ -1,12 +1,11 @@
 from __future__ import annotations
 from app.services.reaction_codes import normalize_reaction, ordered_codes
 
-import asyncio
 from datetime import datetime, timedelta, timezone
 from urllib.parse import quote
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, Response, status
 from fastapi import UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy import and_, or_, select, func
@@ -62,6 +61,8 @@ from app.services.attachment_storage import (
 from app.services.push_notifications import publish_message_push_notifications
 from app.services.message_mentions import resolve_message_mention_user_ids
 from app.services.server_access import ensure_channel_server_access
+from app.db.models import PendingUpload
+from app.services.pending_uploads import lock_owner, used_storage
 from app.services.voice_access import can_view_voice_channel, get_voice_channel_access
 
 router = APIRouter(tags=["messages"])
@@ -171,7 +172,7 @@ def _build_message_summary(message: Message, current_user_id: UUID) -> ChannelMe
         edited_at=message.edited_at,
         author=_build_author_summary(message.author),
         reply_to=_build_reply_summary(message.reply_to),
-        attachments=[_build_attachment_summary(attachment) for attachment in message.attachments],
+        attachments=[_build_attachment_summary(attachment) for attachment in sorted(message.attachments, key=lambda a: (a.position, a.created_at, str(a.id)))],
         reactions=_build_reaction_summaries(message, current_user_id),
         read_by=read_by,
         mentioned_user_ids=[mention.user_id for mention in message.mentions],
@@ -614,25 +615,85 @@ def search_channel_messages(
     return [_build_message_search_summary(message) for message in rows]
 
 
+@router.get('/uploads/limits')
+def upload_limits(current_user: User = Depends(get_current_user)):
+    return {'max_files':10,'max_file_bytes':MAX_ATTACHMENT_SIZE_BYTES,'max_message_bytes':get_settings().max_message_upload_bytes}
+
+
+@router.put('/channels/{channel_id}/uploads/{upload_id}')
+def stage_upload(channel_id: UUID, upload_id: UUID, file: UploadFile = File(), current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _get_accessible_message_channel(db, channel_id, current_user)
+    path = None
+    try:
+        lock_owner(db, current_user.id)
+        previous = db.get(PendingUpload, upload_id)
+        if db.get(Attachment,upload_id) is not None:raise HTTPException(409,'Идентификатор загрузки уже используется')
+        if previous:
+            if previous.owner_id != current_user.id or previous.channel_id != channel_id or previous.message_id is not None:
+                raise HTTPException(409, 'Идентификатор загрузки уже используется')
+            if previous.expires_at <= datetime.now(timezone.utc):
+                raise HTTPException(410, 'Срок хранения загрузки истёк. Повторите загрузку.')
+            if previous.filename != _sanitize_filename(file.filename) or (file.size is not None and previous.size_bytes != file.size):
+                raise HTTPException(409, 'Идентификатор принадлежит другому файлу')
+            return {'id':previous.id,'size_bytes':previous.size_bytes}
+        remaining=get_settings().user_upload_quota_bytes-used_storage(db,current_user.id)
+        limit=min(MAX_ATTACHMENT_SIZE_BYTES,get_settings().max_message_upload_bytes,remaining)
+        if limit<=0:raise HTTPException(413,'Лимит хранения вложений исчерпан')
+        stored=store_upload_file(file,uuid4(),_sanitize_filename(file.filename),max_size_bytes=limit)
+        path=stored.storage_path
+        db.add(PendingUpload(id=upload_id,owner_id=current_user.id,channel_id=channel_id,
+            filename=stored.filename,mime_type=stored.mime_type,storage_path=path,size_bytes=stored.size_bytes,
+            checksum_sha256=stored.checksum_sha256,expires_at=datetime.now(timezone.utc)+timedelta(hours=24)))
+        db.commit()
+        return {'id':upload_id,'size_bytes':stored.size_bytes}
+    except AttachmentTooLargeError as exc:
+        db.rollback()
+        raise HTTPException(413,'Превышен размер файла или доступный объём хранения') from exc
+    except Exception:
+        db.rollback()
+        if path:delete_stored_attachment(path)
+        raise
+    finally:file.file.close()
+
+
+@router.delete('/uploads/{upload_id}', status_code=204)
+def discard_upload(upload_id: UUID,current_user: User = Depends(get_current_user),db: Session = Depends(get_db)):
+    lock_owner(db,current_user.id)
+    row=db.scalar(select(PendingUpload).where(PendingUpload.id==upload_id).with_for_update())
+    if row is None:return Response(status_code=204)
+    if row.owner_id!=current_user.id:raise HTTPException(404,'Загрузка не найдена')
+    if row.message_id is not None:raise HTTPException(409,'Файл уже отправлен в сообщении')
+    path=row.storage_path
+    db.delete(row);db.commit();delete_stored_attachment(path)
+    return Response(status_code=204)
+
+
 @router.post("/channels/{channel_id}/messages", response_model=ChannelMessageSummary, status_code=status.HTTP_201_CREATED)
-async def create_channel_message(
+def create_channel_message(
     channel_id: UUID,
+    background_tasks: BackgroundTasks,
     content: str = Form(default=""),
     reply_to_message_id: UUID | None = Form(default=None),
     client_message_id: UUID | None = Form(default=None),
     files: list[UploadFile] | None = File(default=None),
+    upload_ids: list[UUID] | None = Form(default=None),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> ChannelMessageSummary:
     channel = _get_accessible_message_channel(db, channel_id, current_user)
 
     normalized_content = content.strip()
+    uploads = [upload for upload in (files or []) if upload.filename]
+    staged_ids = upload_ids or []
+    if len(uploads)+len(staged_ids)>10:raise HTTPException(413,'Не более 10 вложений в сообщении')
+    if len(set(staged_ids))!=len(staged_ids):raise HTTPException(400,'Вложения не должны повторяться')
+    if uploads and staged_ids:raise HTTPException(400,'Используйте один способ загрузки вложений')
     if len(normalized_content) > 20000:
         raise HTTPException(status_code=413, detail="Сообщение слишком длинное")
     if client_message_id is not None:
         # Serialize retries of this nonce before writing any attachment files.
         if db.bind.dialect.name == "postgresql":
-            await asyncio.to_thread(db.execute, text("SELECT pg_advisory_xact_lock(:key)"), {"key": int.from_bytes(client_message_id.bytes[:8], "big", signed=True)})
+            db.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": int.from_bytes(client_message_id.bytes[:8], "big", signed=True)})
         previous = db.execute(select(Message.id).where(
             Message.author_id == current_user.id, Message.client_message_id == client_message_id,
         )).scalar_one_or_none()
@@ -640,13 +701,27 @@ async def create_channel_message(
             original = _load_message(db, previous)
             if original.channel_id != channel.id or original.content != normalized_content or original.reply_to_message_id != reply_to_message_id:
                 raise HTTPException(status_code=409, detail="Идентификатор отправки уже использован")
+            if staged_ids and set(staged_ids)!={a.id for a in original.attachments}:
+                raise HTTPException(409,'Идентификатор отправки принадлежит другому набору файлов')
             for upload in files or []:
-                await upload.close()
+                upload.file.close()
             return _build_message_summary(original, current_user.id)
     uploads = [upload for upload in (files or []) if upload.filename]
     if len(uploads) > 10:
         raise HTTPException(status_code=413, detail="Не более 10 вложений в сообщении")
-    if not normalized_content and not uploads:
+    staged = []
+    if staged_ids:
+        lock_owner(db,current_user.id)
+        for upload_id in staged_ids:
+            row=db.scalar(select(PendingUpload).where(PendingUpload.id==upload_id).with_for_update())
+            if row is None or row.owner_id!=current_user.id or row.channel_id!=channel.id:
+                raise HTTPException(404,'Подготовленное вложение не найдено')
+            if row.message_id is not None:raise HTTPException(409,'Вложение уже отправлено')
+            if row.expires_at<=datetime.now(timezone.utc):raise HTTPException(410,'Срок хранения вложений истёк. Повторите загрузку.')
+            staged.append(row)
+        if sum(row.size_bytes for row in staged)>get_settings().max_message_upload_bytes:
+            raise HTTPException(413,'Превышен суммарный размер вложений сообщения')
+    if not normalized_content and not uploads and not staged:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Нужно отправить текст сообщения или хотя бы один файл",
@@ -688,16 +763,16 @@ async def create_channel_message(
         remaining_upload_bytes = get_settings().max_message_upload_bytes
         if uploads:
             # Lock the author's quota until this message commits, including concurrent uploads.
-            await asyncio.to_thread(db.execute, text("SELECT pg_advisory_xact_lock(:key)"), {"key": int.from_bytes(current_user.id.bytes[:8], "big", signed=True)})
-            used_bytes = db.scalar(select(func.coalesce(func.sum(Attachment.size_bytes), 0)).join(Message, Message.id == Attachment.message_id).where(Message.author_id == current_user.id, Attachment.deleted_at.is_(None)))
+            lock_owner(db, current_user.id)
+            used_bytes = used_storage(db, current_user.id)
             remaining_upload_bytes = min(remaining_upload_bytes, get_settings().user_upload_quota_bytes - used_bytes)
             if remaining_upload_bytes <= 0:
                 raise HTTPException(status_code=413, detail="Лимит хранения вложений исчерпан")
-        for upload in uploads:
+        for position, upload in enumerate(uploads):
             attachment_id = uuid4()
             sanitized_filename = _sanitize_filename(upload.filename)
             try:
-                stored_attachment = await store_upload_file(
+                stored_attachment = store_upload_file(
                     upload,
                     attachment_id=attachment_id,
                     filename=sanitized_filename,
@@ -714,6 +789,7 @@ async def create_channel_message(
 
             attachment = Attachment(
                 id=attachment_id,
+                position=position,
                 message_id=message.id,
                 filename=stored_attachment.filename,
                 mime_type=stored_attachment.mime_type,
@@ -723,6 +799,12 @@ async def create_channel_message(
                 content=None,
             )
             db.add(attachment)
+
+        for position,row in enumerate(staged):
+            db.add(Attachment(id=row.id,message_id=message.id,position=position,filename=row.filename,
+                mime_type=row.mime_type,size_bytes=row.size_bytes,checksum_sha256=row.checksum_sha256,
+                storage_path=row.storage_path,content=None))
+            row.message_id=message.id
 
         db.add(OutboxEvent(message_id=message.id))
         db.commit()
@@ -738,10 +820,10 @@ async def create_channel_message(
         raise
     finally:
         for upload in uploads:
-            await upload.close()
+            upload.file.close()
 
     from app.services.message_outbox import notify_outbox
-    await notify_outbox()
+    background_tasks.add_task(notify_outbox)
 
     created_message = _load_message(db, message.id)
     if created_message is None:
@@ -973,4 +1055,17 @@ def download_attachment(
 ) -> Response:
     attachment = _get_downloadable_attachment(db, attachment_id, current_user)
     return _build_attachment_download_response(attachment)
+
+
+@router.get('/attachments/{attachment_id}/preview')
+def image_attachment_preview(attachment_id: UUID, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> Response:
+    attachment = _get_downloadable_attachment(db, attachment_id, current_user)
+    if not attachment.storage_path:
+        raise HTTPException(404, 'Превью недоступно. Можно открыть оригинал.')
+    from app.services.attachment_storage import resolve_attachment_path
+    from app.services.attachment_previews import ensure_preview
+    preview = ensure_preview(resolve_attachment_path(attachment.storage_path))
+    if preview is None:
+        raise HTTPException(404, 'Превью недоступно. Можно открыть оригинал.')
+    return FileResponse(preview, media_type='image/webp', headers={'Cache-Control':'private, max-age=300', 'Vary':'Authorization', 'X-Content-Type-Options':'nosniff'})
 

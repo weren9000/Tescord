@@ -60,3 +60,8 @@
 .messenger-shell .composer-emoji>button:focus-visible{outline:2px solid var(--palette-primary);outline-offset:-2px}
 .messenger-shell .composer-emoji>button:disabled{opacity:.45;cursor:default}
 .messenger-shell .composer-emoji svg,.messenger-shell .composer__submit svg{display:block;width:22px;height:22px}
+
+/* File messages reserve enough room for their controls even with a short filename. */
+.messenger-shell .message-list .message-card:has(app-file-attachment){width:min(400px,100%)}
+.messenger-shell .message-list .message-card:has(app-file-attachment) .message-card__body{flex:1;min-width:0}
+.messenger-shell .message-card:has(app-file-attachment) .bubble-footer{float:none;display:flex;margin:6px 0 0;clear:both}

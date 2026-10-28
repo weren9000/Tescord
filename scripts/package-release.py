@@ -1,6 +1,7 @@
 """Package committed source and the production frontend build for deploy-release.sh."""
 import hashlib
 import io
+import json
 from pathlib import Path
 import subprocess
 import sys
@@ -15,9 +16,22 @@ build = root / 'frontend/dist/frontend/browser'
 if not (build / 'index.html').is_file():
     raise SystemExit('Run npm ci and npm run build in frontend first')
 import re
-for download in set(re.findall(r'href="(/downloads/[^"?]+)"', (build / 'index.html').read_text(encoding='utf-8'))):
+downloads = set(re.findall(r'href="(/downloads/[^"?]+)"', (build / 'index.html').read_text(encoding='utf-8')))
+desktop_version = json.loads((root / 'desktop/package.json').read_text(encoding='utf-8'))['version']
+android_version = json.loads((root / 'mobile/package.json').read_text(encoding='utf-8'))['version']
+expected_downloads = {
+    f'/downloads/KvaChat-Setup-{desktop_version}-x64.exe',
+    f'/downloads/KvaChat-{android_version}-android.apk',
+}
+if not expected_downloads.issubset(downloads):
+    raise SystemExit('Landing download versions do not match package versions. Update landing links and rebuild frontend.')
+for download in downloads:
     if not (build / download.lstrip('/')).is_file():
         raise SystemExit('Missing landing download. Run scripts/prepare-downloads.py, then rebuild frontend: ' + download)
+    staged = build / download.lstrip('/')
+    public = root / 'frontend/public' / download.lstrip('/')
+    if not public.is_file() or hashlib.sha256(staged.read_bytes()).digest() != hashlib.sha256(public.read_bytes()).digest():
+        raise SystemExit('Stale staged download. Run scripts/prepare-downloads.py: ' + download)
 source = subprocess.check_output(['git', '-c', 'core.autocrlf=false', 'archive', '--format=tar', 'HEAD'], cwd=root)
 checksums = []
 with tarfile.open(output, 'w:gz') as target:
@@ -30,6 +44,9 @@ with tarfile.open(output, 'w:gz') as target:
             checksums.append((entry.name, hashlib.sha256(content).hexdigest()))
     for path in sorted(build.rglob('*')):
         if path.is_file():
+            relative = path.relative_to(build).as_posix()
+            if relative.startswith('downloads/') and '/' + relative not in downloads:
+                continue  # Old installers remain in the server's immutable download store.
             name = path.relative_to(root).as_posix()
             target.add(path, arcname=name)
             checksums.append((name, hashlib.sha256(path.read_bytes()).hexdigest()))

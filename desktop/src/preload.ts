@@ -1,7 +1,7 @@
 import {contextBridge, ipcRenderer} from 'electron';
 
 contextBridge.exposeInMainWorld('kvaDesktop', Object.freeze({
-  version: '0.5.2',
+  get version(): string { return ipcRenderer.sendSync('app:version'); },
   readSession: (): string | null => ipcRenderer.sendSync('session:read'),
   writeSession: (value: string | null): boolean => ipcRenderer.sendSync('session:write', value),
   notify: (value: {id: string; title: string; body: string; target: string}): Promise<boolean> => ipcRenderer.invoke('notification:show', value),

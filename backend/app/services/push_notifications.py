@@ -11,7 +11,7 @@ from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
-from app.db.models import ConversationPushSetting, PushSubscription, Server, ServerKind, ServerMember, User
+from app.db.models import ConversationPushSetting, PlatformMember, PushSubscription, Server, ServerKind, ServerMember, User
 from app.db.session import SessionLocal
 from app.services.app_events import app_event_manager
 
@@ -140,6 +140,12 @@ def _collect_push_targets(
             ConversationPushSetting.push_enabled.is_(True),
         )
     ).scalars().all()
+
+    if server.platform_id is not None:
+        enabled = set(db.scalars(select(PlatformMember.user_id).where(
+            PlatformMember.platform_id == server.platform_id,
+            PlatformMember.notifications_enabled.is_(True))))
+        rows = [row for row in rows if row.user_id in enabled]
 
     targets = [
         PushDeliveryTarget(

@@ -14,7 +14,7 @@ export interface MessageLink {
 }
 
 export interface RenderedMessageSegment extends MessageContentSegment {
-  chunks: (TextHighlightChunk & {links: MessageLink[]})[];
+  chunks: (TextHighlightChunk & { links: MessageLink[] })[];
 }
 
 /** Only the identity fields needed to resolve mentions in the current chat. */

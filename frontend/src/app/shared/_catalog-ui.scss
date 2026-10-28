@@ -1,0 +1,51 @@
+@use 'ui-controls' as ui;
+
+@mixin controls {
+  :host {
+    font: 400 var(--ui-text) / 1.5 var(--ui-font);
+  }
+  button.primary,
+  .actions > button,
+  .subpanel footer > button,
+  .confirm > button,
+  .filter-sheet > button {
+    @include ui.button;
+  }
+  button.primary {
+    @include ui.primary;
+  }
+  .subpanel,
+  .confirm,
+  .filter-sheet {
+    border-radius: var(--ui-radius-dialog);
+  }
+  .subpanel > header,
+  .filter-sheet > header {
+    @include ui.panel-heading;
+  }
+  .panel-body
+    input:not([type='range']):not([type='checkbox']):not([type='radio']):not([type='file']),
+  .panel-body select,
+  .panel-body textarea,
+  .filter-sheet select {
+    @include ui.field;
+  }
+  .catalog-toolbar button,
+  .catalog-toolbar select {
+    font-size: 12px;
+    border-radius: var(--ui-radius-control);
+  }
+  .catalog-toolbar input {
+    border-radius: var(--ui-radius-control);
+  }
+  @media (pointer: coarse) {
+    .catalog-toolbar button,
+    .catalog-toolbar select {
+      min-height: 44px;
+    }
+    .catalog-toolbar input {
+      min-height: 44px;
+      font-size: 16px;
+    }
+  }
+}

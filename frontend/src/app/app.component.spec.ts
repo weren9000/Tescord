@@ -1,38 +1,48 @@
 import { computed, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { of, Subject } from 'rxjs';
-import { HttpErrorResponse } from '@angular/common/http';
 
 import { AppComponent } from './app.component';
 import { AuthApiService } from './core/api/auth-api.service';
 import { SystemApiService } from './core/api/system-api.service';
-import { WorkspaceApiService, WorkspaceMessageUploadEvent } from './core/api/workspace-api.service';
+import { WorkspaceApiService } from './core/api/workspace-api.service';
 import { DirectCallService } from './core/services/direct-call.service';
 import { VoiceRoomService } from './core/services/voice-room.service';
-import { ConversationSummary } from './core/models/conversation.models';
-import { CurrentUserResponse, WorkspaceMessage, WorkspaceMessageAttachment } from './core/models/workspace.models';
-
-const reader: CurrentUserResponse = {
-  id: 'reader', public_id: 1, email: 'reader@example.test', nick: 'Reader',
-  avatar_updated_at: null, is_admin: false, created_at: '2026-10-29T00:00:00Z',
-};
-const conversation: ConversationSummary = {
-  id: 'chat', kind: 'direct', title: 'Chat', subtitle: null,
-  icon_asset: null, icon_updated_at: null, member_role: 'member',
-  primary_channel_id: 'channel', unread_count: 0, mention_unread_count: 0,
-  first_unread_message_id: null, first_mention_unread_message_id: null,
-  push_enabled: false, members: [],
-};
-function incomingMessage(id: string): WorkspaceMessage {
-  return {
-    id, channel_id: 'channel', type: 'text', content: '@Reader привет',
-    created_at: '2026-10-29T00:00:00Z', edited_at: null,
-    author: {id: 'sender', public_id: 2, login: 'sender', nick: 'Sender', avatar_updated_at: null},
-    reply_to: null, attachments: [], reactions: [], read_by: [], mentioned_user_ids: ['reader'],
-  };
-}
 
 describe('AppComponent', () => {
+  it('ignores late members from a previously selected chat', () => {
+    const fixture = TestBed.createComponent(AppComponent), app = fixture.componentInstance;
+    const oldResponse = new Subject<any[]>(), newResponse = new Subject<any[]>();
+    spyOn(TestBed.inject(WorkspaceApiService), 'getMembers').and.returnValues(oldResponse, newResponse);
+    app.session.set({access_token: 'local-test'} as any);
+    app.selectedServerId.set('old');
+    app.refreshChatMembers();
+    app.selectedServerId.set('new');
+    app.refreshChatMembers();
+    oldResponse.next([{user_id: 'old-user'}]);
+    expect(app.membersLoading()).toBeTrue();
+    expect(app.members()).toEqual([]);
+    newResponse.next([{user_id: 'new-user'}]);
+    expect(app.membersLoading()).toBeFalse();
+    expect(app.members()[0].user_id).toBe('new-user');
+    fixture.destroy();
+  });
+
+  it('ends member loading on failure without discarding the visible conversation', () => {
+    const fixture = TestBed.createComponent(AppComponent), app = fixture.componentInstance;
+    const response = new Subject<any[]>();
+    spyOn(TestBed.inject(WorkspaceApiService), 'getMembers').and.returnValue(response);
+    app.session.set({access_token: 'local-test'} as any);
+    app.selectedServerId.set('chat');
+    const message = {id: 'visible-message'} as any;
+    app.messages.set([message]);
+    app.refreshChatMembers();
+    response.error(new Error('offline'));
+    expect(app.membersLoading()).toBeFalse();
+    expect(app.membersError()).toBeTruthy();
+    expect(app.messages()).toEqual([message]);
+    fixture.destroy();
+  });
   it('applies the general settings volume to the active direct call audio', () => {
     const direct = new DirectCallService();
     TestBed.overrideProvider(DirectCallService, {useValue: direct});
@@ -47,6 +57,35 @@ describe('AppComponent', () => {
       expect(audio.volume).toBeCloseTo(value / 100);
       expect(direct.localMuted()).toBeFalse();
     }
+    fixture.destroy();
+  });
+
+  it('restores sound from zero and preserves the selected level through mute', () => {
+    const direct = new DirectCallService();
+    TestBed.overrideProvider(DirectCallService, {useValue: direct});
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.componentInstance;
+    spyOn(app, 'activeCallSurface').and.returnValue({kind: 'direct'} as any);
+    const audio = new Audio();
+    (direct as any).remoteAudioElement = audio;
+    app.changeActiveCallVolume(0);
+    expect(app.activeCallOutputSilent()).toBeTrue();
+    app.toggleActiveCallOutput();
+    expect(app.activeCallOutputSilent()).toBeFalse();
+    expect(audio.volume).toBe(1);
+    app.changeActiveCallVolume(37);
+    app.toggleActiveCallOutput();
+    expect(app.activeCallOutputSilent()).toBeTrue();
+    expect(audio.muted).toBeTrue();
+    app.toggleActiveCallOutput();
+    expect(audio.volume).toBeCloseTo(.37);
+    expect(audio.muted).toBeFalse();
+    expect(direct.localMuted()).toBeFalse();
+    app.toggleActiveCallOutput();
+    app.changeActiveCallVolume(0);
+    app.toggleActiveCallOutput();
+    expect(app.activeCallOutputSilent()).toBeFalse();
+    expect(audio.volume).toBe(1);
     fixture.destroy();
   });
 
@@ -142,6 +181,93 @@ describe('AppComponent', () => {
     const fixture = TestBed.createComponent(AppComponent);
     expect(fixture.componentInstance).toBeTruthy();
   });
+  for (const kind of ['group', 'platform', 'direct'] as const) {
+    it(`expands the ${kind} call in its own space when another chat is open`, () => {
+      const fixture = TestBed.createComponent(AppComponent), app = fixture.componentInstance;
+      spyOn(app, 'activeCallSurface').and.returnValue({kind, id:'call', channelId:kind === 'direct' ? null : 'voice', title:'Call', subtitle:'', participantCount:2, activeSpeakerLabel:null});
+      spyOn(app, 'activeServer').and.returnValue({id:'other'} as any);
+      if (kind === 'direct') {
+        spyOn(app, 'directCallPeer').and.returnValue({user_id:'peer', nick:'Peer', avatar_updated_at:null});
+        spyOn(app, 'findDirectConversationByUserId').and.returnValue({id:'target'} as any);
+      } else {
+        app.activeVoiceCallSnapshot.set({kind, serverId:'target', serverName:'Target', channel:{id:'voice',type:'voice'} as any});
+      }
+      app.selectedServerId.set('other');app.callWindowMode.set('minimized');
+      const select = spyOn(app, 'selectServer');
+      const leave = spyOn(app, 'leaveVoiceChannel');
+      const hangup = spyOn(app, 'hangupDirectCall').and.resolveTo();
+      const close = spyOn(app, 'closeMobilePanel');
+      app.expandCallWindow();
+      expect(select).toHaveBeenCalledWith('target');
+      expect(app.workspaceMode()).toBe(kind === 'direct' ? 'chats' : kind === 'group' ? 'groups' : 'platforms');
+      if (kind === 'platform') expect((app as any).pendingSearchNavigation()).toEqual({serverId:'target',channelId:'voice'});
+      expect(app.callWindowMode()).toBe('expanded');expect(close).toHaveBeenCalled();
+      expect(leave).not.toHaveBeenCalled();expect(hangup).not.toHaveBeenCalled();fixture.destroy();
+    });
+  }
+  it('expands into the active voice room when another channel of the same platform is open', () => {
+    const fixture = TestBed.createComponent(AppComponent), app = fixture.componentInstance;
+    const channel = {id:'voice', type:'voice'} as any;
+    spyOn(app,'activeCallSurface').and.returnValue({kind:'platform',id:'call',channelId:'voice',title:'Call',subtitle:'',participantCount:2,activeSpeakerLabel:null});
+    app.activeVoiceCallSnapshot.set({kind:'platform',serverId:'target',serverName:'Target',channel});
+    app.selectedServerId.set('target');app.selectedChannelId.set('other');app.channels.set([channel]);
+    const select = spyOn(app,'selectChannel').and.resolveTo();
+    const server = spyOn(app,'selectServer');
+    app.expandCallWindow();
+    expect(select).toHaveBeenCalledWith(channel,{connectVoice:false});
+    expect(server).not.toHaveBeenCalled();expect(app.callWindowMode()).toBe('expanded');fixture.destroy();
+  });
+  it('opens the platform call chat without joining voice and keeps the draft', () => {
+    const fixture = TestBed.createComponent(AppComponent), app = fixture.componentInstance;
+    const channel = {id:'voice',type:'voice',name:'Room'} as any;
+    spyOn(app,'activeCallSurface').and.returnValue({kind:'platform',id:'platform:voice',channelId:'voice',title:'Room',subtitle:'Space',participantCount:3,activeSpeakerLabel:null});
+    app.activeVoiceCallSnapshot.set({kind:'platform',serverId:'space',serverName:'Space',channel});
+    app.selectedServerId.set('space');app.selectedChannelId.set('other');app.channels.set([channel]);
+    app.messageDraft.set('Unsent message');app.callWindowMode.set('expanded');
+    const select=spyOn(app,'selectChannel').and.resolveTo();
+    const leave=spyOn(app,'leaveVoiceChannel');
+    app.openActiveCallChat();
+    expect(select).toHaveBeenCalledWith(channel,{connectVoice:false});
+    expect(app.callWindowMode()).toBe('minimized');expect(app.messageDraft()).toBe('Unsent message');
+    expect(leave).not.toHaveBeenCalled();fixture.destroy();
+  });
+  it('returns to the group server without changing media state',()=>{
+    const fixture=TestBed.createComponent(AppComponent),app=fixture.componentInstance;
+    spyOn(app,'activeCallSurface').and.returnValue({kind:'group',id:'group:v',channelId:'v',title:'Group',subtitle:'Group',participantCount:2,activeSpeakerLabel:null});
+    app.activeVoiceCallSnapshot.set({kind:'group',serverId:'group',serverName:'Group',channel:{id:'v',type:'voice'} as any});
+    app.selectedServerId.set('elsewhere');const select=spyOn(app,'selectServer');const leave=spyOn(app,'leaveVoiceChannel');
+    app.openActiveCallChat();expect(select).toHaveBeenCalledWith('group');expect(app.workspaceMode()).toBe('groups');expect(leave).not.toHaveBeenCalled();fixture.destroy();
+  });
+  it('selects a presentation locally and falls back when that screen ends',()=>{
+    const fixture=TestBed.createComponent(AppComponent),app=fixture.componentInstance;
+    spyOn(app,'activeCallSurface').and.returnValue({kind:'group',id:'group:v',channelId:'v',title:'Group',subtitle:'Group',participantCount:2,activeSpeakerLabel:null});
+    const scene=signal<any>({stageTile:{id:'a',source:'screen-share'},secondaryTiles:[{id:'b',source:'screen-share'}],gridTiles:[]});
+    spyOn(app,'voiceVideoSceneForChannel').and.callFake(()=>scene());
+    app.conferenceScreenId.set('b');expect(app.activeCallVoiceVideoScene()?.stageTile?.id).toBe('b');
+    scene.set({...scene(),secondaryTiles:[]});expect(app.activeCallVoiceVideoScene()?.stageTile?.id).toBe('a');fixture.destroy();
+  });
+  it('opens the existing direct conversation for the call peer',()=>{
+    const fixture=TestBed.createComponent(AppComponent),app=fixture.componentInstance;
+    spyOn(app,'activeCallSurface').and.returnValue({kind:'direct',id:'direct:peer',channelId:null,title:'Peer',subtitle:'Call',participantCount:2,activeSpeakerLabel:null});
+    spyOn(app,'directCallPeer').and.returnValue({user_id:'peer',nick:'Peer',avatar_updated_at:null});
+    spyOn(app,'findDirectConversationByUserId').and.returnValue({id:'direct-chat'} as any);
+    const select=spyOn(app,'selectServer');const hangup=spyOn(app,'hangupDirectCall').and.resolveTo();
+    app.openActiveCallChat();expect(select).toHaveBeenCalledWith('direct-chat');expect(app.workspaceMode()).toBe('chats');expect(hangup).not.toHaveBeenCalled();fixture.destroy();
+  });
+  it('toggles a voice roster without joining and preserves the mobile panel', async () => {
+    const fixture = TestBed.createComponent(AppComponent), app = fixture.componentInstance;
+    const select = spyOn(app, 'selectChannel').and.resolveTo();
+    const channel = {id: 'voice-test', type: 'voice', name: 'Таверна'} as any;
+    await app.togglePlatformVoiceRoom(channel);
+    expect(app.expandedPlatformRosters().has(channel.id)).toBeTrue();
+    expect(select).toHaveBeenCalledWith(channel, {connectVoice: false, preserveMobilePanel: true});
+    app.selectedChannelId.set(channel.id);
+    select.calls.reset();
+    await app.togglePlatformVoiceRoom(channel);
+    expect(app.expandedPlatformRosters().has(channel.id)).toBeFalse();
+    expect(select).not.toHaveBeenCalled();
+    fixture.destroy();
+  });
   it('reuses text models across a long history and invalidates edited text and search', () => {
     const fixture=TestBed.createComponent(AppComponent), app=fixture.componentInstance;
     const messages=Array.from({length:1000},(_,i)=>({id:String(i),content:'Message '+i+' https://example.com',mentioned_user_ids:[]} as any));
@@ -150,128 +276,6 @@ describe('AppComponent', () => {
     messages[0].content='Edited';expect(app.messageTextModel(messages[0])).not.toBe(models[0]);
     const before=app.messageTextModel(messages[1]);app.messageSearchQuery.set('Message');
     expect(app.messageTextModel(messages[1])).not.toBe(before);
-    fixture.destroy();
-  });
-
-  it('updates unread state from incoming messages and clears it by channel on a read event', () => {
-    const fixture = TestBed.createComponent(AppComponent);
-    const app = fixture.componentInstance;
-    app.currentUser.set(reader);
-    app.conversations.set([{...conversation}]);
-    for (const id of ['first', 'second']) {
-      app['handleMessageCreatedEvent']({type: 'message_created', server_id: 'chat', message: incomingMessage(id)});
-    }
-    expect(app.conversations()[0]).toEqual(jasmine.objectContaining({
-      unread_count: 2, mention_unread_count: 2,
-      first_unread_message_id: 'first', first_mention_unread_message_id: 'first',
-    }));
-    app['handleMessageReadUpdatedEvent']({
-      type: 'message_read_updated', server_id: 'chat', channel_id: 'channel',
-      state: {
-        channel_id: 'channel', user_id: reader.id, last_read_message_id: 'second',
-        last_read_at: '2026-10-29T00:01:00Z', nick: reader.nick, public_id: reader.public_id,
-        avatar_updated_at: null,
-      },
-    });
-    expect(app.conversations()[0]).toEqual(jasmine.objectContaining({
-      unread_count: 0, mention_unread_count: 0,
-      first_unread_message_id: null, first_mention_unread_message_id: null,
-    }));
-    fixture.destroy();
-  });
-
-  it('updates platform and channel counters together for a message in another channel', () => {
-    const fixture = TestBed.createComponent(AppComponent);
-    const app = fixture.componentInstance;
-    app.currentUser.set(reader);
-    app.workspaceMode.set('platforms');
-    app.servers.set([{
-      id: 'platform', kind: 'workspace', name: 'Platform', slug: 'platform', description: null,
-      icon_asset: null, icon_updated_at: null, member_role: 'member', unread_count: 0, mention_unread_count: 0,
-    }]);
-    app.channels.set([{
-      id: 'channel', server_id: 'platform', name: 'Chat', topic: null, type: 'text', position: 0,
-      voice_access_role: null, unread_count: 0, mention_unread_count: 0,
-      first_unread_message_id: null, first_mention_unread_message_id: null,
-    }]);
-    app.selectedServerId.set('platform');
-    app['handleMessageCreatedEvent']({type: 'message_created', server_id: 'platform', message: incomingMessage('first')});
-    expect(app.servers()[0].unread_count).toBe(1);
-    expect(app.servers()[0].mention_unread_count).toBe(1);
-    expect(app.channels()[0].unread_count).toBe(1);
-    expect(app.channels()[0].mention_unread_count).toBe(1);
-    expect(app.channels()[0].first_unread_message_id).toBe('first');
-    fixture.destroy();
-  });
-
-  it('refreshes rendered mentions when the current membership snapshot changes', () => {
-    const fixture = TestBed.createComponent(AppComponent);
-    const app = fixture.componentInstance;
-    const message = incomingMessage('first');
-    app.members.set([{
-      id: 'membership', user_id: reader.id, public_id: reader.public_id,
-      login: 'reader', nick: reader.nick, avatar_updated_at: null, role: 'member', is_online: true,
-    }]);
-    const initial = app.messageTextModel(message);
-    expect(initial[0].mentionUserId).toBe(reader.id);
-    app.members.set([]);
-    const changed = app.messageTextModel(message);
-    expect(changed).not.toBe(initial);
-    expect(changed.every(segment => segment.mentionUserId === null)).toBeTrue();
-    fixture.destroy();
-  });
-
-  it('cancels an upload on workspace reset without applying a late failure to the new draft', () => {
-    const api = TestBed.inject(WorkspaceApiService);
-    const request = new Subject<WorkspaceMessageUploadEvent>();
-    api.sendMessage = jasmine.createSpy('sendMessage').and.returnValue(request);
-    const fixture = TestBed.createComponent(AppComponent);
-    const app = fixture.componentInstance;
-    app.session.set({access_token: 'test-token', token_type: 'bearer', user: reader});
-    app.selectedChannelId.set('channel');
-    spyOn(app, 'canSendMessage').and.returnValue(true);
-    spyOn(app, 'activeMessagingChannel').and.returnValue({
-      id: 'channel', server_id: 'chat', name: 'Chat', topic: null, type: 'text', position: 0,
-      voice_access_role: null, unread_count: 0, mention_unread_count: 0,
-      first_unread_message_id: null, first_mention_unread_message_id: null,
-    });
-    app.messageDraft.set('old draft');
-    app.pendingFiles.set([new File(['image'], 'image.png')]);
-    app.submitMessage();
-    expect(app.messageSubmitting()).toBeTrue();
-    app['resetTextChannelState']();
-    expect(request.observed).toBeFalse();
-    app.selectedChannelId.set('other-channel');
-    app.messageDraft.set('new draft');
-    request.error(new Error('late upload failure'));
-    expect(app.messageError()).toBeNull();
-    expect(app.messageDraft()).toBe('new draft');
-    expect(app.messageSubmitting()).toBeFalse();
-    expect(app.messageUploadProgress()).toBeNull();
-    fixture.destroy();
-  });
-
-  it('marks a gone preview as deleted and prevents it from being requested again', () => {
-    const api = TestBed.inject(WorkspaceApiService);
-    const request = new Subject<Blob>();
-    api.downloadAttachment = jasmine.createSpy('downloadAttachment').and.returnValue(request);
-    const fixture = TestBed.createComponent(AppComponent);
-    const app = fixture.componentInstance;
-    const attachment: WorkspaceMessageAttachment = {
-      id: 'image', filename: 'image.png', mime_type: 'image/png', size_bytes: 10,
-      created_at: '2026-10-29T00:00:00Z', deleted_at: null,
-    };
-    app.session.set({access_token: 'test-token', token_type: 'bearer', user: reader});
-    app.messages.set([{...incomingMessage('first'), attachments: [attachment]}]);
-    app.openImageAttachment(attachment);
-    expect(app.isAttachmentPreviewLoading(attachment)).toBeTrue();
-    request.error(new HttpErrorResponse({status: 410}));
-    const deleted = app.messages()[0].attachments[0];
-    expect(deleted.deleted_at).not.toBeNull();
-    expect(app.messageError()).toBe('Файл удален');
-    expect(app.isAttachmentPreviewLoading(attachment)).toBeFalse();
-    app.openImageAttachment(deleted);
-    expect(api.downloadAttachment).toHaveBeenCalledTimes(1);
     fixture.destroy();
   });
 

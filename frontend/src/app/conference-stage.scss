@@ -76,3 +76,97 @@
 }
 
 .messenger-shell--call-window-open .conversation-head .call-control-button{margin-left:auto;flex:none}
+
+/* Fullscreen controls overlay the media without reserving video space. */
+.call-media-fullscreen {
+ display:block;padding:0;gap:0;overflow:hidden;
+}
+.call-media-fullscreen .call-media-fullscreen__stage{position:absolute;inset:0}
+.call-media-fullscreen .call-media-fullscreen__back{
+ position:absolute;top:calc(12px + env(safe-area-inset-top));right:calc(12px + env(safe-area-inset-right));
+ z-index:3;width:44px;height:44px;border-radius:10px;color:var(--palette-text);
+ background:rgb(var(--rgb-surface) / .9);border:1px solid var(--palette-border);backdrop-filter:blur(12px);
+}
+.call-media-fullscreen .call-media-fullscreen__controls{
+ position:absolute;left:calc(8px + env(safe-area-inset-left));right:calc(8px + env(safe-area-inset-right));bottom:calc(12px + env(safe-area-inset-bottom));
+ width:max-content;max-width:calc(100% - 16px - env(safe-area-inset-left) - env(safe-area-inset-right));margin:0 auto;box-sizing:border-box;
+ background:rgb(var(--rgb-surface) / .94);border-color:var(--palette-border);gap:8px;
+}
+.call-media-fullscreen .call-media-fullscreen__controls .call-control-button{width:44px;height:44px;min-width:44px}
+.call-media-fullscreen .call-volume-control--fullscreen{min-height:44px}
+.call-media-fullscreen .call-media-fullscreen__controls:has(:focus-visible){opacity:1;transform:none;pointer-events:auto}
+@media(prefers-reduced-motion:reduce){.call-media-fullscreen .call-media-fullscreen__controls{transition:none}}
+
+/* A real layout row survives workspace navigation and never covers the composer. */
+.messenger-shell > .call-tray {
+ position:relative;inset:auto;transform:none;flex:0 0 auto;
+ width:100%;max-width:none;margin:0;padding:6px 16px;box-sizing:border-box;
+ display:flex;align-items:center;gap:12px;border:0;border-bottom:1px solid var(--palette-border);
+ border-radius:0;background:color-mix(in srgb,var(--palette-primary) 8%,var(--palette-surface));color:var(--palette-text);z-index:45;
+}
+.messenger-shell > .call-tray .call-tray__identity{width:auto;flex:1;min-width:0;min-height:44px;padding:0 8px;border-radius:8px}
+.messenger-shell > .call-tray .call-tray__identity:focus:not(:focus-visible){outline:none}
+.messenger-shell > .call-tray .call-tray__identity:focus-visible{outline:2px solid var(--palette-primary-text);outline-offset:0}
+.messenger-shell > .call-tray .call-tray__identity:active{background:rgb(var(--rgb-primary) / .16)}
+.messenger-shell > .call-tray .call-tray__status--ready{background:var(--palette-primary-text);box-shadow:none}
+@media(hover:hover){
+ .messenger-shell > .call-tray .call-tray__identity:hover{background:rgb(var(--rgb-primary) / .08)}
+}
+.messenger-shell > .call-tray .call-tray__copy small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.messenger-shell > .call-tray .call-tray__controls{display:flex;flex:none;margin:0;gap:6px}
+.messenger-shell > .call-tray .call-control-button{width:44px;min-width:44px;height:44px}
+.messenger-shell > .call-tray .call-tray__controls [hidden]{display:none!important}
+.messenger-shell > .call-tray .call-tray__identity > app-ui-icon{display:block;flex:none}
+.messenger-shell .call-window__controls .call-control-button{width:44px;min-width:44px;height:44px}
+.messenger-shell .call-window__controls .call-control-button--danger{margin-left:8px}
+.messenger-shell .call-window__controls .call-control-button:disabled{opacity:.4;cursor:not-allowed}
+.messenger-shell--call-window-open .conversation-head .call-control-button + .call-control-button{margin-left:4px}
+.conference-screen-tabs{display:flex;gap:6px;overflow:auto;flex:none;max-width:100%;padding:2px}
+.conference-screen-tabs button{display:flex;align-items:center;gap:6px;min-height:44px;max-width:220px;flex-shrink:0;border:1px solid var(--palette-border);border-radius:8px;background:var(--palette-surface);color:var(--palette-text);padding:6px 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+.conference-screen-tabs button[aria-pressed=true]{background:var(--palette-selected);border-color:var(--palette-cyan)}
+.conference-screen-tabs app-ui-icon{width:18px;flex:none}
+.conference-grid{overscroll-behavior:contain}
+.conference-name{min-width:0;max-width:calc(100% - 16px)}
+.messenger-shell .call-window__roster-head{position:sticky;top:0;background:var(--palette-surface);z-index:1}
+@media(max-width:980px){
+ .messenger-shell > .call-tray{padding:2px 10px;gap:6px;min-height:52px}
+ .messenger-shell > .call-tray:not(.call-tray--incoming) .call-tray__leave{display:none}
+ .messenger-shell--call-active:not(.messenger-shell--call-window-open) .conversation-sidebar--mobile-open{top:calc(52px + env(safe-area-inset-top))}
+ .messenger-shell .call-window__controls{flex-wrap:wrap;gap:3px;padding:6px}
+ .messenger-shell .call-window__roster-head button{min-width:44px;min-height:44px}
+ .messenger-shell.mobile-keyboard-open > .call-tray .call-tray__copy small{display:none}
+ .conference-grid{grid-auto-rows:minmax(100px,1fr)}
+}
+
+/* The direct-call control belongs to its sole remote participant. */
+.call-output-volume{display:flex;align-items:center;gap:8px;min-width:0;width:min(360px,100%);margin:0 auto;padding:4px 12px;box-sizing:border-box;color:var(--palette-text)}
+.call-output-volume label{display:flex;flex:1;min-width:0;flex-direction:column;gap:2px;font-size:12px}
+.call-output-volume input,.participant-inline-volume input{width:100%;min-width:0;min-height:32px;margin:0;accent-color:var(--palette-primary);cursor:pointer}
+.call-output-volume output,.participant-inline-volume output{min-width:36px;font-size:12px;text-align:right;font-variant-numeric:tabular-nums}
+.call-output-volume .call-control-button,.participant-inline-volume button{display:grid;place-items:center;flex:0 0 44px;width:44px;height:44px;padding:0;border:0;border-radius:8px;background:var(--palette-hover);color:inherit;cursor:pointer}
+.call-output-volume--silent,.participant-inline-volume--silent{color:var(--palette-danger-text)}
+.participant-inline-volume{display:flex;align-items:center;gap:4px;min-width:0;width:100%;color:var(--palette-text)}
+.participant-inline-volume input{flex:1;width:0}
+.messenger-shell .call-window__participants{gap:0}
+.call-participant{display:grid;grid-template-columns:28px minmax(0,1fr) 28px 16px;gap:6px 8px;align-items:center;padding:12px 0;border-bottom:1px solid var(--palette-border);min-width:0}
+.messenger-shell .call-participant .group-voice-roster__avatar{width:28px;height:28px;min-width:0;overflow:hidden;border-radius:7px}
+.call-participant__name{min-width:0;display:grid;gap:2px}.call-participant__name strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;line-height:1.4}.call-participant__name small{font-size:11px;color:var(--palette-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.call-participant .group-voice-roster__state-shell{grid-column:4;width:16px;height:16px}.call-participant .group-voice-roster__state{width:14px;height:14px}
+.call-participant__menu{display:grid;place-items:center;width:28px;height:28px;min-height:0;padding:0;border:0;border-radius:6px;background:transparent;color:var(--palette-muted);cursor:pointer}
+.call-participant__menu:hover{background:var(--palette-hover)}.call-participant__menu app-ui-icon{width:16px;height:16px}
+.call-participant .participant-inline-volume{grid-column:1 / -1;gap:8px;display:grid;grid-template-columns:28px minmax(0,1fr) 36px}
+.call-participant .participant-inline-volume button{width:28px;height:28px;min-width:0;min-height:0;flex:none;background:transparent;border-radius:6px}
+.call-participant .participant-inline-volume button app-ui-icon{width:16px;height:16px}
+.call-participant .participant-inline-volume input{width:100%;min-width:0;min-height:32px;touch-action:pan-y}
+.call-participant .participant-inline-volume output{font-size:11px;min-width:0;color:var(--palette-muted)}
+.call-participant--self .call-participant__name{grid-column:2 / 4}
+.messenger-shell .call-window__body--voice > .call-window__roster{align-self:start;height:max-content;max-height:100%}
+.group-voice-roster__controls .participant-mute{width:28px;min-width:28px;height:28px;min-height:28px;padding:5px}.group-voice-roster__controls .participant-mute app-ui-icon{width:16px;height:16px}
+@media(max-width:980px){.call-participant{padding:12px 4px}.call-participant .participant-inline-volume{grid-template-columns:36px minmax(0,1fr) 36px}.call-participant .participant-inline-volume button{width:36px;height:36px}.call-participant .participant-inline-volume input{min-height:40px}.messenger-shell--call-active:not(.messenger-shell--call-window-open):has(> .call-tray:not(:has(.call-output-volume))) .conversation-sidebar--mobile-open{top:calc(52px + env(safe-area-inset-top))}}
+.messenger-shell > .call-tray > .call-output-volume{flex:0 1 280px;margin:0}
+@media(max-width:980px){.messenger-shell > .call-tray{flex-wrap:wrap}.messenger-shell > .call-tray > .call-output-volume{flex:1 0 100%;width:100%;padding:0 4px}.call-window__bottom > .call-output-volume{padding:0 12px}}
+@media(max-width:980px){
+ .messenger-shell .call-window__body--voice > .call-window__roster{grid-area:1 / 1 / -1 / -1;width:auto;min-width:0;inset:4px}
+ .messenger-shell--call-active:not(.messenger-shell--call-window-open):has(> .call-tray:not(.call-tray--incoming)) .conversation-sidebar--mobile-open{top:calc(104px + env(safe-area-inset-top))}
+}
+@media(max-width:980px){.messenger-shell .call-window__body--voice > .call-window__roster{bottom:auto;max-height:calc(100% - 8px)}}

@@ -1,0 +1,30 @@
+<section class="batch" aria-label="Массовая операция с валютой">
+ <header><h2>Операция с валютой</h2><button (click)="close.emit()" [disabled]="busy()">Закрыть</button></header>
+ @if(error()){<p role="alert">{{error()}}</p>}
+ @if(request();as p){
+  <p><strong>{{p.action==='credit'?'Начислить':'Списать'}} {{p.amount|number}} {{p.currency==='coins'?'монет':'кристаллов'}} каждому</strong></p>
+  <p>Получателей: {{p.user_ids.length}} · Причина: {{p.reason}}</p>
+  <p class="operation-id">Номер операции: {{p.request_id}}</p>
+  @if(result();as r){
+   @if(r.state==='preview'){<p>Готово к выполнению: {{eligible}}. Общая сумма: {{total|number}}. Остальные будут пропущены.</p>}
+   @else{<p role="status">Выполнено: {{r.applied}}. Пропущено: {{r.items.length-(r.applied??0)}}.</p>}
+   <div class="table"><table><thead><tr><th>Пользователь</th><th>До</th><th>После</th><th>Результат</th></tr></thead><tbody>
+    @for(row of r.items;track row.user_id){<tr><td>{{row.name}}</td><td>{{row.before|number}}</td><td>{{row.after|number}}</td><td>{{row.error || (r.state==='complete'?'Выполнено':'Готово')}}</td></tr>}
+   </tbody></table></div>
+   @if(r.state==='preview'){
+    @if(confirming()){<p>Проверяем результат прежнего подтверждения. Повторный запрос безопасен.</p>}
+    <button [disabled]="busy() || !eligible" (click)="confirm()">{{busy()?'Выполняем…':confirming()?'Проверить результат':'Подтвердить операцию'}}</button>
+   }
+   <button [disabled]="busy() || (confirming() && r.state!=='complete')" (click)="reset()">{{r.state==='complete'?'Новая операция':'Изменить параметры'}}</button>
+  }@else{<button [disabled]="busy()" (click)="preview()">Повторить проверку</button><button [disabled]="busy() || confirming()" (click)="reset()">Отмена</button>}
+ }@else{
+  <p>Выбрано пользователей: {{userIds().length}}. Сумма применяется к каждому.</p>
+  <form (ngSubmit)="prepare()">
+   <label>Валюта<select name="currency" [(ngModel)]="currency"><option value="coins">Монеты</option><option value="crystals">Кристаллы</option></select></label>
+   <label>Действие<select name="action" [(ngModel)]="action"><option value="credit">Начислить</option><option value="debit">Списать</option></select></label>
+   <label>Сумма на человека<input name="amount" type="number" min="1" max="1000000000" step="1" [(ngModel)]="amount" required/></label>
+   <label>Причина<textarea name="reason" maxlength="240" [(ngModel)]="reason" required></textarea></label>
+   <button [disabled]="busy()">Проверить получателей и сумму</button>
+  </form>
+ }
+</section>

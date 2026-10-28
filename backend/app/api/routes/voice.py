@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Response, WebSock
 from fastapi.security import HTTPAuthorizationCredentials
 from app.api.dependencies.auth import bearer_scheme
 from app.core.security import decode_access_token
-from app.services.voice_sfu import enforce_participant, media_permission
+from app.services.voice_sfu import enforce_participant, media_permission, prepare_voice_room
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -69,7 +69,8 @@ from app.services.voice_access import (
     mark_guest_rejoin_grace,
     utc_now,
 )
-from app.services.voice_signaling import voice_signaling_manager
+from app.services.voice_signaling import VoiceAdmissionError, voice_signaling_manager
+from app.services.platforms import platform_context, ensure_target_manageable, reject_individual_chat_management
 
 try:
     from livekit import api as livekit_api
@@ -162,6 +163,7 @@ def _build_voice_sfu_token(channel: Channel, current_user: User, *, owner_muted:
         .with_name(current_user.username)
         .with_metadata(json.dumps({"session_id": session_id}))
         .with_ttl(timedelta(minutes=5))
+        .with_room_config(livekit_api.RoomConfiguration(max_participants=settings.voice_room_capacity))
         .with_grants(
             livekit_api.VideoGrants(
                 room_join=True,
@@ -182,6 +184,9 @@ def _build_voice_sfu_token(channel: Channel, current_user: User, *, owner_muted:
 
 
 def _ensure_server_membership(db: Session, channel: Channel, user: User) -> tuple[ServerMember, bool]:
+    server = db.get(Server, channel.server_id)
+    if server is not None and server.platform_id is not None:
+        platform_context(db, server.platform_id, user.id)
     membership = db.execute(
         select(ServerMember).where(
             ServerMember.server_id == channel.server_id,
@@ -190,6 +195,9 @@ def _ensure_server_membership(db: Session, channel: Channel, user: User) -> tupl
     ).scalar_one_or_none()
     if membership is not None:
         return membership, False
+
+    if server is not None and server.platform_id is not None:
+        raise HTTPException(404, "Чат площадки недоступен")
 
     membership = ServerMember(
         server_id=channel.server_id,
@@ -234,6 +242,8 @@ def _ensure_voice_channel_manager(
     channel: Channel,
     current_user: User,
 ) -> tuple[ServerMember | None, VoiceChannelAccess | None, bool]:
+    if channel.server.platform_id is not None:
+        platform_context(db, channel.server.platform_id, current_user.id, manage=True)
     membership = _get_channel_membership(db, channel, current_user.id)
     access = get_voice_channel_access(db, channel.id, current_user.id)
     has_platform_scope = current_user.is_admin or (membership is not None and is_platform_voice_manager(membership.role))
@@ -506,6 +516,7 @@ async def update_voice_channel_access(
 ) -> list[VoiceChannelAccessEntry]:
     channel = _get_voice_channel_or_404(db, channel_id)
     _, _, has_platform_scope = _ensure_voice_channel_manager(db, channel, current_user)
+    reject_individual_chat_management(channel.server)
     if is_default_tavern_channel(channel):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -792,6 +803,10 @@ async def kick_voice_participant(
 ) -> list[VoiceChannelAccessEntry]:
     channel = _get_voice_channel_or_404(db, channel_id)
     _ensure_voice_channel_manager(db, channel, current_user)
+    if channel.server.platform_id is not None:
+        _, actor = platform_context(db, channel.server.platform_id, current_user.id, manage=True, lock=True)
+        _, target = platform_context(db, channel.server.platform_id, user_id)
+        ensure_target_manageable(actor, target)
 
     access = get_voice_channel_access(db, channel.id, user_id)
     if access is None:
@@ -800,7 +815,8 @@ async def kick_voice_participant(
     if access.role == VoiceAccessRole.OWNER:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Нельзя выгнать владельца канала")
 
-    block_guest_access(access)
+    if channel.server.platform_id is None:
+        block_guest_access(access)
     db.commit()
     await enforce_participant(channel.id, user_id, can_publish=None)
     await voice_signaling_manager.disconnect_user_sessions(str(channel.id), str(user_id))
@@ -819,6 +835,10 @@ async def update_voice_participant_owner_mute(
 ) -> list[VoiceChannelAccessEntry]:
     channel = _get_voice_channel_or_404(db, channel_id)
     _ensure_voice_channel_manager(db, channel, current_user)
+    if channel.server.platform_id is not None:
+        _, actor = platform_context(db, channel.server.platform_id, current_user.id, manage=True, lock=True)
+        _, target = platform_context(db, channel.server.platform_id, user_id)
+        ensure_target_manageable(actor, target)
 
     access = get_voice_channel_access(db, channel.id, user_id)
     if access is None:
@@ -848,6 +868,7 @@ async def create_voice_sfu_token(
     if membership_created:
         await publish_members_updated(channel.server_id, reason="member_joined")
 
+    await prepare_voice_room(channel.id, current_user.id)
     session_id = decode_access_token(credentials.credentials, settings.secret_key)["sid"]
     return _build_voice_sfu_token(channel, current_user, owner_muted=bool(access and access.owner_muted), session_id=session_id)
 
@@ -911,15 +932,19 @@ async def connect_to_voice_channel(websocket: WebSocket, channel_id: UUID) -> No
                 await websocket.close(code=4403, reason="Ожидайте ответа владельца канала")
             return
 
-        participant = await voice_signaling_manager.connect(
-            websocket,
-            str(channel.id),
-            user_id=str(current_user.id),
-            public_id=current_user.public_id,
-            nick=current_user.username,
-            avatar_updated_at=current_user.avatar_updated_at,
-            owner_muted=bool(access.owner_muted) if access is not None else False,
-        )
+        try:
+            participant = await voice_signaling_manager.connect(
+                websocket,
+                str(channel.id),
+                user_id=str(current_user.id),
+                public_id=current_user.public_id,
+                nick=current_user.username,
+                avatar_updated_at=current_user.avatar_updated_at,
+                owner_muted=bool(access.owner_muted) if access is not None else False,
+            )
+        except VoiceAdmissionError as error:
+            await websocket.close(code=error.code, reason=error.reason)
+            return
         await publish_voice_presence_updated(channel.server_id)
 
     try:

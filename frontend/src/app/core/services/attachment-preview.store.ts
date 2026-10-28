@@ -22,10 +22,13 @@ export class AttachmentPreviewStore {
   readonly availabilityLabels = signal<Record<string, string>>({});
   readonly openedImageId = signal<string | null>(null);
   readonly failed = new Subject<{
-    error: unknown; attachmentId: string; surface: AttachmentActionSurface;
-    fallback: string; reportErrors: boolean;
+    error: unknown;
+    attachmentId: string;
+    surface: AttachmentActionSurface;
+    fallback: string;
+    reportErrors: boolean;
   }>();
-  readonly downloadReady = new Subject<{url: string; filename: string}>();
+  readonly downloadReady = new Subject<{ url: string; filename: string }>();
 
   constructor() {
     inject(DestroyRef).onDestroy(() => {
@@ -35,68 +38,94 @@ export class AttachmentPreviewStore {
     });
   }
 
-  load(token: string, attachment: WorkspaceMessageAttachment, options: AttachmentPreviewOptions,
-       keep: () => boolean): void {
+  load(
+    token: string,
+    attachment: WorkspaceMessageAttachment,
+    options: AttachmentPreviewOptions,
+    keep: () => boolean,
+  ): void {
     const id = attachment.id;
     if (attachment.deleted_at || this.availabilityLabels()[id]) return;
     if (this.urls()[id]) {
-      if (options.openImageAfterLoad) this.openedImageId.set(this.openedImageId() === id ? null : id);
+      if (options.openImageAfterLoad)
+        this.openedImageId.set(this.openedImageId() === id ? null : id);
       return;
     }
     if (this.previews.has(id)) return;
     const request = new Subscription();
     this.previews.set(id, request);
-    this.loadingIds.update(ids => [...ids, id]);
-    request.add(defer(() => this.api.downloadAttachment(token, id)).pipe(
-      finalize(() => {
-        if (this.previews.get(id) !== request) return;
-        this.previews.delete(id);
-        this.loadingIds.update(ids => ids.filter(value => value !== id));
-      }),
-    ).subscribe({
-      next: blob => {
-        if (!keep()) return;
-        const url = URL.createObjectURL(blob);
-        const previous = this.urls()[id];
-        if (previous) URL.revokeObjectURL(previous);
-        this.clearAvailability(id);
-        this.urls.update(urls => ({...urls, [id]: url}));
-        if (options.openImageAfterLoad) this.openedImageId.set(id);
-      },
-      error: error => this.failed.next({
-        error, attachmentId: id, surface: options.surface ?? 'message',
-        fallback: 'Не удалось загрузить вложение', reportErrors: options.reportErrors !== false,
-      }),
-    }));
+    this.loadingIds.update((ids) => [...ids, id]);
+    request.add(
+      defer(() => this.api.downloadAttachment(token, id))
+        .pipe(
+          finalize(() => {
+            if (this.previews.get(id) !== request) return;
+            this.previews.delete(id);
+            this.loadingIds.update((ids) => ids.filter((value) => value !== id));
+          }),
+        )
+        .subscribe({
+          next: (blob) => {
+            if (!keep()) return;
+            const url = URL.createObjectURL(blob);
+            const previous = this.urls()[id];
+            if (previous) URL.revokeObjectURL(previous);
+            this.clearAvailability(id);
+            this.urls.update((urls) => ({ ...urls, [id]: url }));
+            if (options.openImageAfterLoad) this.openedImageId.set(id);
+          },
+          error: (error) =>
+            this.failed.next({
+              error,
+              attachmentId: id,
+              surface: options.surface ?? 'message',
+              fallback: 'Не удалось загрузить вложение',
+              reportErrors: options.reportErrors !== false,
+            }),
+        }),
+    );
   }
 
-  download(token: string, attachment: WorkspaceMessageAttachment, surface: AttachmentActionSurface): void {
+  download(
+    token: string,
+    attachment: WorkspaceMessageAttachment,
+    surface: AttachmentActionSurface,
+  ): void {
     const id = attachment.id;
     if (attachment.deleted_at || this.downloads.has(id)) return;
     const request = new Subscription();
     this.downloads.set(id, request);
-    this.downloadingIds.update(ids => [...ids, id]);
-    request.add(defer(() => this.api.createAttachmentDownloadLink(token, id)).pipe(
-      finalize(() => {
-        if (this.downloads.get(id) !== request) return;
-        this.downloads.delete(id);
-        this.downloadingIds.update(ids => ids.filter(value => value !== id));
-      }),
-    ).subscribe({
-      next: ({url}) => {
-        this.clearAvailability(id);
-        this.downloadReady.next({url, filename: attachment.filename});
-      },
-      error: error => this.failed.next({
-        error, attachmentId: id, surface, fallback: 'Не удалось скачать файл', reportErrors: true,
-      }),
-    }));
+    this.downloadingIds.update((ids) => [...ids, id]);
+    request.add(
+      defer(() => this.api.createAttachmentDownloadLink(token, id))
+        .pipe(
+          finalize(() => {
+            if (this.downloads.get(id) !== request) return;
+            this.downloads.delete(id);
+            this.downloadingIds.update((ids) => ids.filter((value) => value !== id));
+          }),
+        )
+        .subscribe({
+          next: ({ url }) => {
+            this.clearAvailability(id);
+            this.downloadReady.next({ url, filename: attachment.filename });
+          },
+          error: (error) =>
+            this.failed.next({
+              error,
+              attachmentId: id,
+              surface,
+              fallback: 'Не удалось скачать файл',
+              reportErrors: true,
+            }),
+        }),
+    );
   }
 
   clearAvailability(id: string): void {
     if (!this.availabilityLabels()[id]) return;
-    this.availabilityLabels.update(labels => {
-      const next = {...labels};
+    this.availabilityLabels.update((labels) => {
+      const next = { ...labels };
       delete next[id];
       return next;
     });
@@ -109,8 +138,8 @@ export class AttachmentPreviewStore {
     const url = this.urls()[id];
     if (url) {
       URL.revokeObjectURL(url);
-      this.urls.update(urls => {
-        const next = {...urls};
+      this.urls.update((urls) => {
+        const next = { ...urls };
         delete next[id];
         return next;
       });

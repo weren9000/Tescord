@@ -13,6 +13,7 @@ import {EmojiPickerComponent} from './emoji-picker.component';
     <div class="quick-reactions">@for(item of reactions;track item.code){<button type="button" [attr.aria-label]="item.label" (click)="react.emit(item.code)">{{item.emoji}}</button>}<button type="button" aria-label="Все эмодзи" (click)="expanded.set(true)"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button></div>
     <div class="actions">
     <button type="button" (click)="choose.emit('reply')"><svg viewBox="0 0 24 24"><path d="m10 5-7 7 7 7M3 12h11a6 6 0 0 1 6 6"/></svg>Ответить</button>
+    @if(canDelete()){<button type="button" (click)="choose.emit('delete')">Удалить сообщение</button>}
     @if (text()) { <button type="button" (click)="copy()"><svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V3H3v13h5"/></svg>Копировать текст</button> }
     @if(hasImage()){<button type="button" (click)="choose.emit('open-image')"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="m3 17 6-6 4 4 3-3 5 5"/></svg>Открыть изображение</button><button type="button" (click)="choose.emit('download-image')"><svg viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4"/></svg>Сохранить как…</button>}
     @if (error()) { <p role="status">{{error()}}</p> }
@@ -35,12 +36,13 @@ import {EmojiPickerComponent} from './emoji-picker.component';
   `],
 })
 export class MessageActionsComponent implements AfterViewInit, OnDestroy {
+  readonly canDelete=input(false);
   readonly text=input('');
   readonly token=input.required<string>();readonly hasImage=input(false);readonly expanded=signal(false);
   readonly anchor=input<{x:number;y:number}|null>(null);
   readonly react=output<WorkspaceMessageReactionCode>();
   readonly reactions:{code:WorkspaceMessageReactionCode;emoji:string;label:string}[]=[{code:'heart',emoji:'❤️',label:'Сердце'},{code:'like',emoji:'👍',label:'Нравится'},{code:'laugh',emoji:'😂',label:'Смешно'},{code:'fire',emoji:'🔥',label:'Огонь'},{code:'wow',emoji:'😮',label:'Удивление'}];
-  readonly choose=output<'reply'|'open-image'|'download-image'>();
+  readonly choose=output<'reply'|'open-image'|'download-image'|'delete'>();
   readonly close=output<void>();
   readonly error=signal('');
   backdropDown=false;

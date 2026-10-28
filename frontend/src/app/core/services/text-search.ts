@@ -8,7 +8,10 @@ export function buildSearchTerms(value: string): string[] {
     .filter((part) => part.length > 0);
 }
 
-export function matchesSearchTerms(terms: string[], values: Array<string | null | undefined>): boolean {
+export function matchesSearchTerms(
+  terms: string[],
+  values: Array<string | null | undefined>,
+): boolean {
   if (!terms.length) {
     return false;
   }
@@ -72,4 +75,3 @@ export function buildTextHighlightChunks(text: string, query: string): TextHighl
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
-

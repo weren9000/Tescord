@@ -1,7 +1,10 @@
 import { WorkspaceMessage } from '../models/workspace.models';
 import {
-  MessageContentSegment, MessageLink, MessageMentionContext,
-  RenderedMessageSegment, TextHighlightChunk,
+  MessageContentSegment,
+  MessageLink,
+  MessageMentionContext,
+  RenderedMessageSegment,
+  TextHighlightChunk,
 } from '../models/message-text.models';
 import { BoundedCache } from '../../shared/bounded-cache';
 import { formatPublicUserId } from '../../shared/user-identity';
@@ -11,75 +14,112 @@ type MessageText = Pick<WorkspaceMessage, 'content' | 'mentioned_user_ids'>;
 
 /** Per-workspace presentation cache. It owns no Angular state or network requests. */
 export class MessageTextPresenter {
-  private readonly viewCache = new WeakMap<MessageText, {
-    query: string; source: MessageContentSegment[]; value: RenderedMessageSegment[];
-  }>();
-  private readonly segmentCache = new WeakMap<MessageText, {
-    content: string; mentions: string; context: MessageMentionContext; value: MessageContentSegment[];
-  }>();
+  private readonly viewCache = new WeakMap<
+    MessageText,
+    {
+      query: string;
+      source: MessageContentSegment[];
+      value: RenderedMessageSegment[];
+    }
+  >();
+  private readonly segmentCache = new WeakMap<
+    MessageText,
+    {
+      content: string;
+      mentions: string;
+      context: MessageMentionContext;
+      value: MessageContentSegment[];
+    }
+  >();
   private readonly linkCache = new BoundedCache<MessageLink[]>();
   private readonly highlightCache = new BoundedCache<TextHighlightChunk[]>();
   private readonly previewCache = new BoundedCache<string>();
 
-  render(message: MessageText, query: string, context: MessageMentionContext): RenderedMessageSegment[] {
+  render(
+    message: MessageText,
+    query: string,
+    context: MessageMentionContext,
+  ): RenderedMessageSegment[] {
     const source = this.contentSegments(message, context);
     const cached = this.viewCache.get(message);
     if (cached && cached.query === query && cached.source === source) {
       return cached.value;
     }
-    const value = source.map(segment => ({
+    const value = source.map((segment) => ({
       ...segment,
-      chunks: this.highlight(segment.text, query).map(chunk => ({
+      chunks: this.highlight(segment.text, query).map((chunk) => ({
         ...chunk,
         links: !segment.mentionUserId && !chunk.highlighted ? this.links(chunk.text) : [],
       })),
     }));
-    this.viewCache.set(message, {query, source, value});
+    this.viewCache.set(message, { query, source, value });
     return value;
   }
 
   highlight(text: string, query: string): TextHighlightChunk[] {
-    return this.highlightCache.get(JSON.stringify([query, text]), () => buildTextHighlightChunks(text, query));
+    return this.highlightCache.get(JSON.stringify([query, text]), () =>
+      buildTextHighlightChunks(text, query),
+    );
   }
 
   preview(content: string, query: string): string {
-    return this.previewCache.get(JSON.stringify([content, query]), () => this.buildSearchPreview(content, query));
+    return this.previewCache.get(JSON.stringify([content, query]), () =>
+      this.buildSearchPreview(content, query),
+    );
   }
 
   private links(text: string): MessageLink[] {
-    return this.linkCache.get(text, () => text.split(/(https?:\/\/[^\s<>]+)/g).filter(Boolean).flatMap(part => {
-      if (!/^https?:\/\//i.test(part)) {
-        return [{text: part, url: null}];
-      }
-      const clean = part.replace(/[.,!?]+$/, '');
-      try {
-        const url = new URL(clean);
-        if (!['http:', 'https:'].includes(url.protocol)) {
-          return [{text: part, url: null}];
-        }
-        return [
-          {text: clean, url: clean},
-          ...(clean.length < part.length ? [{text: part.slice(clean.length), url: null}] : []),
-        ];
-      } catch {
-        return [{text: part, url: null}];
-      }
-    }));
+    return this.linkCache.get(text, () =>
+      text
+        .split(/(https?:\/\/[^\s<>]+)/g)
+        .filter(Boolean)
+        .flatMap((part) => {
+          if (!/^https?:\/\//i.test(part)) {
+            return [{ text: part, url: null }];
+          }
+          const clean = part.replace(/[.,!?]+$/, '');
+          try {
+            const url = new URL(clean);
+            if (!['http:', 'https:'].includes(url.protocol)) {
+              return [{ text: part, url: null }];
+            }
+            return [
+              { text: clean, url: clean },
+              ...(clean.length < part.length
+                ? [{ text: part.slice(clean.length), url: null }]
+                : []),
+            ];
+          } catch {
+            return [{ text: part, url: null }];
+          }
+        }),
+    );
   }
 
-  private contentSegments(message: MessageText, context: MessageMentionContext): MessageContentSegment[] {
+  private contentSegments(
+    message: MessageText,
+    context: MessageMentionContext,
+  ): MessageContentSegment[] {
     const content = message.content ?? '';
     const mentions = message.mentioned_user_ids.join(',');
     const cached = this.segmentCache.get(message);
-    if (cached && cached.content === content && cached.mentions === mentions && cached.context === context) {
+    if (
+      cached &&
+      cached.content === content &&
+      cached.mentions === mentions &&
+      cached.context === context
+    ) {
       return cached.value;
     }
     const value = this.buildMessageContentSegments(message, context);
-    this.segmentCache.set(message, {content, mentions, context, value});
+    this.segmentCache.set(message, { content, mentions, context, value });
     return value;
   }
 
-  private buildMessageContentSegments(message: MessageText, context: MessageMentionContext): MessageContentSegment[] {
+  private buildMessageContentSegments(
+    message: MessageText,
+    context: MessageMentionContext,
+  ): MessageContentSegment[] {
     const content = message.content ?? '';
     if (!content || !message.mentioned_user_ids.length) {
       return [{ text: content, mentionUserId: null }];
@@ -114,8 +154,8 @@ export class MessageTextPresenter {
       const matchedCandidate = orderedCandidates.find((candidate) => {
         const mentionEnd = mentionStart + candidate.token.length;
         return (
-          contentFolded.startsWith(candidate.token, mentionStart)
-          && this.hasMentionBoundaryAfter(normalizedContent, mentionEnd)
+          contentFolded.startsWith(candidate.token, mentionStart) &&
+          this.hasMentionBoundaryAfter(normalizedContent, mentionEnd)
         );
       });
 
@@ -150,7 +190,10 @@ export class MessageTextPresenter {
     return segments.length ? segments : [{ text: normalizedContent, mentionUserId: null }];
   }
 
-  private messageMentionCandidatesByUserId(message: MessageText, context: MessageMentionContext): Map<string, Set<string>> {
+  private messageMentionCandidatesByUserId(
+    message: MessageText,
+    context: MessageMentionContext,
+  ): Map<string, Set<string>> {
     const candidatesByUserId = new Map<string, Set<string>>();
     const activeConversationMembers = (context.conversation ?? []).map((member) => ({
       userId: member.user_id,
@@ -162,13 +205,13 @@ export class MessageTextPresenter {
       publicId: member.public_id,
       nick: member.nick,
     }));
-    const users = [
-      ...activeConversationMembers,
-      ...serverMembers,
-    ];
+    const users = [...activeConversationMembers, ...serverMembers];
 
     for (const user of users) {
-      if (!message.mentioned_user_ids.includes(user.userId) || candidatesByUserId.has(user.userId)) {
+      if (
+        !message.mentioned_user_ids.includes(user.userId) ||
+        candidatesByUserId.has(user.userId)
+      ) {
         continue;
       }
 
@@ -216,10 +259,11 @@ export class MessageTextPresenter {
     }
 
     const foldedContent = content.toLocaleLowerCase('ru-RU');
-    const matchIndex = terms
-      .map((term) => foldedContent.indexOf(term))
-      .filter((index) => index >= 0)
-      .sort((left, right) => left - right)[0] ?? 0;
+    const matchIndex =
+      terms
+        .map((term) => foldedContent.indexOf(term))
+        .filter((index) => index >= 0)
+        .sort((left, right) => left - right)[0] ?? 0;
 
     const previewRadius = 72;
     const start = Math.max(0, matchIndex - previewRadius);
@@ -228,5 +272,4 @@ export class MessageTextPresenter {
     const suffix = end < content.length ? ' ...' : '';
     return `${prefix}${content.slice(start, end).trim()}${suffix}`;
   }
-
 }

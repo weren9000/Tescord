@@ -160,6 +160,8 @@ def _build_conversation_summary(
     unread_state = (unread_states_by_channel_id or {}).get(primary_channel.id)
     members = sorted(server.members, key=lambda member: ((member.user_id != current_user_id), member.user.username.casefold()))
     return ConversationSummary(
+        platform_id=server.platform_id,
+        platform_position=server.platform_position,
         pinned=membership.conversation_pinned,
         id=server.id,
         kind=server.kind.value,
@@ -400,10 +402,6 @@ def create_group_conversation(
     if len(users) != len(member_ids):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Не все участники найдены")
 
-    total_participants = len(users) + 1
-    if total_participants > 10:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="В мини-группе может быть не больше 10 участников")
-
     try:
         icon_asset = normalize_server_icon_asset(payload.icon_asset)
     except ValueError as error:
@@ -412,7 +410,7 @@ def create_group_conversation(
     server = Server(
         name=payload.name.strip(),
         slug=conversation_slug("group"),
-        description=f"Мини-группа · {total_participants} участников",
+        description="Групповой чат",
         icon_asset=icon_asset,
         kind=ServerKind.GROUP_CHAT,
         owner_id=current_user.id,

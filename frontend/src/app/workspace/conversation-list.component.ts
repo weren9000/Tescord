@@ -1,11 +1,13 @@
+import {ChatSkeletonComponent} from './chat-skeleton.component';
 import {UserCardDirective} from './user-card.directive';
 import { Component, input, output } from '@angular/core';
 
 export interface ConversationLink { userId?:string; id: string; name: string; subtitle: string; icon: string | null; group: boolean; unread: number; mentions: number; online?: boolean; pinned?: boolean; }
 
 @Component({
-  selector: 'app-conversation-list', standalone: true, imports:[UserCardDirective], host: {'[class.compact]':'compact()'},
+  selector: 'app-conversation-list', standalone: true, imports: [ChatSkeletonComponent, UserCardDirective], host: {'[class.compact]':'compact()'},
   template: `
+    @if (loading() && !entries().length) {<app-chat-skeleton [compact]="compact()" />} @else {
     @for (entry of entries(); track entry.id; let first = $first; let index = $index) {
       @if (entry.pinned && first) { <h3>Закреплённые</h3> }
       @if (!entry.pinned && index > 0 && entries()[index - 1].pinned) { <h3>Все беседы</h3> }
@@ -20,6 +22,7 @@ export interface ConversationLink { userId?:string; id: string; name: string; su
       </button>
       </div>
     } @empty { <p>{{ emptyLabel() }}</p> }
+    }
   `,
   styles: [`
     :host{min-width:0;max-width:100%}.entry{box-sizing:border-box}.copy{width:0}
@@ -40,6 +43,7 @@ export interface ConversationLink { userId?:string; id: string; name: string; su
   `]
 })
 export class ConversationListComponent {
+  readonly loading = input(false);
   readonly compact = input(false);
   readonly pin = output<string>();
   readonly pending = input<string[]>([]);

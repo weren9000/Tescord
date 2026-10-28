@@ -1,0 +1,126 @@
+<nav aria-label="Способ приглашения">
+  <button [attr.aria-pressed]="tab() === 'friends'" (click)="tab.set('friends')">Друзья</button
+  ><button [attr.aria-pressed]="tab() === 'links'" (click)="tab.set('links')">Ссылки</button>
+</nav>
+@if (error()) {
+  <p role="alert">{{ error() }}</p>
+  <button [disabled]="busy()" (click)="refresh()">Обновить</button>
+}
+@if (notice()) {
+  <p role="status">{{ notice() }}</p>
+}
+@if (busy()) {
+  <p role="status">Выполняем…</p>
+}
+@if (tab() === 'friends') {
+  <p>Срок приглашения — 7 дней.</p>
+  <label>Найти друга<input type="search" [(ngModel)]="query" placeholder="Имя друга" /></label>
+  <div class="friends">
+    @for (friend of filtered(); track friend.user_id) {
+      <article>
+        @if (friend.state === 'available') {
+          <input
+            type="checkbox"
+            [attr.aria-label]="'Выбрать ' + friend.nick"
+            [checked]="selected().has(friend.user_id)"
+            [disabled]="busy() || (!selected().has(friend.user_id) && selected().size >= 50)"
+            (change)="toggle(friend.user_id)"
+          />
+        }
+        <span class="avatar">
+          @if (!failed().has(friend.user_id)) {
+            <img
+              [src]="avatar(friend)"
+              alt=""
+              loading="lazy"
+              (error)="failedAvatar(friend.user_id)"
+            />
+          } @else {
+            {{ friend.nick.slice(0, 1) }}
+          }
+        </span>
+        <strong>{{ friend.nick }}</strong>
+        @if (friend.state === 'available') {
+          <button [disabled]="busy()" (click)="send([friend.user_id])">Пригласить</button>
+        } @else {
+          <small>{{
+            friend.state === 'member'
+              ? 'Уже на площадке'
+              : friend.state === 'pending'
+                ? 'Приглашение отправлено'
+                : 'Приглашение отклонено'
+          }}</small>
+        }
+      </article>
+    } @empty {
+      @if (!busy()) {
+        <p>{{ query ? 'Друзья не найдены' : 'В списке пока нет друзей' }}</p>
+      }
+    }
+  </div>
+  @if (selected().size) {
+    <button class="primary" [disabled]="busy()" (click)="send()">
+      Пригласить выбранных · {{ selected().size }}
+    </button>
+  }
+} @else {
+  <form (ngSubmit)="create()">
+    <div class="fields">
+      <label
+        >Срок действия<select name="hours" [(ngModel)]="hours">
+          <option [ngValue]="1">1 час</option>
+          <option [ngValue]="24">24 часа</option>
+          <option [ngValue]="168">7 дней</option>
+          <option [ngValue]="null">Бессрочно</option>
+        </select></label
+      >
+      <label
+        >Лимит вступлений<input
+          name="limit"
+          type="number"
+          min="1"
+          max="10000"
+          step="1"
+          [(ngModel)]="limit"
+          placeholder="Без ограничения"
+      /></label>
+    </div>
+    <div class="presets" aria-label="Быстрый выбор лимита">
+      @for (value of [1, 5, 10, 25, 50]; track value) {
+        <button type="button" [attr.aria-pressed]="limit === value" (click)="limit = value">
+          {{ value }}
+        </button>
+      }
+      <button type="button" [attr.aria-pressed]="limit === null" (click)="limit = null">
+        Без лимита
+      </button>
+    </div>
+    <p>Лимит — по вступлениям.</p>
+    <button class="primary" [disabled]="busy() || !validLimit()">Создать ссылку</button>
+  </form>
+  @if (link()) {
+    <label
+      >Новая ссылка<input readonly [value]="link()" (focus)="$any($event.target).select()" /></label
+    ><button (click)="copy()">Скопировать ссылку</button>
+  }
+  <h4>Созданные ссылки</h4>
+  @for (invite of links(); track invite.id) {
+    <article>
+      <div class="link-copy">
+        <strong>{{ state(invite) }}</strong
+        ><small>{{
+          invite.expires_at ? 'До ' + (invite.expires_at | date: 'dd.MM.yyyy HH:mm') : 'Бессрочно'
+        }}</small
+        ><small
+          >Вступили {{ invite.uses
+          }}{{ invite.max_uses !== null ? ' из ' + invite.max_uses : '' }}</small
+        >
+      </div>
+      @if (!invite.revoked_at) {
+        <button [disabled]="busy()" (click)="revoke(invite.id)">Отключить</button>
+      }
+    </article>
+  } @empty {
+    <p>Ссылок пока нет</p>
+  }
+}

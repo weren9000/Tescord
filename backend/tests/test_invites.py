@@ -17,9 +17,9 @@ def setup_invites():
     with TestClient(app) as client:
         users = [register_regular_user(client) for _ in range(3)]
         servers = []
-        def create(kind='workspace'):
+        def create(kind='workspace', member_ids=None):
             path = '/api/servers' if kind == 'workspace' else '/api/conversations/group'
-            payload = {'name': 'Invite test'} if kind == 'workspace' else {'name': 'Invite test', 'member_ids': []}
+            payload = {'name': 'Invite test'} if kind == 'workspace' else {'name': 'Invite test', 'member_ids': member_ids or []}
             response = client.post(path, headers=auth(users[0][0]), json=payload)
             assert response.status_code == 201, response.text
             servers.append(response.json()['id'])
@@ -30,6 +30,16 @@ def setup_invites():
 
 
 def auth(token): return {'Authorization': 'Bearer ' + token}
+
+
+def test_create_group_with_more_than_ten_members(setup_invites):
+    client, users, create = setup_invites
+    users.extend(register_regular_user(client) for _ in range(9))
+    ids = [get_current_user_profile(client, u[0])['id'] for u in users[1:]]
+    server = create('group_chat', ids)
+    members = client.get(f'/api/servers/{server}/members', headers=auth(users[0][0]))
+    assert members.status_code == 200
+    assert len(members.json()) == 12
 
 
 def invite(client, owner, server, **payload):
@@ -107,7 +117,7 @@ def test_single_use_race_and_same_user_retry(setup_invites):
     with SessionLocal() as db: assert db.get(ServerInvite,UUID(link['id'])).uses == 1
 
 
-def test_last_group_seat_serializes_different_invites_and_manual_add(setup_invites):
+def test_group_can_exceed_ten_members_with_concurrent_invites_and_manual_add(setup_invites):
     client, users, create = setup_invites
     owner, a, b = [u[0] for u in users]
     server = create('group_chat')
@@ -125,6 +135,6 @@ def test_last_group_seat_serializes_different_invites_and_manual_add(setup_invit
         return client.post(f'/api/servers/{server}/members',headers=auth(owner),json={'user_id':uid})
     with ThreadPoolExecutor(3) as pool: results = list(pool.map(action,range(3)))
     assert any(r.status_code == 200 for r in results), [r.text for r in results]
-    assert all(r.status_code in {200,400,409} for r in results), [r.text for r in results]
+    assert all(r.status_code == 200 for r in results), [r.text for r in results]
     with SessionLocal() as db:
-        assert db.scalar(select(func.count()).select_from(ServerMember).where(ServerMember.server_id==UUID(server))) == 10
+        assert db.scalar(select(func.count()).select_from(ServerMember).where(ServerMember.server_id==UUID(server))) == 11

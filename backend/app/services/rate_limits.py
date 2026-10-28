@@ -7,7 +7,7 @@ from fastapi import HTTPException
 from starlette.responses import JSONResponse
 
 from app.core.config import get_settings
-from app.core.security import TokenError, decode_access_token
+from app.core.security import TokenError, decode_access_token, decode_signed_token
 
 SCRIPT = """
 local count = redis.call('INCR', KEYS[1])
@@ -43,11 +43,21 @@ class RateLimitMiddleware:
             return await self.app(scope, receive, send)
         path = scope.get('path', '')
         ip = (scope.get('client') or ('unknown', 0))[0]
+        room_identity = None
+        if path.startswith('/api/rooms/'):
+            authorization = dict(scope.get('headers', [])).get(b'authorization', b'').decode('latin-1')
+            if authorization.startswith('Bearer '):
+                try:
+                    claims = decode_signed_token(authorization[7:], get_settings().secret_key)
+                    if claims.get('purpose') == 'meeting':
+                        room_identity = 'meeting:' + claims['pid']
+                except (TokenError, KeyError, TypeError):
+                    pass
         try:
             if scope['type'] == 'websocket':
                 await asyncio.to_thread(enforce_limit, 'ws', ip, 120, 60)
             elif path.startswith('/api/') and path != '/api/health':
-                await asyncio.to_thread(enforce_limit, 'http', ip, 1200, 60)
+                await asyncio.to_thread(enforce_limit, 'http', room_identity or ip, 1200, 60)
                 if path in {'/api/auth/login', '/api/auth/register'}:
                     limit = 60 if path.endswith('login') else 10
                     await asyncio.to_thread(enforce_limit, path.rsplit('/', 1)[-1], ip, limit, 300)
@@ -57,7 +67,7 @@ class RateLimitMiddleware:
                         try:
                             identity = decode_access_token(authorization[7:], get_settings().secret_key)['sub']
                         except (TokenError, KeyError):
-                            identity = ip
+                            identity = room_identity or ip
                         await asyncio.to_thread(enforce_limit, 'write', identity, 180, 60)
         except HTTPException as exc:
             if scope['type'] == 'websocket':

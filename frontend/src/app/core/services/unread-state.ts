@@ -50,21 +50,30 @@ export class UnreadStateCollection<T extends UnreadState> {
   }
 
   private setCount(id: string, field: Counter, count: number): void {
-    this.update(id, item => ({...item, [field]: Math.max(0, count)}));
+    this.update(id, (item) => ({ ...item, [field]: Math.max(0, count) }));
   }
 
   private bumpCount(id: string, field: Counter, delta: number): void {
     if (!delta) {
       return;
     }
-    this.update(id, item => ({...item, [field]: Math.max(0, (item[field] ?? 0) + delta)}));
+    this.update(id, (item) => ({ ...item, [field]: Math.max(0, (item[field] ?? 0) + delta) }));
   }
 
-  private setFirstMessage(id: string, field: FirstMessage, messageId: string | null, onlyIfMissing = false): void {
-    this.update(id, item => onlyIfMissing && item[field] ? item : {...item, [field]: messageId});
+  private setFirstMessage(
+    id: string,
+    field: FirstMessage,
+    messageId: string | null,
+    onlyIfMissing = false,
+  ): void {
+    this.update(id, (item) =>
+      onlyIfMissing && item[field] ? item : { ...item, [field]: messageId },
+    );
   }
 
   private update(id: string, change: (item: T) => T): void {
-    this.items.update(items => items.map(item => this.identify(item) === id ? change(item) : item));
+    this.items.update((items) =>
+      items.map((item) => (this.identify(item) === id ? change(item) : item)),
+    );
   }
 }

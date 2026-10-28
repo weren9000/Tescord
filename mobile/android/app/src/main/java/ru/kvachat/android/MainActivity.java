@@ -21,7 +21,7 @@ public class MainActivity extends BridgeActivity {
         if (uri == null || !"https".equals(uri.getScheme()) || !"kvachat.ru".equals(uri.getHost())
             || (uri.getPort() != -1 && uri.getPort() != 443)) return null;
         String path = uri.getPath();
-        if (path == null || !path.matches("/|/login/?|/invite/[A-Za-z0-9_-]+/?|/channels/[a-fA-F0-9-]+/[a-fA-F0-9-]+/?")) return null;
+        if (path == null || !path.matches("/|/login/?|/my-room/?|/room/[A-Za-z0-9_-]+/?|/invite/[A-Za-z0-9_-]+/?|/channels/[a-fA-F0-9-]+/[a-fA-F0-9-]+/?")) return null;
         return uri.getEncodedPath() + (uri.getEncodedQuery() == null ? "" : "?" + uri.getEncodedQuery());
     }
     private String intentTarget(Intent intent) {

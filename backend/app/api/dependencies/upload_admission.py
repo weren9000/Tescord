@@ -9,8 +9,12 @@ from app.core.config import get_settings
 from app.db.session import SessionLocal
 
 
-def _authenticate(token):
+def _authenticate(token, path=''):
     with SessionLocal() as db:
+        if path == get_settings().api_prefix + '/rooms/uploads':
+            from app.services.meeting_rooms import principal
+            principal(db, token)
+            return
         resolve_user_from_token(token, db)
 
 
@@ -32,7 +36,7 @@ class UploadAdmissionMiddleware:
         try:
             if not authorization.startswith('Bearer '):
                 raise HTTPException(401, 'Authentication required')
-            await asyncio.to_thread(_authenticate, authorization[7:])
+            await asyncio.to_thread(_authenticate, authorization[7:], scope.get('path', ''))
         except HTTPException as exc:
             return await JSONResponse({'detail': exc.detail}, status_code=exc.status_code)(scope, receive, send)
         maximum = get_settings().max_message_upload_bytes + 1024 * 1024

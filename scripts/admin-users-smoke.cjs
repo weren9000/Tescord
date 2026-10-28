@@ -1,0 +1,72 @@
+// Creates data only in a disposable local development backend.
+const {chromium, request} = require('../desktop/node_modules/playwright');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const api = 'http://127.0.0.1:8000/api';
+(async()=>{
+ const http=await request.newContext();
+ assert.equal((await (await http.get(api+'/health')).json()).environment,'development');
+ const browser=await chromium.launch({executablePath:process.env.KVA_CHROME,headless:true});
+ const output='.local/admin-users-smoke';fs.mkdirSync(output,{recursive:true});
+ try{
+  async function post(path,data,token){const response=await http.post(api+path,{data,headers:token?{Authorization:'Bearer '+token}:{}});assert(response.ok(),`${path}: ${response.status()} ${await response.text()}`);return response.json();}
+  const admin=await post('/auth/login',{email:'weren9000@kva-chat.local',password:'testing-only-not-for-production'});
+  const suffix=Date.now().toString(36);
+  const nick='AdminTest'+suffix;
+  const user=await post('/auth/register',{email:nick+'@example.test',nick,password:'local-test-password',password_confirmation:'local-test-password'});
+  await post('/inventory/grant',{catalog_id:'cyber-oni',recipient_id:user.user.id,request_id:crypto.randomUUID()},admin.access_token);
+  await post('/inventory/grant',{catalog_id:'cyber-oni',recipient_id:user.user.id,request_id:crypto.randomUUID()},admin.access_token);
+  const page=await browser.newPage({viewport:{width:1440,height:1000}});
+  const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  await page.goto('http://localhost:4200/login');
+  await page.evaluate(value=>localStorage.setItem('tescord.session',JSON.stringify(value)),admin);
+  await page.reload();
+  await page.locator('.messenger-shell').waitFor();
+  await page.getByRole('button',{name:'Админка',exact:true}).first().click();
+  await page.locator('app-admin-directory').getByRole('button',{name:/^Пользователи/}).click();
+  const directory=page.locator('app-admin-directory');
+  await directory.getByLabel('Поиск в админке',{exact:true}).fill(nick);
+  await directory.getByRole('button',{name:'Подробнее: '+nick,exact:true}).waitFor();
+  await directory.getByLabel('Выбрать '+nick,{exact:true}).check();
+  await directory.getByRole('button',{name:'Начислить / списать',exact:true}).click();
+  const batch=page.locator('app-admin-wallet-batch');
+  await batch.getByLabel('Сумма на человека').fill('100');
+  await batch.getByLabel('Причина',{exact:true}).fill('Admin browser batch');
+  await batch.getByRole('button',{name:'Проверить получателей и сумму'}).click();
+  await batch.getByText('Готово',{exact:true}).waitFor();
+  // Drop the response after the server commits, then restore the operation from storage.
+  await page.route('**/api/admin/wallet-batches/*/confirm',async route=>{await route.fetch();await route.abort('failed');});
+  await batch.getByRole('button',{name:'Подтвердить операцию',exact:true}).click();
+  await batch.getByRole('alert').waitFor();
+  await page.unroute('**/api/admin/wallet-batches/*/confirm');
+  await page.reload();
+  await page.getByRole('button',{name:'Админка',exact:true}).first().click();
+  await directory.getByRole('button',{name:/^Пользователи/}).click();
+  await directory.getByRole('button',{name:'Продолжить операцию',exact:true}).click();
+  await batch.getByText('Выполнено: 1. Пропущено: 0.',{exact:true}).waitFor();
+  let wallet=await (await http.get(api+'/wallet',{headers:{Authorization:'Bearer '+user.access_token}})).json();
+  assert.equal(wallet.coins,100);assert.equal(wallet.total,1);
+  await batch.getByRole('button',{name:'Закрыть',exact:true}).click();
+  await directory.getByLabel('Поиск в админке',{exact:true}).fill(nick);
+  await directory.getByRole('button',{name:'Подробнее: '+nick,exact:true}).click();
+  await directory.getByRole('button',{name:'Кошелёк и история',exact:true}).click();
+  const single=directory.locator('app-wallet');
+  await single.getByLabel('Действие',{exact:true}).selectOption('debit');
+  await single.getByLabel('Количество',{exact:true}).fill('25');
+  await single.getByLabel('Причина',{exact:true}).fill('Single debit test');
+  await single.getByRole('button',{name:'Продолжить',exact:true}).click();
+  await single.getByRole('button',{name:'Подтвердить',exact:true}).click();
+  await single.getByText('Списание выполнено',{exact:true}).waitFor();
+  wallet=await (await http.get(api+'/wallet',{headers:{Authorization:'Bearer '+user.access_token}})).json();
+  assert.equal(wallet.coins,75);assert.equal(wallet.total,2);
+  await directory.getByRole('button',{name:'Инвентарь',exact:true}).click();
+  const inventory=directory.locator('app-admin-user-inventory');
+  await inventory.getByText('Копий: 2 · В инвентаре',{exact:true}).waitFor();
+  await page.screenshot({path:output+'/inventory-desktop.png'});
+  await page.setViewportSize({width:393,height:851});
+  assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+  await page.screenshot({path:output+'/inventory-mobile.png'});
+  assert.deepEqual(errors,[]);
+  console.log('PASS: admin list, batch credit, lost response/recovery without duplicate credit, single debit/history, grouped inventory, desktop/mobile layout');
+ }finally{await browser.close();await http.dispose();}
+})().catch(e=>{console.error(e);process.exitCode=1;});

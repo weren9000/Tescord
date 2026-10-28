@@ -4,13 +4,93 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import BigInteger, CheckConstraint, Boolean, DateTime, Enum, ForeignKey, Index, Integer, LargeBinary, String, Text, Uuid, UniqueConstraint, func
+from sqlalchemy import JSON, BigInteger, CheckConstraint, Boolean, DateTime, Enum, ForeignKey, Index, Integer, LargeBinary, String, Text, Uuid, UniqueConstraint, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, deferred, mapped_column, relationship
 from app.services.avatar_presets import random_avatar_preset
 
 
 class Base(DeclarativeBase):
     pass
+
+
+class MeetingRoom(Base):
+    __tablename__ = 'meeting_rooms'
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    owner_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('users.id', ondelete='CASCADE'), unique=True)
+    name: Mapped[str] = mapped_column(String(80), default='Моя комната')
+
+
+class RoomSession(Base):
+    __tablename__ = 'room_sessions'
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    room_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('meeting_rooms.id', ondelete='CASCADE'), unique=True)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    owner_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    owner_left_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    invite_hash: Mapped[str | None] = mapped_column(String(64), unique=True)
+    invite_expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    invite_limit: Mapped[int] = mapped_column(Integer, default=49)
+    invite_uses: Mapped[int] = mapped_column(Integer, default=0)
+    locked: Mapped[bool] = mapped_column(Boolean, default=False)
+    chat_revision: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class RoomParticipant(Base):
+    __tablename__ = 'room_participants'
+    __table_args__ = (UniqueConstraint('session_id', 'join_hash', name='uq_room_participant_join'),
+                     UniqueConstraint('session_id', 'user_id', name='uq_room_participant_user'))
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    session_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('room_sessions.id', ondelete='CASCADE'), index=True)
+    user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('users.id', ondelete='CASCADE'), nullable=True)
+    name: Mapped[str] = mapped_column(String(64))
+    join_hash: Mapped[str] = mapped_column(String(64))
+    is_owner: Mapped[bool] = mapped_column(Boolean, default=False)
+    auth_session_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('auth_sessions.id', ondelete='SET NULL'))
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    revoked: Mapped[bool] = mapped_column(Boolean, default=False)
+    silenced: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class RoomMessage(Base):
+    __tablename__ = 'room_messages'
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    session_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('room_sessions.id', ondelete='CASCADE'), index=True)
+    author_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('room_participants.id', ondelete='CASCADE'))
+    content: Mapped[str] = mapped_column(Text, default='')
+    reply_to_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('room_messages.id', ondelete='SET NULL'))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    edited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class RoomUpload(Base):
+    __tablename__ = 'room_uploads'
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    session_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('room_sessions.id', ondelete='CASCADE'), index=True)
+    author_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('room_participants.id', ondelete='CASCADE'))
+    message_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('room_messages.id', ondelete='CASCADE'), index=True)
+    filename: Mapped[str] = mapped_column(String(255))
+    mime_type: Mapped[str] = mapped_column(String(128))
+    size_bytes: Mapped[int] = mapped_column(BigInteger)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class RoomReaction(Base):
+    __tablename__ = 'room_reactions'
+    __table_args__ = (UniqueConstraint('message_id', 'participant_id', 'emoji', name='uq_room_reaction'),)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    message_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('room_messages.id', ondelete='CASCADE'), index=True)
+    participant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('room_participants.id', ondelete='CASCADE'))
+    emoji: Mapped[str] = mapped_column(String(32))
+
+
+class WalletBatch(Base):
+    __tablename__ = 'wallet_batches'
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True)
+    actor_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('users.id', ondelete='SET NULL'), index=True)
+    payload: Mapped[dict] = mapped_column(JSON, nullable=False)
+    result: Mapped[dict] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 def enum_values(enum_cls: type[enum.Enum]) -> list[str]:
@@ -165,11 +245,72 @@ class User(TimestampMixin, Base):
     )
 
 
+class PlatformMigrationState(Base):
+    __tablename__ = "platform_migration_state"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    retired_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+class Platform(TimestampMixin, Base):
+    """A community whose chats share one membership and role policy."""
+
+    __tablename__ = "platforms"
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String(80), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text)
+    icon_catalog_id: Mapped[str | None] = mapped_column(String(64))
+    icon_content: Mapped[bytes | None] = deferred(mapped_column(LargeBinary))
+    icon_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    owner_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    members: Mapped[list["PlatformMember"]] = relationship(cascade="all, delete-orphan", passive_deletes=True)
+    chats: Mapped[list["Server"]] = relationship(back_populates="platform", cascade="all, delete-orphan", passive_deletes=True)
+
+
+class PlatformFriendInvite(Base):
+    __tablename__ = "platform_friend_invites"
+    __table_args__ = (UniqueConstraint("platform_id", "target_user_id", name="uq_platform_friend_invite"),)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    platform_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("platforms.id", ondelete="CASCADE"), nullable=False)
+    target_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    sender_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class PlatformMember(Base):
+    __tablename__ = "platform_members"
+    __table_args__ = (UniqueConstraint("platform_id", "user_id", name="uq_platform_member"),)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    platform_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("platforms.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    role: Mapped[MemberRole] = mapped_column(Enum(MemberRole, name="memberrole", values_callable=enum_values), nullable=False, default=MemberRole.MEMBER)
+    notifications_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
+    joined_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+class PlatformInvite(Base):
+    __tablename__ = "platform_invites"
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    platform_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("platforms.id", ondelete="CASCADE"), nullable=False, index=True)
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    created_by_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    max_uses: Mapped[int | None] = mapped_column(Integer)
+    uses: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+
+
 class Server(TimestampMixin, Base):
     chat_wallpaper: Mapped[str | None] = mapped_column(String(64))
     wallpaper_scale: Mapped[int] = mapped_column(Integer, nullable=False, default=100, server_default='100')
     wallpaper_dim: Mapped[int] = mapped_column(Integer, nullable=False, default=35, server_default='35')
     __tablename__ = "servers"
+
+    platform_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("platforms.id", ondelete="CASCADE"), index=True)
+    platform_position: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    platform: Mapped["Platform | None"] = relationship(back_populates="chats")
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(80), nullable=False)
@@ -325,6 +466,7 @@ class WalletOperation(TimestampMixin, Base):
     delta: Mapped[int] = mapped_column(BigInteger)
     balance_after: Mapped[int] = mapped_column(BigInteger)
     reason: Mapped[str] = mapped_column(String(240))
+    batch_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('wallet_batches.id', ondelete='SET NULL'), index=True)
 
 
 class FriendNotice(TimestampMixin, Base):
@@ -463,6 +605,7 @@ class Attachment(Base):
     __table_args__ = (Index("ix_attachments_message_id", "message_id"),)
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    position: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default='0')
     message_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("messages.id", ondelete="CASCADE"), nullable=False)
     filename: Mapped[str] = mapped_column(String(255), nullable=False)
     mime_type: Mapped[str] = mapped_column(String(128), nullable=False)
@@ -475,6 +618,20 @@ class Attachment(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     message: Mapped["Message"] = relationship(back_populates="attachments")
+
+
+class PendingUpload(Base):
+    __tablename__ = 'pending_uploads'
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True)
+    owner_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('users.id', ondelete='CASCADE'), index=True)
+    channel_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('channels.id', ondelete='CASCADE'), index=True)
+    message_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('messages.id', ondelete='CASCADE'), nullable=True)
+    filename: Mapped[str] = mapped_column(String(255))
+    mime_type: Mapped[str] = mapped_column(String(128))
+    storage_path: Mapped[str] = mapped_column(String(512))
+    size_bytes: Mapped[int] = mapped_column(BigInteger)
+    checksum_sha256: Mapped[str] = mapped_column(String(64))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
 
 
 class MessageReaction(TimestampMixin, Base):

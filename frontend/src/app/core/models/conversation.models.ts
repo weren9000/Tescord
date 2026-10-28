@@ -9,6 +9,8 @@ export interface ConversationMemberPreview {
 }
 
 export interface ConversationSummary {
+  platform_id?: string | null;
+  platform_position?: number;
   pinned?: boolean;
   id: string;
   kind: 'direct' | 'group_chat';

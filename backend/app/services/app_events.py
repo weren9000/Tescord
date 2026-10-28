@@ -381,6 +381,14 @@ async def publish_presence_updated(user_id: UUID | str, is_online: bool = True) 
 
 
 @distributed_event
+async def publish_platform_message_updated(server_id: UUID | str, message: dict[str, Any]) -> None:
+    await app_event_manager.send_to_server(server_id, {
+        "type": "platform_message_updated", "server_id": str(server_id), "message": message,
+    })
+    await publish_servers_changed(reason="platform_message_updated")
+
+
+@distributed_event
 async def publish_message_created(server_id: UUID | str, message: dict[str, Any]) -> None:
     normalized_server_id = _normalize_server_id(server_id)
     if normalized_server_id is None:
