@@ -13,7 +13,7 @@ export type WorkspaceSection = 'chats' | 'groups' | 'platforms';
     </div>
     <div class="sections">
       <button type="button" (click)="openRoom()">
-        <app-ui-icon name="groups" /><span>Моя комната</span>
+        <app-ui-icon name="room" /><span>Моя комната</span>
       </button>
       @for (section of sections; track section.id) {
         <button
