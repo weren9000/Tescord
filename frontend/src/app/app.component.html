@@ -1012,6 +1012,12 @@
           <button type="button" (click)="openMeetingRoom()">
             <app-ui-icon name="groups" />Моя комната
           </button>
+          <button type="button" (click)="closeSideMenu(); openFriendRequestsModal()">
+            <app-ui-icon name="bell" />Уведомления
+            @if (notificationAlertCount()) {
+              · {{ notificationAlertCount() }}
+            }
+          </button>
           <app-wallet-balance
             [token]="session()!.access_token"
             (open)="closeSideMenu(); walletOpen.set(true)"
@@ -2896,12 +2902,13 @@
         [attr.aria-expanded]="sideMenuOpen()"
         (click)="toggleMobileFooterMenu()"
       >
-        @if (currentUserAvatarUrl(); as avatar) {
-          <img class="mobile-profile-avatar" [src]="avatar" alt="" />
-        } @else {
-          <app-ui-icon name="profile" />
+        <app-ui-icon name="menu" />
+        @if (friendRequestBadgeVisible()) {
+          <span
+            class="mobile-mode-footer__badge"
+            aria-label="Есть непрочитанные уведомления"
+          ></span>
         }
-        <span>Профиль</span>
       </button>
       <button
         class="conversation-sidebar__tab mobile-mode-footer__button"
@@ -2912,7 +2919,7 @@
         title="Друзья"
         (click)="openMobileWorkspaceMode('chats')"
       >
-        <app-ui-icon name="friends" /><span>Друзья</span>
+        <app-ui-icon name="friends" />
       </button>
       <button
         class="conversation-sidebar__tab mobile-mode-footer__button"
@@ -2923,7 +2930,7 @@
         title="Группы"
         (click)="openMobileWorkspaceMode('groups')"
       >
-        <app-ui-icon name="groups" /><span>Группы</span>
+        <app-ui-icon name="groups" />
       </button>
       <button
         class="conversation-sidebar__tab mobile-mode-footer__button"
@@ -2934,17 +2941,16 @@
         title="Площадки"
         (click)="openMobileWorkspaceMode('platforms')"
       >
-        <app-ui-icon name="platforms" /><span>Площадки</span>
+        <app-ui-icon name="platforms" />
       </button>
       <button
-        class="secondary-button conversation-sidebar__icon-button mobile-mode-footer__action mobile-mode-footer__action--notifications"
-        [class.mobile-mode-footer__action--active]="isMobileFooterNotificationsActive()"
+        class="conversation-sidebar__tab mobile-mode-footer__button"
         type="button"
-        aria-label="Уведомления"
-        title="Уведомления"
-        (click)="toggleMobileFooterNotifications()"
+        aria-label="Моя комната"
+        title="Моя комната"
+        (click)="openMeetingRoom()"
       >
-        <app-ui-icon name="bell" />
+        <app-ui-icon name="camera" />
       </button>
     </nav>
   </div>

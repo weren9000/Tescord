@@ -29,9 +29,25 @@ const fs = require('node:fs');
       await page.evaluate(() => { fixture.currentUserAvatarUrl = () => '/assets/kva-wordmark-v2.png'; ng.applyChanges(fixture); });
       const menuButton = page.getByRole('button', { name: 'Меню приложения', exact: true });
       await expect(menuButton).toHaveCount(1);
-      await menuButton.locator('img').click();
+      if (width <= 980) {
+        const footer = page.locator('.mobile-mode-footer');
+        await expect(footer.locator('button')).toHaveCount(5);
+        assert.equal((await footer.innerText()).trim(), '');
+        await expect(footer.getByRole('button', { name: 'Уведомления', exact: true })).toHaveCount(0);
+        await expect(footer.getByRole('button', { name: 'Моя комната', exact: true })).toBeVisible();
+        const sizes = await footer.locator('button').evaluateAll(es => es.map(e => ({ w: e.clientWidth, h: e.clientHeight, icon: e.querySelector('svg').getBoundingClientRect().width })));
+        assert(sizes.every(s => s.w >= 44 && s.h >= 44 && s.icon >= 22), JSON.stringify(sizes));
+        await page.screenshot({ path: `.local/workspace-navigation/footer-${width}.png` });
+      }
+      await menuButton.locator(width > 980 ? 'img' : 'app-ui-icon').click();
       const menu = page.getByRole('dialog', { name: 'Меню', exact: true });
       await expect(menu).toBeVisible();
+      await expect(menu.getByRole('button', { name: 'Уведомления', exact: true })).toBeVisible();
+      await menu.getByRole('button', { name: 'Уведомления', exact: true }).click();
+      await expect(page.locator('.modal--friend-requests')).toBeVisible();
+      await expect(menu).toHaveCount(0);
+      await page.locator('.modal--friend-requests .modal__header button').click();
+      await menuButton.click();
       await menu.getByRole('button', { name: 'Мой профиль', exact: true }).click();
       await expect(page.getByRole('dialog', { name: 'Мой профиль', exact: true })).toBeVisible();
       await page.getByRole('button', { name: 'Закрыть профиль', exact: true }).click();
@@ -90,6 +106,14 @@ const fs = require('node:fs');
       await expect(tabs.locator('button.active')).toHaveText('Мой инвентарь');
       assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
       assert.deepEqual(errors, []);
+      if (width <= 980) {
+        await page.getByRole('button', { name: 'Закрыть предметы', exact: true }).click();
+        await page.evaluate(() => { fixture.friendRequestBadgeVisible = () => true; ng.applyChanges(fixture); });
+        await expect(menuButton.locator('.mobile-mode-footer__badge')).toBeVisible();
+        await page.route('**/my-room', r => r.fulfill({ contentType: 'text/html', body: '<h1>Room route fixture</h1>' }));
+        await page.locator('.mobile-mode-footer').getByRole('button', { name: 'Моя комната', exact: true }).click();
+        await expect(page).toHaveURL(/\/my-room$/);
+      }
       await page.close();
     }
     console.log('PASS: visible group icons, one items entry, inventory default, browse link, filters, permissions, desktop/mobile');
