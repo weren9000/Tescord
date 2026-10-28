@@ -2,20 +2,37 @@
 
 :root {
   color-scheme: dark;
-  @each $name, $color in (
-    canvas: palette.$canvas, primary: palette.$primary, 'cyan': palette.$cyan,
-    text: palette.$text, surface: palette.$surface, raised: palette.$raised,
-    hover: palette.$hover, border: palette.$border, subtle: palette.$subtle,
-    muted: palette.$muted, secondary: palette.$secondary,
-    primary-text: palette.$primary-text, selected: palette.$selected,
-    danger: palette.$danger, danger-surface: palette.$danger-surface,
-    danger-text: palette.$danger-text, warning: palette.$warning, shadow: palette.$shadow
-  ) {
+  @each $name,
+    $color
+      in (
+        canvas: palette.$canvas,
+        primary: palette.$primary,
+        'cyan': palette.$cyan,
+        text: palette.$text,
+        surface: palette.$surface,
+        raised: palette.$raised,
+        hover: palette.$hover,
+        border: palette.$border,
+        subtle: palette.$subtle,
+        muted: palette.$muted,
+        secondary: palette.$secondary,
+        primary-text: palette.$primary-text,
+        selected: palette.$selected,
+        danger: palette.$danger,
+        danger-surface: palette.$danger-surface,
+        danger-text: palette.$danger-text,
+        warning: palette.$warning,
+        shadow: palette.$shadow
+      )
+  {
     --palette-#{$name}: #{$color};
   }
 }
 
-::selection { background: var(--palette-primary); color: var(--palette-text); }
+::selection {
+  background: var(--palette-primary);
+  color: var(--palette-text);
+}
 
 // Shared by chat, sidebars, inventories and dialogs; follows the active palette.
 @media (forced-colors: none) {
@@ -75,7 +92,7 @@ body {
 
 body {
   color: var(--palette-text);
-  font-family: "Inter", "Segoe UI Variable", "Segoe UI", Arial, sans-serif;
+  font-family: 'Inter', 'Segoe UI Variable', 'Segoe UI', Arial, sans-serif;
 }
 
 :root {
@@ -101,14 +118,28 @@ body {
   --palette-primary-hover: #6940eb;
 }
 
-:root[data-ui-theme] {background:var(--palette-canvas);color:var(--palette-text);}
-:root[data-ui-theme] button.primary, :root[data-ui-theme] .primary-button {color:#fff;}
+:root[data-ui-theme] {
+  background: var(--palette-canvas);
+  color: var(--palette-text);
+}
+:root[data-ui-theme] button.primary,
+:root[data-ui-theme] .primary-button {
+  color: #fff;
+}
 :root[data-ui-scheme='light'] app-section-navigation .brand img {
   // Invert the original black matte to white; multiply removes it on light surfaces.
   // Hue rotation retains the cyan brand accents without changing the source logo.
   mix-blend-mode: multiply;
   filter: contrast(1.5) invert(1) hue-rotate(180deg);
-  opacity: .85;
+  opacity: 0.85;
 }
-:root[data-ui-scheme='light'] .composer__submit img {filter: brightness(.35);}
-.user-card-trigger{cursor:pointer!important}.user-card-trigger:focus-visible{outline:2px solid var(--palette-primary);outline-offset:3px}
+:root[data-ui-scheme='light'] .composer__submit img {
+  filter: brightness(0.35);
+}
+.user-card-trigger {
+  cursor: pointer !important;
+}
+.user-card-trigger:focus-visible {
+  outline: 2px solid var(--palette-primary);
+  outline-offset: 3px;
+}

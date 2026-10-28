@@ -1,127 +1,683 @@
-@if(account && profile()){<app-theme-controller [token]="account.access_token"/>}
-<main class="meeting-page" [class.in-call]="!!ticket()" [style.--meeting-height]="viewportHeight()+'px'">
-  @if(ticket() && error()){<div class="alert" role="alert">{{error()}} <button (click)="error.set('')" aria-label="Закрыть ошибку">×</button></div>}
-  @if(ticket() && notice()){<p class="notice" role="status">{{notice()}}</p>}
-  @if(!ticket()){
+@if (account && profile()) {
+  <app-theme-controller [token]="account.access_token" />
+}
+<main
+  class="meeting-page"
+  [class.in-call]="!!ticket()"
+  [style.--meeting-height]="viewportHeight() + 'px'"
+>
+  @if (ticket() && error()) {
+    <div class="alert" role="alert">
+      {{ error() }} <button (click)="error.set('')" aria-label="Закрыть ошибку">×</button>
+    </div>
+  }
+  @if (ticket() && notice()) {
+    <p class="notice" role="status">{{ notice() }}</p>
+  }
+  @if (!ticket()) {
     <section class="welcome">
-      <a href="/" class="welcome-brand" aria-label="Квачат"><img src="/assets/kva-wordmark-v2.png" alt="Квачат" width="88"/></a>
-      <h1>{{ended() ? 'Встреча завершена' : personal ? 'Моя комната' : 'Войти в комнату'}}</h1>
-      @if(error() && !(ended() && error()==='Встреча завершена')){<div class="alert" role="alert">{{error()}}<button (click)="error.set('')" aria-label="Закрыть ошибку"><app-ui-icon name="close"/></button></div>}
-      @if(notice()){<p class="entry-notice" role="status">{{notice()}}</p>}
-      @if(ended() && !personal){<p class="hint">Для следующей встречи нужна новая ссылка.</p>}
-      @if(checkingAccount()){<p class="hint" role="status">Проверяем вход…</p>}
-      @else if(accountExpired()){
-        <p class="hint">Сессия аккаунта истекла</p><a class="primary" href="/login" target="_blank" rel="noopener">Войти заново</a><button (click)="reloadAccount()">Я вошёл — продолжить</button>
-        @if(!personal){<button class="text-button" (click)="continueAsGuest()">Продолжить гостем</button>}
+      <a href="/" class="welcome-brand" aria-label="Квачат"
+        ><img src="/assets/kva-wordmark-v2.png" alt="Квачат" width="88"
+      /></a>
+      <h1>{{ ended() ? 'Встреча завершена' : personal ? 'Моя комната' : 'Войти в комнату' }}</h1>
+      @if (error() && !(ended() && error() === 'Встреча завершена')) {
+        <div class="alert" role="alert">
+          {{ error()
+          }}<button (click)="error.set('')" aria-label="Закрыть ошибку">
+            <app-ui-icon name="close" />
+          </button>
+        </div>
       }
-      @else if(account && !guestMode() && !profile()){<button (click)="reloadAccount()">Повторить проверку входа</button>}
-      @else if(personal && !account){<a class="primary" href="/login">Войти, чтобы начать встречу</a>}
-      @else if(personal){
-        <details class="entry-settings"><summary>Настройки ссылки<app-ui-icon name="down"/></summary><div class="settings"><label>Ссылка действует <select [(ngModel)]="hours"><option [ngValue]="1">1 час</option><option [ngValue]="24">24 часа</option><option [ngValue]="168">7 дней</option></select></label><label>Количество входов <input type="number" min="1" max="1000" [(ngModel)]="uses"/></label></div></details>
-        <button class="primary" [disabled]="busy()" (click)="join()">Начать / вернуться во встречу</button>
-      }@else if(!ended()){
-        @if(profile();as user){
-          <div class="entry-profile"><img [src]="avatarUrl(user.id,user.avatar_updated_at)" [alt]="user.nick"/><strong>{{user.nick}}</strong></div>
-          <button class="primary" [disabled]="busy() || !inviteReady()" (click)="join()">Присоединиться</button>
-        }@else{
-        <form (ngSubmit)="join()"><label>Ваше имя<input name="name" [(ngModel)]="name" maxlength="64" required autocomplete="nickname" placeholder="Как вас представить?"/></label><button class="primary" [disabled]="busy() || !name.trim() || !inviteReady()">Присоединиться</button></form>
+      @if (notice()) {
+        <p class="entry-notice" role="status">{{ notice() }}</p>
+      }
+      @if (ended() && !personal) {
+        <p class="hint">Для следующей встречи нужна новая ссылка.</p>
+      }
+      @if (checkingAccount()) {
+        <p class="hint" role="status">Проверяем вход…</p>
+      } @else if (accountExpired()) {
+        <p class="hint">Сессия аккаунта истекла</p>
+        <a class="primary" href="/login" target="_blank" rel="noopener">Войти заново</a
+        ><button (click)="reloadAccount()">Я вошёл — продолжить</button>
+        @if (!personal) {
+          <button class="text-button" (click)="continueAsGuest()">Продолжить гостем</button>
+        }
+      } @else if (account && !guestMode() && !profile()) {
+        <button (click)="reloadAccount()">Повторить проверку входа</button>
+      } @else if (personal && !account) {
+        <a class="primary" href="/login">Войти, чтобы начать встречу</a>
+      } @else if (personal) {
+        <details class="entry-settings">
+          <summary>Настройки ссылки<app-ui-icon name="down" /></summary>
+          <div class="settings">
+            <label
+              >Ссылка действует
+              <select [(ngModel)]="hours">
+                <option [ngValue]="1">1 час</option>
+                <option [ngValue]="24">24 часа</option>
+                <option [ngValue]="168">7 дней</option>
+              </select></label
+            ><label
+              >Количество входов <input type="number" min="1" max="1000" [(ngModel)]="uses"
+            /></label>
+          </div>
+        </details>
+        <button class="primary" [disabled]="busy()" (click)="join()">
+          Начать / вернуться во встречу
+        </button>
+      } @else if (!ended()) {
+        @if (profile(); as user) {
+          <div class="entry-profile">
+            <img [src]="avatarUrl(user.id, user.avatar_updated_at)" [alt]="user.nick" /><strong>{{
+              user.nick
+            }}</strong>
+          </div>
+          <button class="primary" [disabled]="busy() || !inviteReady()" (click)="join()">
+            Присоединиться
+          </button>
+        } @else {
+          <form (ngSubmit)="join()">
+            <label
+              >Ваше имя<input
+                name="name"
+                [(ngModel)]="name"
+                maxlength="64"
+                required
+                autocomplete="nickname"
+                placeholder="Как вас представить?" /></label
+            ><button class="primary" [disabled]="busy() || !name.trim() || !inviteReady()">
+              Присоединиться
+            </button>
+          </form>
         }
       }
-      <a class="entry-back" href="/"><app-ui-icon name="back"/>В Квачат</a>
+      <a class="entry-back" href="/"><app-ui-icon name="back" />В Квачат</a>
     </section>
-  }@else{
+  } @else {
     <div class="meeting-status">
-      @if(state()?.owner_deadline){<div class="owner-away" role="status">Владелец отключился · до завершения {{countdown()}}. Он может вернуться.</div>}
-      @if(!connected()){<div class="connection" role="status">Звук не подключён <button [disabled]="busy()" (click)="run(connectMedia.bind(this))">Подключиться</button></div>}
-      @if(audioBlocked()){<button class="audio-unlock" (click)="run(resumeAudio.bind(this))">Нажмите, чтобы включить звук</button>}
+      @if (state()?.owner_deadline) {
+        <div class="owner-away" role="status">
+          Владелец отключился · до завершения {{ countdown() }}. Он может вернуться.
+        </div>
+      }
+      @if (!connected()) {
+        <div class="connection" role="status">
+          Звук не подключён
+          <button [disabled]="busy()" (click)="run(connectMedia.bind(this))">Подключиться</button>
+        </div>
+      }
+      @if (audioBlocked()) {
+        <button class="audio-unlock" (click)="run(resumeAudio.bind(this))">
+          Нажмите, чтобы включить звук
+        </button>
+      }
     </div>
     <div class="conference" [class.has-panel]="!!panel()">
       <section class="stage" [class.presenting]="!!presentation()" aria-label="Конференция">
-        @if(presentation();as v){
+        @if (presentation(); as v) {
           <div class="presentation">
-            @if(screens().length>1){<div class="screen-tabs">@for(screen of screens();track screen.id){<button [attr.aria-pressed]="screen.id===v.id" (click)="selectedScreen.set(screen.id)">{{screen.name}}</button>}</div>}
-            <video [meetingTrack]="v.track" autoplay playsinline muted></video><span class="tile-name"><app-ui-icon name="screen"/>{{v.name}}</span>
+            @if (screens().length > 1) {
+              <div class="screen-tabs">
+                @for (screen of screens(); track screen.id) {
+                  <button
+                    [attr.aria-pressed]="screen.id === v.id"
+                    (click)="selectedScreen.set(screen.id)"
+                  >
+                    {{ screen.name }}
+                  </button>
+                }
+              </div>
+            }
+            <video [meetingTrack]="v.track" autoplay playsinline muted></video
+            ><span class="tile-name"><app-ui-icon name="screen" />{{ v.name }}</span>
           </div>
         }
-        @if(!presentation() && visiblePeople().length){
-        <div class="people-grid" [class.single]="visiblePeople().length===1" [class.pair]="visiblePeople().length===2" [style.--mobile-rows]="visiblePeople().length>8?5:visiblePeople().length>6?4:visiblePeople().length>4?3:visiblePeople().length>2?2:1" [style.--columns]="visiblePeople().length>4?3:2" [style.--rows]="visiblePeople().length===1?1:visiblePeople().length>6?3:visiblePeople().length>2?2:1">
-          @for(p of visiblePeople();track p.id){
-            <div class="participant-tile" [class.speaking]="speakers().includes(p.id) && !personMuted(p)">
-              @if(cameraFor(p.id);as camera){<video [meetingTrack]="camera.track" autoplay playsinline muted></video>}
-              @else if(avatarUrl(p.user_id,p.avatar_updated_at);as avatar){<img class="tile-profile-avatar" [src]="avatar" [alt]="p.name"/>}
-              @else{<div class="tile-avatar" aria-hidden="true">{{initials(p.name)}}</div>}
-              <span class="tile-name">@if(personalVolume[p.id]===0){<app-ui-icon name="soundOff"/>}{{p.name}}{{p.id===ticket()?.participant_id?' · Вы':''}}@if(personMuted(p)){<app-ui-icon name="micOff"/>}</span>
-            </div>
+        @if (!presentation() && visiblePeople().length) {
+          <div
+            class="people-grid"
+            [class.single]="visiblePeople().length === 1"
+            [class.pair]="visiblePeople().length === 2"
+            [style.--mobile-rows]="
+              visiblePeople().length > 8
+                ? 5
+                : visiblePeople().length > 6
+                  ? 4
+                  : visiblePeople().length > 4
+                    ? 3
+                    : visiblePeople().length > 2
+                      ? 2
+                      : 1
+            "
+            [style.--columns]="visiblePeople().length > 4 ? 3 : 2"
+            [style.--rows]="
+              visiblePeople().length === 1
+                ? 1
+                : visiblePeople().length > 6
+                  ? 3
+                  : visiblePeople().length > 2
+                    ? 2
+                    : 1
+            "
+          >
+            @for (p of visiblePeople(); track p.id) {
+              <div
+                class="participant-tile"
+                [class.speaking]="speakers().includes(p.id) && !personMuted(p)"
+              >
+                @if (cameraFor(p.id); as camera) {
+                  <video [meetingTrack]="camera.track" autoplay playsinline muted></video>
+                } @else if (avatarUrl(p.user_id, p.avatar_updated_at); as avatar) {
+                  <img class="tile-profile-avatar" [src]="avatar" [alt]="p.name" />
+                } @else {
+                  <div class="tile-avatar" aria-hidden="true">{{ initials(p.name) }}</div>
+                }
+                <span class="tile-name">
+                  @if (personalVolume[p.id] === 0) {
+                    <app-ui-icon name="soundOff" />
+                  }
+                  {{ p.name }}{{ p.id === ticket()?.participant_id ? ' · Вы' : '' }}
+                  @if (personMuted(p)) {
+                    <app-ui-icon name="micOff" />
+                  }
+                </span>
+              </div>
+            }
+          </div>
+          @if (stagePeople().length > 9) {
+            <nav class="pages" aria-label="Страницы участников">
+              <button
+                class="icon-button"
+                aria-label="Предыдущие участники"
+                [disabled]="currentPage() === 0"
+                (click)="page = currentPage() - 1"
+              >
+                <app-ui-icon name="back" /></button
+              ><span>{{ currentPage() + 1 }}</span
+              ><button
+                class="icon-button"
+                aria-label="Следующие участники"
+                [disabled]="(currentPage() + 1) * 9 >= stagePeople().length"
+                (click)="page = currentPage() + 1"
+              >
+                <app-ui-icon name="forward" />
+              </button>
+            </nav>
           }
-        </div>
-        @if(stagePeople().length>9){<nav class="pages" aria-label="Страницы участников"><button class="icon-button" aria-label="Предыдущие участники" [disabled]="currentPage()===0" (click)="page=currentPage()-1"><app-ui-icon name="back"/></button><span>{{currentPage()+1}}</span><button class="icon-button" aria-label="Следующие участники" [disabled]="(currentPage()+1)*9 >= stagePeople().length" (click)="page=currentPage()+1"><app-ui-icon name="forward"/></button></nav>}
         }
       </section>
-      @if(panel()){
-        <aside class="side-panel" [attr.aria-label]="panel()==='chat'?'Чат встречи':'Участники'">
-          <div class="panel-head"><h2>{{panel()==='chat'?'Чат встречи':'Участники'}}</h2>@if(panel()==='participants'){<span class="count">{{state()?.participants?.length}}</span>}<button class="icon-button" aria-label="Закрыть панель" (click)="panel.set(null)"><app-ui-icon name="close"/></button></div>
-          @if(panel()==='participants'){<div class="participant-list">          @for(p of state()?.participants || [];track p.id){<div class="person" [class.speaking]="speakers().includes(p.id)"><span class="avatar">@if(avatarUrl(p.user_id,p.avatar_updated_at);as avatar){<img [src]="avatar" [alt]="p.name"/>}@else{ {{initials(p.name)}} }</span><strong>{{p.name}}</strong><small><app-ui-icon [name]="personMuted(p)?'micOff':'mic'" [attr.aria-label]="personMuted(p)?'Микрофон выключен':'Микрофон включён'"/>{{p.is_owner?'Владелец':p.user_id?'Аккаунт':'Гость'}}{{p.id===ticket()?.participant_id?' · Вы':''}}{{p.silenced?' · Передача отключена':''}}</small>
-            @if(ticket()?.is_owner && !p.is_owner){<details class="person-actions"><summary [attr.aria-label]="'Действия: '+p.name">⋯</summary><div><button [disabled]="busy()" (click)="control(p.silenced?'unsilence':'silence',p.id)">{{p.silenced?'Разрешить передачу':'Отключить передачу'}}</button><button class="danger" [disabled]="busy()" (click)="control('kick',p.id)">Удалить</button></div></details>}
-            @if(p.id!==ticket()?.participant_id){<div class="person-volume"><button (click)="togglePersonalMute(p.id)" [attr.aria-pressed]="personalVolume[p.id]===0" [attr.aria-label]="(personalVolume[p.id]===0?'Включить для себя: ':'Заглушить для себя: ')+p.name"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M11 5 6 9H3v6h3l5 4Z"/>@if(personalVolume[p.id]===0){<path d="m16 9 6 6m0-6-6 6"/>}@else{<path d="M15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/>}</svg></button><input type="range" min="0" max="100" [ngModel]="personalVolume[p.id] ?? 100" (ngModelChange)="personalVolume[p.id]=$event;updateVolumes()" [attr.aria-label]="'Громкость: '+p.name"/><output>{{personalVolume[p.id] ?? 100}}%</output></div>}
-          </div>}
-</div>}
-          @else{<p class="chat-hint">Сообщения удалятся после встречи</p>        <div #messageList class="messages" aria-live="polite">
-          @if(hasOlder()){<button [disabled]="busy()" (click)="loadOlder()">Ранние сообщения</button>}
-          @for(m of allMessages();track m.id){<article><div class="message-by">@if(messageProfile(m);as author){@if(avatarUrl(author.user_id,author.avatar_updated_at);as avatar){<img class="message-avatar" [src]="avatar" [alt]="author.name" loading="lazy"/>}@else{<span class="message-initials" aria-hidden="true">{{initials(author.name)}}</span>}<strong>{{author.name}}</strong>@if(!author.user_id){<small>Гость</small>}}<time>{{m.created_at | date:'HH:mm'}}</time>@if(m.edited_at){<small>изменено</small>}</div>
-            @if(m.reply_to_id){<blockquote>{{replyText(m.reply_to_id)}}</blockquote>}<p class="message-content">{{m.content}}</p>
-            @for(u of m.uploads;track u.id){<div class="attachment"><button [disabled]="busy()" (click)="openFile(u)">↓ {{u.filename}}</button>@if(u.mime_type?.startsWith('image/')){<button [disabled]="busy()" (click)="openFile(u,true)">Посмотреть</button>}@else if(isTextFile(u.filename)){<button [disabled]="busy()" (click)="openText(u)">Посмотреть</button>}</div>}
-            <details class="message-menu"><summary aria-label="Действия сообщения"><app-ui-icon name="more"/></summary><div class="message-actions"><button (click)="reply=m;editing=null">Ответить</button>@if(m.author_id===ticket()?.participant_id){<button (click)="edit(m)">Изменить</button>}@if(m.author_id===ticket()?.participant_id || ticket()?.is_owner){<button [disabled]="busy()" (click)="deleteMessage(m)">Удалить</button>}
-              <details><summary aria-label="Добавить реакцию">☺</summary><div class="reactions">@for(e of emojis;track e){<button [disabled]="busy()" (click)="react(m,e)">{{e}}</button>}</div></details>
-            </div></details><div class="reactions">@for(e of emojis;track e){@if(reactionCount(m,e)){<button [disabled]="busy()" (click)="react(m,e)">{{e}} {{reactionCount(m,e)}}</button>}}</div>
-          </article>}@empty{<p class="hint">Поздоровайтесь с участниками встречи</p>}
-        </div>
-        <form class="composer" (ngSubmit)="send()">
-          @if(reply || editing){<div class="reply">{{editing?'Редактирование': 'Ответ: '+reply?.author}}<button type="button" (click)="reply=null;editing=null;text=''" aria-label="Отменить">×</button></div>}
-          @for(u of uploads;track u.id){<div class="reply">{{u.filename}}<button type="button" [disabled]="busy()" (click)="discard(u)" aria-label="Убрать файл">×</button></div>}
-          <textarea name="message" [(ngModel)]="text" maxlength="10000" placeholder="Сообщение участникам…" aria-label="Сообщение" rows="2"></textarea>
-          <div class="composer-actions"><button type="button" class="icon-button" title="Прикрепить файл" aria-label="Прикрепить файл" [disabled]="busy() || !!editing" (click)="filePicker.click()"><app-ui-icon name="attach"/></button><input #filePicker type="file" hidden multiple [disabled]="busy() || !!editing" (change)="pickFiles($event)"/><span class="hint">{{editing ? 'Редактирование' : 'Сообщение всем'}}</span><button class="icon-button primary" [attr.aria-label]="editing?'Сохранить':'Отправить'" [attr.title]="editing?'Сохранить':'Отправить'" [disabled]="busy() || (!text.trim() && !uploads.length)"><app-ui-icon [name]="editing?'check':'send'"/></button></div>
-        </form>
-}
+      @if (panel()) {
+        <aside
+          class="side-panel"
+          [attr.aria-label]="panel() === 'chat' ? 'Чат встречи' : 'Участники'"
+        >
+          <div class="panel-head">
+            <h2>{{ panel() === 'chat' ? 'Чат встречи' : 'Участники' }}</h2>
+            @if (panel() === 'participants') {
+              <span class="count">{{ state()?.participants?.length }}</span>
+            }
+            <button class="icon-button" aria-label="Закрыть панель" (click)="panel.set(null)">
+              <app-ui-icon name="close" />
+            </button>
+          </div>
+          @if (panel() === 'participants') {
+            <div class="participant-list">
+              @for (p of state()?.participants || []; track p.id) {
+                <div class="person" [class.speaking]="speakers().includes(p.id)">
+                  <span class="avatar">
+                    @if (avatarUrl(p.user_id, p.avatar_updated_at); as avatar) {
+                      <img [src]="avatar" [alt]="p.name" />
+                    } @else {
+                      {{ initials(p.name) }}
+                    }</span
+                  ><strong>{{ p.name }}</strong
+                  ><small
+                    ><app-ui-icon
+                      [name]="personMuted(p) ? 'micOff' : 'mic'"
+                      [attr.aria-label]="personMuted(p) ? 'Микрофон выключен' : 'Микрофон включён'"
+                    />{{ p.is_owner ? 'Владелец' : p.user_id ? 'Аккаунт' : 'Гость'
+                    }}{{ p.id === ticket()?.participant_id ? ' · Вы' : ''
+                    }}{{ p.silenced ? ' · Передача отключена' : '' }}</small
+                  >
+                  @if (ticket()?.is_owner && !p.is_owner) {
+                    <details class="person-actions">
+                      <summary [attr.aria-label]="'Действия: ' + p.name">⋯</summary>
+                      <div>
+                        <button
+                          [disabled]="busy()"
+                          (click)="control(p.silenced ? 'unsilence' : 'silence', p.id)"
+                        >
+                          {{ p.silenced ? 'Разрешить передачу' : 'Отключить передачу' }}</button
+                        ><button class="danger" [disabled]="busy()" (click)="control('kick', p.id)">
+                          Удалить
+                        </button>
+                      </div>
+                    </details>
+                  }
+                  @if (p.id !== ticket()?.participant_id) {
+                    <div class="person-volume">
+                      <button
+                        (click)="togglePersonalMute(p.id)"
+                        [attr.aria-pressed]="personalVolume[p.id] === 0"
+                        [attr.aria-label]="
+                          (personalVolume[p.id] === 0
+                            ? 'Включить для себя: '
+                            : 'Заглушить для себя: ') + p.name
+                        "
+                      >
+                        <svg
+                          viewBox="0 0 24 24"
+                          width="16"
+                          height="16"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.6"
+                        >
+                          <path d="M11 5 6 9H3v6h3l5 4Z" />
+                          @if (personalVolume[p.id] === 0) {
+                            <path d="m16 9 6 6m0-6-6 6" />
+                          } @else {
+                            <path d="M15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14" />
+                          }
+                        </svg></button
+                      ><input
+                        type="range"
+                        min="0"
+                        max="100"
+                        [ngModel]="personalVolume[p.id] ?? 100"
+                        (ngModelChange)="personalVolume[p.id] = $event; updateVolumes()"
+                        [attr.aria-label]="'Громкость: ' + p.name"
+                      /><output>{{ personalVolume[p.id] ?? 100 }}%</output>
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          } @else {
+            <p class="chat-hint">Сообщения удалятся после встречи</p>
+            <div #messageList class="messages" aria-live="polite">
+              @if (hasOlder()) {
+                <button [disabled]="busy()" (click)="loadOlder()">Ранние сообщения</button>
+              }
+              @for (m of allMessages(); track m.id) {
+                <article>
+                  <div class="message-by">
+                    @if (messageProfile(m); as author) {
+                      @if (avatarUrl(author.user_id, author.avatar_updated_at); as avatar) {
+                        <img
+                          class="message-avatar"
+                          [src]="avatar"
+                          [alt]="author.name"
+                          loading="lazy"
+                        />
+                      } @else {
+                        <span class="message-initials" aria-hidden="true">{{
+                          initials(author.name)
+                        }}</span>
+                      }
+                      <strong>{{ author.name }}</strong>
+                      @if (!author.user_id) {
+                        <small>Гость</small>
+                      }
+                    }
+                    <time>{{ m.created_at | date: 'HH:mm' }}</time>
+                    @if (m.edited_at) {
+                      <small>изменено</small>
+                    }
+                  </div>
+                  @if (m.reply_to_id) {
+                    <blockquote>{{ replyText(m.reply_to_id) }}</blockquote>
+                  }
+                  <p class="message-content">{{ m.content }}</p>
+                  @for (u of m.uploads; track u.id) {
+                    <div class="attachment">
+                      <button [disabled]="busy()" (click)="openFile(u)">↓ {{ u.filename }}</button>
+                      @if (u.mime_type?.startsWith('image/')) {
+                        <button [disabled]="busy()" (click)="openFile(u, true)">Посмотреть</button>
+                      } @else if (isTextFile(u.filename)) {
+                        <button [disabled]="busy()" (click)="openText(u)">Посмотреть</button>
+                      }
+                    </div>
+                  }
+                  <details class="message-menu">
+                    <summary aria-label="Действия сообщения"><app-ui-icon name="more" /></summary>
+                    <div class="message-actions">
+                      <button (click)="reply = m; editing = null">Ответить</button>
+                      @if (m.author_id === ticket()?.participant_id) {
+                        <button (click)="edit(m)">Изменить</button>
+                      }
+                      @if (m.author_id === ticket()?.participant_id || ticket()?.is_owner) {
+                        <button [disabled]="busy()" (click)="deleteMessage(m)">Удалить</button>
+                      }
+                      <details>
+                        <summary aria-label="Добавить реакцию">☺</summary>
+                        <div class="reactions">
+                          @for (e of emojis; track e) {
+                            <button [disabled]="busy()" (click)="react(m, e)">{{ e }}</button>
+                          }
+                        </div>
+                      </details>
+                    </div>
+                  </details>
+                  <div class="reactions">
+                    @for (e of emojis; track e) {
+                      @if (reactionCount(m, e)) {
+                        <button [disabled]="busy()" (click)="react(m, e)">
+                          {{ e }} {{ reactionCount(m, e) }}
+                        </button>
+                      }
+                    }
+                  </div>
+                </article>
+              } @empty {
+                <p class="hint">Поздоровайтесь с участниками встречи</p>
+              }
+            </div>
+            <form class="composer" (ngSubmit)="send()">
+              @if (reply || editing) {
+                <div class="reply">
+                  {{ editing ? 'Редактирование' : 'Ответ: ' + reply?.author
+                  }}<button
+                    type="button"
+                    (click)="reply = null; editing = null; text = ''"
+                    aria-label="Отменить"
+                  >
+                    ×
+                  </button>
+                </div>
+              }
+              @for (u of uploads; track u.id) {
+                <div class="reply">
+                  {{ u.filename
+                  }}<button
+                    type="button"
+                    [disabled]="busy()"
+                    (click)="discard(u)"
+                    aria-label="Убрать файл"
+                  >
+                    ×
+                  </button>
+                </div>
+              }
+              <textarea
+                name="message"
+                [(ngModel)]="text"
+                maxlength="10000"
+                placeholder="Сообщение участникам…"
+                aria-label="Сообщение"
+                rows="2"
+              ></textarea>
+              <div class="composer-actions">
+                <button
+                  type="button"
+                  class="icon-button"
+                  title="Прикрепить файл"
+                  aria-label="Прикрепить файл"
+                  [disabled]="busy() || !!editing"
+                  (click)="filePicker.click()"
+                >
+                  <app-ui-icon name="attach" /></button
+                ><input
+                  #filePicker
+                  type="file"
+                  hidden
+                  multiple
+                  [disabled]="busy() || !!editing"
+                  (change)="pickFiles($event)"
+                /><span class="hint">{{ editing ? 'Редактирование' : 'Сообщение всем' }}</span
+                ><button
+                  class="icon-button primary"
+                  [attr.aria-label]="editing ? 'Сохранить' : 'Отправить'"
+                  [attr.title]="editing ? 'Сохранить' : 'Отправить'"
+                  [disabled]="busy() || (!text.trim() && !uploads.length)"
+                >
+                  <app-ui-icon [name]="editing ? 'check' : 'send'" />
+                </button>
+              </div>
+            </form>
+          }
         </aside>
       }
     </div>
     <footer class="meeting-toolbar" aria-label="Управление встречей">
-      <div class="toolbar-start"><button class="icon-button" popovertarget="meeting-invite" title="Пригласить по ссылке" aria-label="Пригласить по ссылке"><app-ui-icon name="link"/></button><span class="meeting-title">{{state()?.name || 'Комната'}}</span></div>
-      <div class="toolbar-center">
-        <button class="icon-button" [class.muted]="!microphone()" [attr.aria-pressed]="microphone()" [disabled]="busy() || !connected()" [attr.aria-label]="microphone()?'Выключить микрофон':'Включить микрофон'" [attr.title]="microphone()?'Выключить микрофон':'Включить микрофон'" (click)="toggle('microphone')"><app-ui-icon [name]="microphone()?'mic':'micOff'"/></button>
-        <button class="icon-button" [class.active]="camera()" [attr.aria-pressed]="camera()" [disabled]="busy() || !connected()" [attr.aria-label]="camera()?'Выключить камеру':'Включить камеру'" [attr.title]="camera()?'Выключить камеру':'Включить камеру'" (click)="toggle('camera')"><app-ui-icon [name]="camera()?'camera':'cameraOff'"/></button>
-        @if(canShareScreen){<button class="icon-button desktop-share" [class.active]="screen()" [attr.aria-pressed]="screen()" [disabled]="busy() || !connected()" [attr.aria-label]="screen()?'Остановить показ':'Показать экран'" [attr.title]="screen()?'Остановить показ':'Показать экран'" (click)="toggle('screen')"><app-ui-icon name="screen"/></button>}
-        <button class="icon-button" [class.active]="panel()==='participants'" [attr.aria-expanded]="panel()==='participants'" title="Участники" aria-label="Участники" (click)="togglePanel('participants')"><app-ui-icon name="groups"/><span class="badge">{{state()?.participants?.length || 1}}</span></button>
-        <button class="icon-button" [class.active]="panel()==='chat'" [attr.aria-expanded]="panel()==='chat'" title="Чат встречи" aria-label="Чат встречи" (click)="togglePanel('chat')"><app-ui-icon name="chat"/>@if(unread()){<span class="badge unread">{{unread()>99?'99+':unread()}}</span>}</button>
-        <button class="icon-button" title="Настройки встречи" aria-label="Настройки встречи" aria-haspopup="dialog" (click)="openSettings(settingsDialog)"><app-ui-icon name="callSettings"/></button>
+      <div class="toolbar-start">
+        <button
+          class="icon-button"
+          popovertarget="meeting-invite"
+          title="Пригласить по ссылке"
+          aria-label="Пригласить по ссылке"
+        >
+          <app-ui-icon name="link" /></button
+        ><span class="meeting-title">{{ state()?.name || 'Комната' }}</span>
       </div>
-      <div class="toolbar-end"><button class="icon-button danger" [disabled]="busy()" title="Выйти из встречи" aria-label="Выйти из встречи" (click)="exitMeeting(exitDialog)"><app-ui-icon name="hangup"/></button></div>
+      <div class="toolbar-center">
+        <button
+          class="icon-button"
+          [class.muted]="!microphone()"
+          [attr.aria-pressed]="microphone()"
+          [disabled]="busy() || !connected()"
+          [attr.aria-label]="microphone() ? 'Выключить микрофон' : 'Включить микрофон'"
+          [attr.title]="microphone() ? 'Выключить микрофон' : 'Включить микрофон'"
+          (click)="toggle('microphone')"
+        >
+          <app-ui-icon [name]="microphone() ? 'mic' : 'micOff'" />
+        </button>
+        <button
+          class="icon-button"
+          [class.active]="camera()"
+          [attr.aria-pressed]="camera()"
+          [disabled]="busy() || !connected()"
+          [attr.aria-label]="camera() ? 'Выключить камеру' : 'Включить камеру'"
+          [attr.title]="camera() ? 'Выключить камеру' : 'Включить камеру'"
+          (click)="toggle('camera')"
+        >
+          <app-ui-icon [name]="camera() ? 'camera' : 'cameraOff'" />
+        </button>
+        @if (canShareScreen) {
+          <button
+            class="icon-button desktop-share"
+            [class.active]="screen()"
+            [attr.aria-pressed]="screen()"
+            [disabled]="busy() || !connected()"
+            [attr.aria-label]="screen() ? 'Остановить показ' : 'Показать экран'"
+            [attr.title]="screen() ? 'Остановить показ' : 'Показать экран'"
+            (click)="toggle('screen')"
+          >
+            <app-ui-icon name="screen" />
+          </button>
+        }
+        <button
+          class="icon-button"
+          [class.active]="panel() === 'participants'"
+          [attr.aria-expanded]="panel() === 'participants'"
+          title="Участники"
+          aria-label="Участники"
+          (click)="togglePanel('participants')"
+        >
+          <app-ui-icon name="groups" /><span class="badge">{{
+            state()?.participants?.length || 1
+          }}</span>
+        </button>
+        <button
+          class="icon-button"
+          [class.active]="panel() === 'chat'"
+          [attr.aria-expanded]="panel() === 'chat'"
+          title="Чат встречи"
+          aria-label="Чат встречи"
+          (click)="togglePanel('chat')"
+        >
+          <app-ui-icon name="chat" />
+          @if (unread()) {
+            <span class="badge unread">{{ unread() > 99 ? '99+' : unread() }}</span>
+          }
+        </button>
+        <button
+          class="icon-button"
+          title="Настройки встречи"
+          aria-label="Настройки встречи"
+          aria-haspopup="dialog"
+          (click)="openSettings(settingsDialog)"
+        >
+          <app-ui-icon name="callSettings" />
+        </button>
+      </div>
+      <div class="toolbar-end">
+        <button
+          class="icon-button danger"
+          [disabled]="busy()"
+          title="Выйти из встречи"
+          aria-label="Выйти из встречи"
+          (click)="exitMeeting(exitDialog)"
+        >
+          <app-ui-icon name="hangup" />
+        </button>
+      </div>
     </footer>
     <div id="meeting-invite" class="invite-popover" popover>
-      <div class="panel-head"><h2>Пригласить на встречу</h2><button class="icon-button" popovertarget="meeting-invite" popovertargetaction="hide" aria-label="Закрыть приглашение"><app-ui-icon name="close"/></button></div>
-      @if(invite()){<input readonly [value]="invite()" aria-label="Ссылка на встречу"/><button class="copy-link" aria-label="Скопировать ссылку" [disabled]="busy()" (click)="copyInvite()"><app-ui-icon [name]="copied()?'check':'copy'"/><span role="status">{{copied()?'Ссылка скопирована':'Скопировать ссылку'}}</span></button>}
-      @else{<p class="hint">Ссылка не сохранена в этом браузере. Новую можно создать в настройках встречи.</p>}
-      @if(ticket()?.is_owner){<button class="text-button" popovertarget="meeting-invite" popovertargetaction="hide" (click)="openSettings(settingsDialog)">Настройки приглашения</button>}
+      <div class="panel-head">
+        <h2>Пригласить на встречу</h2>
+        <button
+          class="icon-button"
+          popovertarget="meeting-invite"
+          popovertargetaction="hide"
+          aria-label="Закрыть приглашение"
+        >
+          <app-ui-icon name="close" />
+        </button>
+      </div>
+      @if (invite()) {
+        <input readonly [value]="invite()" aria-label="Ссылка на встречу" /><button
+          class="copy-link"
+          aria-label="Скопировать ссылку"
+          [disabled]="busy()"
+          (click)="copyInvite()"
+        >
+          <app-ui-icon [name]="copied() ? 'check' : 'copy'" /><span role="status">{{
+            copied() ? 'Ссылка скопирована' : 'Скопировать ссылку'
+          }}</span>
+        </button>
+      } @else {
+        <p class="hint">
+          Ссылка не сохранена в этом браузере. Новую можно создать в настройках встречи.
+        </p>
+      }
+      @if (ticket()?.is_owner) {
+        <button
+          class="text-button"
+          popovertarget="meeting-invite"
+          popovertargetaction="hide"
+          (click)="openSettings(settingsDialog)"
+        >
+          Настройки приглашения
+        </button>
+      }
     </div>
     <dialog #settingsDialog class="settings-dialog" aria-labelledby="meeting-settings-title">
-      <div class="panel-head"><h2 id="meeting-settings-title">Настройки встречи</h2><button class="icon-button" aria-label="Закрыть настройки" (click)="settingsDialog.close()"><app-ui-icon name="close"/></button></div>
-      @if(error()){<p class="alert" role="alert">{{error()}}</p>}
-      <div class="settings">
-        <label>Микрофон<select (change)="chooseDevice('audioinput',$any($event.target).value)"><option value="default">По умолчанию</option>@for(d of devicesOf('audioinput');track d.deviceId){<option [value]="d.deviceId">{{d.label || 'Микрофон'}}</option>}</select></label>
-        <label>Камера<select (change)="chooseDevice('videoinput',$any($event.target).value)"><option value="default">По умолчанию</option>@for(d of devicesOf('videoinput');track d.deviceId){<option [value]="d.deviceId">{{d.label || 'Камера'}}</option>}</select></label>
-        @if(android && connected()){<app-android-call-output/>}@else{<label>Динамики<select (change)="chooseDevice('audiooutput',$any($event.target).value)"><option value="default">По умолчанию</option>@for(d of devicesOf('audiooutput');track d.deviceId){<option [value]="d.deviceId">{{d.label || 'Динамики'}}</option>}</select></label>}
-        @if(canShareScreen){<button class="mobile-share" [disabled]="busy() || !connected()" (click)="toggle('screen');settingsDialog.close()"><app-ui-icon name="screen"/>{{screen()?'Остановить показ':'Показать экран'}}</button>}
+      <div class="panel-head">
+        <h2 id="meeting-settings-title">Настройки встречи</h2>
+        <button class="icon-button" aria-label="Закрыть настройки" (click)="settingsDialog.close()">
+          <app-ui-icon name="close" />
+        </button>
       </div>
-      @if(ticket()?.is_owner){<section class="invite-settings"><h3>Приглашение</h3><div class="settings"><label>Срок новой ссылки<select [(ngModel)]="hours"><option [ngValue]="1">1 час</option><option [ngValue]="24">24 часа</option><option [ngValue]="168">7 дней</option></select></label><label>Количество входов<input type="number" min="1" max="1000" [(ngModel)]="uses"/></label></div><p class="hint">Осталось входов: {{state()?.remaining_uses}}. Новая ссылка заменяет предыдущую.</p><button [disabled]="busy()" (click)="rotate()">Выдать новую ссылку</button><button [disabled]="busy()" (click)="control(state()?.locked?'unlock':'lock')">{{state()?.locked?'Открыть вход':'Закрыть вход'}}</button></section>}
+      @if (error()) {
+        <p class="alert" role="alert">{{ error() }}</p>
+      }
+      <div class="settings">
+        <label
+          >Микрофон<select (change)="chooseDevice('audioinput', $any($event.target).value)">
+            <option value="default">По умолчанию</option>
+            @for (d of devicesOf('audioinput'); track d.deviceId) {
+              <option [value]="d.deviceId">{{ d.label || 'Микрофон' }}</option>
+            }
+          </select></label
+        >
+        <label
+          >Камера<select (change)="chooseDevice('videoinput', $any($event.target).value)">
+            <option value="default">По умолчанию</option>
+            @for (d of devicesOf('videoinput'); track d.deviceId) {
+              <option [value]="d.deviceId">{{ d.label || 'Камера' }}</option>
+            }
+          </select></label
+        >
+        @if (android && connected()) {
+          <app-android-call-output />
+        } @else {
+          <label
+            >Динамики<select (change)="chooseDevice('audiooutput', $any($event.target).value)">
+              <option value="default">По умолчанию</option>
+              @for (d of devicesOf('audiooutput'); track d.deviceId) {
+                <option [value]="d.deviceId">{{ d.label || 'Динамики' }}</option>
+              }
+            </select></label
+          >
+        }
+        @if (canShareScreen) {
+          <button
+            class="mobile-share"
+            [disabled]="busy() || !connected()"
+            (click)="toggle('screen'); settingsDialog.close()"
+          >
+            <app-ui-icon name="screen" />{{ screen() ? 'Остановить показ' : 'Показать экран' }}
+          </button>
+        }
+      </div>
+      @if (ticket()?.is_owner) {
+        <section class="invite-settings">
+          <h3>Приглашение</h3>
+          <div class="settings">
+            <label
+              >Срок новой ссылки<select [(ngModel)]="hours">
+                <option [ngValue]="1">1 час</option>
+                <option [ngValue]="24">24 часа</option>
+                <option [ngValue]="168">7 дней</option>
+              </select></label
+            ><label
+              >Количество входов<input type="number" min="1" max="1000" [(ngModel)]="uses"
+            /></label>
+          </div>
+          <p class="hint">
+            Осталось входов: {{ state()?.remaining_uses }}. Новая ссылка заменяет предыдущую.
+          </p>
+          <button [disabled]="busy()" (click)="rotate()">Выдать новую ссылку</button
+          ><button [disabled]="busy()" (click)="control(state()?.locked ? 'unlock' : 'lock')">
+            {{ state()?.locked ? 'Открыть вход' : 'Закрыть вход' }}
+          </button>
+        </section>
+      }
     </dialog>
     <dialog #exitDialog class="exit-dialog" aria-labelledby="meeting-exit-title">
-      <div class="panel-head"><h2 id="meeting-exit-title">Выйти из встречи?</h2><button class="icon-button" aria-label="Отмена" (click)="exitDialog.close()"><app-ui-icon name="close"/></button></div>
-      @if(error()){<p class="alert" role="alert">{{error()}}</p>}
-      <p class="hint">После вашего выхода встреча продолжится ещё 5 минут. Если вернётесь, она останется открытой.</p>
+      <div class="panel-head">
+        <h2 id="meeting-exit-title">Выйти из встречи?</h2>
+        <button class="icon-button" aria-label="Отмена" (click)="exitDialog.close()">
+          <app-ui-icon name="close" />
+        </button>
+      </div>
+      @if (error()) {
+        <p class="alert" role="alert">{{ error() }}</p>
+      }
+      <p class="hint">
+        После вашего выхода встреча продолжится ещё 5 минут. Если вернётесь, она останется открытой.
+      </p>
       <button [disabled]="busy()" (click)="finishMeeting(exitDialog)">Выйти</button>
-      <p class="hint">Завершение для всех отключит участников и удалит чат и файлы.</p><button class="danger" [disabled]="busy()" (click)="finishMeeting(exitDialog,true)">Завершить для всех</button>
+      <p class="hint">Завершение для всех отключит участников и удалит чат и файлы.</p>
+      <button class="danger" [disabled]="busy()" (click)="finishMeeting(exitDialog, true)">
+        Завершить для всех
+      </button>
     </dialog>
   }
-  @if(preview();as image){<div class="preview" role="dialog" aria-modal="true" [attr.aria-label]="image.filename" (click)="closePreview()"><button (click)="closePreview()" aria-label="Закрыть предпросмотр">×</button><img [src]="image.url" [alt]="image.filename"/></div>}
-  @if(textPreview();as source){<app-text-file-viewer [source]="source" (closed)="textPreview.set(null)"/>}
+  @if (preview(); as image) {
+    <div
+      class="preview"
+      role="dialog"
+      aria-modal="true"
+      [attr.aria-label]="image.filename"
+      (click)="closePreview()"
+    >
+      <button (click)="closePreview()" aria-label="Закрыть предпросмотр">×</button
+      ><img [src]="image.url" [alt]="image.filename" />
+    </div>
+  }
+  @if (textPreview(); as source) {
+    <app-text-file-viewer [source]="source" (closed)="textPreview.set(null)" />
+  }
 </main>
