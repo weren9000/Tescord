@@ -1,0 +1,329 @@
+{
+  "src/app/app.component.html": {
+    "@angular-eslint/template/click-events-have-key-events": {
+      "count": 38
+    },
+    "@angular-eslint/template/interactive-supports-focus": {
+      "count": 36
+    },
+    "@angular-eslint/template/label-has-associated-control": {
+      "count": 4
+    }
+  },
+  "src/app/app.component.spec.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 21
+    }
+  },
+  "src/app/app.component.ts": {
+    "@typescript-eslint/no-unused-expressions": {
+      "count": 2
+    },
+    "@typescript-eslint/no-unused-vars": {
+      "count": 3
+    }
+  },
+  "src/app/core/services/call-audio-output.spec.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 8
+    }
+  },
+  "src/app/core/services/call-devices.spec.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 12
+    }
+  },
+  "src/app/core/services/call-ringtone.ts": {
+    "no-empty": {
+      "count": 1
+    }
+  },
+  "src/app/core/services/direct-call-media.ts": {
+    "no-empty": {
+      "count": 1
+    },
+    "no-useless-assignment": {
+      "count": 1
+    }
+  },
+  "src/app/core/services/direct-call-signaling.spec.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 14
+    }
+  },
+  "src/app/core/services/voice-room.service.spec.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    }
+  },
+  "src/app/core/services/voice-room.service.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/app/rooms/room-page.component.html": {
+    "@angular-eslint/template/click-events-have-key-events": {
+      "count": 1
+    }
+  },
+  "src/app/rooms/room-page.component.ts": {
+    "no-empty": {
+      "count": 4
+    }
+  },
+  "src/app/shared/text-files.ts": {
+    "no-control-regex": {
+      "count": 1
+    },
+    "no-useless-escape": {
+      "count": 2
+    }
+  },
+  "src/app/workspace/action-menu.component.ts": {
+    "@angular-eslint/no-output-native": {
+      "count": 1
+    },
+    "@angular-eslint/template/interactive-supports-focus": {
+      "count": 1
+    }
+  },
+  "src/app/workspace/admin-directory.component.html": {
+    "@angular-eslint/template/interactive-supports-focus": {
+      "count": 1
+    }
+  },
+  "src/app/workspace/admin-directory.component.ts": {
+    "@angular-eslint/no-output-native": {
+      "count": 1
+    }
+  },
+  "src/app/workspace/admin-statistics.component.html": {
+    "@angular-eslint/template/interactive-supports-focus": {
+      "count": 1
+    }
+  },
+  "src/app/workspace/admin-wallet-batch.component.ts": {
+    "@angular-eslint/no-output-native": {
+      "count": 1
+    }
+  },
+  "src/app/workspace/asset-preview.component.ts": {
+    "@angular-eslint/no-output-native": {
+      "count": 1
+    }
+  },
+  "src/app/workspace/avatar-picker.component.ts": {
+    "@angular-eslint/no-output-native": {
+      "count": 1
+    },
+    "@angular-eslint/template/interactive-supports-focus": {
+      "count": 1
+    }
+  },
+  "src/app/workspace/batch-grant.component.ts": {
+    "no-empty": {
+      "count": 1
+    }
+  },
+  "src/app/workspace/desktop-preferences.component.ts": {
+    "@angular-eslint/template/click-events-have-key-events": {
+      "count": 1
+    },
+    "@angular-eslint/template/interactive-supports-focus": {
+      "count": 1
+    }
+  },
+  "src/app/workspace/emoji-picker.component.ts": {
+    "@angular-eslint/no-output-native": {
+      "count": 1
+    }
+  },
+  "src/app/workspace/friend-invite.component.ts": {
+    "@angular-eslint/no-output-native": {
+      "count": 1
+    },
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/app/workspace/info-panel.component.ts": {
+    "@angular-eslint/no-output-native": {
+      "count": 1
+    },
+    "@angular-eslint/template/interactive-supports-focus": {
+      "count": 1
+    }
+  },
+  "src/app/workspace/inventory.component.html": {
+    "@angular-eslint/template/click-events-have-key-events": {
+      "count": 3
+    },
+    "@angular-eslint/template/interactive-supports-focus": {
+      "count": 3
+    }
+  },
+  "src/app/workspace/inventory.component.ts": {
+    "@angular-eslint/no-output-native": {
+      "count": 1
+    }
+  },
+  "src/app/workspace/invite-manager.component.ts": {
+    "@angular-eslint/no-output-native": {
+      "count": 1
+    },
+    "@angular-eslint/template/interactive-supports-focus": {
+      "count": 1
+    }
+  },
+  "src/app/workspace/message-actions.component.ts": {
+    "@angular-eslint/no-output-native": {
+      "count": 1
+    },
+    "@angular-eslint/template/click-events-have-key-events": {
+      "count": 1
+    },
+    "@angular-eslint/template/interactive-supports-focus": {
+      "count": 1
+    }
+  },
+  "src/app/workspace/photo-viewer.component.ts": {
+    "@angular-eslint/template/interactive-supports-focus": {
+      "count": 1
+    }
+  },
+  "src/app/workspace/platform-chats.component.html": {
+    "@angular-eslint/template/click-events-have-key-events": {
+      "count": 1
+    },
+    "@angular-eslint/template/interactive-supports-focus": {
+      "count": 1
+    }
+  },
+  "src/app/workspace/platform-chats.component.spec.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/app/workspace/platform-chats.component.ts": {
+    "@angular-eslint/no-output-native": {
+      "count": 1
+    },
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    },
+    "no-empty": {
+      "count": 1
+    }
+  },
+  "src/app/workspace/platform-icon-editor.component.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/app/workspace/platform-invitations.component.spec.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/app/workspace/platform-invitations.component.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unused-expressions": {
+      "count": 1
+    }
+  },
+  "src/app/workspace/platform-list.component.ts": {
+    "@angular-eslint/no-output-native": {
+      "count": 2
+    }
+  },
+  "src/app/workspace/platform-switcher.component.ts": {
+    "@angular-eslint/no-output-native": {
+      "count": 1
+    },
+    "@angular-eslint/template/interactive-supports-focus": {
+      "count": 1
+    }
+  },
+  "src/app/workspace/quick-switch.component.ts": {
+    "@angular-eslint/no-output-native": {
+      "count": 2
+    },
+    "@angular-eslint/template/click-events-have-key-events": {
+      "count": 1
+    },
+    "@angular-eslint/template/interactive-supports-focus": {
+      "count": 1
+    }
+  },
+  "src/app/workspace/section-navigation.component.ts": {
+    "@angular-eslint/no-output-native": {
+      "count": 1
+    }
+  },
+  "src/app/workspace/shop.component.html": {
+    "@angular-eslint/template/click-events-have-key-events": {
+      "count": 2
+    },
+    "@angular-eslint/template/interactive-supports-focus": {
+      "count": 2
+    }
+  },
+  "src/app/workspace/shop.component.ts": {
+    "@angular-eslint/no-output-native": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unused-expressions": {
+      "count": 1
+    },
+    "no-empty": {
+      "count": 2
+    }
+  },
+  "src/app/workspace/upload-panel.component.ts": {
+    "@angular-eslint/no-output-native": {
+      "count": 1
+    },
+    "@angular-eslint/template/click-events-have-key-events": {
+      "count": 1
+    },
+    "@angular-eslint/template/interactive-supports-focus": {
+      "count": 1
+    }
+  },
+  "src/app/workspace/user-card.component.ts": {
+    "@angular-eslint/template/interactive-supports-focus": {
+      "count": 1
+    }
+  },
+  "src/app/workspace/wallet-dialog.component.ts": {
+    "@angular-eslint/no-output-native": {
+      "count": 1
+    }
+  },
+  "src/app/workspace/wallet.component.ts": {
+    "@angular-eslint/no-output-native": {
+      "count": 1
+    },
+    "no-empty": {
+      "count": 1
+    }
+  },
+  "src/app/workspace/wallpapers.component.html": {
+    "@angular-eslint/template/click-events-have-key-events": {
+      "count": 1
+    },
+    "@angular-eslint/template/interactive-supports-focus": {
+      "count": 1
+    }
+  },
+  "src/app/workspace/wallpapers.component.ts": {
+    "@angular-eslint/no-output-native": {
+      "count": 1
+    },
+    "no-empty": {
+      "count": 2
+    }
+  }
+}

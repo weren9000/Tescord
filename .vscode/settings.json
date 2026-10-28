@@ -1,0 +1,12 @@
+{
+  "eslint.workingDirectories": [{ "directory": "frontend", "changeProcessCWD": true }],
+  "eslint.validate": ["typescript", "html"],
+  "prettier.requireConfig": true,
+  "[typescript][html][scss]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
+  },
+  "typescript.tsdk": "frontend/node_modules/typescript/lib",
+  "files.exclude": { "**/.angular": true },
+  "search.exclude": { "**/dist": true, "**/node_modules": true, "**/.local": true }
+}

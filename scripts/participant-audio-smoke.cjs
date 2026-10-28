@@ -1,8 +1,8 @@
 // Measures real PCM through production playback classes and the Angular UI.
-const {chromium}=require('../desktop/node_modules/playwright');
+const {chromium}=require('../frontend/node_modules/@playwright/test');
 const assert=require('node:assert/strict'),fs=require('node:fs');
 (async()=>{
- const browser=await chromium.launch({executablePath:process.env.KVA_CHROME||'C:/Users/admin/AppData/Local/ms-playwright/chromium-1223/chrome-win64/chrome.exe',headless:true,args:['--autoplay-policy=no-user-gesture-required','--mute-audio']});
+ const browser=await chromium.launch({executablePath:process.env.CHROME_BIN || process.env.KVA_CHROME,headless:true,args:['--autoplay-policy=no-user-gesture-required','--mute-audio']});
  fs.mkdirSync('.local/participant-audio',{recursive:true});
  try{
   for(const kind of ['direct','group']){

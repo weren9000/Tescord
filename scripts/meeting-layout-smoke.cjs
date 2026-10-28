@@ -1,8 +1,8 @@
 // Disposable Angular development fixture; no production accounts or media.
-const {chromium}=require('../desktop/node_modules/playwright');
+const {chromium}=require('../frontend/node_modules/@playwright/test');
 const assert=require('node:assert/strict'),fs=require('node:fs');
 (async()=>{
- const browser=await chromium.launch({executablePath:process.env.CHROME_BIN||'C:/Users/admin/AppData/Local/ms-playwright/chromium-1223/chrome-win64/chrome.exe',headless:true});
+ const browser=await chromium.launch({executablePath:process.env.CHROME_BIN,headless:true});
  const page=await browser.newPage({viewport:{width:1440,height:900},permissions:['clipboard-read','clipboard-write']});
  const errors=[];page.on('pageerror',e=>errors.push(e.message));fs.mkdirSync('.local/room-design',{recursive:true});
  await page.route('**/api/**',r=>r.fulfill({status:200,contentType:'application/json',body:'{}'}));
