@@ -1035,6 +1035,14 @@
           </button>
         </section>
         <section>
+          <button
+            type="button"
+            (click)="closeSideMenu(); openGameCalendar()"
+            title="Откроется в новой вкладке"
+          >
+            <app-ui-icon name="calendar" /><span class="account-menu__label">Календарь игр</span>
+            <app-ui-icon name="forward" class="account-menu__chevron" />
+          </button>
           <button type="button" (click)="closeSideMenu(); appearanceOpen.set(true)">
             <app-ui-icon name="appearance" /><span class="account-menu__label">Оформление</span>
             <app-ui-icon name="forward" class="account-menu__chevron" />

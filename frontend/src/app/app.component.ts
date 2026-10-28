@@ -1,4 +1,5 @@
 import { MessageTextPresenter } from './core/services/message-text.presenter';
+import { openGameCalendar } from './core/plugins/first-party-plugins';
 import {
   MessageContentSegment,
   MessageMentionContext,
@@ -725,6 +726,7 @@ const DEFAULT_SERVER_ICON_ASSET_BY_NAME: Record<string, string> = {
   ],
 })
 export class AppComponent {
+  readonly openGameCalendar = openGameCalendar;
   private readonly attachmentPreviews = inject(AttachmentPreviewStore);
 
   private readonly messageText = new MessageTextPresenter();

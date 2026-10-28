@@ -1,0 +1,11 @@
+{
+  "id": "game-calendar",
+  "name": "Календарь игр",
+  "version": "0.1.0",
+  "contractVersion": 1,
+  "description": "Живые ролевые игры и конвенты из КогдаИгра",
+  "entry": "/plugins/game-calendar/",
+  "permissions": [],
+  "source": "https://kogda-igra.ru/",
+  "refresh": "daily"
+}

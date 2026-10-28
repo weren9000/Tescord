@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#10121c" />
+    <title>Календарь игр · Квачат</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="./app.js" type="module"></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Открыть Квачат"
+        ><span class="brand-icon">К</span> КВАЧАТ <span class="divider">/</span>
+        <span class="brand-section">Плагины</span></a
+      >
+      <a
+        href="https://kogda-igra.ru/"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="source-link"
+        >Источник: КогдаИгра ↗</a
+      >
+    </header>
+    <main>
+      <section class="intro">
+        <div>
+          <p class="eyebrow">ВСТРЕЧАЕМСЯ В ДРУГИХ МИРАХ</p>
+          <h1>Календарь игр<span>.</span></h1>
+          <p class="subtitle">
+            Ролевые игры, конвенты и приключения за пределами экрана.
+          </p>
+        </div>
+        <div class="freshness">
+          <span class="live-dot"></span>
+          <div>
+            <strong>Обновляем каждый день</strong
+            ><small id="updated">Загружаем календарь…</small>
+          </div>
+        </div>
+      </section>
+      <div id="notice" class="notice" role="status" hidden></div>
+      <section class="filters" aria-label="Поиск и фильтры">
+        <label class="search"
+          ><span>⌕</span
+          ><input
+            id="search"
+            type="search"
+            placeholder="Название игры, место или мастерская группа"
+            aria-label="Поиск игр"
+            maxlength="200"
+        /></label>
+        <div class="filter-row">
+          <label
+            >Регион<select id="region">
+              <option value="">Все регионы</option>
+            </select></label
+          >
+          <label
+            >Формат<select id="type">
+              <option value="">Все форматы</option>
+            </select></label
+          >
+          <label
+            >Когда<select id="month">
+              <option value="">Любой месяц</option>
+            </select></label
+          >
+          <button id="reset" class="quiet" type="button">
+            Сбросить фильтры
+          </button>
+        </div>
+      </section>
+      <section class="results" aria-label="События">
+        <div class="results-head">
+          <div class="tabs" role="group" aria-label="Показать игры">
+            <button data-view="upcoming" aria-pressed="true">Ближайшие</button
+            ><button data-view="all" aria-pressed="false">Все игры</button
+            ><button data-view="saved" aria-pressed="false">
+              Избранное <span id="saved-count">0</span>
+            </button>
+          </div>
+          <span id="count" aria-live="polite"></span>
+        </div>
+        <div id="loading" class="empty" role="status">
+          <span class="spinner"></span>
+          <h2>Собираем планы на сезон</h2>
+          <p>Загружаем сохранённый календарь.</p>
+        </div>
+        <div id="error" class="empty" hidden>
+          <h2>Не удалось открыть календарь</h2>
+          <p>Проверьте подключение и попробуйте ещё раз.</p>
+          <button id="retry" class="primary">Повторить</button>
+        </div>
+        <div id="empty" class="empty" hidden>
+          <span class="empty-icon">◇</span>
+          <h2 id="empty-title">Игр не найдено</h2>
+          <p id="empty-description">
+            Попробуйте другой регион или сбросьте фильтры.
+          </p>
+        </div>
+        <div id="events"></div>
+        <button id="more" class="more" hidden>Показать ещё</button>
+      </section>
+      <footer>
+        Даты могут меняться. Перед поездкой проверьте информацию у
+        организаторов.<br /><span
+          >Избранное хранится только в этом браузере. Данные —
+          <a
+            href="https://kogda-igra.ru/"
+            target="_blank"
+            rel="noopener noreferrer"
+            >КогдаИгра</a
+          >.</span
+        >
+      </footer>
+    </main>
+    <dialog id="detail" aria-labelledby="detail-title">
+      <div class="dialog-head">
+        <span class="eyebrow">ВАШЕ СЛЕДУЮЩЕЕ ПРИКЛЮЧЕНИЕ</span
+        ><button id="close" class="icon-button" aria-label="Закрыть карточку">
+          ×
+        </button>
+      </div>
+      <div id="detail-tags" class="tags"></div>
+      <h2 id="detail-title"></h2>
+      <p id="detail-date" class="detail-date"></p>
+      <dl id="detail-info"></dl>
+      <p id="detail-description"></p>
+      <p class="detail-note">
+        Сведения загружены из КогдаИгра. Перенос или отмену уточняйте у
+        организаторов.
+      </p>
+      <div class="dialog-actions">
+        <a
+          id="organizer-link"
+          class="primary"
+          target="_blank"
+          rel="noopener noreferrer"
+          >Сайт организаторов ↗</a
+        ><a
+          id="source-event"
+          class="secondary"
+          target="_blank"
+          rel="noopener noreferrer"
+          >Карточка на КогдаИгра ↗</a
+        >
+      </div>
+      <div class="dialog-tools">
+        <button id="favorite-detail" class="secondary">В избранное</button
+        ><button id="export" class="secondary">В мой календарь ↓</button
+        ><button id="share" class="secondary">Скопировать ссылку</button>
+      </div>
+    </dialog>
+    <div id="toast" class="toast" role="status" hidden></div>
+  </body>
+</html>

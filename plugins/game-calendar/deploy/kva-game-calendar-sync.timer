@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily game calendar update
+
+[Timer]
+OnCalendar=*-*-* 03:00:00 UTC
+RandomizedDelaySec=10min
+Persistent=true
+Unit=kva-game-calendar-sync.service
+
+[Install]
+WantedBy=timers.target
