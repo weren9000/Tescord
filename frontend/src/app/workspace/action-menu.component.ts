@@ -14,9 +14,11 @@ import {
   selector: 'app-action-menu',
   standalone: true,
   encapsulation: ViewEncapsulation.None,
+  styleUrls: ['./account-menu.scss'],
   template: `<dialog
     #dialog
     class="action-menu"
+    [class.action-menu--account]="accountMenu()"
     [attr.aria-label]="label()"
     (cancel)="dismiss($event)"
     (keydown)="onKeydown($event)"
@@ -27,6 +29,7 @@ import {
       <strong>{{ label() }}</strong
       ><button type="button" aria-label="Закрыть меню" (click)="close.emit()">×</button>
     </header>
+    <div class="action-menu__pinned"><ng-content select="[menuPinned]" /></div>
     <div class="action-menu__body"><ng-content /></div>
   </dialog>`,
   styles: [
@@ -151,6 +154,7 @@ import {
   ],
 })
 export class ActionMenuComponent implements AfterViewInit, OnDestroy {
+  readonly accountMenu = input(false);
   readonly label = input.required<string>();
   readonly close = output<void>();
   @ViewChild('dialog', { static: true }) dialog!: ElementRef<HTMLDialogElement>;

@@ -1004,61 +1004,74 @@
     }
 
     @if (sideMenuOpen()) {
-      <app-action-menu label="Меню" (close)="closeSideMenu()">
+      <app-action-menu label="Меню" [accountMenu]="true" (close)="closeSideMenu()">
+        <app-wallet-balance
+          menuPinned
+          [token]="session()!.access_token"
+          [navigation]="true"
+          (open)="closeSideMenu(); walletOpen.set(true)"
+        />
         <section>
           <button type="button" (click)="closeSideMenu(); openProfileEditor()">
-            <app-ui-icon name="profile" />Мой профиль
-          </button>
-          <button type="button" (click)="openMeetingRoom()">
-            <app-ui-icon name="room" />Моя комната
+            <app-ui-icon name="profile" /><span class="account-menu__label">Мой профиль</span>
+            <app-ui-icon name="forward" class="account-menu__chevron" />
           </button>
           <button type="button" (click)="closeSideMenu(); openFriendRequestsModal()">
-            <app-ui-icon name="bell" />Уведомления
+            <app-ui-icon name="bell" /><span class="account-menu__label">Уведомления</span>
             @if (notificationAlertCount()) {
-              · {{ notificationAlertCount() }}
+              <span class="account-menu__badge">{{ notificationAlertCount() }}</span>
             }
+            <app-ui-icon name="forward" class="account-menu__chevron" />
           </button>
-          <app-wallet-balance
-            [token]="session()!.access_token"
-            (open)="closeSideMenu(); walletOpen.set(true)"
-          />
           <button
             type="button"
             (click)="closeSideMenu(); shopInitialMode.set('inventory'); shopOpen.set(true)"
           >
-            <app-ui-icon name="inventory" />Предметы
+            <app-ui-icon name="inventory" /><span class="account-menu__label">Предметы</span>
             @if (inventoryUnread()) {
-              · {{ inventoryUnread() }}
+              <span class="account-menu__badge">{{ inventoryUnread() }}</span>
             }
+            <app-ui-icon name="forward" class="account-menu__chevron" />
           </button>
-          <button type="button" (click)="closeSideMenu(); appearanceOpen.set(true)">
-            <app-ui-icon name="appearance" />Оформление
-          </button>
-          <button type="button" (click)="closeSideMenu(); openVoiceSettings()">
-            <app-ui-icon name="sound" />Звук и устройства
-          </button>
-          <button type="button" (click)="openBlockedFriendsModal()">
-            <app-ui-icon name="block" />Блокировки
-          </button>
-          @if (!pwa.installed()) {
-            <button
-              class="mobile-install"
-              type="button"
-              [disabled]="pwa.busy()"
-              (click)="closeSideMenu(); pwa.open()"
-            >
-              <app-ui-icon name="plus" />На главный экран
-            </button>
-          }
-          @if (isAdmin() || currentUser()?.is_avatar_admin) {
-            <button type="button" (click)="openAdminDirectory()">
-              <app-ui-icon name="avatarAdmin" />Админка
-            </button>
-          }
         </section>
         <section>
+          <button type="button" (click)="closeSideMenu(); appearanceOpen.set(true)">
+            <app-ui-icon name="appearance" /><span class="account-menu__label">Оформление</span>
+            <app-ui-icon name="forward" class="account-menu__chevron" />
+          </button>
+          <button type="button" (click)="closeSideMenu(); openVoiceSettings()">
+            <app-ui-icon name="sound" /><span class="account-menu__label">Звук и устройства</span>
+            <app-ui-icon name="forward" class="account-menu__chevron" />
+          </button>
+          <button type="button" (click)="openBlockedFriendsModal()">
+            <app-ui-icon name="block" /><span class="account-menu__label">Блокировки</span>
+            <app-ui-icon name="forward" class="account-menu__chevron" />
+          </button>
+        </section>
+        @if (!pwa.installed() || isAdmin() || currentUser()?.is_avatar_admin) {
+          <section>
+            @if (!pwa.installed()) {
+              <button
+                class="mobile-install"
+                type="button"
+                [disabled]="pwa.busy()"
+                (click)="closeSideMenu(); pwa.open()"
+              >
+                <app-ui-icon name="plus" /><span class="account-menu__label">На главный экран</span>
+                <app-ui-icon name="forward" class="account-menu__chevron" />
+              </button>
+            }
+            @if (isAdmin() || currentUser()?.is_avatar_admin) {
+              <button type="button" (click)="openAdminDirectory()">
+                <app-ui-icon name="avatarAdmin" /><span class="account-menu__label">Админка</span>
+                <app-ui-icon name="forward" class="account-menu__chevron" />
+              </button>
+            }
+          </section>
+        }
+        <section>
           <button type="button" (click)="closeSideMenu(); logout()">
-            <app-ui-icon name="logout" />Выход
+            <app-ui-icon name="logout" /><span class="account-menu__label">Выход</span>
           </button>
         </section>
       </app-action-menu>

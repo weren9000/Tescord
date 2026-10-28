@@ -1,10 +1,11 @@
 import { Component, effect, inject, input, output } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
 import { WalletService } from './wallet.service';
+import { UiIconComponent } from './ui-icon.component';
 @Component({
   selector: 'app-wallet-balance',
   standalone: true,
-  imports: [DecimalPipe],
+  imports: [DecimalPipe, UiIconComponent],
   template: ` <button type="button" aria-label="Открыть кошелёк" (click)="open.emit()">
     <span
       ><img src="/assets/coin.svg" alt="Монеты" width="20" height="20" />{{
@@ -18,6 +19,9 @@ import { WalletService } from './wallet.service';
     >
     @if (wallet.error()) {
       <small>Обновить</small>
+    }
+    @if (navigation()) {
+      <app-ui-icon name="forward" class="wallet-chevron" />
     }
   </button>`,
   styles: [
@@ -59,6 +63,7 @@ import { WalletService } from './wallet.service';
   ],
 })
 export class WalletBalanceComponent {
+  readonly navigation = input(false);
   readonly token = input.required<string>();
   readonly open = output<void>();
   readonly wallet = inject(WalletService);
