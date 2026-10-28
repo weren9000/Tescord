@@ -127,8 +127,15 @@
     }
     <div class="history-title">
       <h3>История операций</h3>
-      <button type="button" [disabled]="loading() || busy() || !!pending()" (click)="load(w.page)">
-        Обновить
+      <button
+        class="compact-action"
+        aria-label="Обновить операции"
+        title="Обновить операции"
+        type="button"
+        [disabled]="loading() || busy() || !!pending()"
+        (click)="load(w.page)"
+      >
+        <app-ui-icon name="refresh" /><span class="compact-label">Обновить</span>
       </button>
     </div>
     <ol>
@@ -148,7 +155,7 @@
           </div>
           <p class="reason">{{ item.reason }}</p>
           <small
-            >Баланс после операции: {{ item.balance_after | number: '1.0-0' }}
+            >Остаток: {{ item.balance_after | number: '1.0-0' }}
             @if (admin()) {
               · {{ item.actor_name }}
             }

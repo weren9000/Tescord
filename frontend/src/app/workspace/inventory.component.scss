@@ -1,3 +1,4 @@
+@use '../shared/compact-ui' as compact;
 @use '../shared/catalog-ui' as ui;
 @use '../shared/modal-layer' as modal;
 ﻿ :host {
@@ -1477,3 +1478,64 @@ form {
 @include modal.modal-layer;
 
 @include ui.controls;
+
+@include compact.actions;
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 24px 12px;
+}
+.inventory-toolbar {
+  gap: 6px;
+}
+.inventory-events {
+  position: relative;
+}
+.inventory-events .count {
+  font-size: 11px;
+}
+.store-layout .inventory-results {
+  gap: 8px;
+}
+.subpanel .panel-body {
+  padding: 12px;
+}
+@media (max-width: 980px) {
+  .store-layout .inventory-toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 44px 44px;
+  }
+  .inventory-toolbar .inventory-search {
+    grid-row: 1;
+    grid-column: 1 / 3;
+    min-width: 0;
+  }
+  .inventory-toolbar .find {
+    display: inline-flex;
+    grid-row: 1;
+    grid-column: 3;
+  }
+  .inventory-toolbar select {
+    grid-row: 2;
+    grid-column: 1;
+    min-width: 0;
+  }
+  .inventory-toolbar .inventory-mobile-filter {
+    grid-row: 2;
+    grid-column: 2;
+  }
+  .inventory-toolbar .inventory-events {
+    grid-row: 2;
+    grid-column: 3;
+  }
+  .store-layout .inventory-segments {
+    gap: 4px;
+    margin: 0;
+  }
+  .store-layout .inventory-segments button {
+    min-height: 44px;
+    padding: 6px 10px;
+  }
+}

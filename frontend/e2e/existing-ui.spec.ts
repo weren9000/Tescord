@@ -9,6 +9,7 @@ for (const [name, script, artifactDir] of [
   ['Room layout and controls', 'meeting-layout-smoke.cjs', 'room-design'],
   ['Individual audio and controls', 'participant-audio-smoke.cjs', 'participant-audio'],
   ['Workspace navigation and icons', 'workspace-navigation-smoke.cjs', 'workspace-navigation'],
+  ['Compact workspace forms', 'compact-workspace-smoke.cjs', 'compact-workspace'],
 ]) {
   test(name, async ({}, testInfo) => {
     try {

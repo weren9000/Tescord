@@ -107,7 +107,6 @@ import { DesktopPreferencesService, Density } from './desktop-preferences.servic
               (input)="preferences.update({ platformChatsWidth: +$any($event.target).value })"
             />
           </label>
-          <p>В узком окне колонки подстраиваются, оставляя место переписке.</p>
         </div>
       } @else {
         <label class="range desktop-widths"
@@ -173,7 +172,7 @@ import { DesktopPreferencesService, Density } from './desktop-preferences.servic
         width: min(480px, calc(100vw - 32px));
         max-height: 85dvh;
         overflow: auto;
-        padding: 24px;
+        padding: 16px;
         border: 1px solid var(--palette-border);
         border-radius: 14px;
         background: var(--palette-surface);

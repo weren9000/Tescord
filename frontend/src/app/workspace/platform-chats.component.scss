@@ -1,3 +1,4 @@
+@use '../shared/compact-ui' as compact;
 :host {
   display: flex;
   flex-direction: column;
@@ -862,4 +863,104 @@ label.search {
   height: 72px;
   object-fit: cover;
   border-radius: 20px;
+}
+
+@include compact.actions;
+.dialog-head {
+  padding: 8px 14px;
+  gap: 8px;
+}
+.dialog-head h2 {
+  font-size: 17px;
+  margin: 0;
+}
+.dialog-body,
+.settings-content {
+  padding: 14px;
+}
+.actions {
+  margin-top: 12px;
+  gap: 8px;
+}
+label {
+  margin-bottom: 12px;
+  gap: 6px;
+}
+.panel-head {
+  height: 60px;
+  padding: 8px 12px;
+}
+.chat-tools {
+  margin: 10px 12px 6px;
+}
+.section-label {
+  padding: 4px 16px 8px;
+}
+.chat {
+  min-height: 52px;
+  padding: 8px;
+}
+.chat-row {
+  margin-bottom: 4px;
+}
+.create-group-tile {
+  min-height: 44px;
+  margin-top: 8px;
+  padding: 10px 12px;
+}
+.empty {
+  padding: 16px;
+}
+.compact-form {
+  width: min(440px, calc(100vw - 24px));
+}
+.compact-form .dialog-head {
+  border: 0;
+  padding-bottom: 0;
+  justify-content: flex-end;
+}
+.compact-form .dialog-head > div {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.compact-form .dialog-body {
+  padding-top: 4px;
+}
+@media (max-width: 980px) {
+  .platform-dialog.compact-form {
+    width: calc(100vw - 24px);
+    height: fit-content;
+    max-height: calc(100dvh - 24px);
+    border: 1px solid var(--palette-border);
+    border-radius: 14px;
+  }
+  .compact-form .dialog-head {
+    padding-top: 8px;
+  }
+  .compact-form .dialog-body {
+    padding-bottom: 14px;
+  }
+  .settings-tabs {
+    justify-content: space-around;
+    padding: 4px;
+  }
+  .settings-tabs button {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 8px;
+  }
+  .settings-tabs app-ui-icon {
+    display: inline-flex;
+    width: 22px;
+    height: 22px;
+  }
+  .settings-tabs .compact-label {
+    display: none;
+  }
+  .panel-footer button {
+    flex: 1;
+  }
 }

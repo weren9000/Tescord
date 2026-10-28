@@ -16,8 +16,7 @@
       }
     </span>
     <div class="identity">
-      <strong>{{ platform()?.name || 'Выберите площадку' }}</strong
-      ><small>Чаты сообщества</small>
+      <strong>{{ platform()?.name || 'Выберите площадку' }}</strong>
     </div>
   </div>
   @if (platform()) {
@@ -60,8 +59,10 @@
               "
           /></span>
           <span class="chat-copy"
-            ><strong>{{ chat.title }}</strong
-            ><small>{{ chat.subtitle || 'Начните общение' }}</small>
+            ><strong>{{ chat.title }}</strong>
+            @if (chat.subtitle) {
+              <small>{{ chat.subtitle }}</small>
+            }
             @if (voiceCounts()[chat.id] || activeVoiceChat() === chat.id) {
               <span class="voice"
                 ><span class="live-dot"></span><app-ui-icon name="headphones" />{{
@@ -96,30 +97,43 @@
         <app-ui-icon name="chat" /><strong>{{
           query ? 'Ничего не найдено' : 'Здесь появятся чаты'
         }}</strong>
-        <p>{{ query ? 'Попробуйте другое название' : 'Создайте первый чат для общения.' }}</p>
       </div>
     }
     @if (manager()) {
-      <button class="create-group-tile" (click)="editChat()">
-        <app-ui-icon name="plus" /><span>Создать чат</span>
+      <button
+        class="create-group-tile compact-action"
+        aria-label="Создать чат"
+        title="Создать чат"
+        (click)="editChat()"
+      >
+        <app-ui-icon name="plus" /><span class="compact-label">Создать чат</span>
       </button>
     }
   </nav>
   <footer class="panel-footer">
-    <button (click)="tab.set('members'); openSettings()">
-      <app-ui-icon name="profile" />Участники
+    <button
+      class="compact-action"
+      aria-label="Участники"
+      title="Участники"
+      (click)="tab.set('members'); openSettings()"
+    >
+      <app-ui-icon name="profile" /><span class="compact-label">Участники</span>
     </button>
     @if (manager()) {
-      <button (click)="tab.set('invites'); openSettings()">
-        <app-ui-icon name="plus" />Пригласить
+      <button
+        class="compact-action"
+        aria-label="Пригласить"
+        title="Пригласить"
+        (click)="tab.set('invites'); openSettings()"
+      >
+        <app-ui-icon name="plus" /><span class="compact-label">Пригласить</span>
       </button>
     }
   </footer>
 } @else {
   <div class="empty welcome">
     <span class="welcome-icon"><app-ui-icon name="platforms" /></span>
-    <h2>Вместе удобнее</h2>
-    <p>Объедините общение по темам в одной площадке.</p>
+
     <button class="primary" (click)="show('create')">
       <app-ui-icon name="plus" />Создать площадку
     </button>
@@ -130,6 +144,9 @@
   #dialog
   class="platform-dialog"
   [class.settings-dialog]="panel() === 'settings'"
+  [class.compact-form]="
+    !confirmation() && (panel() === 'chat' || panel() === 'create' || panel() === 'search')
+  "
   aria-labelledby="platform-dialog-title"
   (cancel)="dismiss($event)"
   (click)="backdrop($event)"
@@ -137,11 +154,6 @@
 >
   <header class="dialog-head">
     <div>
-      <small>{{
-        panel() === 'settings' || panel() === 'search' || panel() === 'chat'
-          ? platform()?.name
-          : 'Площадки Квачата'
-      }}</small>
       <h2 id="platform-dialog-title">
         {{
           confirmation()?.title ||
@@ -188,35 +200,28 @@
     </div>
   } @else if (panel() === 'create') {
     <form class="dialog-body" (ngSubmit)="createPlatform()">
-      <p class="muted">
-        Площадка объединяет чаты. Все её участники смогут общаться в каждом из них.
-      </p>
       <label
-        >Название<input
+        ><input
           autofocus
           name="name"
           [(ngModel)]="name"
           maxlength="80"
           required
-          placeholder="Например, Вечерняя компания" /></label
-      ><label
-        >Описание <small>Необязательно</small
-        ><textarea
+          placeholder="Название площадки"
+          aria-label="Название площадки" /></label
+      ><label>
+        <textarea
+          aria-label="Описание площадки (необязательно)"
           name="description"
           [(ngModel)]="description"
           maxlength="2000"
           rows="3"
-          placeholder="О чём ваша площадка?"
+          placeholder="Описание (необязательно)"
         ></textarea>
       </label>
-      <div class="note">
-        <app-ui-icon name="chat" /><span
-          >Чат «Общий» появится автоматически. Вы станете владельцем площадки.</span
-        >
-      </div>
+
       <div class="actions">
-        <button type="button" (click)="close()" [disabled]="busy()">Отмена</button
-        ><button class="primary" [disabled]="busy() || !name.trim()">Создать площадку</button>
+        <button class="primary" [disabled]="busy() || !name.trim()">Создать площадку</button>
       </div>
     </form>
   } @else if (panel() === 'join') {
@@ -229,8 +234,9 @@
             <app-ui-icon name="platforms" />
           }
           <h3>{{ target.name }}</h3>
-          <p>{{ target.description || 'Вас приглашают в сообщество' }}</p>
-          <small>После входа вам будут доступны все чаты площадки.</small>
+          @if (target.description) {
+            <p>{{ target.description }}</p>
+          }
         </div>
       }
       <div class="actions">
@@ -245,16 +251,17 @@
     <div class="dialog-body">
       <form (ngSubmit)="saveChat()">
         <label
-          >Название чата<input
+          ><input
+            aria-label="Название чата"
             autofocus
             name="chatName"
             [ngModel]="editing() ? chatName : newChatName"
             (ngModelChange)="editing() ? (chatName = $event) : (newChatName = $event)"
             maxlength="80"
             required
-            placeholder="Например, Игры"
+            placeholder="Название чата"
         /></label>
-        <p class="muted">Текстовое общение и созвон доступны всем участникам площадки.</p>
+
         <div class="actions">
           <button
             class="primary"
@@ -300,18 +307,13 @@
           <button class="result" (click)="openResult(result)">
             <strong>{{ result.chat_name }}</strong
             ><small>{{ result.author }} · {{ result.created_at | date: 'dd.MM.yyyy HH:mm' }}</small
-            ><span>{{ result.content }}</span
-            ><small>Перейти к сообщению →</small>
+            ><span>{{ result.content }}</span>
           </button>
         } @empty {
           <div class="empty">
             <app-ui-icon name="search" />
             <p>
-              {{
-                results() === null
-                  ? 'Найдите сообщение по слову или фразе'
-                  : 'Сообщения не найдены. Попробуйте другой запрос.'
-              }}
+              {{ results() === null ? '' : 'Сообщения не найдены' }}
             </p>
           </div>
         }
@@ -324,17 +326,18 @@
           @if (item.id !== 'invites' || manager()) {
             <button
               [class.active]="tab() === item.id"
+              [attr.aria-label]="item.label"
+              [attr.title]="item.label"
               [attr.aria-current]="tab() === item.id ? 'page' : null"
               (click)="tab.set(item.id); notice.set(''); error.set('')"
             >
-              <app-ui-icon [name]="item.icon" />{{ item.label }}
+              <app-ui-icon [name]="item.icon" /><span class="compact-label">{{ item.label }}</span>
             </button>
           }
         }
       </nav>
       <section class="settings-content">
         @if (tab() === 'general') {
-          <h3>О площадке</h3>
           @if (manager()) {
             @if (platform(); as current) {
               <app-platform-icon-editor
@@ -444,20 +447,15 @@
         } @else if (tab() === 'invites' && manager()) {
           <app-platform-invitations [token]="token()" [platformId]="platform()!.id" />
         } @else if (tab() === 'notifications') {
-          <h3>Ваши уведомления</h3>
           <label class="toggle"
-            ><span
-              ><strong>Уведомления площадки</strong
-              ><small>Настройка применяется только к вам.</small></span
+            ><span><strong>Уведомления площадки</strong></span
             ><input
               type="checkbox"
               [disabled]="busy()"
               [ngModel]="platform()!.notifications_enabled"
               (ngModelChange)="notify($event)"
           /></label>
-          <p class="muted">Дополнительно можно настроить уведомления отдельных чатов.</p>
         } @else if (tab() === 'manage') {
-          <h3>Управление площадкой</h3>
           @if (platform()?.member_role === 'owner') {
             <p class="muted">Чтобы передать владение, откройте действия нужного участника.</p>
             <button (click)="tab.set('members')"><app-ui-icon name="profile" />К участникам</button>

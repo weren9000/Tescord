@@ -5,6 +5,7 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { API_BASE_URL } from '../core/api/api-base';
 import { Wallet, WalletService } from './wallet.service';
+import { UiIconComponent } from './ui-icon.component';
 interface Person {
   id: string;
   name: string;
@@ -23,7 +24,7 @@ interface Pending {
 @Component({
   selector: 'app-wallet',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, UiIconComponent],
   templateUrl: './wallet.component.html',
   styleUrl: './wallet.component.scss',
 })

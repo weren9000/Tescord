@@ -167,13 +167,13 @@ export class ShopComponent implements OnInit, AfterViewInit, OnDestroy {
   readonly journal = signal<Journal[]>([]);
   readonly purchaseDetail = signal<Receipt | null>(null);
   readonly roleTarget = signal<Manager | null>(null);
-  readonly tabs: { id: Mode; label: string }[] = [
-    { id: 'inventory', label: 'Мой инвентарь' },
-    { id: 'browse', label: 'Витрина' },
-    { id: 'recommendations', label: 'Предложения' },
-    { id: 'purchases', label: 'Покупки' },
-    { id: 'journal', label: 'Журнал' },
-    { id: 'roles', label: 'Права' },
+  readonly tabs: { id: Mode; label: string; icon: string }[] = [
+    { id: 'inventory', label: 'Мой инвентарь', icon: 'inventory' },
+    { id: 'browse', label: 'Витрина', icon: 'shop' },
+    { id: 'recommendations', label: 'Предложения', icon: 'gift' },
+    { id: 'purchases', label: 'Покупки', icon: 'check' },
+    { id: 'journal', label: 'Журнал', icon: 'files' },
+    { id: 'roles', label: 'Права', icon: 'avatarAdmin' },
   ];
   readonly labels: Record<string, string> = {
     purchase: 'Куплен предмет',

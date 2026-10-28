@@ -2721,7 +2721,7 @@
               alt="Квачат"
             />
             <strong>Начните общение</strong>
-            <small>Откройте беседу в списке или пригласите друга.</small>
+
             <div class="empty-actions">
               <button class="primary-button" type="button" (click)="openProfileEditor()">
                 Пригласить друга</button
@@ -4430,14 +4430,6 @@
 
         @if (conversationCreateTab() === 'direct') {
           <div class="conversation-create__section entity-create__section">
-            <div class="entity-create__summary">
-              <div class="entity-create__mark">ID</div>
-              <div>
-                <strong>Запрос в друзья</strong>
-                <small>Пятизначный ID пользователя</small>
-              </div>
-            </div>
-
             <label class="form-field entity-create__field">
               <span>ID пользователя</span>
               <input
@@ -4467,10 +4459,7 @@
               } @else if (directFriendLookupState() === 'invalid') {
                 <span>Нужен полный ID</span>
                 <strong>5 цифр без пробелов</strong>
-              } @else {
-                <span>Введите ID</span>
-                <strong>Запрос уйдет пользователю</strong>
-              }
+              } @else {}
             </div>
           </div>
         } @else {
@@ -4481,18 +4470,10 @@
                 [(ngModel)]="createConversationForm.name"
                 name="conversation_group_name"
                 maxlength="80"
-                placeholder="Проект KVA"
+                placeholder="Название мини-группы"
                 type="text"
               />
             </label>
-
-            <div class="entity-create__summary">
-              <div class="entity-create__mark">{{ createConversationSelectedMemberCount() }}</div>
-              <div>
-                <strong>{{ createConversationForm.name.trim() || 'Мини-группа' }}</strong>
-                <small>Участников выбрано: {{ createConversationSelectedMemberCount() }}</small>
-              </div>
-            </div>
 
             <div class="entity-create__people">
               <div class="entity-create__section-head">
@@ -4646,11 +4627,7 @@
               </button>
             } @empty {
               <div class="rail-empty">
-                {{
-                  isPlatformsMode()
-                    ? 'Сначала добавьте пользователя в раздел «Друзья», потом сможете пригласить его на площадку'
-                    : 'Сначала добавьте пользователя в раздел «Друзья», потом сможете пригласить его в группу'
-                }}
+                {{ 'Нет друзей для приглашения' }}
               </div>
             }
           </div>
@@ -4707,18 +4684,10 @@
             [(ngModel)]="createGroupForm.name"
             name="group_name"
             maxlength="80"
-            placeholder="Стратеги"
+            placeholder="Название группы"
             type="text"
           />
         </label>
-
-        <div class="entity-create__summary">
-          <div class="entity-create__mark">{{ createGroupSelectedMemberCount() }}</div>
-          <div>
-            <strong>{{ createGroupForm.name.trim() || 'Группа' }}</strong>
-            <small>Друзей выбрано: {{ createGroupSelectedMemberCount() }}</small>
-          </div>
-        </div>
 
         <div class="entity-create__people">
           <div class="entity-create__section-head">
@@ -4814,14 +4783,6 @@
             type="text"
           />
         </label>
-
-        <div class="entity-create__summary">
-          <div class="entity-create__mark">#</div>
-          <div>
-            <strong>{{ createPlatformForm.name.trim() || 'Площадка' }}</strong>
-            <small>Общий чат и голосовой канал появятся автоматически</small>
-          </div>
-        </div>
 
         <div class="modal__actions modal__actions--compact">
           <button

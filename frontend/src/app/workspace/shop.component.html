@@ -31,7 +31,6 @@
     </button>
     <div>
       <h2 id="shop-title">Предметы</h2>
-      <small>Ваш инвентарь и магазин</small>
     </div>
     <span class="balance" aria-label="Баланс кристаллов"
       ><img src="/assets/crystal.svg" alt="Кристаллы" />{{
@@ -48,11 +47,13 @@
       @if (t.id !== 'roles' || systemAdmin()) {
         <button
           [class.active]="mode() === t.id"
+          [attr.aria-label]="t.label"
+          [attr.title]="t.label"
           [attr.aria-current]="mode() === t.id ? 'page' : null"
           [disabled]="busy() || inventoryNested()"
           (click)="switchMode(t.id)"
         >
-          {{ t.label }}
+          <app-ui-icon [name]="t.icon" /><span class="tab-label">{{ t.label }}</span>
         </button>
       }
     }
@@ -178,7 +179,6 @@
               предметы.
             </p>
           } @else {
-            <p>Можно использовать для себя или подарить другу.</p>
             @if (item.owned) {
               <p class="owned">У вас: {{ item.owned }} · Покупка добавит ещё один экземпляр.</p>
             }
@@ -251,10 +251,6 @@
         <app-store-collections #collectionPanel [token]="token()" (changed)="loadCollections()" />
       } @else if (mode() !== 'inventory') {
         <div class="section-heading" [class.catalog-heading]="mode() === 'browse'">
-          <div>
-            <h3>{{ title() }}</h3>
-            <p>{{ subtitle() }}</p>
-          </div>
           @if (manage()) {
             <div class="manager-tools">
               <button [class.active]="mode() === 'collections'" (click)="switchMode('collections')">
@@ -322,25 +318,6 @@
                 </button>
               </div>
             }
-            @if (mode() === 'recommendations') {
-              <section class="collection-banner">
-                <span class="eyebrow">ВЫБРАНО ДЛЯ ВАС</span>
-                <h3>Найдите свой стиль</h3>
-                <p>
-                  Рекомендованные предметы из каталога Квачата. Любой предмет можно оставить себе
-                  или подарить.
-                </p>
-              </section>
-            }
-            @if (mode() === 'roles') {
-              <section class="collection-banner">
-                <h3>Кто управляет магазином</h3>
-                <p>
-                  Покупки и использование предметов доступны участникам. Управляющий меняет товары и
-                  цены, просматривает продажи и журнал. Администратор системы назначает управляющих.
-                </p>
-              </section>
-            }
             <div class="catalog-toolbar">
               <form class="tools" (ngSubmit)="submitSearch()">
                 @if (mode() !== 'audit') {
@@ -365,7 +342,14 @@
                         ×
                       </button>
                     }</span
-                  ><button class="search-submit" type="submit">Найти</button>
+                  ><button
+                    class="search-submit compact-action"
+                    type="submit"
+                    aria-label="Найти"
+                    title="Найти"
+                  >
+                    <app-ui-icon name="search" /><span class="compact-label">Найти</span>
+                  </button>
                 }
                 @if (
                   mode() === 'browse' || mode() === 'recommendations' || mode() === 'purchases'
@@ -526,17 +510,6 @@
             @if (!total() && !loading() && !error()) {
               <div class="empty">
                 <h3>{{ hasFilters() ? 'Ничего не найдено' : 'Здесь пока пусто' }}</h3>
-                <p>
-                  {{
-                    hasFilters()
-                      ? 'Попробуйте изменить условия поиска.'
-                      : mode() === 'purchases'
-                        ? 'Здесь появятся ваши покупки.'
-                        : mode() === 'journal'
-                          ? 'Здесь появятся операции с вашими предметами.'
-                          : 'Новые предметы появятся после публикации.'
-                  }}
-                </p>
                 @if (hasFilters()) {
                   <button (click)="resetFilters()">Сбросить фильтры</button>
                 }

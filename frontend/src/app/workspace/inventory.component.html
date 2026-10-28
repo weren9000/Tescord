@@ -154,18 +154,6 @@
           }
           <main class="inventory-results">
             @if (storeLayout()) {
-              <div class="inventory-heading">
-                <div>
-                  <h3>Мой инвентарь</h3>
-                  <small>Ваши предметы и оформление</small>
-                </div>
-                <button (click)="eventsOpen.set(true)">
-                  События
-                  @if (unreadCount()) {
-                    <span>{{ unreadCount() }}</span>
-                  }
-                </button>
-              </div>
               <form class="inventory-toolbar" (ngSubmit)="filterChanged()">
                 <label class="inventory-search"
                   ><app-ui-icon name="search" /><input
@@ -174,7 +162,8 @@
                     placeholder="Поиск по инвентарю…"
                     [(ngModel)]="filter"
                     maxlength="80" /></label
-                ><button class="find" type="submit">Найти</button
+                ><button class="find compact-action" type="submit" aria-label="Найти" title="Найти">
+                  <app-ui-icon name="search" /><span class="compact-label">Найти</span></button
                 ><select
                   name="inventory-sort"
                   aria-label="Сортировка"
@@ -192,6 +181,18 @@
                   [attr.aria-expanded]="filtersOpen()"
                 >
                   <app-ui-icon name="settings" />
+                </button>
+                <button
+                  class="compact-action inventory-events"
+                  type="button"
+                  aria-label="События инвентаря"
+                  title="События инвентаря"
+                  (click)="eventsOpen.set(true)"
+                >
+                  <app-ui-icon name="bell" /><span class="compact-label">События</span>
+                  @if (unreadCount()) {
+                    <span class="count">{{ unreadCount() }}</span>
+                  }
                 </button>
               </form>
               <div class="inventory-segments">
@@ -402,15 +403,10 @@
                       : 'Пока нет предметов'
                   }}</strong>
                   @if (mode() === 'inventory') {
-                    <p>
-                      {{
-                        filter || rarity || favorites || usage !== 'all'
-                          ? 'Попробуйте изменить условия поиска.'
-                          : 'Предметы можно получить в подарок или купить за кристаллы.'
-                      }}
-                    </p>
-                    <button (click)="resetFilters()">Сбросить фильтры</button
-                    ><button (click)="shop.emit()">Открыть магазин</button>
+                    @if (filter || rarity || favorites || usage !== 'all') {
+                      <button (click)="resetFilters()">Сбросить фильтры</button>
+                    }
+                    <button (click)="shop.emit()">Открыть магазин</button>
                   }
                 </div>
               }
@@ -418,34 +414,36 @@
                 <p role="status">Загрузка…</p>
               }
             </div>
-            <div class="pagination" aria-label="Страницы предметов">
-              <small aria-live="polite">Всего: {{ total() }}</small
-              ><button
-                aria-label="Предыдущая страница"
-                [disabled]="currentPage() === 1 || loading() || busy()"
-                (click)="goPage(currentPage() - 1)"
-              >
-                ‹
-              </button>
-              @for (n of pageNumbers(); track n) {
-                <button
-                  [class.active]="currentPage() === n"
-                  [attr.aria-current]="currentPage() === n ? 'page' : null"
-                  [attr.aria-label]="'Страница ' + n"
-                  [disabled]="loading() || busy()"
-                  (click)="goPage(n)"
+            @if (pageCount() > 1) {
+              <div class="pagination" aria-label="Страницы предметов">
+                <small aria-live="polite">Всего: {{ total() }}</small
+                ><button
+                  aria-label="Предыдущая страница"
+                  [disabled]="currentPage() === 1 || loading() || busy()"
+                  (click)="goPage(currentPage() - 1)"
                 >
-                  {{ n }}
+                  ‹
                 </button>
-              }
-              <button
-                aria-label="Следующая страница"
-                [disabled]="currentPage() === pageCount() || loading() || busy()"
-                (click)="goPage(currentPage() + 1)"
-              >
-                ›
-              </button>
-            </div>
+                @for (n of pageNumbers(); track n) {
+                  <button
+                    [class.active]="currentPage() === n"
+                    [attr.aria-current]="currentPage() === n ? 'page' : null"
+                    [attr.aria-label]="'Страница ' + n"
+                    [disabled]="loading() || busy()"
+                    (click)="goPage(n)"
+                  >
+                    {{ n }}
+                  </button>
+                }
+                <button
+                  aria-label="Следующая страница"
+                  [disabled]="currentPage() === pageCount() || loading() || busy()"
+                  (click)="goPage(currentPage() + 1)"
+                >
+                  ›
+                </button>
+              </div>
+            }
           </main>
         </div>
       </div>

@@ -1,4 +1,3 @@
-<h3>Пригласить на площадку</h3>
 <nav aria-label="Способ приглашения">
   <button [attr.aria-pressed]="tab() === 'friends'" (click)="tab.set('friends')">Друзья</button
   ><button [attr.aria-pressed]="tab() === 'links'" (click)="tab.set('links')">Ссылки</button>
@@ -14,7 +13,7 @@
   <p role="status">Выполняем…</p>
 }
 @if (tab() === 'friends') {
-  <p>Друг получит приглашение и сможет принять или отклонить его. Оно действует 7 дней.</p>
+  <p>Срок приглашения — 7 дней.</p>
   <label>Найти друга<input type="search" [(ngModel)]="query" placeholder="Имя друга" /></label>
   <div class="friends">
     @for (friend of filtered(); track friend.user_id) {
@@ -65,7 +64,6 @@
     </button>
   }
 } @else {
-  <p>Ссылка открывает доступ ко всем чатам площадки после вступления.</p>
   <form (ngSubmit)="create()">
     <div class="fields">
       <label
@@ -97,7 +95,7 @@
         Без лимита
       </button>
     </div>
-    <p>Считаем успешные вступления. Просмотры ссылки не расходуют лимит.</p>
+    <p>Лимит — по вступлениям.</p>
     <button class="primary" [disabled]="busy() || !validLimit()">Создать ссылку</button>
   </form>
   @if (link()) {

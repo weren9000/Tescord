@@ -1,3 +1,4 @@
+@use '../shared/compact-ui' as compact;
 @use '../shared/ui-controls' as ui;
 :host {
   display: block;
@@ -204,4 +205,19 @@ input:not([type='checkbox']),
 select,
 textarea {
   @include ui.field;
+}
+
+@include compact.actions;
+.wallet {
+  padding: 14px;
+}
+.balances {
+  gap: 8px;
+  margin-block: 12px;
+}
+.balances > div {
+  padding: 10px 12px;
+}
+.history-title {
+  margin-top: 14px;
 }
