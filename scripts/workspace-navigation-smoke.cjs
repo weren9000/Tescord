@@ -26,6 +26,26 @@ const fs = require('node:fs');
         ng.applyChanges(a);
       });
       await page.waitForTimeout(600);
+      await page.evaluate(() => { fixture.currentUserAvatarUrl = () => '/assets/kva-wordmark-v2.png'; ng.applyChanges(fixture); });
+      const menuButton = page.getByRole('button', { name: 'Меню приложения', exact: true });
+      await expect(menuButton).toHaveCount(1);
+      await menuButton.locator('img').click();
+      const menu = page.getByRole('dialog', { name: 'Меню', exact: true });
+      await expect(menu).toBeVisible();
+      await menu.getByRole('button', { name: 'Мой профиль', exact: true }).click();
+      await expect(page.getByRole('dialog', { name: 'Мой профиль', exact: true })).toBeVisible();
+      await page.getByRole('button', { name: 'Закрыть профиль', exact: true }).click();
+      await menuButton.focus();
+      await page.keyboard.press('Enter');
+      await expect(menu).toBeVisible();
+      await page.screenshot({ path: `.local/workspace-navigation/profile-menu-${width}.png` });
+      await page.keyboard.press('Escape');
+      await expect(menu).toHaveCount(0);
+      await page.evaluate(() => { fixture.currentUserAvatarUrl = () => null; ng.applyChanges(fixture); });
+      await menuButton.locator(width > 980 ? 'b' : 'app-ui-icon').click();
+      await expect(menu).toBeVisible();
+      await page.keyboard.press('Escape');
+      await expect(menu).toHaveCount(0);
       await page.evaluate(() => {
         const a = fixture;
         a.activeServer = () => ({ id: 'group', name: 'Group', kind: 'group' });
@@ -47,7 +67,7 @@ const fs = require('node:fs');
         await expect(nav.getByRole('button', { name: 'Инвентарь', exact: true })).toHaveCount(0);
         await nav.getByRole('button', { name: 'Предметы', exact: true }).click();
       } else {
-        await page.evaluate(() => { fixture.sideMenuOpen.set(true); ng.applyChanges(fixture); });
+        await menuButton.click();
         await page.getByRole('button', { name: 'Предметы', exact: true }).click();
       }
       const tabs = page.locator('app-shop .section-links');

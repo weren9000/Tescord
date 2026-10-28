@@ -1217,7 +1217,7 @@
     >
       <app-section-navigation
         (shop)="shopInitialMode.set('inventory'); shopOpen.set(true)"
-        [userId]="currentUser()?.id ?? null"
+        [menuOpen]="sideMenuOpen()"
         [isSystemAdmin]="isAdmin()"
         [adminSelected]="adminDirectoryOpen() && (isAdmin() || !!currentUser()?.is_avatar_admin)"
         (admin)="openAdminDirectory()"
@@ -1229,7 +1229,6 @@
         [initials]="displayNickInitials(currentUser()?.nick ?? 'Я')"
         [hasNotifications]="friendRequestBadgeVisible()"
         (selectSection)="selectWorkspaceMode($event)"
-        (menu)="toggleSideMenu()"
         (search)="openQuickSwitch()"
         (profile)="toggleSideMenu()"
         (notifications)="openFriendRequestsModal()"
@@ -2891,11 +2890,18 @@
         class="icon-button mobile-mode-footer__action mobile-mode-footer__action--menu"
         [class.mobile-mode-footer__action--active]="isMobileFooterMenuActive()"
         type="button"
-        aria-label="Открыть меню"
-        title="Открыть меню"
+        aria-label="Меню приложения"
+        title="Меню приложения"
+        aria-haspopup="dialog"
+        [attr.aria-expanded]="sideMenuOpen()"
         (click)="toggleMobileFooterMenu()"
       >
-        <app-ui-icon name="menu" /><span>Меню</span>
+        @if (currentUserAvatarUrl(); as avatar) {
+          <img class="mobile-profile-avatar" [src]="avatar" alt="" />
+        } @else {
+          <app-ui-icon name="profile" />
+        }
+        <span>Профиль</span>
       </button>
       <button
         class="conversation-sidebar__tab mobile-mode-footer__button"

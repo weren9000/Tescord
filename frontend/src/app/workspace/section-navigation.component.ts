@@ -1,5 +1,4 @@
 import { Component, input, output } from '@angular/core';
-import { UserCardDirective } from './user-card.directive';
 import { UiIconComponent } from './ui-icon.component';
 
 export type WorkspaceSection = 'chats' | 'groups' | 'platforms';
@@ -7,7 +6,7 @@ export type WorkspaceSection = 'chats' | 'groups' | 'platforms';
 @Component({
   selector: 'app-section-navigation',
   standalone: true,
-  imports: [UserCardDirective, UiIconComponent],
+  imports: [UiIconComponent],
   template: ` <nav aria-label="Основные разделы">
     <div class="brand">
       <img src="/assets/kva-wordmark-v2.png" alt="Квачат" width="70" height="35" />
@@ -55,9 +54,6 @@ export type WorkspaceSection = 'chats' | 'groups' | 'platforms';
       >
         <app-ui-icon name="search" /><span>Поиск</span>
       </button>
-      <button type="button" aria-label="Меню приложения" (click)="menu.emit()">
-        <app-ui-icon name="menu" /><span>Меню</span>
-      </button>
       <button
         class="notification"
         type="button"
@@ -73,22 +69,16 @@ export type WorkspaceSection = 'chats' | 'groups' | 'platforms';
       <button
         class="profile"
         type="button"
-        aria-label="Личное меню"
+        aria-label="Меню приложения"
         aria-haspopup="dialog"
-        title="Личное меню"
+        [attr.aria-expanded]="menuOpen()"
+        title="Меню приложения"
         (click)="profile.emit()"
       >
         @if (avatarUrl()) {
-          <img
-            [appUserCard]="userId()"
-            class="profile-avatar"
-            [src]="avatarUrl()"
-            alt=""
-            width="44"
-            height="44"
-          />
+          <img class="profile-avatar" [src]="avatarUrl()" alt="" width="44" height="44" />
         } @else {
-          <b [appUserCard]="userId()">{{ initials() }}</b>
+          <b>{{ initials() }}</b>
         }
         <span>Профиль</span>
       </button>
@@ -278,12 +268,11 @@ export class SectionNavigationComponent {
   readonly inventoryUnread = input(0);
   readonly inventory = output<'inventory' | 'admin'>();
   readonly initials = input('Я');
-  readonly userId = input<string | null>(null);
+  readonly menuOpen = input(false);
   readonly avatarUrl = input<string | null>(null);
   readonly hasNotifications = input(false);
   readonly selectSection = output<WorkspaceSection>();
   readonly search = output<void>();
-  readonly menu = output<void>();
   readonly profile = output<void>();
   readonly notifications = output<void>();
   readonly sections = [
