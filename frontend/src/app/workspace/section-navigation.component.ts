@@ -35,13 +35,15 @@ export type WorkspaceSection = 'chats' | 'groups' | 'platforms';
           }
         </span>
       </button>
-      <button
-        type="button"
-        (click)="openGameCalendar()"
-        title="Календарь игр — откроется в новой вкладке"
-      >
-        <app-ui-icon name="calendar" /><span>Календарь игр</span>
-      </button>
+      @if (calendarEnabled()) {
+        <button
+          type="button"
+          (click)="openGameCalendar()"
+          title="Когда игра — откроется в новой вкладке"
+        >
+          <app-ui-icon name="calendar" /><span>Когда игра</span>
+        </button>
+      }
       @if (isSystemAdmin() || isAvatarAdmin()) {
         <button
           type="button"
@@ -264,6 +266,7 @@ export type WorkspaceSection = 'chats' | 'groups' | 'platforms';
   ],
 })
 export class SectionNavigationComponent {
+  readonly calendarEnabled = input(false);
   readonly openGameCalendar = openGameCalendar;
   openRoom() {
     window.location.assign('/my-room');

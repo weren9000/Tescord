@@ -1,5 +1,7 @@
 import { MessageTextPresenter } from './core/services/message-text.presenter';
 import { openGameCalendar } from './core/plugins/first-party-plugins';
+import { PluginPreferencesService } from './core/plugins/plugin-preferences.service';
+import { ApplicationsComponent } from './workspace/applications.component';
 import {
   MessageContentSegment,
   MessageMentionContext,
@@ -667,6 +669,7 @@ const DEFAULT_SERVER_ICON_ASSET_BY_NAME: Record<string, string> = {
   providers: [AuthFormStore, WorkspaceStateStore, AttachmentPreviewStore],
   selector: 'app-root',
   imports: [
+    ApplicationsComponent,
     PhotoGridComponent,
     PhotoThumbnailComponent,
     PhotoViewerComponent,
@@ -727,6 +730,19 @@ const DEFAULT_SERVER_ICON_ASSET_BY_NAME: Record<string, string> = {
 })
 export class AppComponent {
   readonly openGameCalendar = openGameCalendar;
+  readonly pluginPreferences = inject(PluginPreferencesService);
+  readonly applicationsOpen = signal(false);
+
+  closeApplications(): void {
+    this.applicationsOpen.set(false);
+    requestAnimationFrame(() => {
+      if (document.querySelector('dialog[open]')) return;
+      const trigger = Array.from(
+        document.querySelectorAll<HTMLButtonElement>('button[aria-label="Меню приложения"]'),
+      ).find((button) => button.getClientRects().length > 0);
+      trigger?.focus({ preventScroll: true });
+    });
+  }
   private readonly attachmentPreviews = inject(AttachmentPreviewStore);
 
   private readonly messageText = new MessageTextPresenter();
@@ -8481,6 +8497,7 @@ export class AppComponent {
     this.platformVoiceSettingsChannelId.set(null);
     this.friendRequestsModalOpen.set(false);
     this.appearanceOpen.set(false);
+    this.applicationsOpen.set(false);
     this.blockedFriendsModalOpen.set(false);
     this.blockedServersModalOpen.set(false);
     this.groupMembersModalOpen.set(false);

@@ -3,7 +3,7 @@ import { API_BASE_URL } from '../api/api-base';
 /** Trusted, separately deployed applications. This is not a loader for arbitrary third-party code. */
 export const GAME_CALENDAR_PLUGIN = {
   id: 'game-calendar',
-  name: 'Календарь игр',
+  name: 'Когда игра',
   path: '/plugins/game-calendar/',
 } as const;
 

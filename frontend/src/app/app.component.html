@@ -1035,14 +1035,20 @@
           </button>
         </section>
         <section>
-          <button
-            type="button"
-            (click)="closeSideMenu(); openGameCalendar()"
-            title="Откроется в новой вкладке"
-          >
-            <app-ui-icon name="calendar" /><span class="account-menu__label">Календарь игр</span>
+          <button type="button" (click)="closeSideMenu(); applicationsOpen.set(true)">
+            <app-ui-icon name="inventory" /><span class="account-menu__label">Приложения</span>
             <app-ui-icon name="forward" class="account-menu__chevron" />
           </button>
+          @if (pluginPreferences.calendarEnabled(currentUser()?.id)) {
+            <button
+              type="button"
+              (click)="closeSideMenu(); openGameCalendar()"
+              title="Откроется в новой вкладке"
+            >
+              <app-ui-icon name="calendar" /><span class="account-menu__label">Когда игра</span>
+              <app-ui-icon name="forward" class="account-menu__chevron" />
+            </button>
+          }
           <button type="button" (click)="closeSideMenu(); appearanceOpen.set(true)">
             <app-ui-icon name="appearance" /><span class="account-menu__label">Оформление</span>
             <app-ui-icon name="forward" class="account-menu__chevron" />
@@ -1083,6 +1089,9 @@
           </button>
         </section>
       </app-action-menu>
+    }
+    @if (applicationsOpen()) {
+      <app-applications [userId]="currentUser()?.id ?? null" (closed)="closeApplications()" />
     }
     @if (appearanceOpen()) {
       <app-desktop-preferences
@@ -1243,6 +1252,7 @@
       [style.--message-text-size]="desktopPreferences.value().textSize + 'px'"
     >
       <app-section-navigation
+        [calendarEnabled]="pluginPreferences.calendarEnabled(currentUser()?.id)"
         (shop)="shopInitialMode.set('inventory'); shopOpen.set(true)"
         [menuOpen]="sideMenuOpen()"
         [isSystemAdmin]="isAdmin()"
