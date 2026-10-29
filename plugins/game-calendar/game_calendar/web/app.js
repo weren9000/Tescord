@@ -197,16 +197,14 @@ function render() {
       ),
     );
     const main = element("div", "event-main");
-    main.append(tags(e));
     const title = element("button", "event-title", e.name);
     title.addEventListener("click", () => openEvent(e));
     main.append(title);
     const meta = element("div", "event-meta");
     meta.append(element("span", "", e.region || "Регион уточняется"));
-    if (e.end_date && e.end_date !== e.start_date)
-      meta.append(element("span", "", range(e)));
-    if (e.organizer) meta.append(element("span", "", e.organizer));
+    meta.append(element("span", "", range(e)));
     main.append(meta);
+    if (e.organizer) main.append(element("p", "event-organizer", e.organizer));
     const favorite = element(
       "button",
       "icon-button",
@@ -221,7 +219,9 @@ function render() {
       toggleSaved(e.id);
       document.querySelector(`[data-event-id="${e.id}"] .icon-button`)?.focus();
     });
-    card.append(artwork(e), date, main, favorite);
+    const heading = element("div", "event-heading");
+    heading.append(date, tags(e), favorite);
+    card.append(artwork(e), heading, main);
     $("events").append(card);
   }
 }

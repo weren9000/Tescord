@@ -29,9 +29,16 @@ const pixel = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQ
       assert(await cards.nth(0).locator('img').evaluate(el => el.naturalWidth > 0));
       await cards.nth(1).scrollIntoViewIfNeeded();
       await expect(cards.nth(1).locator('img')).toHaveCount(0);
-      await expect(cards.nth(1).locator('.art-placeholder')).toBeVisible();
+      await expect(cards.nth(1).locator('.event-title')).toBeVisible();
       await expect(cards.nth(2).locator('img')).toHaveCount(0);
       assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
+      const cardBox = await cards.nth(0).boundingBox();
+      const artBox = await cards.nth(0).locator('.event-art').boundingBox();
+      assert(Math.abs(cardBox.width - artBox.width) <= 2, 'Artwork fills the card width');
+      assert(Math.abs(cardBox.height - artBox.height) <= 2, 'Artwork fills the card height');
+      const titleBox = await cards.nth(0).locator('.event-title').boundingBox();
+      const headerBox = await cards.nth(0).locator('.event-heading').boundingBox();
+      assert(titleBox.y >= headerBox.y + headerBox.height, 'Title does not overlap controls');
       await cards.nth(0).locator('.event-title').click();
       await expect(page.locator('.detail-art')).toHaveClass(/has-image/);
       await expect(page.locator('.art-credit')).toHaveAttribute('href', 'https://vk.com/club42');
