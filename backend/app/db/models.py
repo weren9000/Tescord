@@ -13,6 +13,13 @@ class Base(DeclarativeBase):
     pass
 
 
+class UserApplication(Base):
+    __tablename__ = 'user_applications'
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('users.id', ondelete='CASCADE'), primary_key=True)
+    application_id: Mapped[str] = mapped_column(String(80), primary_key=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+
 class MeetingRoom(Base):
     __tablename__ = 'meeting_rooms'
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)

@@ -1,7 +1,6 @@
 import { MessageTextPresenter } from './core/services/message-text.presenter';
-import { openGameCalendar } from './core/plugins/first-party-plugins';
-import { PluginPreferencesService } from './core/plugins/plugin-preferences.service';
 import { ApplicationsComponent } from './workspace/applications.component';
+import { afterNextRender, Injector } from '@angular/core';
 import {
   MessageContentSegment,
   MessageMentionContext,
@@ -729,19 +728,36 @@ const DEFAULT_SERVER_ICON_ASSET_BY_NAME: Record<string, string> = {
   ],
 })
 export class AppComponent {
-  readonly openGameCalendar = openGameCalendar;
-  readonly pluginPreferences = inject(PluginPreferencesService);
   readonly applicationsOpen = signal(false);
+  private applicationsOpener: HTMLElement | null = null;
+  private readonly applicationsInjector = inject(Injector);
+
+  openApplications(): void {
+    this.applicationsOpener =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    this.closeSideMenu();
+    this.applicationsOpen.set(true);
+  }
 
   closeApplications(): void {
     this.applicationsOpen.set(false);
-    requestAnimationFrame(() => {
-      if (document.querySelector('dialog[open]')) return;
-      const trigger = Array.from(
-        document.querySelectorAll<HTMLButtonElement>('button[aria-label="Меню приложения"]'),
-      ).find((button) => button.getClientRects().length > 0);
-      trigger?.focus({ preventScroll: true });
-    });
+    afterNextRender(
+      () => {
+        if (document.querySelector('dialog[open]')) return;
+        if (
+          this.applicationsOpener?.isConnected &&
+          this.applicationsOpener.checkVisibility({ checkVisibilityCSS: true })
+        ) {
+          this.applicationsOpener.focus({ preventScroll: true });
+          return;
+        }
+        const trigger = Array.from(
+          document.querySelectorAll<HTMLButtonElement>('button[aria-label="Меню приложения"]'),
+        ).find((button) => button.checkVisibility({ checkVisibilityCSS: true }));
+        trigger?.focus({ preventScroll: true });
+      },
+      { injector: this.applicationsInjector },
+    );
   }
   private readonly attachmentPreviews = inject(AttachmentPreviewStore);
 

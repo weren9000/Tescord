@@ -1,4 +1,5 @@
 from app.api.routes.shop import router as shop_router
+from app.api.routes.applications import router as applications_router
 from fastapi import APIRouter
 from app.api.routes.wallets import router as wallets_router
 from app.api.routes.analytics import router as analytics_router
@@ -27,6 +28,7 @@ from app.api.routes.voice import router as voice_router
 from app.api.routes.wallpapers import router as wallpapers_router
 
 api_router = APIRouter()
+api_router.include_router(applications_router)
 from app.api.routes.rooms import router as rooms_router
 api_router.include_router(rooms_router)
 from app.api.routes.platforms import router as platforms_router

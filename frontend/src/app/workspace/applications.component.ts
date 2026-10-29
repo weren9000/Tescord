@@ -1,82 +1,147 @@
-import { Component, inject, input, output } from '@angular/core';
-import { PluginPreferencesService } from '../core/plugins/plugin-preferences.service';
-import { ActionMenuComponent } from './action-menu.component';
+import { Component, computed, effect, inject, input, output, signal } from '@angular/core';
+import {
+  ConnectedApplication,
+  PluginPreferencesService,
+} from '../core/plugins/plugin-preferences.service';
+import { openGameCalendar } from '../core/plugins/first-party-plugins';
+import { ModalLayerDirective } from '../shared/modal-layer.directive';
 import { UiIconComponent } from './ui-icon.component';
 
 @Component({
   selector: 'app-applications',
-  imports: [ActionMenuComponent, UiIconComponent],
+  imports: [ModalLayerDirective, UiIconComponent],
+  providers: [PluginPreferencesService],
   template: `
-    <app-action-menu label="Приложения" (close)="closed.emit()">
-      <p class="menu-note">Выберите приложения, которые хотите видеть в меню Квачата.</p>
-      <label class="application-option">
-        <app-ui-icon name="calendar" />
-        <span>
-          <strong>Когда игра</strong>
-          <small>Календарь ролевых игр и конвентов. Данные обновляются каждый день.</small>
-        </span>
-        <input
-          type="checkbox"
-          aria-label="Активировать Когда игра"
-          [checked]="preferences.calendarEnabled(userId())"
-          [disabled]="!userId()"
-          (change)="toggle($event)"
-        />
-      </label>
-      <p class="menu-note">Выбор сохраняется в этом браузере для вашего аккаунта.</p>
-      @if (!preferences.saved()) {
-        <p class="menu-note" role="status">
-          Не удалось сохранить выбор. Он действует до перезагрузки.
-        </p>
-      }
-    </app-action-menu>
+    <dialog appModalLayer class="applications" tabindex="-1" (keydown)="keydown($event)">
+      <header>
+        <h3>Приложения</h3>
+        <button type="button" class="close" aria-label="Закрыть приложения" (click)="closed.emit()">
+          ×
+        </button>
+      </header>
+      <nav aria-label="Разделы приложений">
+        <button type="button" [attr.aria-pressed]="tab() === 'mine'" (click)="tab.set('mine')">
+          Мои приложения
+        </button>
+        <button
+          type="button"
+          [attr.aria-pressed]="tab() === 'catalog'"
+          (click)="tab.set('catalog')"
+        >
+          Каталог
+        </button>
+      </nav>
+      <section
+        class="content"
+        [attr.aria-label]="tab() === 'mine' ? 'Мои приложения' : 'Каталог'"
+        [attr.aria-busy]="state.loading() || state.busy()"
+      >
+        @if (state.error()) {
+          <div class="error" role="alert">
+            <p>{{ state.error() }}</p>
+            @if (state.loadFailed()) {
+              <button type="button" (click)="state.load(token())">Повторить</button>
+            }
+          </div>
+        }
+        @if (state.loading()) {
+          <p class="empty" role="status">Загружаем приложения…</p>
+        } @else if (!state.loadFailed()) {
+          @if (tab() === 'mine' && !connected().length) {
+            <div class="empty">
+              <h4>Пока нет приложений</h4>
+              <button type="button" class="primary" (click)="tab.set('catalog')">
+                Выбрать приложения
+              </button>
+            </div>
+          } @else {
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Приложение</th>
+                  <th scope="col" class="description">Описание</th>
+                  <th scope="col" class="action">
+                    {{ tab() === 'catalog' ? 'Подключено' : 'Действие' }}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (item of visible(); track item.id) {
+                  <tr>
+                    <td>
+                      <div class="identity">
+                        <app-ui-icon name="calendar" />
+                        <div>
+                          <strong>{{ item.name }}</strong
+                          ><small class="mobile-description">{{ item.description }}</small>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="description">{{ item.description }}</td>
+                    <td class="action">
+                      @if (tab() === 'catalog') {
+                        <label class="connection"
+                          ><input
+                            type="checkbox"
+                            [attr.aria-label]="'Подключить ' + item.name"
+                            [checked]="item.enabled"
+                            [disabled]="state.busy()"
+                            (change)="toggle(item, $event)"
+                        /></label>
+                      } @else {
+                        <button
+                          class="open"
+                          type="button"
+                          [disabled]="state.busy()"
+                          [attr.aria-label]="'Открыть ' + item.name"
+                          title="Откроется в новой вкладке"
+                          (click)="open(item)"
+                        >
+                          Открыть ↗
+                        </button>
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          }
+        }
+      </section>
+      <footer aria-live="polite">
+        {{ state.busy() ? 'Сохраняем…' : 'Подключения доступны на всех ваших устройствах.' }}
+      </footer>
+    </dialog>
   `,
-  styles: `
-    .application-option {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin: 12px 4px;
-      padding: 12px 8px;
-      border: 1px solid var(--palette-border);
-      border-radius: 10px;
-      color: var(--palette-text);
-      cursor: pointer;
-    }
-    .application-option span {
-      flex: 1;
-      min-width: 0;
-    }
-    .application-option strong {
-      display: block;
-      font-size: 14px;
-    }
-    .application-option small {
-      display: block;
-      margin-top: 6px;
-      font-size: 12px;
-      line-height: 1.5;
-      color: var(--palette-muted);
-    }
-    .application-option input {
-      width: 22px;
-      height: 22px;
-      flex-shrink: 0;
-      accent-color: var(--palette-primary);
-      cursor: pointer;
-    }
-    .application-option:focus-within {
-      outline: 2px solid var(--palette-primary);
-      outline-offset: 2px;
-    }
-  `,
+  styleUrl: './applications.component.scss',
 })
 export class ApplicationsComponent {
-  readonly userId = input.required<string | null>();
+  readonly token = input.required<string>();
   readonly closed = output<void>();
-  readonly preferences = inject(PluginPreferencesService);
+  readonly state = inject(PluginPreferencesService);
+  readonly tab = signal<'mine' | 'catalog'>('mine');
+  readonly connected = computed(() => this.state.items().filter((item) => item.enabled));
+  readonly visible = computed(() =>
+    this.tab() === 'catalog' ? this.state.items() : this.connected(),
+  );
 
-  toggle(event: Event): void {
-    this.preferences.setCalendarEnabled(this.userId(), (event.target as HTMLInputElement).checked);
+  constructor() {
+    effect(() => this.state.load(this.token()));
+  }
+
+  toggle(item: ConnectedApplication, event: Event): void {
+    this.state.setEnabled(item, (event.target as HTMLInputElement).checked);
+  }
+
+  open(item: ConnectedApplication): void {
+    if (item.enabled && item.id === 'game-calendar' && !this.state.busy()) openGameCalendar();
+  }
+
+  keydown(event: KeyboardEvent): void {
+    event.stopPropagation();
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      this.closed.emit();
+    }
   }
 }

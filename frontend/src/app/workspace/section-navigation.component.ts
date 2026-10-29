@@ -1,6 +1,5 @@
 import { Component, input, output } from '@angular/core';
 import { UiIconComponent } from './ui-icon.component';
-import { openGameCalendar } from '../core/plugins/first-party-plugins';
 
 export type WorkspaceSection = 'chats' | 'groups' | 'platforms';
 
@@ -35,15 +34,9 @@ export type WorkspaceSection = 'chats' | 'groups' | 'platforms';
           }
         </span>
       </button>
-      @if (calendarEnabled()) {
-        <button
-          type="button"
-          (click)="openGameCalendar()"
-          title="Когда игра — откроется в новой вкладке"
-        >
-          <app-ui-icon name="calendar" /><span>Когда игра</span>
-        </button>
-      }
+      <button type="button" (click)="applications.emit()" title="Приложения">
+        <app-ui-icon name="inventory" /><span>Приложения</span>
+      </button>
       @if (isSystemAdmin() || isAvatarAdmin()) {
         <button
           type="button"
@@ -266,8 +259,7 @@ export type WorkspaceSection = 'chats' | 'groups' | 'platforms';
   ],
 })
 export class SectionNavigationComponent {
-  readonly calendarEnabled = input(false);
-  readonly openGameCalendar = openGameCalendar;
+  readonly applications = output<void>();
   openRoom() {
     window.location.assign('/my-room');
   }
