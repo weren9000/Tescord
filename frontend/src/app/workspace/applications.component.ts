@@ -55,62 +55,40 @@ import { UiIconComponent } from './ui-icon.component';
               </button>
             </div>
           } @else {
-            <table>
-              <thead>
-                <tr>
-                  <th scope="col">Приложение</th>
-                  <th scope="col" class="description">Описание</th>
-                  <th scope="col" class="action">
-                    {{ tab() === 'catalog' ? 'Подключено' : 'Действие' }}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (item of visible(); track item.id) {
-                  <tr>
-                    <td>
-                      <div class="identity">
-                        <app-ui-icon name="calendar" />
-                        <div>
-                          <strong>{{ item.name }}</strong
-                          ><small class="mobile-description">{{ item.description }}</small>
-                        </div>
-                      </div>
-                    </td>
-                    <td class="description">{{ item.description }}</td>
-                    <td class="action">
-                      @if (tab() === 'catalog') {
-                        <label class="connection"
-                          ><input
-                            type="checkbox"
-                            [attr.aria-label]="'Подключить ' + item.name"
-                            [checked]="item.enabled"
-                            [disabled]="state.busy()"
-                            (change)="toggle(item, $event)"
-                        /></label>
-                      } @else {
-                        <button
-                          class="open"
-                          type="button"
-                          [disabled]="state.busy()"
-                          [attr.aria-label]="'Открыть ' + item.name"
-                          title="Откроется в новой вкладке"
-                          (click)="open(item)"
-                        >
-                          Открыть ↗
-                        </button>
-                      }
-                    </td>
-                  </tr>
+            <div class="applications-grid">
+              @for (item of visible(); track item.id) {
+                @if (tab() === 'catalog') {
+                  <label class="application-tile" [class.connected]="item.enabled">
+                    <input
+                      type="checkbox"
+                      [attr.aria-label]="'Подключить ' + item.name"
+                      [checked]="item.enabled"
+                      [disabled]="state.busy()"
+                      (change)="toggle(item, $event)"
+                    />
+                    <span class="application-icon"><app-ui-icon name="calendar" /></span>
+                    <strong>{{ item.name }}</strong>
+                    <small>{{ item.description }}</small>
+                  </label>
+                } @else {
+                  <button
+                    class="application-tile"
+                    type="button"
+                    [disabled]="state.busy()"
+                    [attr.aria-label]="'Открыть ' + item.name"
+                    title="Откроется в новой вкладке"
+                    (click)="open(item)"
+                  >
+                    <span class="application-icon"><app-ui-icon name="calendar" /></span>
+                    <strong>{{ item.name }}</strong>
+                    <small>{{ item.description }}</small>
+                  </button>
                 }
-              </tbody>
-            </table>
+              }
+            </div>
           }
         }
       </section>
-      <footer aria-live="polite">
-        {{ state.busy() ? 'Сохраняем…' : 'Подключения доступны на всех ваших устройствах.' }}
-      </footer>
     </dialog>
   `,
   styleUrl: './applications.component.scss',
