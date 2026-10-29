@@ -24,20 +24,7 @@
     </header>
     <main>
       <section class="intro">
-        <div>
-          <p class="eyebrow">ВСТРЕЧАЕМСЯ В ДРУГИХ МИРАХ</p>
-          <h1>Календарь игр<span>.</span></h1>
-          <p class="subtitle">
-            Ролевые игры, конвенты и приключения за пределами экрана.
-          </p>
-        </div>
-        <div class="freshness">
-          <span class="live-dot"></span>
-          <div>
-            <strong>Обновляем каждый день</strong
-            ><small id="updated">Загружаем календарь…</small>
-          </div>
-        </div>
+        <h1>Календарь игр<span>.</span></h1>
       </section>
       <div id="notice" class="notice" role="status" hidden></div>
       <section class="filters" aria-label="Поиск и фильтры">
@@ -46,30 +33,40 @@
           ><input
             id="search"
             type="search"
-            placeholder="Название игры, место или мастерская группа"
+            placeholder="Поиск игр"
             aria-label="Поиск игр"
             maxlength="200"
         /></label>
-        <div class="filter-row">
+        <button
+          id="toggle-filters"
+          class="secondary"
+          type="button"
+          aria-expanded="false"
+          aria-controls="filter-options"
+        >
+          Фильтры
+        </button>
+        <div class="filter-row" id="filter-options">
           <label
-            >Регион<select id="region">
+            ><span class="sr-only">Регион</span
+            ><select id="region" aria-label="Регион">
               <option value="">Все регионы</option>
             </select></label
           >
           <label
-            >Формат<select id="type">
+            ><span class="sr-only">Формат</span
+            ><select id="type" aria-label="Формат">
               <option value="">Все форматы</option>
             </select></label
           >
           <label
-            >Когда<select id="month">
+            ><span class="sr-only">Когда</span
+            ><select id="month" aria-label="Когда">
               <option value="">Любой месяц</option>
             </select></label
           >
-          <button id="reset" class="quiet" type="button">
-            Сбросить фильтры
-          </button>
         </div>
+        <button id="reset" class="quiet" type="button" hidden>Сбросить</button>
       </section>
       <section class="results" aria-label="События">
         <div class="results-head">
@@ -103,6 +100,7 @@
         <button id="more" class="more" hidden>Показать ещё</button>
       </section>
       <footer>
+        <p id="updated">Загружаем календарь…</p>
         Даты могут меняться. Перед поездкой проверьте информацию у
         организаторов.<br /><span
           >Избранное хранится только в этом браузере. Данные —

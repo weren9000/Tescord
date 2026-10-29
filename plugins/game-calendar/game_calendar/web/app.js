@@ -139,7 +139,23 @@ function artwork(e, detail = false) {
   }
   return box;
 }
+const mobileFilters = matchMedia("(max-width: 720px)");
+let filtersExpanded = false;
+function updateFilters() {
+  const count = ["region", "type", "month"].filter((id) => $(id).value).length;
+  $("reset").hidden = !count && !$("search").value.trim();
+  $("toggle-filters").textContent = count ? `Фильтры · ${count}` : "Фильтры";
+  $("toggle-filters").setAttribute("aria-expanded", String(filtersExpanded));
+  $("filter-options").hidden = mobileFilters.matches && !filtersExpanded;
+}
+$("toggle-filters").addEventListener("click", () => {
+  filtersExpanded = !filtersExpanded;
+  updateFilters();
+});
+mobileFilters.addEventListener("change", updateFilters);
+updateFilters();
 function render() {
+  updateFilters();
   $("saved-count").textContent = saved.size;
   document
     .querySelectorAll("[data-view]")
@@ -148,7 +164,8 @@ function render() {
     );
   if (!loaded) return;
   const filtered = events.filter(matches);
-  $("count").textContent = `Найдено: ${filtered.length}`;
+  $("count").textContent = String(filtered.length);
+  $("count").setAttribute("aria-label", `Найдено игр: ${filtered.length}`);
   $("empty").hidden = filtered.length > 0;
   $("events").replaceChildren();
   $("more").hidden = filtered.length <= limit;
@@ -403,9 +420,9 @@ document.querySelectorAll("[data-view]").forEach((b) =>
 );
 $("reset").addEventListener("click", () => {
   for (const id of ["search", "region", "type", "month"]) $(id).value = "";
-  view = "upcoming";
   limit = 60;
   render();
+  $("search").focus();
 });
 $("more").addEventListener("click", () => {
   limit += 60;
