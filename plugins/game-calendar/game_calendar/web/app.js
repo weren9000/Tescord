@@ -1,8 +1,12 @@
 const $ = (id) => document.getElementById(id);
 const storageKey = "kvachat.plugin.game-calendar.favorites.v1";
+const layoutStorageKey = "kvachat.plugin.game-calendar.layout.v1";
 let events = [],
   saved = new Set(),
   view = "upcoming",
+  layout = "feed",
+  calendarMonth = "",
+  selectedDate = "",
   limit = 60,
   active = null,
   toastTimer;
@@ -13,6 +17,8 @@ try {
   const values = JSON.parse(localStorage.getItem(storageKey) || "[]");
   if (Array.isArray(values))
     saved = new Set(values.filter(Number.isSafeInteger));
+  const storedLayout = localStorage.getItem(layoutStorageKey);
+  if (["feed", "calendar"].includes(storedLayout)) layout = storedLayout;
 } catch {
   storageAvailable = false;
 }
@@ -141,6 +147,173 @@ function artwork(e, detail = false) {
 }
 const mobileFilters = matchMedia("(max-width: 720px)");
 let filtersExpanded = false;
+const calendarWeekdays = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
+const calendarDate = (value) => new Date(value + "T12:00:00Z");
+const isoDate = (date) => date.toISOString().slice(0, 10);
+const monthLabel = (month) =>
+  day(month + "-01", { month: "long", year: "numeric" });
+const shiftMonth = (month, offset) => {
+  const date = calendarDate(month + "-01");
+  date.setUTCMonth(date.getUTCMonth() + offset);
+  return isoDate(date).slice(0, 7);
+};
+function activeCalendarMonth(filtered) {
+  const selected = $("month").value;
+  if (selected) return selected;
+  if (calendarMonth) return calendarMonth;
+  const current = today().slice(0, 7);
+  return filtered.some((e) => e.start_date?.startsWith(current))
+    ? current
+    : filtered.find((e) => e.start_date)?.start_date.slice(0, 7) || current;
+}
+function calendarEvents(filtered, date) {
+  return filtered.filter((e) => e.start_date === date);
+}
+function selectCalendarDate(filtered, date) {
+  const month = activeCalendarMonth(filtered);
+  const first = filtered.find((e) =>
+    e.start_date?.startsWith(month),
+  )?.start_date;
+  selectedDate = calendarEvents(filtered, date).length
+    ? date
+    : first || `${month}-01`;
+}
+function vkCommunityUrl(event) {
+  const source = externalUrl(event.image?.source_url);
+  if (!source) return null;
+  const host = new URL(source).hostname.toLowerCase();
+  return [
+    "vk.com",
+    "vk.ru",
+    "www.vk.com",
+    "www.vk.ru",
+    "m.vk.com",
+    "m.vk.ru",
+  ].includes(host)
+    ? source
+    : null;
+}
+function calendarBanner(event, compact = false) {
+  const button = element(
+    "button",
+    "calendar-banner" + (compact ? " compact" : ""),
+  );
+  button.type = "button";
+  button.style.setProperty(
+    "--image",
+    event.image?.url ? `url("${event.image.url}")` : "none",
+  );
+  button.setAttribute("aria-label", `Открыть игру: ${event.name}`);
+  button.append(element("span", "calendar-banner-title", event.name));
+  if (!compact && event.type)
+    button.append(element("span", "calendar-banner-type", event.type));
+  button.addEventListener("click", () => openEvent(event));
+  return button;
+}
+function renderDayStage(filtered) {
+  const stage = $("day-stage");
+  const dayEvents = calendarEvents(filtered, selectedDate);
+  stage.replaceChildren();
+  const heading = element(
+    "h2",
+    "day-stage-title",
+    selectedDate
+      ? day(selectedDate, { day: "numeric", month: "long" })
+      : "Выберите день",
+  );
+  stage.append(heading);
+  if (!dayEvents.length) {
+    stage.append(element("p", "day-stage-empty", "В этот день игр нет."));
+    return;
+  }
+  const rail = element("div", "day-event-rail");
+  for (const event of dayEvents) {
+    const card = element("article", "day-event-card");
+    card.style.setProperty(
+      "--image",
+      event.image?.url ? `url("${event.image.url}")` : "none",
+    );
+    const open = element("button", "day-event-open", event.name);
+    open.type = "button";
+    open.addEventListener("click", () => openEvent(event));
+    const meta = element(
+      "p",
+      "day-event-meta",
+      [event.type, event.region].filter(Boolean).join(" · "),
+    );
+    card.append(open, meta);
+    rail.append(card);
+  }
+  stage.append(rail);
+}
+function renderMonthGrid(filtered) {
+  const grid = $("month-grid");
+  grid.replaceChildren();
+  const mobile = matchMedia("(max-width: 720px)").matches;
+  grid.classList.toggle("week-rail", mobile);
+  if (!mobile)
+    for (const weekday of calendarWeekdays)
+      grid.append(element("span", "weekday", weekday));
+  const first = calendarDate(calendarMonth + "-01");
+  const start = mobile ? calendarDate(selectedDate) : new Date(first);
+  start.setUTCDate(start.getUTCDate() - ((start.getUTCDay() + 6) % 7));
+  for (let index = 0; index < (mobile ? 7 : 42); index += 1) {
+    const date = new Date(start);
+    date.setUTCDate(start.getUTCDate() + index);
+    const iso = isoDate(date);
+    const dayEvents = calendarEvents(filtered, iso);
+    const cell = element(
+      "div",
+      "calendar-day" +
+        (iso.slice(0, 7) !== calendarMonth ? " outside" : "") +
+        (iso === selectedDate ? " selected" : ""),
+    );
+    cell.tabIndex = 0;
+    cell.setAttribute("role", "button");
+    cell.setAttribute(
+      "aria-label",
+      `${day(iso, { day: "numeric", month: "long" })}${dayEvents.length ? `, игр: ${dayEvents.length}` : ""}`,
+    );
+    cell.append(element("span", "calendar-date", String(date.getUTCDate())));
+    const banners = element("span", "calendar-day-banners");
+    for (const event of dayEvents.slice(0, 2))
+      banners.append(calendarBanner(event, true));
+    if (dayEvents.length > 2)
+      banners.append(
+        element("span", "calendar-overflow", `+${dayEvents.length - 2}`),
+      );
+    cell.append(banners);
+    cell.addEventListener("click", (click) => {
+      if (click.target.closest(".calendar-banner")) return;
+      calendarMonth = iso.slice(0, 7);
+      selectedDate = iso;
+      render();
+    });
+    cell.addEventListener("keydown", (key) => {
+      if (key.key === "Enter" || key.key === " ") {
+        key.preventDefault();
+        cell.click();
+      }
+    });
+    grid.append(cell);
+  }
+  if (mobile) {
+    const selected = grid.querySelector(".calendar-day.selected");
+    if (selected)
+      grid.scrollLeft = Math.max(
+        0,
+        selected.offsetLeft - (grid.clientWidth - selected.clientWidth) / 2,
+      );
+  }
+}
+function renderCalendar(filtered) {
+  calendarMonth = activeCalendarMonth(filtered);
+  if (!selectedDate || !selectedDate.startsWith(calendarMonth))
+    selectCalendarDate(filtered, `${calendarMonth}-01`);
+  $("calendar-month").textContent = monthLabel(calendarMonth);
+  renderDayStage(filtered);
+  renderMonthGrid(filtered);
+}
 function updateFilters() {
   const count = ["region", "type", "month"].filter((id) => $(id).value).length;
   $("reset").hidden = !count && !$("search").value.trim();
@@ -168,7 +341,18 @@ function render() {
   $("count").setAttribute("aria-label", `Найдено игр: ${filtered.length}`);
   $("empty").hidden = filtered.length > 0;
   $("events").replaceChildren();
-  $("more").hidden = filtered.length <= limit;
+  $("calendar").hidden = layout !== "calendar" || filtered.length === 0;
+  $("events").hidden = layout === "calendar";
+  $("more").hidden = layout === "calendar" || filtered.length <= limit;
+  $("layout-toggle").textContent = layout === "calendar" ? "▦" : "☷";
+  document
+    .querySelectorAll("[data-layout]")
+    .forEach((button) =>
+      button.setAttribute(
+        "aria-pressed",
+        String(button.dataset.layout === layout),
+      ),
+    );
   $("empty-title").textContent = !ready
     ? "Календарь готовится"
     : view === "saved" && !saved.size
@@ -179,6 +363,10 @@ function render() {
     : view === "saved" && !saved.size
       ? "Нажмите на звезду рядом с игрой, чтобы сохранить её."
       : "Попробуйте другой период, регион или сбросьте фильтры.";
+  if (layout === "calendar" && filtered.length) {
+    renderCalendar(filtered);
+    return;
+  }
   let previousMonth = "";
   for (const e of filtered.slice(0, limit)) {
     const month = e.start_date?.slice(0, 7) || "unknown";
@@ -279,6 +467,9 @@ function openEvent(e) {
   $("detail-description").textContent = e.description;
   $("detail-description").hidden = !e.description;
   const website = externalUrl(e.website);
+  const vkCommunity = vkCommunityUrl(e);
+  $("vk-community").hidden = !vkCommunity;
+  $("vk-community").href = vkCommunity || "#";
   $("organizer-link").hidden = !website;
   $("organizer-link").href = website || "#";
   $("source-event").href =
@@ -408,6 +599,7 @@ async function load() {
 }
 for (const id of ["search", "region", "type", "month"])
   $(id).addEventListener(id === "search" ? "input" : "change", () => {
+    if (id === "month") calendarMonth = $("month").value;
     limit = 60;
     render();
   });
@@ -427,6 +619,59 @@ $("reset").addEventListener("click", () => {
 $("more").addEventListener("click", () => {
   limit += 60;
   render();
+});
+$("layout-toggle").addEventListener("click", () => {
+  const menu = $("layout-menu");
+  menu.hidden = !menu.hidden;
+  $("layout-toggle").setAttribute("aria-expanded", String(!menu.hidden));
+});
+document.querySelectorAll("[data-layout]").forEach((button) =>
+  button.addEventListener("click", () => {
+    layout = button.dataset.layout;
+    try {
+      localStorage.setItem(layoutStorageKey, layout);
+    } catch {
+      storageAvailable = false;
+    }
+    $("layout-menu").hidden = true;
+    $("layout-toggle").setAttribute("aria-expanded", "false");
+    render();
+  }),
+);
+$("calendar-prev").addEventListener("click", () => {
+  calendarMonth = shiftMonth(calendarMonth || today().slice(0, 7), -1);
+  selectedDate = "";
+  render();
+});
+$("calendar-next").addEventListener("click", () => {
+  calendarMonth = shiftMonth(calendarMonth || today().slice(0, 7), 1);
+  selectedDate = "";
+  render();
+});
+$("calendar-today").addEventListener("click", () => {
+  calendarMonth = today().slice(0, 7);
+  selectedDate = today();
+  render();
+});
+$("calendar-month").addEventListener("click", () => {
+  const select = $("month");
+  select.value = calendarMonth;
+  if (typeof select.showPicker === "function") {
+    select.showPicker();
+    return;
+  }
+  filtersExpanded = true;
+  updateFilters();
+  select.focus();
+});
+document.addEventListener("click", (click) => {
+  if (!click.target.closest(".layout-switcher")) {
+    $("layout-menu").hidden = true;
+    $("layout-toggle").setAttribute("aria-expanded", "false");
+  }
+});
+mobileFilters.addEventListener("change", () => {
+  if (layout === "calendar") render();
 });
 $("retry").addEventListener("click", load);
 $("close").addEventListener("click", () => $("detail").close());

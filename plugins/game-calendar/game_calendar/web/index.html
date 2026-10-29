@@ -78,6 +78,44 @@
             </button>
           </div>
           <span id="count" aria-live="polite"></span>
+          <div class="layout-switcher">
+            <button
+              id="layout-toggle"
+              class="icon-button layout-toggle"
+              type="button"
+              aria-label="Изменить отображение"
+              aria-expanded="false"
+              aria-controls="layout-menu"
+            >
+              ▦
+            </button>
+            <div id="layout-menu" class="layout-menu" hidden>
+              <button
+                data-layout="feed"
+                type="button"
+                aria-label="Лента"
+                title="Лента"
+              >
+                ☷
+              </button>
+              <button
+                data-layout="calendar"
+                type="button"
+                aria-label="Календарь"
+                title="Календарь"
+              >
+                ▦
+              </button>
+              <button
+                type="button"
+                aria-label="Таймлайн появится позже"
+                title="Таймлайн появится позже"
+                disabled
+              >
+                ↔
+              </button>
+            </div>
+          </div>
         </div>
         <div id="loading" class="empty" role="status">
           <span class="spinner"></span>
@@ -97,6 +135,50 @@
           </p>
         </div>
         <div id="events"></div>
+        <section id="calendar" aria-label="Календарь игр" hidden>
+          <div class="calendar-toolbar">
+            <button
+              id="calendar-prev"
+              class="icon-button"
+              type="button"
+              aria-label="Предыдущий месяц"
+            >
+              ‹
+            </button>
+            <button
+              id="calendar-month"
+              class="calendar-month"
+              type="button"
+              aria-label="Выбрать месяц"
+            ></button>
+            <button
+              id="calendar-next"
+              class="icon-button"
+              type="button"
+              aria-label="Следующий месяц"
+            >
+              ›
+            </button>
+            <button
+              id="calendar-today"
+              class="icon-button calendar-today"
+              type="button"
+              aria-label="Сегодня"
+            >
+              ◷
+            </button>
+          </div>
+          <section
+            id="day-stage"
+            class="day-stage"
+            aria-label="Игры выбранного дня"
+          ></section>
+          <section
+            id="month-grid"
+            class="month-grid"
+            aria-label="Дни месяца"
+          ></section>
+        </section>
         <button id="more" class="more" hidden>Показать ещё</button>
       </section>
       <footer>
@@ -130,6 +212,14 @@
         организаторов.
       </p>
       <div class="dialog-actions">
+        <a
+          id="vk-community"
+          class="secondary"
+          target="_blank"
+          rel="noopener noreferrer"
+          hidden
+          >Сообщество VK ↗</a
+        >
         <a
           id="organizer-link"
           class="primary"
