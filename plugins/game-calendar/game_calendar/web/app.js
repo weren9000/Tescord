@@ -1,4 +1,5 @@
 import { icon } from "./icons.js";
+import { createVacation } from "./vacation.js";
 const $ = (id) => document.getElementById(id);
 const storageKey = "kvachat.plugin.game-calendar.favorites.v1";
 const stateStorageKey = "kvachat.plugin.game-calendar.state.v2";
@@ -65,6 +66,48 @@ function toast(message) {
   $("toast").hidden = false;
   toastTimer = setTimeout(() => ($("toast").hidden = true), 3500);
 }
+const vacation = createVacation({
+  notify: toast,
+  changed(navigate) {
+    if (vacation.enabled && view === "undated") {
+      view = "all";
+      $("period").value = "all";
+    }
+    if (
+      navigate &&
+      !calendarEvents(events.filter(matches), selectedDate).length
+    ) {
+      const next = vacation.nextDate(events.filter(matches), today());
+      if (next) {
+        selectedDate = next;
+        calendarMonth = next.slice(0, 7);
+        if ($("month").value) $("month").value = calendarMonth;
+      }
+    }
+    limit = 60;
+    render();
+  },
+});
+function vacationEmpty(
+  container,
+  message = "На даты вашего отпуска игр не найдено",
+) {
+  if (message) container.append(element("p", "", message));
+  const edit = element("button", "secondary", "Изменить отпуск");
+  edit.addEventListener("click", () => vacation.open());
+  const reset = element("button", "secondary", "Сбросить остальные фильтры");
+  reset.addEventListener("click", () => resetFilters(true));
+  container.append(edit, reset);
+}
+function resetFilters(keepVacation = false) {
+  for (const id of ["search", "region", "type", "month"]) $(id).value = "";
+  view = "all";
+  $("period").value = "all";
+  $("saved-toggle").setAttribute("aria-pressed", "false");
+  limit = 60;
+  if (!keepVacation) vacation.setEnabled(false);
+  else render();
+}
 function toggleSaved(id) {
   saved.has(id) ? saved.delete(id) : saved.add(id);
   try {
@@ -109,6 +152,8 @@ function tags(e) {
         e.status,
       ),
     );
+  if (vacation.enabled && vacation.partial(e))
+    box.append(element("span", "tag vacation-tag", "Частично в отпуске"));
   return box;
 }
 function matches(e) {
@@ -118,6 +163,7 @@ function matches(e) {
     .join(" ")
     .toLocaleLowerCase("ru");
   return (
+    (!vacation.enabled || vacation.overlaps(e)) &&
     terms.every((t) => hay.includes(t)) &&
     (!$("region").value || e.region === $("region").value) &&
     (!$("type").value || e.type === $("type").value) &&
@@ -167,6 +213,7 @@ const shiftMonth = (month, offset) => {
   return isoDate(date).slice(0, 7);
 };
 function calendarEvents(filtered, date) {
+  if (vacation.enabled && !vacation.contains(date)) return [];
   return filtered.filter(
     (e) =>
       e.start_date &&
@@ -268,16 +315,26 @@ function renderDayStage(filtered) {
         forms[new Intl.PluralRules("ru").select(dayEvents.length)],
     ),
   );
+  if (vacation.contains(selectedDate))
+    heading.append(element("span", "tag vacation-tag", "Ваш отпуск"));
   stage.append(heading);
   if (!dayEvents.length) {
     const empty = element("div", "day-stage-empty");
-    empty.append(icon("calendar"), element("p", "", "Нет мероприятий"));
+    if (vacation.enabled)
+      vacationEmpty(
+        empty,
+        filtered.length ? "На выбранный день нет игр в отпуске" : undefined,
+      );
+    else empty.append(icon("calendar"), element("p", "", "Нет мероприятий"));
     const upcoming = filtered
       .filter((e) => e.start_date > selectedDate)
       .sort((a, b) => a.start_date.localeCompare(b.start_date))[0];
-    if (upcoming) {
+    const nextDate = vacation.enabled
+      ? vacation.nextDate(filtered, selectedDate)
+      : upcoming?.start_date;
+    if (nextDate) {
       const next = element("button", "secondary", "Ближайший день с играми");
-      next.addEventListener("click", () => chooseDate(upcoming.start_date));
+      next.addEventListener("click", () => chooseDate(nextDate));
       empty.append(next);
     }
     stage.append(empty);
@@ -322,6 +379,14 @@ function renderDayStage(filtered) {
       meta.append(favorite);
       card.append(hero, meta);
       const body = element("div", "card-body");
+      if (vacation.enabled && vacation.partial(event))
+        card.append(
+          element(
+            "span",
+            "tag vacation-tag vacation-card-note",
+            "Частично в отпуске",
+          ),
+        );
       if (event.type) {
         const types = element("div", "tags");
         types.append(element("span", "tag", event.type));
@@ -403,13 +468,16 @@ function renderMonthGrid(filtered) {
         (iso === selectedDate ? " selected" : "") +
         (iso === today() ? " today" : ""),
     );
+    cell.classList.toggle("vacation-day", vacation.contains(iso));
+    if (vacation.contains(iso)) cell.title = "Ваш отпуск";
     cell.type = "button";
     cell.dataset.date = iso;
     cell.setAttribute(
       "aria-label",
       day(iso, { day: "numeric", month: "long", year: "numeric" }) +
         ", событий: " +
-        dayEvents.length,
+        dayEvents.length +
+        (vacation.contains(iso) ? ", Ваш отпуск" : ""),
     );
     cell.setAttribute("aria-pressed", String(iso === selectedDate));
     if (iso === today()) cell.setAttribute("aria-current", "date");
@@ -513,7 +581,8 @@ function saveViewState() {
 function updateFilters() {
   const count =
     ["region", "type", "month"].filter((id) => $(id).value).length +
-    (view !== "all" ? 1 : 0);
+    (view !== "all" ? 1 : 0) +
+    (vacation.enabled ? 1 : 0);
   $("reset").hidden = !count && !$("search").value.trim();
   $("filter-count").hidden = !count;
   $("filter-count").textContent = count;
@@ -570,6 +639,15 @@ function render() {
     : view === "saved" && !saved.size
       ? "Нажмите на звезду рядом с игрой, чтобы сохранить её."
       : "Попробуйте другой период, регион или сбросьте фильтры.";
+  $("vacation-empty-actions")?.remove();
+  if (ready && vacation.enabled && !filtered.length) {
+    $("empty-title").textContent = "На даты вашего отпуска игр не найдено";
+    $("empty-description").textContent = "Измените даты или остальные фильтры.";
+    const actions = element("div", "vacation-empty-actions");
+    actions.id = "vacation-empty-actions";
+    vacationEmpty(actions, "");
+    $("empty").append(actions);
+  }
   if (layout === "calendar" && ready) {
     renderCalendar(filtered);
     saveViewState();
@@ -810,6 +888,10 @@ async function load() {
         "aria-pressed",
         String(restoredState.saved === true),
       );
+      if (vacation.enabled && view === "undated") {
+        view = "all";
+        $("period").value = "all";
+      }
       restoredState = null;
     }
     render();
@@ -827,7 +909,10 @@ for (const id of ["search", "region", "type", "month", "period"])
   $(id).addEventListener(id === "search" ? "input" : "change", () => {
     if (id === "period") {
       view = $("period").value;
-      if (view === "undated") layout = "feed";
+      if (view === "undated") {
+        layout = "feed";
+        vacation.setEnabled(false);
+      }
     }
     if (id === "month" && $("month").value) {
       calendarMonth = $("month").value;
@@ -837,13 +922,7 @@ for (const id of ["search", "region", "type", "month", "period"])
     $("day-stage").scrollTop = 0;
     render();
   });
-$("reset").addEventListener("click", () => {
-  for (const id of ["search", "region", "type", "month"]) $(id).value = "";
-  view = "all";
-  $("period").value = "all";
-  limit = 60;
-  render();
-});
+$("reset").addEventListener("click", () => resetFilters());
 $("more").addEventListener("click", () => {
   limit += 60;
   render();

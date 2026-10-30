@@ -10,7 +10,7 @@
 .app-header {
   height: 76px;
   display: grid;
-  grid-template-columns: 44px auto minmax(180px, 1fr) repeat(3, 44px);
+  grid-template-columns: 44px auto minmax(180px, 1fr) auto repeat(3, 44px);
   align-items: center;
   gap: 18px;
   padding: 0 24px;

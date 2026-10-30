@@ -7,6 +7,7 @@
     <title>Календарь игр · Квачат</title>
     <link rel="stylesheet" href="./styles.css" />
     <link rel="stylesheet" href="./calendar.css" />
+    <link rel="stylesheet" href="./vacation.css" />
     <script src="./app.js" type="module"></script>
   </head>
   <body>
@@ -24,6 +25,17 @@
           aria-label="Поиск игр"
           maxlength="200"
       /></label>
+      <button
+        id="vacation-toggle"
+        class="icon-button"
+        aria-label="Ваш отпуск"
+        title="Ваш отпуск"
+        aria-expanded="false"
+        aria-controls="vacation-dialog"
+      >
+        <span data-icon="vacation"></span
+        ><span class="vacation-label">Ваш отпуск</span>
+      </button>
       <button
         id="toggle-filters"
         class="icon-button"
@@ -113,10 +125,22 @@
             <option value="undated">Без даты</option>
           </select></label
         >
+        <label class="vacation-filter-label"
+          ><input id="vacation-filter" type="checkbox" />Игры в мой
+          отпуск</label
+        >
         <button id="reset" class="secondary" hidden>Сбросить фильтры</button>
       </section>
     </header>
     <main>
+      <button
+        id="vacation-chip"
+        class="secondary vacation-chip"
+        aria-label="Выключить фильтр: В отпуск"
+        hidden
+      >
+        В отпуск <span data-icon="close"></span>
+      </button>
       <div id="notice" class="notice" role="status" hidden></div>
       <section class="results" aria-label="События">
         <div id="loading" class="empty" role="status">
@@ -178,6 +202,35 @@
         <button id="more" class="more" hidden>Показать ещё</button>
       </section>
     </main>
+    <dialog id="vacation-dialog" aria-labelledby="vacation-title">
+      <div class="dialog-head">
+        <h2 id="vacation-title">Ваш отпуск</h2>
+        <button
+          id="vacation-close"
+          class="icon-button"
+          aria-label="Закрыть отпуск"
+          title="Закрыть"
+        >
+          <span data-icon="close"></span>
+        </button>
+      </div>
+      <p class="vacation-note">Сохранено в этом браузере. Обе даты включены.</p>
+      <form id="vacation-form">
+        <div id="vacation-rows"></div>
+        <p id="vacation-error" role="alert"></p>
+        <div class="vacation-actions">
+          <button id="vacation-add" type="button" class="secondary">
+            <span data-icon="plus"></span>Добавить интервал</button
+          ><button
+            class="icon-button primary"
+            aria-label="Сохранить отпуск"
+            title="Сохранить"
+          >
+            <span data-icon="check"></span>
+          </button>
+        </div>
+      </form>
+    </dialog>
     <dialog id="date-picker" aria-labelledby="date-picker-title">
       <div class="dialog-head">
         <h2 id="date-picker-title">Выбрать дату</h2>

@@ -1,5 +1,10 @@
 // Shared geometry from frontend/src/app/workspace/ui-icon.component.ts.
 const paths = {
+  vacation:
+    "M5 4h9M3 10h10M7 2v5M3 6v14h18v-6M18 3v2M18 11v2M13 8h2M21 8h2M16 8a2 2 0 1 0 4 0 2 2 0 0 0-4 0",
+  trash: "M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7",
+  plus: "M12 5v14M5 12h14",
+  check: "M5 12l4 4L19 6",
   calendar:
     "M5 4h14a2 2 0 0 1 2 2v14H3V6a2 2 0 0 1 2-2M7 2v5M17 2v5M3 10h18M7 14h2M12 14h2M7 17h2",
   filter: "M3 4h18l-7 8v7l-4 2v-9z",
