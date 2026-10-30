@@ -890,8 +890,37 @@ label {
   height: 60px;
   padding: 8px 12px;
 }
+
+@media (min-width: 981px) {
+  .panel-head {
+    height: var(--platform-header-height, 72px);
+    min-height: var(--platform-header-height, 72px);
+    flex-shrink: 0;
+    padding: 0 12px;
+    border-bottom: 0;
+  }
+  .chat-tools {
+    margin: 12px 12px 8px;
+  }
+  .chat-tools .search {
+    height: 44px;
+    min-height: 44px;
+    border: 1px solid var(--palette-border);
+    border-radius: 10px;
+  }
+  .panel-footer {
+    box-sizing: border-box;
+    height: var(--platform-footer-height, 72px);
+    min-height: var(--platform-footer-height, 72px);
+    margin-bottom: 12px;
+    flex-shrink: 0;
+    border-top: 0;
+    align-items: center;
+    padding: 12px;
+  }
+}
 .chat-tools {
-  margin: 10px 12px 6px;
+  margin: 12px 12px 8px;
 }
 .section-label {
   padding: 4px 16px 8px;

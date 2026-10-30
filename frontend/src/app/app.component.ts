@@ -58,6 +58,7 @@ import { ThemeControllerComponent } from './workspace/theme-controller.component
 import { DesktopPreferencesService } from './workspace/desktop-preferences.service';
 import { DesktopPreferencesComponent } from './workspace/desktop-preferences.component';
 import { SidebarResizeDirective } from './workspace/sidebar-resize.directive';
+import { PlatformNavigationDirective } from './workspace/platform-navigation.directive';
 import { MessageGestureDirective } from './workspace/message-gesture.directive';
 import { MessageActionsComponent } from './workspace/message-actions.component';
 import { EmojiPickerComponent } from './workspace/emoji-picker.component';
@@ -711,6 +712,7 @@ const DEFAULT_SERVER_ICON_ASSET_BY_NAME: Record<string, string> = {
     EmojiPickerComponent,
     DesktopPreferencesComponent,
     SidebarResizeDirective,
+    PlatformNavigationDirective,
   ],
   templateUrl: './app.component.html',
   styleUrls: [
@@ -725,6 +727,7 @@ const DEFAULT_SERVER_ICON_ASSET_BY_NAME: Record<string, string> = {
     './chat-bubbles.scss',
     './conference-stage.scss',
     './platform-calm.scss',
+    './platform-navigation.scss',
   ],
 })
 export class AppComponent {

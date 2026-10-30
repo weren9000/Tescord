@@ -1226,6 +1226,11 @@
     }
     <div
       class="messenger-layout"
+      appPlatformNavigation
+      #platformNavigation="platformNavigation"
+      [class.platform-navigation-hidden]="
+        isPlatformsMode() && desktopPreferences.value().platformNavigationHidden
+      "
       [class.messenger-layout--admin]="
         adminDirectoryOpen() && (isAdmin() || !!currentUser()?.is_avatar_admin)
       "
@@ -1395,7 +1400,31 @@
         </aside>
       }
 
+      @if (isPlatformsMode() && !adminDirectoryOpen()) {
+        <button
+          type="button"
+          class="platform-navigation-collapse"
+          aria-label="Скрыть навигацию"
+          title="Скрыть навигацию"
+          aria-expanded="true"
+          (click)="platformNavigation.toggle()"
+        >
+          <app-ui-icon name="back" />
+        </button>
+      }
       <main class="messenger-workspace">
+        @if (isPlatformsMode() && !adminDirectoryOpen()) {
+          <button
+            type="button"
+            class="platform-navigation-restore"
+            aria-label="Показать навигацию"
+            title="Показать навигацию"
+            aria-expanded="false"
+            (click)="platformNavigation.toggle()"
+          >
+            <app-ui-icon name="forward" />
+          </button>
+        }
         @if (activeServer()) {
           <section class="conversation-head conversation-head--managed">
             <button
@@ -2429,7 +2458,9 @@
                           </article>
                         }
                       } @else if (!messageError()) {
-                        <div class="message-list__status">Здесь пока нет сообщений</div>
+                        <div class="message-list__status message-list__status--empty">
+                          Здесь пока нет сообщений
+                        </div>
                       }
                     }
                   } @else {

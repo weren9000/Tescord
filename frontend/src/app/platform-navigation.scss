@@ -1,0 +1,114 @@
+.platform-navigation-collapse,
+.platform-navigation-restore {
+  display: none;
+}
+
+@media (min-width: 981px) {
+  .messenger-layout--platform {
+    --platform-header-height: 72px;
+    --platform-footer-height: 72px;
+    position: relative;
+  }
+  .messenger-shell .messenger-layout--platform .conversation-head {
+    height: var(--platform-header-height);
+    min-height: var(--platform-header-height);
+    max-height: var(--platform-header-height);
+    border-bottom: 0;
+    padding: 0 16px;
+  }
+  .messenger-layout--platform .composer {
+    border-top: 0;
+    box-sizing: border-box;
+    min-height: var(--platform-footer-height);
+  }
+  .messenger-layout--platform .message-list__status--empty {
+    border: 0;
+    background: transparent;
+    padding-left: 0;
+    color: var(--palette-muted);
+  }
+  .messenger-layout--platform .messenger-workspace {
+    position: relative;
+  }
+  .platform-navigation-collapse,
+  .platform-navigation-restore {
+    position: absolute;
+    z-index: 20;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 10px;
+    border: 1px solid var(--palette-border);
+    border-radius: 10px;
+    background: var(--palette-surface);
+    color: var(--palette-muted);
+    cursor: pointer;
+  }
+  .platform-navigation-collapse {
+    display: flex;
+    grid-column: 4;
+    left: -4px;
+    top: 50%;
+    transform: translateY(-50%);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 120ms ease;
+  }
+  .messenger-layout--platform:has(
+      > app-section-navigation:hover,
+      > app-platform-list:hover,
+      > .platform-sidebar:hover,
+      > app-section-navigation:focus-within,
+      > app-platform-list:focus-within,
+      > .platform-sidebar:focus-within
+    )
+    > .platform-navigation-collapse,
+  .platform-navigation-collapse:hover,
+  .platform-navigation-collapse:focus-visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .platform-navigation-collapse:hover,
+  .platform-navigation-restore:hover {
+    color: var(--palette-primary-text);
+    border-color: var(--palette-primary);
+    background: var(--palette-selected);
+  }
+  .platform-navigation-collapse:focus-visible,
+  .platform-navigation-restore:focus-visible {
+    outline: 2px solid var(--palette-primary);
+    outline-offset: 2px;
+  }
+  .messenger-shell
+    .messenger-layout.messenger-layout--platform.platform-navigation-hidden:not(
+      .messenger-layout--admin
+    ) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .platform-navigation-hidden:not(.messenger-layout--admin) > app-section-navigation,
+  .platform-navigation-hidden:not(.messenger-layout--admin) > app-platform-list,
+  .platform-navigation-hidden:not(.messenger-layout--admin) > .platform-sidebar,
+  .platform-navigation-hidden > .platform-navigation-collapse {
+    display: none;
+  }
+  .platform-navigation-hidden .platform-navigation-restore {
+    display: flex;
+    left: 12px;
+    top: 14px;
+  }
+  .messenger-shell .platform-navigation-hidden .conversation-head {
+    padding-left: 68px;
+  }
+  @media (hover: none), (pointer: coarse) {
+    .platform-navigation-collapse {
+      opacity: 1;
+      pointer-events: auto;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .platform-navigation-collapse {
+      transition: none;
+    }
+  }
+}
