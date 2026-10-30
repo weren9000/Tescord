@@ -95,6 +95,22 @@
       <a class="entry-back" href="/"><app-ui-icon name="back" />В Квачат</a>
     </section>
   } @else {
+    <header class="meeting-head">
+      <strong>{{ personal ? 'Моя комната' : 'Встреча' }}</strong>
+      <button
+        class="icon-button"
+        [class.active]="panel() === 'chat'"
+        [attr.aria-expanded]="panel() === 'chat'"
+        title="Чат встречи"
+        aria-label="Чат встречи"
+        (click)="togglePanel('chat')"
+      >
+        <app-ui-icon name="chat" />
+        @if (unread()) {
+          <span class="badge unread">{{ unread() > 99 ? '99+' : unread() }}</span>
+        }
+      </button>
+    </header>
     <div class="meeting-status">
       @if (state()?.owner_deadline) {
         <div class="owner-away" role="status">
@@ -515,19 +531,6 @@
           <app-ui-icon name="groups" /><span class="badge">{{
             state()?.participants?.length || 1
           }}</span>
-        </button>
-        <button
-          class="icon-button"
-          [class.active]="panel() === 'chat'"
-          [attr.aria-expanded]="panel() === 'chat'"
-          title="Чат встречи"
-          aria-label="Чат встречи"
-          (click)="togglePanel('chat')"
-        >
-          <app-ui-icon name="chat" />
-          @if (unread()) {
-            <span class="badge unread">{{ unread() > 99 ? '99+' : unread() }}</span>
-          }
         </button>
         <button
           class="icon-button"

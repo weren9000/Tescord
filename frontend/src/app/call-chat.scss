@@ -1,0 +1,104 @@
+.messenger-shell .conversation-head .call-chat-toggle.call-control-button--active {
+  background: var(--palette-selected);
+  color: var(--palette-primary-text);
+}
+
+.messenger-shell .workspace-main-pane--call-chat {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(280px, 38%, 360px);
+  grid-template-rows: minmax(0, 1fr);
+
+  > .call-window-layer {
+    grid-column: 1;
+    grid-row: 1;
+    min-width: 0;
+  }
+
+  > .conversation-stream {
+    display: flex !important;
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+    overflow: hidden;
+    padding: 8px;
+    gap: 8px;
+    border-left: 1px solid var(--palette-border);
+  }
+
+  .message-list {
+    padding: 4px;
+    overflow-wrap: anywhere;
+  }
+
+  .composer__surface {
+    gap: 4px;
+    padding: 4px;
+  }
+}
+
+.call-chat-head {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+  padding-left: 8px;
+
+  strong {
+    font-size: 14px;
+  }
+
+  button {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--palette-muted);
+    cursor: pointer;
+
+    &:hover {
+      background: var(--palette-hover);
+      color: var(--palette-text);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--palette-primary);
+      outline-offset: -2px;
+    }
+  }
+}
+
+@media (min-width: 981px) and (max-width: 1280px) {
+  .messenger-shell .messenger-layout.messenger-layout--call-chat:not(.messenger-layout--admin) {
+    grid-template-columns: 92px minmax(0, 1fr);
+
+    > app-platform-list,
+    > .conversation-sidebar,
+    > .platform-navigation-collapse {
+      display: none;
+    }
+
+    &.platform-navigation-hidden {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+}
+
+@media (max-width: 980px) {
+  .messenger-shell .workspace-main-pane--call-chat {
+    grid-template-columns: minmax(0, 1fr);
+
+    > .call-window-layer {
+      display: none;
+    }
+
+    > .conversation-stream {
+      grid-column: 1;
+      border-left: 0;
+    }
+  }
+}

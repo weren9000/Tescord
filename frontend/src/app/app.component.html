@@ -655,7 +655,7 @@
                   title="Участники"
                   [class.call-control-button--active]="conferenceRosterOpen()"
                   [attr.aria-expanded]="conferenceRosterOpen()"
-                  (click)="conferenceRosterOpen.set(!conferenceRosterOpen())"
+                  (click)="toggleConferenceRoster()"
                 >
                   <app-ui-icon name="groups" />
                 </button>
@@ -1230,6 +1230,7 @@
       #platformNavigation="platformNavigation"
       [section]="workspaceMode()"
       [class.platform-navigation-hidden]="platformNavigation.hidden()"
+      [class.messenger-layout--call-chat]="callWindowExpanded() && callChatOpen()"
       [class.messenger-layout--admin]="
         adminDirectoryOpen() && (isAdmin() || !!currentUser()?.is_avatar_admin)
       "
@@ -1503,10 +1504,12 @@
 
               @if (callWindowExpanded()) {
                 <button
-                  class="call-control-button"
+                  class="call-control-button call-chat-toggle"
                   type="button"
-                  aria-label="Открыть чат звонка"
-                  title="Открыть чат звонка"
+                  [class.call-control-button--active]="callChatOpen()"
+                  [attr.aria-expanded]="callChatOpen()"
+                  [attr.aria-label]="callChatOpen() ? 'Закрыть чат звонка' : 'Открыть чат звонка'"
+                  [title]="callChatOpen() ? 'Закрыть чат звонка' : 'Открыть чат звонка'"
                   [disabled]="!activeCallChatTarget()"
                   (click)="openActiveCallChat($event)"
                 >
@@ -1672,6 +1675,7 @@
             <div
               class="workspace-main-pane"
               [class.workspace-main-pane--conference]="callWindowExpanded()"
+              [class.workspace-main-pane--call-chat]="callWindowExpanded() && callChatOpen()"
             >
               <ng-container *ngTemplateOutlet="conferenceSurface" />
               @if (isPlatformsMode() && activeChannel()?.type === 'voice') {
@@ -2066,6 +2070,19 @@
               }
 
               <section class="conversation-stream">
+                @if (callWindowExpanded() && callChatOpen()) {
+                  <header class="call-chat-head">
+                    <strong>Чат звонка</strong>
+                    <button
+                      type="button"
+                      aria-label="Закрыть переписку"
+                      title="Закрыть переписку"
+                      (click)="closeCallChat()"
+                    >
+                      <app-ui-icon name="close" />
+                    </button>
+                  </header>
+                }
                 @if (canUseActiveChannelChat() && messageSearchPanelOpen()) {
                   <div class="message-search">
                     <div class="message-search__bar">

@@ -728,6 +728,7 @@ const DEFAULT_SERVER_ICON_ASSET_BY_NAME: Record<string, string> = {
     './conference-stage.scss',
     './platform-calm.scss',
     './platform-navigation.scss',
+    './call-chat.scss',
   ],
 })
 export class AppComponent {
@@ -1623,6 +1624,10 @@ export class AppComponent {
     event.preventDefault();
     if (this.callAudioSettingsOpen()) {
       this.callAudioSettingsOpen.set(false);
+      return;
+    }
+    if (this.callChatOpen()) {
+      this.closeCallChat();
       return;
     }
     this.minimizeCallWindow();
@@ -2775,6 +2780,8 @@ export class AppComponent {
   });
   readonly hasActiveCallSurface = computed(() => this.activeCallSurface() !== null);
   readonly conferenceRosterOpen = signal(false);
+  readonly callChatOpen = signal(false);
+  private callChatScroll: { channelId: string; top: number } | null = null;
   readonly conferenceCameraTiles = computed(() =>
     this.buildVoiceVideoTiles(this.activeCallVoiceParticipants(), 'camera'),
   );
@@ -2875,8 +2882,54 @@ export class AppComponent {
     event?.stopPropagation();
     const target = this.activeCallChatTarget();
     if (!target) return;
-    this.minimizeCallWindow(event);
+    if (this.callChatOpen()) {
+      this.closeCallChat();
+      return;
+    }
     this.navigateToActiveCall(target);
+    this.conferenceRosterOpen.set(false);
+    this.conversationInfoOpen.set(false);
+    if (this.isCompactVoiceWorkspaceViewport()) {
+      this.minimizeCallWindow(event);
+    } else {
+      this.callWindowMode.set('expanded');
+      this.callChatOpen.set(true);
+      this.restoreCallChatScroll();
+    }
+  }
+
+  closeCallChat(): void {
+    this.rememberCallChatScroll();
+    this.callChatOpen.set(false);
+    requestAnimationFrame(() =>
+      document
+        .querySelector<HTMLButtonElement>('.call-chat-toggle')
+        ?.focus({ preventScroll: true }),
+    );
+  }
+
+  toggleConferenceRoster(): void {
+    this.rememberCallChatScroll();
+    this.callChatOpen.set(false);
+    this.conferenceRosterOpen.update((open) => !open);
+  }
+
+  private rememberCallChatScroll(): void {
+    const list = this.messageListRef?.nativeElement;
+    const channelId = this.activeMessagingChannel()?.id;
+    if (list?.clientHeight && channelId) {
+      this.callChatScroll = { channelId, top: list.scrollTop };
+    }
+  }
+
+  private restoreCallChatScroll(): void {
+    requestAnimationFrame(() => {
+      const list = this.messageListRef?.nativeElement;
+      const saved = this.callChatScroll;
+      if (list?.clientHeight && saved && saved.channelId === this.activeMessagingChannel()?.id) {
+        list.scrollTop = saved.top;
+      }
+    });
   }
 
   private navigateToActiveCall(
@@ -3795,6 +3848,8 @@ export class AppComponent {
     effect(() => {
       const surfaceId = this.activeCallSurface()?.id ?? null;
       if (!surfaceId) {
+        this.callChatScroll = null;
+        this.callChatOpen.set(false);
         this.callAudioSettingsOpen.set(false);
         this.callParticipantId.set(null);
         this.lastActiveCallSurfaceId = null;
@@ -3805,6 +3860,8 @@ export class AppComponent {
       }
 
       if (surfaceId !== this.lastActiveCallSurfaceId) {
+        this.callChatScroll = null;
+        this.callChatOpen.set(false);
         this.callAudioSettingsOpen.set(false);
         this.callParticipantId.set(null);
         this.lastActiveCallSurfaceId = surfaceId;
@@ -6980,6 +7037,8 @@ export class AppComponent {
   }
 
   minimizeCallWindow(event?: Event): void {
+    this.rememberCallChatScroll();
+    this.callChatOpen.set(false);
     const restoreKeyboardFocus =
       event instanceof KeyboardEvent ||
       (event instanceof MouseEvent && event.detail === 0) ||
@@ -6994,6 +7053,7 @@ export class AppComponent {
     this.directCallScreenExpanded.set(false);
     this.callDockVolumeOpen.set(false);
     this.callWindowMode.set('minimized');
+    this.restoreCallChatScroll();
     if (restoreKeyboardFocus) {
       requestAnimationFrame(() =>
         document
@@ -7011,6 +7071,7 @@ export class AppComponent {
 
     const target = this.activeCallChatTarget();
     if (!target) return;
+    this.rememberCallChatScroll();
     this.navigateToActiveCall(target);
     this.closeMobilePanel();
     this.callDockVolumeOpen.set(false);
