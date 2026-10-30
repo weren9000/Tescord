@@ -455,9 +455,6 @@ main {
 .day-stage-empty p {
   margin: 0;
 }
-.carousel-controls {
-  display: none;
-}
 .undated-link {
   display: block;
   margin: 16px auto 0;
@@ -603,126 +600,89 @@ body:not(.calendar-mode) main {
     font-size: 14px;
   }
   .day-event-rail {
-    display: grid;
-    grid-auto-flow: column;
-    grid-auto-columns: calc(100% - 32px);
-    gap: 12px;
-    overflow-x: auto;
-    overscroll-behavior-inline: contain;
-    scroll-snap-type: x mandatory;
-    scroll-padding-inline: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
     padding: 0 16px;
-    align-items: start;
-    scrollbar-width: none;
-  }
-  .day-event-rail:has(> :only-child) {
-    grid-auto-columns: 100%;
-  }
-  .day-event-rail::-webkit-scrollbar {
-    display: none;
+    overflow: visible;
   }
   .day-event-card {
-    scroll-snap-align: start;
-    border-radius: 13px;
+    isolation: isolate;
+    flex-shrink: 0;
+    border-radius: 12px;
     min-height: 0;
     padding: 0;
     background: var(--surface);
   }
   .card-cover {
-    padding: 16px;
-    cursor: default;
+    padding: 12px 12px 4px;
   }
   .has-cover .card-cover {
-    aspect-ratio: 1.85;
+    position: static;
+    isolation: auto;
+    aspect-ratio: auto;
+    padding-top: 72px;
+  }
+  .has-cover .card-cover::after {
+    background: linear-gradient(
+      0deg,
+      #0b1019fa 0%,
+      #0b1019b8 45%,
+      #0b101910 100%
+    );
   }
   .card-title {
-    font-size: 26px;
+    font-size: 21px;
+    line-height: 1.25;
     -webkit-line-clamp: 3;
   }
   .card-meta {
-    padding: 10px 16px 6px;
-    gap: 8px;
+    position: relative;
+    z-index: 1;
+    padding: 4px 54px 4px 12px;
+    gap: 4px 12px;
   }
   .card-meta-item {
     font-size: 12px;
+    color: #d3d9e8;
   }
   .card-favorite {
     min-height: 44px;
     height: 44px;
     width: 44px;
   }
-  .card-meta {
-    position: relative;
-    padding-right: 54px;
-  }
   .card-meta .card-favorite {
     position: absolute;
-    top: 5px;
+    top: 0;
     right: 6px;
   }
   .card-body {
-    display: block;
-    padding: 4px 16px 16px;
+    position: relative;
+    z-index: 1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 8px 4px 12px;
+    gap: 8px;
   }
   .card-body .tags {
-    margin: 4px 0 12px;
+    margin: 0;
   }
   .card-body .tag {
-    font-size: 11px;
-    padding: 4px 8px;
-  }
-  .card-description {
-    margin: 12px 0;
-    font-size: 14px;
-    color: var(--muted);
-    line-height: 1.55;
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
-  }
-  .card-description.expanded {
-    display: block;
-  }
-  .description-toggle {
-    padding: 0;
-    min-height: 32px;
-    color: #bba7ff;
+    font-size: 10px;
+    padding: 3px 7px;
+    background: #1d2130d9;
   }
   .card-bottom {
-    border-top: 1px solid var(--border);
-    margin-top: 14px;
-    padding-top: 12px;
-    display: flex;
-    gap: 12px;
-    align-items: center;
-    justify-content: space-between;
-  }
-  .card-bottom .card-meta-item {
-    font-size: 13px;
+    margin-left: auto;
   }
   .card-actions {
     display: flex;
-    gap: 4px;
-    margin-left: auto;
+    gap: 2px;
   }
   .card-actions .primary {
-    background: var(--primary);
-    color: white;
-  }
-  .carousel-controls {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 14px;
-    padding-top: 6px;
-    color: var(--muted);
-    font-size: 12px;
-  }
-  .carousel-controls .icon-button {
-    width: 36px;
+    background: transparent;
+    color: var(--text);
   }
   .calendar-panel {
     order: 1;

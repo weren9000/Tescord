@@ -12,9 +12,7 @@ let events = [],
   limit = 60,
   active = null,
   toastTimer;
-let restoredState = null,
-  cardIndex = 0,
-  carouselObserver;
+let restoredState = null;
 let ready = false,
   loaded = false,
   storageAvailable = true;
@@ -74,11 +72,7 @@ function toggleSaved(id) {
   } catch {
     storageAvailable = false;
   }
-  const rail = document.querySelector(".day-event-rail");
-  const scroll = rail?.scrollLeft || 0;
   render();
-  const nextRail = document.querySelector(".day-event-rail");
-  if (nextRail) nextRail.scrollLeft = scroll;
   updateSaveButton();
   if (!storageAvailable)
     toast(
@@ -228,7 +222,7 @@ function iconButton(name, label, action) {
 function chooseDate(date) {
   selectedDate = date;
   calendarMonth = date.slice(0, 7);
-  cardIndex = 0;
+  $("day-stage").scrollTop = 0;
   if ($("month").value) $("month").value = calendarMonth;
   render();
 }
@@ -251,7 +245,6 @@ function metadata(name, value) {
   return row;
 }
 function renderDayStage(filtered) {
-  carouselObserver?.disconnect();
   const stage = $("day-stage");
   const previousScroll = stage.scrollTop;
   stage.replaceChildren();
@@ -303,7 +296,7 @@ function renderDayStage(filtered) {
       if (img) hero.append(img);
       const title = element("h3", "card-title", event.name);
       hero.append(title);
-      if (!mobileFilters.matches) {
+      {
         const open = iconButton("expand", "Подробнее: " + event.name, () =>
           openEvent(event),
         );
@@ -334,26 +327,7 @@ function renderDayStage(filtered) {
         types.append(element("span", "tag", event.type));
         body.append(types);
       }
-      if (event.description) {
-        const description = element("p", "card-description", event.description);
-        body.append(description);
-        if (event.description.length > 180) {
-          const more = element(
-            "button",
-            "quiet description-toggle",
-            "Развернуть",
-          );
-          more.setAttribute("aria-expanded", "false");
-          more.addEventListener("click", () => {
-            const expanded = description.classList.toggle("expanded");
-            more.textContent = expanded ? "Свернуть" : "Развернуть";
-            more.setAttribute("aria-expanded", String(expanded));
-          });
-          body.append(more);
-        }
-      }
       const bottom = element("div", "card-bottom");
-      if (event.organizer) bottom.append(metadata("groups", event.organizer));
       const actions = element("div", "card-actions");
       actions.append(
         iconButton("info", "Подробнее: " + event.name, () => openEvent(event)),
@@ -377,39 +351,6 @@ function renderDayStage(filtered) {
       rail.append(card);
     });
     stage.append(rail);
-    if (dayEvents.length > 1) {
-      const controls = element("div", "carousel-controls");
-      const counter = element("span", "carousel-counter");
-      const update = () => {
-        const step = rail.firstElementChild.getBoundingClientRect().width + 12;
-        cardIndex = Math.min(
-          dayEvents.length - 1,
-          Math.max(0, Math.round(rail.scrollLeft / step)),
-        );
-        counter.textContent = cardIndex + 1 + " / " + dayEvents.length;
-        if (mobileFilters.matches)
-          rail.style.height = rail.children[cardIndex].offsetHeight + "px";
-      };
-      const move = (offset) =>
-        rail.scrollBy({
-          left:
-            offset *
-            (rail.firstElementChild.getBoundingClientRect().width + 12),
-          behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
-            ? "instant"
-            : "smooth",
-        });
-      controls.append(
-        iconButton("back", "Предыдущее мероприятие", () => move(-1)),
-        counter,
-        iconButton("forward", "Следующее мероприятие", () => move(1)),
-      );
-      rail.addEventListener("scroll", update, { passive: true });
-      stage.append(controls);
-      update();
-      carouselObserver = new ResizeObserver(update);
-      for (const card of rail.children) carouselObserver.observe(card);
-    }
   }
   const unknown = filtered.filter((e) => !e.start_date).length;
   if (unknown) {
@@ -893,7 +834,7 @@ for (const id of ["search", "region", "type", "month", "period"])
       selectedDate = calendarMonth + "-01";
     }
     limit = 60;
-    cardIndex = 0;
+    $("day-stage").scrollTop = 0;
     render();
   });
 $("reset").addEventListener("click", () => {

@@ -159,14 +159,40 @@ const events = [
         assert(dock.y + dock.height <= 853, "dock outside viewport");
         await page.locator('[data-date="2026-10-22"]').click();
         await page.locator(".card-cover").first().click();
-        await expect(page.locator("#detail")).not.toBeVisible();
+        await expect(page.locator("#detail")).toBeVisible();
+        await page.keyboard.press("Escape");
         const rail = page.locator(".day-event-rail");
-        await rail.evaluate((el) => (el.scrollLeft = el.scrollWidth));
-        await page.waitForTimeout(100);
-        const before = await rail.evaluate((el) => el.scrollLeft);
-        assert(before > 0, "carousel can scroll");
+        assert(
+          await rail.evaluate((el) => el.scrollWidth <= el.clientWidth + 1),
+          "events have no horizontal overflow",
+        );
+        await expect(page.locator(".carousel-controls")).toHaveCount(0);
         await page.locator('[data-date="2026-10-23"]').click();
         await expect(page.locator(".day-event-card")).toHaveCount(3);
+        await page.setViewportSize({ width, height: 568 });
+        const stage = page.locator("#day-stage");
+        await stage.evaluate((el) => (el.scrollTop = el.scrollHeight));
+        assert(
+          await stage.evaluate((el) => el.scrollTop > 0),
+          "events scroll vertically",
+        );
+        const bottomDock = await page.locator(".calendar-panel").boundingBox();
+        assert(
+          bottomDock.y + bottomDock.height <= 569,
+          "date dock remains visible while events scroll",
+        );
+        const last = await page.locator(".day-event-card").last().boundingBox();
+        assert(
+          last.y + last.height <= bottomDock.y + 1,
+          "last event reachable above date dock",
+        );
+        await page.locator('[data-date="2026-10-22"]').click();
+        assert.equal(
+          await stage.evaluate((el) => el.scrollTop),
+          0,
+          "new day starts at top",
+        );
+        await page.setViewportSize({ width, height: 852 });
       }
       await page.screenshot({
         path: output + "/redesign-fixture-" + width + ".png",
@@ -213,7 +239,7 @@ const events = [
     await expect(page.locator("#empty")).toBeVisible();
     assert.deepEqual(errors, []);
     console.log(
-      "PASS: day/thumbnail selection, inclusive multi-day dates, month navigation, desktop details, mobile carousel, favorites, persistence, filters, ICS, unknown dates, empty/error/retry, widths 320–1536",
+      "PASS: day selection, date ranges, vertical mobile events, fixed date dock, desktop details, favorites, persistence, filters, ICS, empty/error/retry, widths 320–1536",
     );
   } finally {
     await browser.close();
