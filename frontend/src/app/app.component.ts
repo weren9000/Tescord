@@ -1,6 +1,7 @@
 import { MessageTextPresenter } from './core/services/message-text.presenter';
+import { MessageEditState, MessageEditSession } from './core/services/message-edit-state';
 import { ApplicationsComponent } from './workspace/applications.component';
-import { afterNextRender, Injector } from '@angular/core';
+import { afterNextRender, Injector, HostListener } from '@angular/core';
 import {
   MessageContentSegment,
   MessageMentionContext,
@@ -725,6 +726,7 @@ const DEFAULT_SERVER_ICON_ASSET_BY_NAME: Record<string, string> = {
     './avatar-presets.scss',
     './mobile-workspace.scss',
     './chat-bubbles.scss',
+    './message-editing.scss',
     './conference-stage.scss',
     './platform-calm.scss',
     './platform-navigation.scss',
@@ -1033,6 +1035,162 @@ export class AppComponent {
     if (document.visibilityState === 'hidden') this.rememberMessagePosition();
   };
   readonly messageActionsTarget = signal<WorkspaceMessage | null>(null);
+  readonly messageEdits = new MessageEditState();
+  readonly editingMessage = this.messageEdits.active;
+  readonly canSaveMessageEdit = computed(() => {
+    const edit = this.editingMessage();
+    const content = this.messageDraft().trim();
+    return (
+      !!edit &&
+      !edit.saving &&
+      !edit.message.deleted_at &&
+      this.canUseActiveChannelChat() &&
+      content !== (edit.conflict ?? edit.message).content &&
+      textLength(content) <= 20000 &&
+      (!!content || edit.message.attachments.some((a) => !a.deleted_at))
+    );
+  });
+
+  canEditMessage(message: WorkspaceMessage): boolean {
+    return (
+      message.author.id === this.currentUser()?.id &&
+      message.type === 'text' &&
+      !message.deleted_at &&
+      this.canUseActiveChannelChat() &&
+      !this.messageSubmitting() &&
+      !this.currentUpload()
+    );
+  }
+
+  startMessageEdit(message: WorkspaceMessage): void {
+    if (!this.canEditMessage(message)) return;
+    const previous = this.editingMessage();
+    if (previous?.message.id === message.id) {
+      this.focusMessageComposer();
+      return;
+    }
+    if (previous?.saving) return;
+    if (
+      previous &&
+      previous.text.trim() !== previous.message.content &&
+      !confirm('Заменить несохранённую правку другим сообщением?')
+    )
+      return;
+    const session: MessageEditSession = {
+      message,
+      text: message.content,
+      draft: previous?.draft ?? this.messageDraft(),
+      files: previous?.files ?? this.pendingFiles(),
+      reply: previous?.reply ?? this.selectedReplyMessage(),
+      notice: previous?.notice ?? this.textFileNotice(),
+      error: null,
+      saving: false,
+    };
+    this.messageEdits.open(session);
+    this.pendingFiles.set([]);
+    this.fileOverflow.set([]);
+    this.selectedReplyMessage.set(null);
+    this.textFileNotice.set('');
+    this.messageError.set(null);
+    this.messageDraft.set(message.content);
+    this.clearComposerMentionState();
+    this.focusMessageComposer();
+    this.scheduleMessageTextareaResize();
+  }
+
+  cancelMessageEdit(): void {
+    const edit = this.editingMessage();
+    if (!edit || edit.saving) return;
+    this.finishMessageEdit(edit);
+  }
+
+  private finishMessageEdit(edit: MessageEditSession): void {
+    const isActive = this.editingMessage()?.message.id === edit.message.id;
+    edit = this.messageEdits.finish(edit);
+    if (!isActive) return;
+    this.messageDraft.set(edit.draft);
+    this.pendingFiles.set(edit.files);
+    this.selectedReplyMessage.set(edit.reply);
+    this.textFileNotice.set(edit.notice);
+    this.clearComposerMentionState();
+    this.composerEmojiOpen.set(false);
+    this.focusMessageComposer();
+    this.scheduleMessageTextareaResize();
+  }
+
+  async saveMessageEdit(): Promise<void> {
+    const edit = this.editingMessage(),
+      token = this.session()?.access_token;
+    if (!edit || edit.conflict || !token || !this.canSaveMessageEdit()) return;
+    this.messageEdits.update(edit, { saving: true, error: null });
+    try {
+      const message = await firstValueFrom(
+        this.workspaceApi.editMessage(token, edit.message, this.messageDraft().trim()),
+      );
+      if (this.session()?.access_token !== token) return;
+      this.applyMessageTextUpdate(message);
+      this.finishMessageEdit(edit);
+    } catch (error) {
+      if (this.session()?.access_token !== token) return;
+      const detail = (error as { error?: { detail?: { current?: WorkspaceMessage } } }).error
+        ?.detail;
+      if (detail?.current) {
+        this.applyMessageTextUpdate(detail.current);
+        this.messageEdits.update(edit, {
+          error: 'Сообщение изменено на другом устройстве. Актуальный текст:',
+          conflict: detail.current,
+          saving: false,
+        });
+        return;
+      }
+      this.messageEdits.update(edit, {
+        error: this.extractErrorMessage(error, 'Не удалось сохранить. Повторите попытку.'),
+        saving: false,
+      });
+    }
+  }
+
+  saveConflictingEdit(): void {
+    const edit = this.editingMessage();
+    if (!edit?.conflict || edit.saving) return;
+    this.messageEdits.update(edit, { message: edit.conflict, conflict: undefined, error: null });
+    void this.saveMessageEdit();
+  }
+
+  private applyMessageTextUpdate(
+    update: Pick<
+      WorkspaceMessage,
+      'id' | 'channel_id' | 'content' | 'edited_at' | 'deleted_at' | 'mentioned_user_ids'
+    >,
+  ): void {
+    this.messageEdits.reconcile(update);
+    this.messages.update((rows) =>
+      rows.map((message) => {
+        if (message.id === update.id) {
+          if (
+            message.deleted_at ||
+            (message.edited_at && update.edited_at && message.edited_at > update.edited_at)
+          )
+            return message;
+          return { ...message, ...update };
+        }
+        return message.reply_to?.id === update.id
+          ? { ...message, reply_to: { ...message.reply_to, content: update.content } }
+          : message;
+      }),
+    );
+    this.messageSearchResults.update((rows) =>
+      rows.map((message) =>
+        message.id === update.id
+          ? { ...message, content: update.content, mentioned_user_ids: update.mentioned_user_ids }
+          : message,
+      ),
+    );
+    const reply = this.selectedReplyMessage();
+    if (reply?.id === update.id) this.selectedReplyMessage.set({ ...reply, ...update });
+    const target = this.messageActionsTarget();
+    if (target?.id === update.id) this.messageActionsTarget.set({ ...target, ...update });
+  }
   readonly messageActionsAnchor = signal<{ x: number; y: number } | null>(null);
   readonly composerEmojiOpen = signal(false);
   private readonly bubbleDayFormat = new Intl.DateTimeFormat('ru-RU', {
@@ -1185,7 +1343,7 @@ export class AppComponent {
       this.messageError.set(this.extractErrorMessage(error, 'Не удалось удалить сообщение'));
     }
   }
-  chooseMessageAction(action: 'reply' | 'open-image' | 'download-image' | 'delete'): void {
+  chooseMessageAction(action: 'reply' | 'edit' | 'open-image' | 'download-image' | 'delete'): void {
     if (action === 'delete') {
       const target = this.messageActionsTarget();
       this.closeMessageActions();
@@ -1198,6 +1356,7 @@ export class AppComponent {
     // Run after the modal restores focus, so the composer/picker gets final focus.
     requestAnimationFrame(() => {
       if (action === 'reply') this.startReplyToMessage(message);
+      else if (action === 'edit') this.startMessageEdit(message);
       else {
         const image = this.menuImage(message);
         if (image) {
@@ -1481,6 +1640,15 @@ export class AppComponent {
     this.textFileNotice.set('');
     this.selectedReplyMessage.set(null);
     this.clearComposerMentionState();
+    const edit = this.messageEdits.visit(channelId);
+    if (edit) this.messageDraft.set(edit.text);
+    const completed = this.messageEdits.takeCompleted(channelId);
+    if (completed && !edit) {
+      this.messageDraft.set(completed.draft);
+      this.pendingFiles.set(completed.files);
+      this.selectedReplyMessage.set(completed.reply);
+      this.textFileNotice.set(completed.notice);
+    }
     this.scheduleMessageTextareaResize();
     const url = `/channels/${spaceId}/${channelId}`;
     if (window.location.pathname !== url) {
@@ -2073,6 +2241,7 @@ export class AppComponent {
   }
 
   convertDraftToFile(): void {
+    if (this.editingMessage()) return;
     if (this.messageSubmitting() || !this.messageDraft().trim()) return;
     if (this.currentUpload() || this.pendingFiles().length >= 10) {
       this.messageError.set(
@@ -7888,14 +8057,22 @@ export class AppComponent {
 
   onMessageDraftChange(value: string): void {
     this.messageDraft.set(value);
+    const edit = this.editingMessage();
+    if (edit) this.messageEdits.update(edit, { text: value });
     const channelId = this.selectedChannelId();
-    if (channelId) this.workspaceMemory.remember(channelId, { draft: value });
+    if (channelId && !edit) this.workspaceMemory.remember(channelId, { draft: value });
     this.scheduleMessageTextareaResize();
     this.scheduleComposerMentionSync();
     this.schedulePresenceHeartbeat();
   }
 
   onMessageComposerKeydown(event: KeyboardEvent): void {
+    if (event.isComposing) return;
+    if (event.key === 'Escape' && this.composerEmojiOpen()) {
+      event.preventDefault();
+      this.composerEmojiOpen.set(false);
+      return;
+    }
     if (this.composerMentionMenuOpen()) {
       if (event.key === 'ArrowDown') {
         event.preventDefault();
@@ -7922,6 +8099,22 @@ export class AppComponent {
       }
     }
 
+    if (this.editingMessage()) {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        this.cancelMessageEdit();
+        return;
+      }
+      if (
+        event.key === 'Enter' &&
+        !event.shiftKey &&
+        (event.ctrlKey || event.metaKey || !window.matchMedia('(pointer: coarse)').matches)
+      ) {
+        event.preventDefault();
+        void this.saveMessageEdit();
+      }
+      return;
+    }
     if (
       event.key === 'Enter' &&
       !event.ctrlKey &&
@@ -7953,6 +8146,7 @@ export class AppComponent {
   }
 
   openAttachmentPicker(): void {
+    if (this.editingMessage()) return;
     this.attachmentInputRef?.nativeElement.click();
   }
 
@@ -7967,6 +8161,7 @@ export class AppComponent {
   }
 
   onMessageComposerPaste(event: ClipboardEvent): void {
+    if (this.editingMessage()) return;
     const clipboardData = event.clipboardData;
     if (!clipboardData || this.messageSubmitting()) {
       return;
@@ -8027,6 +8222,15 @@ export class AppComponent {
   }
 
   startReplyToMessage(message: WorkspaceMessage): void {
+    const edit = this.editingMessage();
+    if (edit?.saving) return;
+    if (
+      edit &&
+      edit.text.trim() !== edit.message.content &&
+      !confirm('Отменить правку и ответить на сообщение?')
+    )
+      return;
+    this.cancelMessageEdit();
     this.selectedReplyMessage.set(message);
     this.schedulePresenceHeartbeat();
     this.focusMessageComposer();
@@ -8053,6 +8257,10 @@ export class AppComponent {
   }
 
   submitMessage(): void {
+    if (this.editingMessage()) {
+      void this.saveMessageEdit();
+      return;
+    }
     if (this.currentUpload()) {
       this.retryFileUpload();
       return;
@@ -8505,6 +8713,7 @@ export class AppComponent {
   }
 
   logout(): void {
+    this.messageEdits.clear();
     this.cancelMessageUploadTrigger$.next();
     this.uploadQueue.discard();
     this.fileOverflow.set([]);
@@ -9489,7 +9698,12 @@ export class AppComponent {
   }
 
   private async handleAppEvent(event: AppEventsMessage): Promise<void> {
+    if (event.type === 'message_updated') {
+      this.applyMessageTextUpdate(event.message);
+      return;
+    }
     if (event.type === 'platform_message_updated') {
+      this.messageEdits.reconcile(event.message);
       this.messages.update((rows) =>
         rows.map((m) =>
           m.id === event.message.id
@@ -11491,6 +11705,7 @@ export class AppComponent {
   }
 
   private resetTextChannelState(): void {
+    this.messageEdits.active.set(null);
     clearTimeout(this.positionSaveTimer);
     this.messageActionsTarget.set(null);
     this.messageActionsFocus = null;
@@ -11575,6 +11790,11 @@ export class AppComponent {
     return [...uniqueMessages.values()].sort((left, right) =>
       left.created_at.localeCompare(right.created_at),
     );
+  }
+
+  @HostListener('window:resize')
+  resizeMessageComposer(): void {
+    if (this.editingMessage()) this.scheduleMessageTextareaResize();
   }
 
   private scheduleMessageTextareaResize(): void {
@@ -11990,6 +12210,7 @@ export class AppComponent {
   }
 
   private addPendingFiles(files: File[]): void {
+    if (this.editingMessage()) return;
     if (!files.length) {
       return;
     }

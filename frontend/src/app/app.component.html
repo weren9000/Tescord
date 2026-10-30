@@ -2226,6 +2226,9 @@
                             "
                             [class.message-card--series-end]="isMessageSeriesEnd(messageIndex)"
                             [attr.data-message-id]="message.id"
+                            [class.message-card--editing]="
+                              editingMessage()?.message?.id === message.id
+                            "
                             [class.message-card--self]="message.author.id === currentUser()?.id"
                             [class.message-card--direct]="!!activeDirectConversation()"
                             [class.message-card--mention]="messageMentionsCurrentUser(message)"
@@ -2392,8 +2395,11 @@
                                   [attr.datetime]="message.created_at"
                                   [title]="formatMessageTime(message.created_at)"
                                 >
-                                  @if (message.edited_at) {
-                                    <span>изменено · </span>
+                                  @if (message.edited_at && !message.deleted_at) {
+                                    <span
+                                      [title]="'Изменено: ' + formatMessageTime(message.edited_at!)"
+                                      >изменено ·
+                                    </span>
                                   }
                                   {{ messageClock(message.created_at) }}</time
                                 >
@@ -2515,6 +2521,34 @@
                       (change)="onAttachmentSelection($event)"
                     />
 
+                    @if (editingMessage(); as edit) {
+                      <div class="composer__edit" role="status">
+                        <app-ui-icon name="edit" /><span>Редактирование</span>
+                        <button
+                          type="button"
+                          aria-label="Отменить редактирование"
+                          title="Отменить редактирование"
+                          [disabled]="edit.saving"
+                          (click)="cancelMessageEdit()"
+                        >
+                          <app-ui-icon name="close" />
+                        </button>
+                      </div>
+                      @if (edit.error) {
+                        <p class="composer__edit-error" role="alert">{{ edit.error }}</p>
+                      }
+                      @if (edit.conflict; as latest) {
+                        <div class="composer__edit-conflict">
+                          <p>{{ latest.content }}</p>
+                        </div>
+                        <p class="composer__edit-error">
+                          Нажмите галочку, чтобы заменить этот текст вашей правкой.
+                        </p>
+                      }
+                      @if (messageCharacterCount() > 20000) {
+                        <p class="composer__edit-error" role="alert">Максимум 20 000 символов</p>
+                      }
+                    }
                     @if (selectedReplyMessage(); as replyMessage) {
                       <div class="composer__reply">
                         <div class="composer__reply-copy">
@@ -2586,12 +2620,14 @@
                     @if (textFileNotice()) {
                       <p class="text-file-notice" role="status">{{ textFileNotice() }}</p>
                     }
-                    @if (messageDraft().trim() && !currentUpload()) {
+                    @if (messageDraft().trim() && !currentUpload() && !editingMessage()) {
                       <div class="text-file-tools">
                         <button
                           type="button"
                           class="secondary-button"
-                          [disabled]="messageSubmitting() || !!currentUpload()"
+                          [disabled]="
+                            messageSubmitting() || !!currentUpload() || !!editingMessage()?.saving
+                          "
                           (click)="convertDraftToFile()"
                         >
                           Прикрепить как файл
@@ -2606,13 +2642,17 @@
                     }
                     <div
                       class="composer__surface"
+                      [class.composer__surface--editing]="!!editingMessage()"
                       [class.composer__surface--busy]="messageSubmitting()"
                       [class.composer__surface--mentioning]="composerMentionMenuOpen()"
                     >
                       <button
                         class="secondary-button composer__attach"
                         type="button"
-                        [disabled]="messageSubmitting() || !!currentUpload()"
+                        [disabled]="
+                          messageSubmitting() || !!currentUpload() || !!editingMessage()?.saving
+                        "
+                        [hidden]="!!editingMessage()"
                         (click)="openAttachmentPicker()"
                         aria-label="Прикрепить файл"
                         title="Прикрепить файл"
@@ -2634,8 +2674,13 @@
                           (select)="onMessageComposerSelectionChange()"
                           (blur)="onMessageComposerBlur()"
                           (paste)="onMessageComposerPaste($event)"
-                          [disabled]="messageSubmitting() || !!currentUpload()"
-                          placeholder="Введите сообщение"
+                          [disabled]="
+                            messageSubmitting() || !!currentUpload() || !!editingMessage()?.saving
+                          "
+                          [attr.aria-label]="
+                            editingMessage() ? 'Текст редактируемого сообщения' : 'Сообщение'
+                          "
+                          [placeholder]="editingMessage() ? 'Текст сообщения' : 'Введите сообщение'"
                           rows="1"
                         ></textarea>
 
@@ -2691,7 +2736,9 @@
                           aria-label="Эмодзи"
                           [attr.aria-expanded]="composerEmojiOpen()"
                           (click)="composerEmojiOpen.set(!composerEmojiOpen())"
-                          [disabled]="messageSubmitting() || !!currentUpload()"
+                          [disabled]="
+                            messageSubmitting() || !!currentUpload() || !!editingMessage()?.saving
+                          "
                         >
                           <svg
                             width="22"
@@ -2719,36 +2766,62 @@
                           }
                         }
                       </div>
-                      <button
-                        class="primary-button composer__submit"
-                        type="button"
-                        [disabled]="
-                          uploadQueue.job()?.status === 'finalizing' ||
-                          (!messageSubmitting() && !canSendMessage())
-                        "
-                        (click)="messageSubmitting() ? cancelMessageUpload() : submitMessage()"
-                        [attr.aria-label]="
-                          messageSubmitting() ? 'Приостановить загрузку' : 'Отправить сообщение'
-                        "
-                        [attr.title]="
-                          messageSubmitting() ? 'Приостановить загрузку' : 'Отправить сообщение'
-                        "
-                        [class.composer__submit--cancel]="messageSubmitting()"
-                      >
-                        @if (messageSubmitting()) {
-                          ×
-                        } @else {
-                          <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
-                            <path
-                              d="m4 3 17 9-17 9 3-9Z M7 12h14"
-                              fill="none"
-                              stroke="currentColor"
-                              stroke-width="1.8"
-                              stroke-linejoin="round"
-                            />
-                          </svg>
-                        }
-                      </button>
+                      @if (editingMessage(); as edit) {
+                        <button
+                          class="primary-button composer__submit"
+                          type="button"
+                          [attr.aria-label]="
+                            edit.conflict
+                              ? 'Заменить актуальный текст моей правкой'
+                              : 'Сохранить изменения'
+                          "
+                          [title]="
+                            edit.conflict
+                              ? 'Заменить актуальный текст моей правкой'
+                              : 'Сохранить изменения'
+                          "
+                          [attr.aria-busy]="edit.saving"
+                          [disabled]="!canSaveMessageEdit()"
+                          (click)="edit.conflict ? saveConflictingEdit() : saveMessageEdit()"
+                        >
+                          @if (edit.saving) {
+                            <span class="composer__edit-spinner" aria-hidden="true"></span>
+                          } @else {
+                            <app-ui-icon name="check" />
+                          }
+                        </button>
+                      } @else {
+                        <button
+                          class="primary-button composer__submit"
+                          type="button"
+                          [disabled]="
+                            uploadQueue.job()?.status === 'finalizing' ||
+                            (!messageSubmitting() && !canSendMessage())
+                          "
+                          (click)="messageSubmitting() ? cancelMessageUpload() : submitMessage()"
+                          [attr.aria-label]="
+                            messageSubmitting() ? 'Приостановить загрузку' : 'Отправить сообщение'
+                          "
+                          [attr.title]="
+                            messageSubmitting() ? 'Приостановить загрузку' : 'Отправить сообщение'
+                          "
+                          [class.composer__submit--cancel]="messageSubmitting()"
+                        >
+                          @if (messageSubmitting()) {
+                            ×
+                          } @else {
+                            <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+                              <path
+                                d="m4 3 17 9-17 9 3-9Z M7 12h14"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="1.8"
+                                stroke-linejoin="round"
+                              />
+                            </svg>
+                          }
+                        </button>
+                      }
                     </div>
                   } @else {
                     <div class="composer__surface composer__surface--disabled">
@@ -5866,7 +5939,8 @@
 
 @if (messageActionsTarget(); as target) {
   <app-message-actions
-    [canDelete]="canDeletePlatformMessage(target)"
+    [canDelete]="!target.deleted_at && canDeletePlatformMessage(target)"
+    [canEdit]="canEditMessage(target)"
     [token]="session()?.access_token ?? ''"
     [hasImage]="!!menuImage(target)"
     [text]="target.content"

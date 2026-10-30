@@ -105,10 +105,22 @@ export interface AppFriendRequestsChangedEvent {
   pending_incoming_count: number;
 }
 
-export interface ShopFavoritesChangedEvent {type:'shop_favorites_changed';catalog_id:string;favorite:boolean}
+export interface ShopFavoritesChangedEvent {
+  type: 'shop_favorites_changed';
+  catalog_id: string;
+  favorite: boolean;
+}
 
 export type AppEventsMessage =
-  | {type: 'platform_message_updated'; server_id: string; message: WorkspaceMessage}
+  | {
+      type: 'message_updated';
+      server_id: string;
+      message: Pick<
+        WorkspaceMessage,
+        'id' | 'channel_id' | 'content' | 'edited_at' | 'deleted_at' | 'mentioned_user_ids'
+      >;
+    }
+  | { type: 'platform_message_updated'; server_id: string; message: WorkspaceMessage }
   | ShopFavoritesChangedEvent
   | AppEventsReadyEvent
   | AppEventsPongEvent

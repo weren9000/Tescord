@@ -174,6 +174,7 @@ export interface WorkspaceMessage {
   content: string;
   created_at: string;
   edited_at: string | null;
+  deleted_at?: string | null;
   author: WorkspaceMessageAuthor;
   reply_to: WorkspaceMessageReply | null;
   attachments: WorkspaceMessageAttachment[];

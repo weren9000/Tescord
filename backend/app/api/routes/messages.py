@@ -32,6 +32,7 @@ from app.db.models import (
 from app.db.session import get_db
 from app.schemas.workspace import (
     ChatAttachmentSummary,
+    EditMessageRequest,
     ChannelMessageSearchSummary,
     ChannelMessageSummary,
     ChannelMessagesPage,
@@ -48,6 +49,7 @@ from app.schemas.workspace import (
 from app.services.app_events import (
     publish_attachment_deleted,
     publish_message_created,
+    publish_message_updated,
     publish_message_read_updated,
     publish_message_reactions_updated,
     publish_servers_changed_for_users,
@@ -170,6 +172,7 @@ def _build_message_summary(message: Message, current_user_id: UUID) -> ChannelMe
         content=message.content,
         created_at=message.created_at,
         edited_at=message.edited_at,
+        deleted_at=message.deleted_at,
         author=_build_author_summary(message.author),
         reply_to=_build_reply_summary(message.reply_to),
         attachments=[_build_attachment_summary(attachment) for attachment in sorted(message.attachments, key=lambda a: (a.position, a.created_at, str(a.id)))],
@@ -831,6 +834,46 @@ def create_channel_message(
 
     message_summary = _build_message_summary(created_message, current_user.id)
     return message_summary
+
+
+@router.patch('/messages/{message_id}', response_model=ChannelMessageSummary)
+def edit_channel_message(
+    message_id: UUID,
+    body: EditMessageRequest,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> ChannelMessageSummary:
+    # Serialize edits and moderation; check the version after acquiring the lock.
+    message = db.scalar(select(Message).where(Message.id == message_id).with_for_update())
+    if message is None:
+        raise HTTPException(404, 'Сообщение не найдено')
+    channel = _get_accessible_message_channel(db, message.channel_id, current_user)
+    if message.author_id != current_user.id:
+        raise HTTPException(403, 'Можно редактировать только свои сообщения')
+    if message.deleted_at is not None or message.type != MessageType.TEXT:
+        raise HTTPException(409, 'Это сообщение нельзя редактировать')
+    content = body.content.strip()
+    if not content and not any(a.deleted_at is None for a in message.attachments):
+        raise HTTPException(422, 'Сообщение не может быть пустым')
+    if content == message.content:
+        # Also makes a retry after a lost successful response harmless.
+        return _build_message_summary(_load_message(db, message.id), current_user.id)
+    if message.edited_at != body.expected_edited_at:
+        current = _build_message_summary(_load_message(db, message.id), current_user.id).model_dump(mode='json')
+        raise HTTPException(409, {'message': 'Сообщение уже изменено на другом устройстве.', 'current': current})
+    message.content = content
+    message.edited_at = datetime.now(timezone.utc)
+    mentioned_ids = resolve_message_mention_user_ids(db, channel.server_id, content, author_user_id=current_user.id)
+    message.mentions.clear()
+    db.flush()
+    message.mentions = [MessageMention(message_id=message.id, user_id=uid) for uid in mentioned_ids]
+    db.commit()
+    summary = _build_message_summary(_load_message(db, message.id), current_user.id)
+    # Only text fields travel in this event: reactions/read state are viewer-specific.
+    payload = summary.model_dump(mode='json', include={'id', 'channel_id', 'content', 'edited_at', 'deleted_at', 'mentioned_user_ids'})
+    background_tasks.add_task(publish_message_updated, channel.server_id, payload)
+    return summary
 
 
 @router.get("/channels/{channel_id}/attachments", response_model=list[ChatAttachmentSummary])

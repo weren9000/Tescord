@@ -15,6 +15,12 @@ if [ "$available" -lt 1073741824 ]; then
 fi
 exec 9>/run/lock/kva-deploy.lock
 flock -n 9
+if [ -n "${TESCORD_EXPECTED_REVISION:-}" ]; then
+    test "$(cat /srv/tescord/current/SOURCE_REVISION)" = "$TESCORD_EXPECTED_REVISION" || {
+        echo 'Active revision changed; deployment stopped before migration.' >&2
+        exit 1
+    }
+fi
 cd "$release"
 sha256sum -c RELEASE.sha256 >/dev/null
 python3 "$release/scripts/persist-downloads.py" "$release"

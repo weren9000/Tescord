@@ -343,7 +343,9 @@
                     }
                     <time>{{ m.created_at | date: 'HH:mm' }}</time>
                     @if (m.edited_at) {
-                      <small>изменено</small>
+                      <small [title]="'Изменено: ' + (m.edited_at | date: 'dd.MM.yyyy HH:mm')"
+                        >изменено</small
+                      >
                     }
                   </div>
                   @if (m.reply_to_id) {
@@ -360,15 +362,35 @@
                       }
                     </div>
                   }
-                  <details class="message-menu">
+                  <details #messageMenu class="message-menu">
                     <summary aria-label="Действия сообщения"><app-ui-icon name="more" /></summary>
                     <div class="message-actions">
-                      <button (click)="reply = m; editing = null">Ответить</button>
+                      <button
+                        aria-label="Ответить"
+                        title="Ответить"
+                        (click)="replyTo(m); messageMenu.open = false"
+                      >
+                        <app-ui-icon name="reply" />
+                      </button>
                       @if (m.author_id === ticket()?.participant_id) {
-                        <button (click)="edit(m)">Изменить</button>
+                        <button
+                          aria-label="Редактировать"
+                          title="Редактировать"
+                          [disabled]="busy()"
+                          (click)="edit(m); messageMenu.open = false"
+                        >
+                          <app-ui-icon name="edit" />
+                        </button>
                       }
                       @if (m.author_id === ticket()?.participant_id || ticket()?.is_owner) {
-                        <button [disabled]="busy()" (click)="deleteMessage(m)">Удалить</button>
+                        <button
+                          aria-label="Удалить сообщение"
+                          title="Удалить сообщение"
+                          [disabled]="busy()"
+                          (click)="deleteMessage(m)"
+                        >
+                          <app-ui-icon name="trash" />
+                        </button>
                       }
                       <details>
                         <summary aria-label="Добавить реакцию">☺</summary>
@@ -400,10 +422,12 @@
                   {{ editing ? 'Редактирование' : 'Ответ: ' + reply?.author
                   }}<button
                     type="button"
-                    (click)="reply = null; editing = null; text = ''"
-                    aria-label="Отменить"
+                    (click)="cancelEdit()"
+                    [disabled]="busy()"
+                    [attr.aria-label]="editing ? 'Отменить редактирование' : 'Отменить ответ'"
+                    [title]="editing ? 'Отменить редактирование' : 'Отменить ответ'"
                   >
-                    ×
+                    <app-ui-icon name="close" />
                   </button>
                 </div>
               }
@@ -421,8 +445,12 @@
                 </div>
               }
               <textarea
+                #messageEditor
                 name="message"
-                [(ngModel)]="text"
+                [ngModel]="text"
+                (ngModelChange)="changeText($event)"
+                (keydown)="onTextKeydown($event)"
+                [disabled]="busy()"
                 maxlength="10000"
                 placeholder="Сообщение участникам…"
                 aria-label="Сообщение"
@@ -434,6 +462,7 @@
                   class="icon-button"
                   title="Прикрепить файл"
                   aria-label="Прикрепить файл"
+                  [style.display]="editing ? 'none' : null"
                   [disabled]="busy() || !!editing"
                   (click)="filePicker.click()"
                 >
@@ -445,12 +474,12 @@
                   multiple
                   [disabled]="busy() || !!editing"
                   (change)="pickFiles($event)"
-                /><span class="hint">{{ editing ? 'Редактирование' : 'Сообщение всем' }}</span
+                /><span class="hint">{{ editing ? '' : 'Сообщение всем' }}</span
                 ><button
                   class="icon-button primary"
                   [attr.aria-label]="editing ? 'Сохранить' : 'Отправить'"
                   [attr.title]="editing ? 'Сохранить' : 'Отправить'"
-                  [disabled]="busy() || (!text.trim() && !uploads.length)"
+                  [disabled]="!canSubmitText()"
                 >
                   <app-ui-icon [name]="editing ? 'check' : 'send'" />
                 </button>

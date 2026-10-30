@@ -121,8 +121,9 @@ def test_chat_files_and_full_cleanup(meeting):
     mid=sent.json()['id']
     assert c.get('/api/rooms/uploads/'+uid,headers=owner).content==TEST_PNG_BYTES
     assert c.get('/api/rooms/uploads/'+uid+'?preview=true',headers=owner).status_code==200
-    assert c.patch('/api/rooms/messages/'+mid,headers=owner,json={'content':'changed'}).status_code==403
-    assert c.patch('/api/rooms/messages/'+mid,headers=h,json={'content':'changed'}).status_code==200
+    assert c.patch('/api/rooms/messages/'+mid,headers=owner,json={'content':'changed','expected_edited_at':None}).status_code==403
+    assert c.patch('/api/rooms/messages/'+mid,headers=h,json={'content':'changed','expected_edited_at':None}).status_code==200
+    assert c.patch('/api/rooms/messages/'+mid,headers=h,json={'content':'stale','expected_edited_at':None}).status_code==409
     assert c.post('/api/rooms/messages',headers=owner,json={'content':'reply','reply_to_id':mid}).status_code==200
     for _ in range(2):assert c.post('/api/rooms/messages/'+mid+'/reaction',headers=owner,json={'emoji':'👍'}).status_code==200
     messages=c.get('/api/rooms/messages',headers=h).json()

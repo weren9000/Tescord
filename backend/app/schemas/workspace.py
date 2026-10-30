@@ -175,6 +175,11 @@ class MessageReplySummary(BaseModel):
     attachments_count: int
 
 
+class EditMessageRequest(BaseModel):
+    content: str = Field(max_length=20000)
+    expected_edited_at: datetime | None
+
+
 class ChannelMessageSummary(BaseModel):
     id: UUID
     channel_id: UUID
@@ -182,6 +187,7 @@ class ChannelMessageSummary(BaseModel):
     content: str
     created_at: datetime
     edited_at: datetime | None
+    deleted_at: datetime | None = None
     author: MessageAuthorSummary
     reply_to: MessageReplySummary | None = None
     attachments: list[MessageAttachmentSummary]

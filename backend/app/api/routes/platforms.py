@@ -440,6 +440,7 @@ async def moderate_message(platform_id: UUID, message_id: UUID,
     from app.services.app_events import publish_platform_message_updated
     from app.services.attachment_storage import delete_stored_attachment
     _, actor = platform_context(db, platform_id, user.id, lock=True)
+    db.scalar(select(Message).where(Message.id == message_id).with_for_update())
     message = _load_message(db, message_id)
     if message is None or message.channel.server.platform_id != platform_id:
         raise HTTPException(404, "Сообщение недоступно")
@@ -455,7 +456,8 @@ async def moderate_message(platform_id: UUID, message_id: UUID,
     message.reactions.clear()
     message.mentions.clear()
     message.content = "Сообщение удалено"
-    message.edited_at = datetime.now(timezone.utc)
+    message.deleted_at = datetime.now(timezone.utc)
+    message.edited_at = None
     db.commit()
     for path in paths:
         if db.scalar(select(Attachment.id).where(Attachment.storage_path == path).limit(1)) is None:

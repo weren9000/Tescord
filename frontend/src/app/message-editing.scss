@@ -1,0 +1,86 @@
+.messenger-shell .composer__surface--editing {
+  grid-template-columns: minmax(0, 1fr) 34px 38px;
+  .composer__attach {
+    display: none;
+  }
+}
+.composer__edit {
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  color: var(--palette-muted);
+  font-size: 12px;
+  padding: 0 4px 4px;
+  span {
+    flex: 1;
+  }
+  button {
+    margin-left: auto;
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    &:hover {
+      background: var(--palette-hover);
+    }
+    &:focus-visible {
+      outline: 2px solid var(--palette-primary);
+    }
+  }
+}
+.composer__edit-error {
+  font-size: 12px;
+  margin: 0 4px 8px;
+  overflow-wrap: anywhere;
+  color: var(--palette-text);
+}
+.message-card--editing .message-card__body {
+  outline: 1px solid var(--palette-primary);
+  outline-offset: 2px;
+}
+.composer__edit-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: message-edit-spin 0.8s linear infinite;
+}
+.composer__edit-conflict {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  p {
+    flex: 1;
+    min-width: 0;
+    max-height: 80px;
+    overflow: auto;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+  }
+}
+@keyframes message-edit-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (pointer: coarse) {
+  .composer__edit button {
+    width: 44px;
+    height: 44px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .composer__edit-spinner {
+    animation: none;
+  }
+}

@@ -1,5 +1,6 @@
 import {
   Component,
+  ChangeDetectorRef,
   Directive,
   ElementRef,
   Input,
@@ -107,7 +108,9 @@ export class MeetingTrackDirective implements OnDestroy {
   styleUrl: './room-page.component.scss',
 })
 export class RoomPageComponent implements OnInit, OnDestroy {
+  private readonly changeDetector = inject(ChangeDetectorRef);
   @ViewChild('messageList') messageList?: ElementRef<HTMLElement>;
+  @ViewChild('messageEditor') messageEditor?: ElementRef<HTMLTextAreaElement>;
   private readonly http = inject(HttpClient);
   readonly account = inject(SessionStorageService).read();
   readonly profile = signal<AuthUser | null>(null);
@@ -157,6 +160,7 @@ export class RoomPageComponent implements OnInit, OnDestroy {
   text = '';
   reply: Message | null = null;
   editing: Message | null = null;
+  private editDraft: { text: string; reply: Message | null; uploads: Attachment[] } | null = null;
   uploads: Attachment[] = [];
   page = 0;
   private readonly restoreVolume: Partial<Record<string, number>> = {};
@@ -302,6 +306,7 @@ export class RoomPageComponent implements OnInit, OnDestroy {
     } catch {}
   }
   private clearSession() {
+    this.editDraft = null;
     this.ticket.set(null);
     this.messages.set([]);
     this.olderMessages.set([]);
@@ -796,23 +801,95 @@ export class RoomPageComponent implements OnInit, OnDestroy {
     });
   }
   async send() {
+    if (!this.canSubmitText()) return;
     await this.run(async () => {
       await this.request(
         this.editing ? 'PATCH' : 'POST',
         '/messages' + (this.editing ? '/' + this.editing.id : ''),
-        { content: this.text, reply_to_id: this.reply?.id, uploads: this.uploads.map((u) => u.id) },
+        this.editing
+          ? { content: this.text, expected_edited_at: this.editing.edited_at }
+          : {
+              content: this.text,
+              reply_to_id: this.reply?.id,
+              uploads: this.uploads.map((u) => u.id),
+            },
       );
-      this.text = '';
-      this.reply = null;
-      this.editing = null;
-      this.uploads = [];
+      if (this.editing) this.cancelEdit();
+      else {
+        this.text = '';
+        this.reply = null;
+        this.uploads = [];
+      }
       await this.refresh();
     });
   }
   edit(m: Message) {
+    if (this.busy() || m.author_id !== this.ticket()?.participant_id) return;
+    if (
+      this.editing &&
+      this.text.trim() !== this.editing.content &&
+      !confirm('Заменить несохранённую правку другим сообщением?')
+    )
+      return;
+    if (!this.editing)
+      this.editDraft = { text: this.text, reply: this.reply, uploads: this.uploads };
     this.editing = m;
     this.text = m.content;
     this.reply = null;
+    this.uploads = [];
+    requestAnimationFrame(() => this.messageEditor?.nativeElement.focus());
+    this.changeDetector.markForCheck();
+  }
+  cancelEdit(): void {
+    if (this.editing && this.editDraft) {
+      this.text = this.editDraft.text;
+      this.reply = this.editDraft.reply;
+      this.uploads = this.editDraft.uploads;
+    } else this.reply = null;
+    this.editing = null;
+    this.editDraft = null;
+    this.changeDetector.markForCheck();
+  }
+  replyTo(m: Message): void {
+    if (this.busy()) return;
+    if (
+      this.editing &&
+      this.text.trim() !== this.editing.content &&
+      !confirm('Отменить правку и ответить на сообщение?')
+    )
+      return;
+    this.cancelEdit();
+    this.reply = m;
+    this.changeDetector.markForCheck();
+  }
+  changeText(text: string): void {
+    this.text = text;
+    this.changeDetector.markForCheck();
+  }
+  canSubmitText(): boolean {
+    return (
+      !this.busy() &&
+      (this.editing
+        ? this.text.trim() !== this.editing.content &&
+          (!!this.text.trim() || !!this.editing.uploads.length)
+        : !!this.text.trim() || !!this.uploads.length)
+    );
+  }
+  onTextKeydown(event: KeyboardEvent): void {
+    if (event.isComposing || this.busy()) return;
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      this.cancelEdit();
+    }
+    if (
+      this.editing &&
+      event.key === 'Enter' &&
+      !event.shiftKey &&
+      (event.ctrlKey || event.metaKey || !window.matchMedia('(pointer: coarse)').matches)
+    ) {
+      event.preventDefault();
+      void this.send();
+    }
   }
   async deleteMessage(m: Message) {
     await this.run(async () => {

@@ -4,7 +4,7 @@ import json
 import secrets
 import asyncio
 import logging
-from datetime import timedelta
+from datetime import datetime, timedelta
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, HTTPException, UploadFile, File, Request
@@ -59,6 +59,11 @@ class MessageInput(BaseModel):
 
 class ReactionInput(BaseModel):
     emoji: str = Field(min_length=1, max_length=32)
+
+
+class EditMessageInput(BaseModel):
+    content: str = Field(max_length=10000)
+    expected_edited_at: datetime | None
 
 
 def access(db, authorization, *, lock=False):
@@ -370,13 +375,17 @@ def send_message(body: MessageInput, authorization: str = Header(), db: Session 
 
 
 @router.patch('/messages/{mid}')
-def edit_message(mid: UUID, body: MessageInput, authorization: str = Header(), db: Session = Depends(get_db)):
+def edit_message(mid: UUID, body: EditMessageInput, authorization: str = Header(), db: Session = Depends(get_db)):
     m, p = access(db, authorization, lock=True)
     msg = message_in(db, mid, m.id)
     if msg.author_id != p.id:
         raise HTTPException(403, 'Можно редактировать только свои сообщения')
     if not body.content.strip() and not db.scalar(select(RoomUpload.id).where(RoomUpload.message_id == mid).limit(1)):
         raise HTTPException(422, 'Сообщение не может быть пустым')
+    if msg.content == body.content.strip():
+        return {'ok': True}
+    if msg.edited_at != body.expected_edited_at:
+        raise HTTPException(409, 'Сообщение изменено на другом устройстве. Скопируйте свою правку и откройте актуальную версию.')
     msg.content, msg.edited_at = body.content.strip(), service.now()
     m.chat_revision += 1
     db.commit()

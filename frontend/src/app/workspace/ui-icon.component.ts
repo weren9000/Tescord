@@ -1,6 +1,8 @@
 import { Component, input } from '@angular/core';
 
 const paths: Record<string, string> = {
+  edit: 'M15 4l5 5M4 20l5-1L21 7a2 2 0 0 0-5-5L4 14z',
+  reply: 'M10 5l-7 7 7 7M3 12h11a6 6 0 0 1 6 6',
   calendar: 'M5 4h14a2 2 0 0 1 2 2v14H3V6a2 2 0 0 1 2-2M7 2v5M17 2v5M3 10h18M7 14h2M12 14h2M7 17h2',
   filter: 'M3 4h18l-7 8v7l-4 2v-9z',
   refresh: 'M20 7v5h-5M4 17v-5h5M5.5 7a7 7 0 0 1 11.6-2L20 8M4 16l2.9 3a7 7 0 0 0 11.6-2',

@@ -585,6 +585,7 @@ class Message(TimestampMixin, Base):
         nullable=False,
     )
     edited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     channel: Mapped["Channel"] = relationship(back_populates="messages")
     author: Mapped["User"] = relationship(back_populates="messages")

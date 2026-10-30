@@ -755,11 +755,11 @@ header > a:last-child {
   color: var(--room-muted);
 }
 .message-actions {
-  display: grid;
+  display: flex;
   position: absolute;
   top: 28px;
   right: 0;
-  width: 180px;
+  width: max-content;
   padding: 6px;
   border: 1px solid var(--room-border);
   border-radius: 10px;
@@ -767,6 +767,10 @@ header > a:last-child {
   box-shadow: 0 6px 20px #0005;
 }
 .message-actions button {
+  display: grid;
+  place-items: center;
+  min-width: 44px;
+  min-height: 44px;
   text-align: left;
   background: transparent;
   border: 0;
@@ -774,7 +778,21 @@ header > a:last-child {
   font-size: 12px;
 }
 .message-actions summary {
-  padding: 5px 10px;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  list-style: none;
+}
+.message-actions .reactions {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  width: 200px;
+  padding: 6px;
+  background: var(--room-tile);
+  border: 1px solid var(--room-border);
+  border-radius: 10px;
 }
 .reactions {
   display: flex;
