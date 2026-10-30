@@ -14,6 +14,9 @@ const pixel = Buffer.from(
   const browser = await chromium.launch();
   try {
     const page = await browser.newPage();
+    await page.addInitScript(() =>
+      localStorage.setItem("kvachat.plugin.game-calendar.layout.v1", "feed"),
+    );
     const errors = [];
     page.on("pageerror", (error) => errors.push(error.message));
     await page.route("**/images/*", (route) =>

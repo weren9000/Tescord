@@ -1,75 +1,57 @@
-# Calendar mode review
+# Calendar redesign verification — 2026-10-30
 
-**Comparison target**
+Source: the two user-selected desktop/mobile concepts attached immediately before implementation.
+Desktop concept: exec-63afbb44-5b38-4560-978c-f7d1d8ee03f0.png (1536 × 1024).
+Mobile concept: exec-395f3338-f778-4d89-9e91-e326dea21e56.png (866 × 1814).
 
-- Source visual truth: `C:/Users/admin/Downloads/Frame 71.jpg` — mobile interaction
-  direction: filters above the content, month navigation, selected-day events and a
-  horizontal day rail. It is a concept image, not a pixel-perfect screen specification.
-- Implementation evidence: `artifacts/game-calendar/live-calendar-390.png` and
-  `artifacts/game-calendar/live-calendar-1440.png`.
-- Viewports: source 851 × 1847 px; implementation mobile 390 × 900 CSS px at
-  device scale factor 1; implementation desktop 1440 × 900 CSS px at device scale
-  factor 1. No density normalization was required for the implementation captures.
-- State: dark theme, upcoming events, October 2026, selected day 1 October.
-- Primary interactions tested: layout menu, feed/calendar switching and persistence,
-  previous/next/current month controls, selecting a day, opening an event from both
-  the month and selected-day cards, mobile week rail, Escape, filters, favourites,
-  external VK-community action and the existing ICS export.
+## Implemented composition
 
-**Findings**
+- Desktop: viewport-height month grid on the left and independently scrolling events on the right.
+- Mobile: compact header and search, detailed horizontal carousel, month/day navigation in its own bottom flex area.
+- Each calendar day is one native button. Its thumbnails are non-interactive images; every click selects the day.
+- Inclusive date ranges, correct variable month row count, all mobile month days, date picker and Today.
+- Existing KvaChat icon geometry is reused for shared actions; no icon font or new UI dependency.
+- Source attribution and sync time are available in the information dialog.
 
-- No actionable P0, P1 or P2 findings remain.
-- The mobile source puts the control bar near the bottom; the approved product plan
-  intentionally keeps filters and month navigation at the top. The mobile day rail is
-  sticky at the bottom while scrolling, preserving the direct day-to-events flow.
-- Desktop has no direct source mock. It intentionally reuses the same state and event
-  cards: selected-day horizontal cover cards first, followed by a seven-column month
-  grid. This is the desktop counterpart of the mobile rail rather than a separate flow.
+## Evidence
 
-**Required fidelity surfaces**
+Browser-rendered local snapshots (device scale factor 1):
 
-- Fonts and typography: the existing Inter/system UI stack and the product's existing
-  compact control scale are retained. Long event names wrap in the large card and are
-  clipped only in dense month banners with an accessible full-event action.
-- Spacing and layout rhythm: mobile has one wide, snap-aligned event card; desktop has
-  a compact month control group, wide selected-day cards and a seven-column grid.
-  No horizontal page overflow was detected at 320, 390, 768 or 1440 px.
-- Colors and visual tokens: existing dark canvas, surface, border, purple selection and
-  cyan action tokens are used throughout; the selected date is visible in both views.
-- Image quality and asset fidelity: cards use the cached, original VK community covers.
-  Cover images preserve their crop with a readable dark scrim; missing artwork falls
-  back to the regular surface without broken-image chrome.
-- Copy and content: controls use accessible icon buttons where space is limited. The
-  event detail now has an explicit `Сообщество VK` action when a trusted community link
-  exists, in addition to the source and organiser links.
+- artifacts/game-calendar/redesign-desktop.png — 1536 × 1024, October 22, real cached data.
+- artifacts/game-calendar/redesign-mobile.png — 393 × 852, same date, second event in carousel.
+- artifacts/game-calendar/redesign-small.png — 320 × 568, confirms accessible bottom navigation.
+- artifacts/game-calendar/redesign-fixture-{width}.png — 320, 360, 393, 430, 768, 959, 1024, 1536.
 
-**Focused region comparison**
+The source concepts use illustrative artwork and invented descriptions. Actual data has different artwork, long titles, missing covers and almost no descriptions. Missing content is not synthesized and does not reserve empty image/description space. Mobile covers use a shallower crop than the concept to preserve more of the long VK artwork. Existing system typography and product palette are retained.
 
-- Mobile: month controls, selected-day event rail and the sticky week rail were checked
-  against the source concept's core interaction regions.
-- Desktop: month controls, event-cover rail and dense calendar banners were checked in
-  `live-calendar-1440.png`; the desktop layout is an intentional responsive extension.
+## Visual review and fixes
 
-**Implementation checklist**
+- Compared desktop regions: header, column ratio, aligned panels, month toolbar, selected date, cover cards.
+- Compared mobile regions: header/search, date heading, cropped adjacent card, metadata/actions, anchored day navigation.
+- Fixed native button background exposed after removing obsolete calendar styles.
+- Fixed weekday alignment after removing the old grid styles.
+- Replaced fixed-height empty artwork with compact text cards.
+- Carousel height follows the currently visible card, including image failure and description expansion.
+- At short viewport heights the content scrolls above the navigation; no controls are hidden behind it.
+- Cover imagery remains original; avatar artwork is contained rather than stretched.
+- Text wraps within cards and dialogs. Small date previews expose their full event count through accessible labels.
 
-- [x] Calendar/list view switcher with accessible labels and a reserved timeline slot.
-- [x] Month movement, current-month action, date selection and selected-day event rail.
-- [x] Seven-day mobile rail and seven-column desktop month grid from one data state.
-- [x] Real VK artwork in the event cards and explicit community link in details.
-- [x] Browser and Python regression tests, including 320–1440 px overflow checks.
+## Functional verification
 
-**Follow-up polish**
+Automated browser checks cover:
 
-- [P3] When event density grows, consider replacing the native month picker fallback
-  with a dedicated compact picker; it is not necessary for the current data set.
+- thumbnail click selects the day and does not open details;
+- inclusive multi-day events and month boundaries;
+- desktop details, safe description text, VK link and ICS end-date semantics;
+- mobile carousel scrolling and non-opening card cover;
+- favorite persistence and restoring a non-current selected date;
+- filters/search, undated events, month navigation with an active period filter;
+- Escape dismissal, empty/stale/error/retry states;
+- overflow and dock bounds at widths 320–1536.
 
-**Comparison history**
-
-- Iteration 1: the selected mobile day could render at the far edge of its week rail,
-  and the desktop current-month action pushed month navigation apart.
-- Fix: center the selected date within the scrollable rail when possible and keep the
-  month controls in one compact group.
-- Post-fix evidence: `artifacts/game-calendar/calendar-390.png` and
-  `artifacts/game-calendar/live-calendar-1440.png`.
+Image regression checks pass. All 18 isolated Python tests pass.
+No browser page exceptions in the real-data captures.
+Physical-device touch/keyboard behavior has not been tested; mobile checks use Chromium viewport emulation.
+The previous report's unsupported full-fidelity claim is superseded by this scoped report.
 
 final result: passed

@@ -6,117 +6,119 @@
     <meta name="theme-color" content="#10121c" />
     <title>Календарь игр · Квачат</title>
     <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./calendar.css" />
     <script src="./app.js" type="module"></script>
   </head>
   <body>
-    <header class="topbar">
+    <header class="app-header">
       <a class="brand" href="/" aria-label="Открыть Квачат"
-        ><span class="brand-icon">К</span> КВАЧАТ <span class="divider">/</span>
-        <span class="brand-section">Плагины</span></a
+        ><span class="brand-icon">К</span></a
       >
-      <a
-        href="https://kogda-igra.ru/"
-        target="_blank"
-        rel="noopener noreferrer"
-        class="source-link"
-        >Источник: КогдаИгра ↗</a
+      <h1>Календарь</h1>
+      <label class="search"
+        ><span data-icon="search"></span
+        ><input
+          id="search"
+          type="search"
+          placeholder="Поиск событий, регионов, организаторов"
+          aria-label="Поиск игр"
+          maxlength="200"
+      /></label>
+      <button
+        id="toggle-filters"
+        class="icon-button"
+        aria-label="Фильтры"
+        title="Фильтры"
+        aria-expanded="false"
+        aria-controls="filter-options"
       >
+        <span data-icon="filter"></span
+        ><span id="filter-count" class="badge" hidden></span>
+      </button>
+      <button
+        id="saved-toggle"
+        class="icon-button"
+        aria-label="Избранное"
+        title="Избранное"
+        aria-pressed="false"
+      >
+        <span data-icon="star"></span>
+      </button>
+      <div class="layout-switcher">
+        <button
+          id="layout-toggle"
+          class="icon-button"
+          aria-label="Изменить отображение"
+          title="Изменить отображение"
+          aria-expanded="false"
+          aria-controls="layout-menu"
+        >
+          <span data-icon="calendar"></span>
+        </button>
+        <div id="layout-menu" class="layout-menu" hidden>
+          <button
+            data-layout="calendar"
+            aria-label="Календарь"
+            title="Календарь"
+          >
+            <span data-icon="calendar"></span>
+          </button>
+          <button data-layout="feed" aria-label="Лента" title="Лента">
+            <span data-icon="menu"></span>
+          </button>
+          <button
+            id="info-toggle"
+            aria-label="Об источнике"
+            title="Об источнике"
+          >
+            <span data-icon="info"></span>
+          </button>
+        </div>
+      </div>
+      <section
+        class="filter-row"
+        id="filter-options"
+        aria-label="Фильтры"
+        hidden
+      >
+        <div class="filter-heading">
+          <strong>Фильтры</strong
+          ><button
+            id="filter-close"
+            class="icon-button"
+            aria-label="Закрыть фильтры"
+          >
+            <span data-icon="close"></span>
+          </button>
+        </div>
+        <label
+          >Регион<select id="region" aria-label="Регион">
+            <option value="">Все регионы</option>
+          </select></label
+        >
+        <label
+          >Формат<select id="type" aria-label="Формат">
+            <option value="">Все форматы</option>
+          </select></label
+        >
+        <label
+          >Период<select id="month" aria-label="Когда">
+            <option value="">Любой месяц</option>
+          </select></label
+        >
+        <label
+          >Показать<select id="period">
+            <option value="all">Все события</option>
+            <option value="upcoming">Ближайшие</option>
+            <option value="undated">Без даты</option>
+          </select></label
+        >
+        <button id="reset" class="secondary" hidden>Сбросить фильтры</button>
+      </section>
     </header>
     <main>
-      <section class="intro">
-        <h1>Календарь игр<span>.</span></h1>
-      </section>
       <div id="notice" class="notice" role="status" hidden></div>
-      <section class="filters" aria-label="Поиск и фильтры">
-        <label class="search"
-          ><span>⌕</span
-          ><input
-            id="search"
-            type="search"
-            placeholder="Поиск игр"
-            aria-label="Поиск игр"
-            maxlength="200"
-        /></label>
-        <button
-          id="toggle-filters"
-          class="secondary"
-          type="button"
-          aria-expanded="false"
-          aria-controls="filter-options"
-        >
-          Фильтры
-        </button>
-        <div class="filter-row" id="filter-options">
-          <label
-            ><span class="sr-only">Регион</span
-            ><select id="region" aria-label="Регион">
-              <option value="">Все регионы</option>
-            </select></label
-          >
-          <label
-            ><span class="sr-only">Формат</span
-            ><select id="type" aria-label="Формат">
-              <option value="">Все форматы</option>
-            </select></label
-          >
-          <label
-            ><span class="sr-only">Когда</span
-            ><select id="month" aria-label="Когда">
-              <option value="">Любой месяц</option>
-            </select></label
-          >
-        </div>
-        <button id="reset" class="quiet" type="button" hidden>Сбросить</button>
-      </section>
       <section class="results" aria-label="События">
-        <div class="results-head">
-          <div class="tabs" role="group" aria-label="Показать игры">
-            <button data-view="upcoming" aria-pressed="true">Ближайшие</button
-            ><button data-view="all" aria-pressed="false">Все игры</button
-            ><button data-view="saved" aria-pressed="false">
-              Избранное <span id="saved-count">0</span>
-            </button>
-          </div>
-          <span id="count" aria-live="polite"></span>
-          <div class="layout-switcher">
-            <button
-              id="layout-toggle"
-              class="icon-button layout-toggle"
-              type="button"
-              aria-label="Изменить отображение"
-              aria-expanded="false"
-              aria-controls="layout-menu"
-            >
-              ▦
-            </button>
-            <div id="layout-menu" class="layout-menu" hidden>
-              <button
-                data-layout="feed"
-                type="button"
-                aria-label="Лента"
-                title="Лента"
-              >
-                ☷
-              </button>
-              <button
-                data-layout="calendar"
-                type="button"
-                aria-label="Календарь"
-                title="Календарь"
-              >
-                ▦
-              </button>
-              <button
-                type="button"
-                aria-label="Таймлайн появится позже"
-                title="Таймлайн появится позже"
-                disabled
-              >
-                ↔
-              </button>
-            </div>
-          </div>
-        </div>
         <div id="loading" class="empty" role="status">
           <span class="spinner"></span>
           <h2>Собираем планы на сезон</h2>
@@ -136,68 +138,87 @@
         </div>
         <div id="events"></div>
         <section id="calendar" aria-label="Календарь игр" hidden>
-          <div class="calendar-toolbar">
-            <button
-              id="calendar-prev"
-              class="icon-button"
-              type="button"
-              aria-label="Предыдущий месяц"
-            >
-              ‹
-            </button>
-            <button
-              id="calendar-month"
-              class="calendar-month"
-              type="button"
-              aria-label="Выбрать месяц"
-            ></button>
-            <button
-              id="calendar-next"
-              class="icon-button"
-              type="button"
-              aria-label="Следующий месяц"
-            >
-              ›
-            </button>
-            <button
-              id="calendar-today"
-              class="icon-button calendar-today"
-              type="button"
-              aria-label="Сегодня"
-            >
-              ◷
-            </button>
-          </div>
+          <section class="calendar-panel" aria-label="Выбор дня">
+            <div class="calendar-toolbar">
+              <button
+                id="calendar-prev"
+                class="icon-button"
+                aria-label="Предыдущий месяц"
+              >
+                <span data-icon="back"></span>
+              </button>
+              <button
+                id="calendar-month"
+                class="calendar-month"
+                aria-label="Выбрать дату"
+              ></button>
+              <button
+                id="calendar-next"
+                class="icon-button"
+                aria-label="Следующий месяц"
+              >
+                <span data-icon="forward"></span>
+              </button>
+              <button id="calendar-today" class="secondary calendar-today">
+                <span data-icon="calendar"></span><span>Сегодня</span>
+              </button>
+            </div>
+            <div
+              id="month-grid"
+              class="month-grid"
+              aria-label="Дни месяца"
+            ></div>
+          </section>
           <section
             id="day-stage"
             class="day-stage"
-            aria-label="Игры выбранного дня"
-          ></section>
-          <section
-            id="month-grid"
-            class="month-grid"
-            aria-label="Дни месяца"
+            aria-label="Мероприятия выбранного дня"
           ></section>
         </section>
         <button id="more" class="more" hidden>Показать ещё</button>
       </section>
-      <footer>
-        <p id="updated">Загружаем календарь…</p>
-        Даты могут меняться. Перед поездкой проверьте информацию у
-        организаторов.<br /><span
-          >Избранное хранится только в этом браузере. Данные —
-          <a
-            href="https://kogda-igra.ru/"
-            target="_blank"
-            rel="noopener noreferrer"
-            >КогдаИгра</a
-          >.</span
-        >
-      </footer>
     </main>
+    <dialog id="date-picker" aria-labelledby="date-picker-title">
+      <div class="dialog-head">
+        <h2 id="date-picker-title">Выбрать дату</h2>
+        <button
+          id="date-close"
+          class="icon-button"
+          aria-label="Закрыть выбор даты"
+        >
+          <span data-icon="close"></span>
+        </button>
+      </div>
+      <form id="date-form">
+        <label
+          >Дата<input
+            id="date-input"
+            type="date"
+            required
+            min="2000-01-01"
+            max="2100-12-31" /></label
+        ><button class="primary">Показать</button>
+      </form>
+    </dialog>
+    <dialog id="source-info" aria-labelledby="source-info-title">
+      <div class="dialog-head">
+        <h2 id="source-info-title">Источник данных</h2>
+        <button
+          id="info-close"
+          class="icon-button"
+          aria-label="Закрыть информацию"
+        >
+          <span data-icon="close"></span>
+        </button>
+      </div>
+      <a href="https://kogda-igra.ru/" target="_blank" rel="noopener noreferrer"
+        >КогдаИгра</a
+      >
+      <p id="updated"></p>
+    </dialog>
     <dialog id="detail" aria-labelledby="detail-title">
       <div class="dialog-head">
-        <span class="eyebrow">ВАШЕ СЛЕДУЮЩЕЕ ПРИКЛЮЧЕНИЕ</span
+        <span class="eyebrow">Событие</span
         ><button id="close" class="icon-button" aria-label="Закрыть карточку">
           ×
         </button>

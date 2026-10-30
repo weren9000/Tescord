@@ -1,15 +1,20 @@
+import { icon } from "./icons.js";
 const $ = (id) => document.getElementById(id);
 const storageKey = "kvachat.plugin.game-calendar.favorites.v1";
+const stateStorageKey = "kvachat.plugin.game-calendar.state.v2";
 const layoutStorageKey = "kvachat.plugin.game-calendar.layout.v1";
 let events = [],
   saved = new Set(),
-  view = "upcoming",
-  layout = "feed",
+  view = "all",
+  layout = "calendar",
   calendarMonth = "",
   selectedDate = "",
   limit = 60,
   active = null,
   toastTimer;
+let restoredState = null,
+  cardIndex = 0,
+  carouselObserver;
 let ready = false,
   loaded = false,
   storageAvailable = true;
@@ -17,6 +22,7 @@ try {
   const values = JSON.parse(localStorage.getItem(storageKey) || "[]");
   if (Array.isArray(values))
     saved = new Set(values.filter(Number.isSafeInteger));
+  restoredState = JSON.parse(localStorage.getItem(stateStorageKey) || "null");
   const storedLayout = localStorage.getItem(layoutStorageKey);
   if (["feed", "calendar"].includes(storedLayout)) layout = storedLayout;
 } catch {
@@ -35,7 +41,7 @@ const range = (e) =>
     ? "Дата уточняется"
     : e.start_date === e.end_date
       ? day(e.start_date, { day: "numeric", month: "long", year: "numeric" })
-      : `${day(e.start_date, { day: "numeric", month: "short" })} — ${day(e.end_date, { day: "numeric", month: "short", year: "numeric" })}`;
+      : `${day(e.start_date, { day: "numeric", month: "short" })} — ${day(e.end_date || e.start_date, { day: "numeric", month: "short", year: "numeric" })}`;
 const warning = (e) => /отмен|перенес|отлож|неизвест|уточн/i.test(e.status);
 const element = (tag, cls, text) => {
   const el = document.createElement(tag);
@@ -68,7 +74,11 @@ function toggleSaved(id) {
   } catch {
     storageAvailable = false;
   }
+  const rail = document.querySelector(".day-event-rail");
+  const scroll = rail?.scrollLeft || 0;
   render();
+  const nextRail = document.querySelector(".day-event-rail");
+  if (nextRail) nextRail.scrollLeft = scroll;
   updateSaveButton();
   if (!storageAvailable)
     toast(
@@ -117,15 +127,20 @@ function matches(e) {
     terms.every((t) => hay.includes(t)) &&
     (!$("region").value || e.region === $("region").value) &&
     (!$("type").value || e.type === $("type").value) &&
-    (!$("month").value || e.start_date?.slice(0, 7) === $("month").value) &&
-    (view !== "saved" || saved.has(e.id)) &&
+    (view === "undated" ||
+      layout === "calendar" ||
+      !$("month").value ||
+      (e.start_date?.slice(0, 7) <= $("month").value &&
+        (e.end_date || e.start_date)?.slice(0, 7) >= $("month").value)) &&
+    (!$("saved-toggle").matches('[aria-pressed="true"]') || saved.has(e.id)) &&
+    (view !== "undated" || !e.start_date) &&
     (view !== "upcoming" || !e.end_date || e.end_date >= today())
   );
 }
 function artwork(e, detail = false) {
   const box = element("div", "event-art" + (detail ? " detail-art" : ""));
   box.setAttribute("aria-hidden", "true");
-  box.append(element("span", "art-placeholder", "✦"));
+
   if (
     /^\/plugins\/game-calendar\/images\/[a-f0-9]{64}\.webp$/.test(
       e.image?.url || "",
@@ -145,7 +160,7 @@ function artwork(e, detail = false) {
   }
   return box;
 }
-const mobileFilters = matchMedia("(max-width: 720px)");
+const mobileFilters = matchMedia("(max-width: 959px)");
 let filtersExpanded = false;
 const calendarWeekdays = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 const calendarDate = (value) => new Date(value + "T12:00:00Z");
@@ -157,194 +172,445 @@ const shiftMonth = (month, offset) => {
   date.setUTCMonth(date.getUTCMonth() + offset);
   return isoDate(date).slice(0, 7);
 };
-function activeCalendarMonth(filtered) {
-  const selected = $("month").value;
-  if (selected) return selected;
-  if (calendarMonth) return calendarMonth;
-  const current = today().slice(0, 7);
-  return filtered.some((e) => e.start_date?.startsWith(current))
-    ? current
-    : filtered.find((e) => e.start_date)?.start_date.slice(0, 7) || current;
-}
 function calendarEvents(filtered, date) {
-  return filtered.filter((e) => e.start_date === date);
+  return filtered.filter(
+    (e) =>
+      e.start_date &&
+      e.start_date <= date &&
+      (e.end_date || e.start_date) >= date,
+  );
 }
-function selectCalendarDate(filtered, date) {
-  const month = activeCalendarMonth(filtered);
-  const first = filtered.find((e) =>
-    e.start_date?.startsWith(month),
-  )?.start_date;
-  selectedDate = calendarEvents(filtered, date).length
-    ? date
-    : first || `${month}-01`;
-}
-function vkCommunityUrl(event) {
-  const source = externalUrl(event.image?.source_url);
-  if (!source) return null;
-  const host = new URL(source).hostname.toLowerCase();
-  return [
-    "vk.com",
-    "vk.ru",
-    "www.vk.com",
-    "www.vk.ru",
-    "m.vk.com",
-    "m.vk.ru",
-  ].includes(host)
-    ? source
+function imageUrl(event) {
+  return /^\/plugins\/game-calendar\/images\/[a-f0-9]{64}\.webp$/.test(
+    event.image?.url || "",
+  )
+    ? event.image.url
     : null;
 }
-function calendarBanner(event, compact = false) {
-  const button = element(
-    "button",
-    "calendar-banner" + (compact ? " compact" : ""),
-  );
+function eventImage(event) {
+  const url = imageUrl(event);
+  if (!url) return null;
+  const img = element("img", event.image.kind === "avatar" ? "avatar-art" : "");
+  img.src = url;
+  img.alt = "";
+  img.loading = "lazy";
+  img.decoding = "async";
+  img.addEventListener("error", () => {
+    img.closest(".day-event-card")?.classList.remove("has-cover");
+    img.remove();
+  });
+  return img;
+}
+function vkCommunityUrl(event) {
+  for (const value of [event.image?.source_url, event.website]) {
+    const source = externalUrl(value);
+    if (source && /^(www\.|m\.)?vk\.(com|ru)$/.test(new URL(source).hostname))
+      return source;
+  }
+  if (/^[a-zA-Z0-9_.]{2,100}$/.test(event.vk_group || "")) {
+    return (
+      "https://vk.com/" +
+      (/^\d+$/.test(event.vk_group) ? "club" : "") +
+      event.vk_group
+    );
+  }
+  return null;
+}
+function iconButton(name, label, action) {
+  const button = element("button", "icon-button");
   button.type = "button";
-  button.style.setProperty(
-    "--image",
-    event.image?.url ? `url("${event.image.url}")` : "none",
-  );
-  button.setAttribute("aria-label", `Открыть игру: ${event.name}`);
-  button.append(element("span", "calendar-banner-title", event.name));
-  if (!compact && event.type)
-    button.append(element("span", "calendar-banner-type", event.type));
-  button.addEventListener("click", () => openEvent(event));
+  button.title = label;
+  button.setAttribute("aria-label", label);
+  button.append(icon(name));
+  button.addEventListener("click", action);
   return button;
 }
+function chooseDate(date) {
+  selectedDate = date;
+  calendarMonth = date.slice(0, 7);
+  cardIndex = 0;
+  if ($("month").value) $("month").value = calendarMonth;
+  render();
+}
+function changeMonth(offset) {
+  const next = shiftMonth(calendarMonth, offset);
+  const last = new Date(
+    Number(next.slice(0, 4)),
+    Number(next.slice(5)),
+    0,
+  ).getDate();
+  chooseDate(
+    next +
+      "-" +
+      String(Math.min(Number(selectedDate.slice(8)), last)).padStart(2, "0"),
+  );
+}
+function metadata(name, value) {
+  const row = element("span", "card-meta-item");
+  row.append(icon(name), document.createTextNode(value));
+  return row;
+}
 function renderDayStage(filtered) {
+  carouselObserver?.disconnect();
   const stage = $("day-stage");
-  const dayEvents = calendarEvents(filtered, selectedDate);
+  const previousScroll = stage.scrollTop;
   stage.replaceChildren();
-  const heading = element(
-    "h2",
-    "day-stage-title",
-    selectedDate
-      ? day(selectedDate, { day: "numeric", month: "long" })
-      : "Выберите день",
+  const dayEvents = calendarEvents(filtered, selectedDate);
+  const heading = element("header", "day-heading");
+  heading.append(
+    element("h2", "", day(selectedDate, { day: "numeric", month: "long" })),
+  );
+  const forms = {
+    one: "событие",
+    few: "события",
+    many: "событий",
+    other: "событий",
+  };
+  heading.append(
+    element(
+      "p",
+      "",
+      dayEvents.length +
+        " " +
+        forms[new Intl.PluralRules("ru").select(dayEvents.length)],
+    ),
   );
   stage.append(heading);
   if (!dayEvents.length) {
-    stage.append(element("p", "day-stage-empty", "В этот день игр нет."));
-    return;
+    const empty = element("div", "day-stage-empty");
+    empty.append(icon("calendar"), element("p", "", "Нет мероприятий"));
+    const upcoming = filtered
+      .filter((e) => e.start_date > selectedDate)
+      .sort((a, b) => a.start_date.localeCompare(b.start_date))[0];
+    if (upcoming) {
+      const next = element("button", "secondary", "Ближайший день с играми");
+      next.addEventListener("click", () => chooseDate(upcoming.start_date));
+      empty.append(next);
+    }
+    stage.append(empty);
+  } else {
+    const rail = element("div", "day-event-rail");
+    rail.setAttribute("aria-label", "Мероприятия");
+    rail.tabIndex = 0;
+    dayEvents.forEach((event) => {
+      const card = element(
+        "article",
+        "day-event-card" + (imageUrl(event) ? " has-cover" : ""),
+      );
+      card.dataset.eventId = event.id;
+      const hero = element("div", "card-cover");
+      const img = eventImage(event);
+      if (img) hero.append(img);
+      const title = element("h3", "card-title", event.name);
+      hero.append(title);
+      if (!mobileFilters.matches) {
+        const open = iconButton("expand", "Подробнее: " + event.name, () =>
+          openEvent(event),
+        );
+        open.classList.add("card-open");
+        hero.append(open);
+        hero.addEventListener("click", (e) => {
+          if (!e.target.closest("button")) openEvent(event);
+        });
+      }
+      const meta = element("div", "card-meta");
+      meta.append(metadata("calendar", range(event)));
+      if (event.region) meta.append(metadata("location", event.region));
+      const favorite = iconButton("star", "Избранное: " + event.name, () => {
+        toggleSaved(event.id);
+        document
+          .querySelector(
+            '.day-event-card[data-event-id="' + event.id + '"] .card-favorite',
+          )
+          ?.focus({ preventScroll: true });
+      });
+      favorite.classList.add("card-favorite");
+      favorite.setAttribute("aria-pressed", String(saved.has(event.id)));
+      meta.append(favorite);
+      card.append(hero, meta);
+      const body = element("div", "card-body");
+      if (event.type) {
+        const types = element("div", "tags");
+        types.append(element("span", "tag", event.type));
+        body.append(types);
+      }
+      if (event.description) {
+        const description = element("p", "card-description", event.description);
+        body.append(description);
+        if (event.description.length > 180) {
+          const more = element(
+            "button",
+            "quiet description-toggle",
+            "Развернуть",
+          );
+          more.setAttribute("aria-expanded", "false");
+          more.addEventListener("click", () => {
+            const expanded = description.classList.toggle("expanded");
+            more.textContent = expanded ? "Свернуть" : "Развернуть";
+            more.setAttribute("aria-expanded", String(expanded));
+          });
+          body.append(more);
+        }
+      }
+      const bottom = element("div", "card-bottom");
+      if (event.organizer) bottom.append(metadata("groups", event.organizer));
+      const actions = element("div", "card-actions");
+      actions.append(
+        iconButton("info", "Подробнее: " + event.name, () => openEvent(event)),
+      );
+      const vk = vkCommunityUrl(event);
+      if (vk) {
+        const link = element("a", "icon-button primary");
+        link.href = vk;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.title = "Открыть сообщество VK";
+        link.setAttribute("aria-label", "Открыть сообщество VK");
+        link.append(icon("expand"));
+        actions.append(link);
+      }
+      bottom.append(actions);
+      body.append(bottom);
+      card.append(body);
+      if (warning(event))
+        card.append(element("span", "card-status", event.status));
+      rail.append(card);
+    });
+    stage.append(rail);
+    if (dayEvents.length > 1) {
+      const controls = element("div", "carousel-controls");
+      const counter = element("span", "carousel-counter");
+      const update = () => {
+        const step = rail.firstElementChild.getBoundingClientRect().width + 12;
+        cardIndex = Math.min(
+          dayEvents.length - 1,
+          Math.max(0, Math.round(rail.scrollLeft / step)),
+        );
+        counter.textContent = cardIndex + 1 + " / " + dayEvents.length;
+        if (mobileFilters.matches)
+          rail.style.height = rail.children[cardIndex].offsetHeight + "px";
+      };
+      const move = (offset) =>
+        rail.scrollBy({
+          left:
+            offset *
+            (rail.firstElementChild.getBoundingClientRect().width + 12),
+          behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
+            ? "instant"
+            : "smooth",
+        });
+      controls.append(
+        iconButton("back", "Предыдущее мероприятие", () => move(-1)),
+        counter,
+        iconButton("forward", "Следующее мероприятие", () => move(1)),
+      );
+      rail.addEventListener("scroll", update, { passive: true });
+      stage.append(controls);
+      update();
+      carouselObserver = new ResizeObserver(update);
+      for (const card of rail.children) carouselObserver.observe(card);
+    }
   }
-  const rail = element("div", "day-event-rail");
-  for (const event of dayEvents) {
-    const card = element("article", "day-event-card");
-    card.style.setProperty(
-      "--image",
-      event.image?.url ? `url("${event.image.url}")` : "none",
+  const unknown = filtered.filter((e) => !e.start_date).length;
+  if (unknown) {
+    const button = element(
+      "button",
+      "quiet undated-link",
+      "Без даты · " + unknown,
     );
-    const open = element("button", "day-event-open", event.name);
-    open.type = "button";
-    open.addEventListener("click", () => openEvent(event));
-    const meta = element(
-      "p",
-      "day-event-meta",
-      [event.type, event.region].filter(Boolean).join(" · "),
-    );
-    card.append(open, meta);
-    rail.append(card);
+    button.addEventListener("click", () => {
+      view = "undated";
+      $("period").value = view;
+      $("month").value = "";
+      layout = "feed";
+      render();
+    });
+    stage.append(button);
   }
-  stage.append(rail);
+  stage.scrollTop = previousScroll;
 }
 function renderMonthGrid(filtered) {
-  const grid = $("month-grid");
+  const grid = $("month-grid"),
+    previousMonth = grid.dataset.month,
+    previousScroll = grid.scrollLeft;
+  grid.dataset.month = calendarMonth;
   grid.replaceChildren();
-  const mobile = matchMedia("(max-width: 720px)").matches;
+  const mobile = mobileFilters.matches;
   grid.classList.toggle("week-rail", mobile);
+  const first = calendarDate(calendarMonth + "-01");
+  const last = calendarDate(shiftMonth(calendarMonth, 1) + "-01");
+  last.setUTCDate(0);
+  const offset = (first.getUTCDay() + 6) % 7,
+    count = mobile
+      ? last.getUTCDate()
+      : Math.ceil((offset + last.getUTCDate()) / 7) * 7;
+  const start = new Date(first);
+  if (!mobile) start.setUTCDate(1 - offset);
   if (!mobile)
     for (const weekday of calendarWeekdays)
       grid.append(element("span", "weekday", weekday));
-  const first = calendarDate(calendarMonth + "-01");
-  const start = mobile ? calendarDate(selectedDate) : new Date(first);
-  start.setUTCDate(start.getUTCDate() - ((start.getUTCDay() + 6) % 7));
-  for (let index = 0; index < (mobile ? 7 : 42); index += 1) {
+  grid.style.setProperty("--weeks", String(count / 7));
+  for (let i = 0; i < count; i++) {
     const date = new Date(start);
-    date.setUTCDate(start.getUTCDate() + index);
-    const iso = isoDate(date);
-    const dayEvents = calendarEvents(filtered, iso);
+    date.setUTCDate(start.getUTCDate() + i);
+    const iso = isoDate(date),
+      dayEvents = calendarEvents(filtered, iso);
     const cell = element(
-      "div",
+      "button",
       "calendar-day" +
         (iso.slice(0, 7) !== calendarMonth ? " outside" : "") +
-        (iso === selectedDate ? " selected" : ""),
+        (iso === selectedDate ? " selected" : "") +
+        (iso === today() ? " today" : ""),
     );
-    cell.tabIndex = 0;
-    cell.setAttribute("role", "button");
+    cell.type = "button";
+    cell.dataset.date = iso;
     cell.setAttribute(
       "aria-label",
-      `${day(iso, { day: "numeric", month: "long" })}${dayEvents.length ? `, игр: ${dayEvents.length}` : ""}`,
+      day(iso, { day: "numeric", month: "long", year: "numeric" }) +
+        ", событий: " +
+        dayEvents.length,
     );
+    cell.setAttribute("aria-pressed", String(iso === selectedDate));
+    if (iso === today()) cell.setAttribute("aria-current", "date");
     cell.append(element("span", "calendar-date", String(date.getUTCDate())));
+    if (mobile)
+      cell.append(
+        element(
+          "span",
+          "calendar-weekday",
+          calendarWeekdays[(date.getUTCDay() + 6) % 7],
+        ),
+      );
     const banners = element("span", "calendar-day-banners");
-    for (const event of dayEvents.slice(0, 2))
-      banners.append(calendarBanner(event, true));
-    if (dayEvents.length > 2)
+    const previews = dayEvents
+      .filter((e) => imageUrl(e))
+      .slice(0, mobile ? 2 : 3);
+    for (const event of previews) {
+      const banner = element("span", "calendar-banner");
+      const img = eventImage(event);
+      if (img) banner.append(img);
+      banners.append(banner);
+    }
+    if (dayEvents.length > previews.length)
       banners.append(
-        element("span", "calendar-overflow", `+${dayEvents.length - 2}`),
+        element(
+          "span",
+          "calendar-overflow",
+          previews.length
+            ? "+" + (dayEvents.length - previews.length)
+            : String(dayEvents.length),
+        ),
       );
     cell.append(banners);
-    cell.addEventListener("click", (click) => {
-      if (click.target.closest(".calendar-banner")) return;
-      calendarMonth = iso.slice(0, 7);
-      selectedDate = iso;
-      render();
+    cell.addEventListener("click", () => {
+      chooseDate(iso);
+      $("month-grid")
+        .querySelector('[data-date="' + iso + '"]')
+        ?.focus({ preventScroll: true });
     });
-    cell.addEventListener("keydown", (key) => {
-      if (key.key === "Enter" || key.key === " ") {
-        key.preventDefault();
-        cell.click();
+    cell.addEventListener("keydown", (e) => {
+      const offsets = {
+        ArrowLeft: -1,
+        ArrowRight: 1,
+        ArrowUp: -7,
+        ArrowDown: 7,
+      };
+      if (offsets[e.key]) {
+        e.preventDefault();
+        const next = new Date(date);
+        next.setUTCDate(next.getUTCDate() + offsets[e.key]);
+        chooseDate(isoDate(next));
+        $("month-grid")
+          .querySelector('[data-date="' + selectedDate + '"]')
+          ?.focus({ preventScroll: true });
       }
     });
     grid.append(cell);
   }
   if (mobile) {
-    const selected = grid.querySelector(".calendar-day.selected");
-    if (selected)
-      grid.scrollLeft = Math.max(
-        0,
-        selected.offsetLeft - (grid.clientWidth - selected.clientWidth) / 2,
-      );
+    grid.scrollLeft = previousMonth === calendarMonth ? previousScroll : 0;
+    const selected = grid.querySelector(".selected");
+    if (selected) {
+      const box = selected.getBoundingClientRect(),
+        outer = grid.getBoundingClientRect();
+      if (box.left < outer.left || box.right > outer.right)
+        grid.scrollLeft +=
+          box.left - outer.left - (grid.clientWidth - box.width) / 2;
+    }
   }
 }
 function renderCalendar(filtered) {
-  calendarMonth = activeCalendarMonth(filtered);
-  if (!selectedDate || !selectedDate.startsWith(calendarMonth))
-    selectCalendarDate(filtered, `${calendarMonth}-01`);
-  $("calendar-month").textContent = monthLabel(calendarMonth);
+  if (!selectedDate) selectedDate = today();
+  if (!calendarMonth) calendarMonth = selectedDate.slice(0, 7);
+  $("calendar-month").textContent = monthLabel(calendarMonth).replace(
+    " г.",
+    "",
+  );
   renderDayStage(filtered);
   renderMonthGrid(filtered);
 }
+function saveViewState() {
+  try {
+    localStorage.setItem(layoutStorageKey, layout);
+    localStorage.setItem(
+      stateStorageKey,
+      JSON.stringify({
+        date: selectedDate,
+        filters: Object.fromEntries(
+          ["search", "region", "type", "month", "period"].map((id) => [
+            id,
+            $(id).value,
+          ]),
+        ),
+        saved: $("saved-toggle").getAttribute("aria-pressed") === "true",
+      }),
+    );
+  } catch {
+    /* Session state remains available without storage. */
+  }
+}
 function updateFilters() {
-  const count = ["region", "type", "month"].filter((id) => $(id).value).length;
+  const count =
+    ["region", "type", "month"].filter((id) => $(id).value).length +
+    (view !== "all" ? 1 : 0);
   $("reset").hidden = !count && !$("search").value.trim();
-  $("toggle-filters").textContent = count ? `Фильтры · ${count}` : "Фильтры";
+  $("filter-count").hidden = !count;
+  $("filter-count").textContent = count;
   $("toggle-filters").setAttribute("aria-expanded", String(filtersExpanded));
-  $("filter-options").hidden = mobileFilters.matches && !filtersExpanded;
+  $("filter-options").hidden = !filtersExpanded;
 }
 $("toggle-filters").addEventListener("click", () => {
   filtersExpanded = !filtersExpanded;
   updateFilters();
+  if (filtersExpanded) $("region").focus();
 });
-mobileFilters.addEventListener("change", updateFilters);
+$("filter-close").addEventListener("click", () => {
+  filtersExpanded = false;
+  updateFilters();
+  $("toggle-filters").focus();
+});
+$("saved-toggle").addEventListener("click", () => {
+  $("saved-toggle").setAttribute(
+    "aria-pressed",
+    String($("saved-toggle").getAttribute("aria-pressed") !== "true"),
+  );
+  render();
+});
 updateFilters();
 function render() {
   updateFilters();
-  $("saved-count").textContent = saved.size;
-  document
-    .querySelectorAll("[data-view]")
-    .forEach((b) =>
-      b.setAttribute("aria-pressed", String(b.dataset.view === view)),
-    );
+  document.body.classList.toggle("calendar-mode", layout === "calendar");
   if (!loaded) return;
   const filtered = events.filter(matches);
-  $("count").textContent = String(filtered.length);
-  $("count").setAttribute("aria-label", `Найдено игр: ${filtered.length}`);
-  $("empty").hidden = filtered.length > 0;
+  saveViewState();
+  $("empty").hidden = (layout === "calendar" && ready) || filtered.length > 0;
   $("events").replaceChildren();
-  $("calendar").hidden = layout !== "calendar" || filtered.length === 0;
+  $("calendar").hidden = layout !== "calendar" || !ready;
   $("events").hidden = layout === "calendar";
   $("more").hidden = layout === "calendar" || filtered.length <= limit;
-  $("layout-toggle").textContent = layout === "calendar" ? "▦" : "☷";
+  $("layout-toggle").replaceChildren(
+    icon(layout === "calendar" ? "calendar" : "menu"),
+  );
   document
     .querySelectorAll("[data-layout]")
     .forEach((button) =>
@@ -363,8 +629,9 @@ function render() {
     : view === "saved" && !saved.size
       ? "Нажмите на звезду рядом с игрой, чтобы сохранить её."
       : "Попробуйте другой период, регион или сбросьте фильтры.";
-  if (layout === "calendar" && filtered.length) {
+  if (layout === "calendar" && ready) {
     renderCalendar(filtered);
+    saveViewState();
     return;
   }
   let previousMonth = "";
@@ -410,11 +677,8 @@ function render() {
     meta.append(element("span", "", range(e)));
     main.append(meta);
     if (e.organizer) main.append(element("p", "event-organizer", e.organizer));
-    const favorite = element(
-      "button",
-      "icon-button",
-      saved.has(e.id) ? "★" : "☆",
-    );
+    const favorite = element("button", "icon-button");
+    favorite.append(icon("star"));
     favorite.setAttribute(
       "aria-label",
       (saved.has(e.id) ? "Убрать из избранного: " : "В избранное: ") + e.name,
@@ -545,6 +809,7 @@ async function load() {
   $("empty").hidden = true;
   $("events").replaceChildren();
   $("more").hidden = true;
+  $("calendar").hidden = true;
   try {
     const response = await fetch("./api/events");
     if (!response.ok) throw Error("calendar");
@@ -586,6 +851,26 @@ async function load() {
         .map((v) => [v, day(v + "-01", { month: "long", year: "numeric" })]),
       "Любой месяц",
     );
+    if (restoredState) {
+      const date = restoredState.date;
+      if (
+        /^20\d{2}-\d{2}-\d{2}$/.test(date || "") &&
+        !Number.isNaN(Date.parse(date))
+      ) {
+        selectedDate = date;
+        calendarMonth = date.slice(0, 7);
+      }
+      for (const id of ["search", "region", "type", "month", "period"]) {
+        const value = restoredState.filters?.[id];
+        if (typeof value === "string") $(id).value = value;
+      }
+      view = $("period").value || "all";
+      $("saved-toggle").setAttribute(
+        "aria-pressed",
+        String(restoredState.saved === true),
+      );
+      restoredState = null;
+    }
     render();
     const id = Number(location.hash.match(/^#event-(\d+)$/)?.[1]);
     const e = events.find((e) => e.id === id);
@@ -597,82 +882,101 @@ async function load() {
     $("loading").hidden = true;
   }
 }
-for (const id of ["search", "region", "type", "month"])
+for (const id of ["search", "region", "type", "month", "period"])
   $(id).addEventListener(id === "search" ? "input" : "change", () => {
-    if (id === "month") calendarMonth = $("month").value;
+    if (id === "period") {
+      view = $("period").value;
+      if (view === "undated") layout = "feed";
+    }
+    if (id === "month" && $("month").value) {
+      calendarMonth = $("month").value;
+      selectedDate = calendarMonth + "-01";
+    }
     limit = 60;
+    cardIndex = 0;
     render();
   });
-document.querySelectorAll("[data-view]").forEach((b) =>
-  b.addEventListener("click", () => {
-    view = b.dataset.view;
-    limit = 60;
-    render();
-  }),
-);
 $("reset").addEventListener("click", () => {
   for (const id of ["search", "region", "type", "month"]) $(id).value = "";
+  view = "all";
+  $("period").value = "all";
   limit = 60;
   render();
-  $("search").focus();
 });
 $("more").addEventListener("click", () => {
   limit += 60;
   render();
 });
+function closeLayout() {
+  $("layout-menu").hidden = true;
+  $("layout-toggle").setAttribute("aria-expanded", "false");
+}
 $("layout-toggle").addEventListener("click", () => {
   const menu = $("layout-menu");
   menu.hidden = !menu.hidden;
   $("layout-toggle").setAttribute("aria-expanded", String(!menu.hidden));
+  if (!menu.hidden) menu.querySelector("button").focus();
 });
 document.querySelectorAll("[data-layout]").forEach((button) =>
   button.addEventListener("click", () => {
     layout = button.dataset.layout;
-    try {
-      localStorage.setItem(layoutStorageKey, layout);
-    } catch {
-      storageAvailable = false;
+    if (layout === "calendar" && view === "undated") {
+      view = "all";
+      $("period").value = "all";
     }
-    $("layout-menu").hidden = true;
-    $("layout-toggle").setAttribute("aria-expanded", "false");
+    closeLayout();
     render();
+    $("layout-toggle").focus();
   }),
 );
-$("calendar-prev").addEventListener("click", () => {
-  calendarMonth = shiftMonth(calendarMonth || today().slice(0, 7), -1);
-  selectedDate = "";
-  render();
-});
-$("calendar-next").addEventListener("click", () => {
-  calendarMonth = shiftMonth(calendarMonth || today().slice(0, 7), 1);
-  selectedDate = "";
-  render();
-});
-$("calendar-today").addEventListener("click", () => {
-  calendarMonth = today().slice(0, 7);
-  selectedDate = today();
-  render();
-});
+$("calendar-prev").addEventListener("click", () => changeMonth(-1));
+$("calendar-next").addEventListener("click", () => changeMonth(1));
+$("calendar-today").addEventListener("click", () => chooseDate(today()));
 $("calendar-month").addEventListener("click", () => {
-  const select = $("month");
-  select.value = calendarMonth;
-  if (typeof select.showPicker === "function") {
-    select.showPicker();
-    return;
-  }
-  filtersExpanded = true;
-  updateFilters();
-  select.focus();
+  $("date-input").value = selectedDate;
+  $("date-picker").showModal();
 });
-document.addEventListener("click", (click) => {
-  if (!click.target.closest(".layout-switcher")) {
-    $("layout-menu").hidden = true;
-    $("layout-toggle").setAttribute("aria-expanded", "false");
+$("date-close").addEventListener("click", () => $("date-picker").close());
+$("date-form").addEventListener("submit", (e) => {
+  e.preventDefault();
+  chooseDate($("date-input").value);
+  $("date-picker").close();
+});
+$("info-toggle").addEventListener("click", () => {
+  closeLayout();
+  $("source-info").showModal();
+});
+$("info-close").addEventListener("click", () => $("source-info").close());
+document.addEventListener("click", (e) => {
+  if (!e.target.closest(".layout-switcher")) closeLayout();
+  if (
+    !e.target.closest("#filter-options") &&
+    !e.target.closest("#toggle-filters")
+  ) {
+    filtersExpanded = false;
+    updateFilters();
+  }
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    if (!$("layout-menu").hidden) {
+      closeLayout();
+      $("layout-toggle").focus();
+    }
+    if (filtersExpanded) {
+      filtersExpanded = false;
+      updateFilters();
+      $("toggle-filters").focus();
+    }
   }
 });
 mobileFilters.addEventListener("change", () => {
   if (layout === "calendar") render();
 });
+document
+  .querySelectorAll("[data-icon]")
+  .forEach((node) => node.replaceChildren(icon(node.dataset.icon)));
+$("close").replaceChildren(icon("close"));
 $("retry").addEventListener("click", load);
 $("close").addEventListener("click", () => $("detail").close());
 $("detail").addEventListener("close", () => {
