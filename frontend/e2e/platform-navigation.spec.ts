@@ -129,7 +129,7 @@ test('Platform alignment and full navigation collapse', async ({ page }, testInf
   await hide.hover();
   const sidebarEdge = await page.locator('.platform-sidebar').boundingBox();
   const control = await hide.boundingBox();
-  expect(Math.abs(control!.x - (sidebarEdge!.x + sidebarEdge!.width - 4))).toBeLessThan(2);
+  expect(Math.abs(control!.x - (sidebarEdge!.x + sidebarEdge!.width - 16))).toBeLessThan(2);
   await hide.click();
   await expect(restore).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

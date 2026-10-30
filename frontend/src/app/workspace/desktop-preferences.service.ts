@@ -11,6 +11,8 @@ interface Preferences {
   textSize: number;
   platformsCollapsed: boolean;
   platformNavigationHidden: boolean;
+  groupNavigationHidden: boolean;
+  friendNavigationHidden: boolean;
 }
 const defaults: Preferences = {
   density: 'normal',
@@ -21,6 +23,8 @@ const defaults: Preferences = {
   textSize: 15,
   platformsCollapsed: false,
   platformNavigationHidden: false,
+  groupNavigationHidden: false,
+  friendNavigationHidden: false,
 };
 const key = 'kva.desktop-layout.v1';
 
@@ -61,6 +65,8 @@ export class DesktopPreferencesService {
       collapsed: value?.collapsed === true,
       platformsCollapsed: value?.platformsCollapsed === true,
       platformNavigationHidden: value?.platformNavigationHidden === true,
+      groupNavigationHidden: value?.groupNavigationHidden === true,
+      friendNavigationHidden: value?.friendNavigationHidden === true,
       textSize: bounded(value?.textSize, 13, 20, 15),
     };
   }

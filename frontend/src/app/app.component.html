@@ -1228,9 +1228,8 @@
       class="messenger-layout"
       appPlatformNavigation
       #platformNavigation="platformNavigation"
-      [class.platform-navigation-hidden]="
-        isPlatformsMode() && desktopPreferences.value().platformNavigationHidden
-      "
+      [section]="workspaceMode()"
+      [class.platform-navigation-hidden]="platformNavigation.hidden()"
       [class.messenger-layout--admin]="
         adminDirectoryOpen() && (isAdmin() || !!currentUser()?.is_avatar_admin)
       "
@@ -1400,7 +1399,7 @@
         </aside>
       }
 
-      @if (isPlatformsMode() && !adminDirectoryOpen()) {
+      @if (!adminDirectoryOpen()) {
         <button
           type="button"
           class="platform-navigation-collapse"
@@ -1409,11 +1408,11 @@
           aria-expanded="true"
           (click)="platformNavigation.toggle()"
         >
-          <app-ui-icon name="back" />
+          <span class="navigation-handle"><app-ui-icon name="back" /></span>
         </button>
       }
       <main class="messenger-workspace">
-        @if (isPlatformsMode() && !adminDirectoryOpen()) {
+        @if (!adminDirectoryOpen()) {
           <button
             type="button"
             class="platform-navigation-restore"
@@ -1422,7 +1421,7 @@
             aria-expanded="false"
             (click)="platformNavigation.toggle()"
           >
-            <app-ui-icon name="forward" />
+            <span class="navigation-handle"><app-ui-icon name="forward" /></span>
           </button>
         }
         @if (activeServer()) {
