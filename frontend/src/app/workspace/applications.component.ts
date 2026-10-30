@@ -16,7 +16,7 @@ import { UiIconComponent } from './ui-icon.component';
       <header>
         <h3>Приложения</h3>
         <button type="button" class="close" aria-label="Закрыть приложения" (click)="closed.emit()">
-          ×
+          <app-ui-icon name="close" />
         </button>
       </header>
       <nav aria-label="Разделы приложений">
@@ -49,27 +49,36 @@ import { UiIconComponent } from './ui-icon.component';
         } @else if (!state.loadFailed()) {
           @if (tab() === 'mine' && !connected().length) {
             <div class="empty">
-              <h4>Пока нет приложений</h4>
+              <h4>Нет подключённых приложений</h4>
               <button type="button" class="primary" (click)="tab.set('catalog')">
-                Выбрать приложения
+                Открыть каталог
               </button>
             </div>
           } @else {
-            <div class="applications-grid">
+            <div
+              [class.applications-grid]="tab() === 'mine'"
+              [class.catalog-list]="tab() === 'catalog'"
+            >
               @for (item of visible(); track item.id) {
                 @if (tab() === 'catalog') {
-                  <label class="application-tile" [class.connected]="item.enabled">
-                    <input
-                      type="checkbox"
-                      [attr.aria-label]="'Подключить ' + item.name"
-                      [checked]="item.enabled"
-                      [disabled]="state.busy()"
-                      (change)="toggle(item, $event)"
-                    />
+                  <div class="application-row">
                     <span class="application-icon"><app-ui-icon name="calendar" /></span>
-                    <strong>{{ item.name }}</strong>
-                    <small>{{ item.description }}</small>
-                  </label>
+                    <div class="application-copy">
+                      <strong>{{ item.name }}</strong>
+                      <small>{{ item.description }}</small>
+                    </div>
+                    <button
+                      type="button"
+                      role="switch"
+                      class="connection-switch"
+                      [attr.aria-label]="'Подключить ' + item.name"
+                      [attr.aria-checked]="item.enabled"
+                      [disabled]="state.busy()"
+                      (click)="state.setEnabled(item, !item.enabled)"
+                    >
+                      <span class="switch-track" aria-hidden="true"></span>
+                    </button>
+                  </div>
                 } @else {
                   <button
                     class="application-tile"
@@ -105,10 +114,6 @@ export class ApplicationsComponent {
 
   constructor() {
     effect(() => this.state.load(this.token()));
-  }
-
-  toggle(item: ConnectedApplication, event: Event): void {
-    this.state.setEnabled(item, (event.target as HTMLInputElement).checked);
   }
 
   open(item: ConnectedApplication): void {

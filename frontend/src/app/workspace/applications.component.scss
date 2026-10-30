@@ -12,12 +12,17 @@
   background: var(--palette-surface);
   color: var(--palette-text);
   font: inherit;
-  overflow: auto;
+  overflow: hidden;
+}
+.applications[open] {
+  display: flex;
+  flex-direction: column;
 }
 .applications::backdrop {
   background: rgb(0 0 0 / 0.6);
 }
 header {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -38,13 +43,11 @@ button {
   background: transparent;
   color: var(--palette-text);
 }
-button:disabled,
-input:disabled {
+button:disabled {
   opacity: 0.5;
   cursor: wait;
 }
-button:focus-visible,
-input:focus-visible {
+button:focus-visible {
   outline: 2px solid var(--palette-primary);
   outline-offset: 3px;
 }
@@ -52,6 +55,8 @@ button:hover {
   background: var(--palette-hover);
 }
 .close {
+  display: grid;
+  place-items: center;
   width: 44px;
   padding: 0;
   font-size: 26px;
@@ -59,27 +64,42 @@ button:hover {
 }
 nav {
   display: flex;
-  gap: 8px;
+  flex-shrink: 0;
+  gap: 0;
   padding: 0 24px 16px;
   border-bottom: 1px solid var(--palette-border);
 }
 nav button {
-  border-color: transparent;
+  border-radius: 0 8px 8px 0;
   font-size: 14px;
 }
+nav button:first-child {
+  border-radius: 8px 0 0 8px;
+}
+nav button + button {
+  margin-left: -1px;
+}
 nav button[aria-pressed='true'] {
-  color: var(--palette-primary-text);
-  background: var(--palette-hover);
+  position: relative;
+  color: white;
+  border-color: var(--palette-primary);
+  background: var(--palette-primary);
 }
 .content {
-  padding: 24px;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-bottom: env(safe-area-inset-bottom);
 }
 .applications-grid {
+  padding: 24px;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(166px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(166px, 190px));
   gap: 16px;
 }
 .application-tile {
+  min-width: 0;
+  overflow-wrap: anywhere;
   position: relative;
   display: flex;
   min-height: 168px;
@@ -126,18 +146,72 @@ button.application-tile:hover {
   width: 28px;
   height: 28px;
 }
-.application-tile input {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  width: 20px;
-  height: 20px;
-  margin: 0;
-  accent-color: var(--palette-primary);
-  cursor: pointer;
+.application-row {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) 56px;
+  align-items: center;
+  gap: 20px;
+  padding: 20px 24px;
 }
-.application-tile.connected {
-  border-color: var(--palette-primary);
+.application-row + .application-row {
+  border-top: 1px solid var(--palette-border);
+}
+.application-row .application-icon {
+  box-sizing: border-box;
+  width: 56px;
+  height: 56px;
+  border: 1px solid var(--palette-border);
+  background: var(--palette-raised);
+}
+.application-copy {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.application-copy strong {
+  display: block;
+  font-size: 16px;
+  line-height: 1.4;
+}
+.application-copy small {
+  display: block;
+  margin-top: 4px;
+  color: var(--palette-muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+.connection-switch {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 24px;
+}
+.connection-switch:hover {
+  background: transparent;
+}
+.switch-track {
+  width: 52px;
+  height: 30px;
+  padding: 3px;
+  box-sizing: border-box;
+  border-radius: 20px;
+  background: var(--palette-subtle);
+}
+.switch-track::after {
+  content: '';
+  display: block;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: white;
+}
+.connection-switch[aria-checked='true'] .switch-track {
+  background: var(--palette-primary);
+}
+.connection-switch[aria-checked='true'] .switch-track::after {
+  transform: translateX(22px);
 }
 .empty {
   padding: 44px 12px;
@@ -155,6 +229,7 @@ h4 {
   border-color: var(--palette-primary);
 }
 .error {
+  padding: 0 24px;
   color: var(--palette-danger);
   font-size: 14px;
 }
@@ -175,15 +250,29 @@ h4 {
   nav {
     padding: 0 16px 12px;
   }
-  .content {
-    padding: 16px;
-  }
   .applications-grid {
+    padding: 16px;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
   }
   .application-tile {
     min-height: 154px;
     padding: 16px 10px;
+  }
+  .application-row {
+    grid-template-columns: 44px minmax(0, 1fr) 52px;
+    gap: 12px;
+    padding: 16px;
+  }
+  .application-row .application-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+  }
+  .application-copy small {
+    font-size: 12px;
+  }
+  .connection-switch {
+    width: 52px;
   }
 }
