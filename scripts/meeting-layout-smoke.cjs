@@ -7,7 +7,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs');
  const errors=[];page.on('pageerror',e=>errors.push(e.message));fs.mkdirSync('.local/room-design',{recursive:true});
  await page.route('**/api/**',r=>r.fulfill({status:200,contentType:'application/json',body:'{}'}));
  try{
-  await page.goto('http://127.0.0.1:4217/my-room');
+  await page.goto((process.env.KVA_UI_BASE || 'http://127.0.0.1:4217') + '/my-room');
   await page.waitForFunction(()=>window.ng?.getComponent?.(document.querySelector('app-root')));
   await page.evaluate(()=>{
    const a=ng.getComponent(document.querySelector('app-root'));window.roomFixture=a;
@@ -25,6 +25,8 @@ const assert=require('node:assert/strict'),fs=require('node:fs');
     assert(Math.max(...layout.buttons.map(b=>b.y))-Math.min(...layout.buttons.map(b=>b.y))<1,'Toolbar buttons align');
     if([1,6].includes(count))await page.screenshot({path:`.local/room-design/room-${width}-${count}.png`});
    }
+   assert.equal(await page.locator('.meeting-toolbar button[aria-label="Чат встречи"]').count(),1);
+   assert.equal(await page.locator('.meeting-head button[aria-label="Чат встречи"]').count(),0);
    await page.getByRole('button',{name:'Участники',exact:true}).click();
    const slider=await page.getByRole('slider').first().boundingBox();assert(slider.width>=140,`Wide personal slider at ${width}`);
    if([1440,393].includes(width))await page.screenshot({path:`.local/room-design/participants-${width}.png`});

@@ -1,8 +1,3 @@
-.messenger-shell .conversation-head .call-chat-toggle.call-control-button--active {
-  background: var(--palette-selected);
-  color: var(--palette-primary-text);
-}
-
 .messenger-shell .workspace-main-pane--call-chat {
   display: grid;
   grid-template-columns: minmax(0, 1fr) clamp(280px, 38%, 360px);
@@ -100,5 +95,16 @@
       grid-column: 1;
       border-left: 0;
     }
+  }
+}
+
+@media (max-width: 360px) {
+  .messenger-shell .call-window__controls {
+    gap: 0;
+    padding-inline: 0;
+  }
+
+  .messenger-shell .call-window__controls .call-control-button--danger {
+    margin-left: 0;
   }
 }

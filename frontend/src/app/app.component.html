@@ -660,6 +660,18 @@
                   <app-ui-icon name="groups" />
                 </button>
                 <button
+                  class="call-control-button call-chat-toggle"
+                  type="button"
+                  [class.call-control-button--active]="callChatOpen()"
+                  [attr.aria-expanded]="callChatOpen()"
+                  [attr.aria-label]="callChatOpen() ? 'Закрыть чат звонка' : 'Открыть чат звонка'"
+                  [title]="callChatOpen() ? 'Закрыть чат звонка' : 'Открыть чат звонка'"
+                  [disabled]="!activeCallChatTarget()"
+                  (click)="openActiveCallChat($event)"
+                >
+                  <app-ui-icon name="chat" />
+                </button>
+                <button
                   class="call-control-button"
                   type="button"
                   aria-label="Настройки звонка"
@@ -1504,17 +1516,6 @@
 
               @if (callWindowExpanded()) {
                 <button
-                  class="call-control-button call-chat-toggle"
-                  type="button"
-                  [class.call-control-button--active]="callChatOpen()"
-                  [attr.aria-expanded]="callChatOpen()"
-                  [attr.aria-label]="callChatOpen() ? 'Закрыть чат звонка' : 'Открыть чат звонка'"
-                  [title]="callChatOpen() ? 'Закрыть чат звонка' : 'Открыть чат звонка'"
-                  [disabled]="!activeCallChatTarget()"
-                  (click)="openActiveCallChat($event)"
-                >
-                  <app-ui-icon name="chat" /></button
-                ><button
                   class="call-control-button"
                   type="button"
                   aria-label="Свернуть звонок"

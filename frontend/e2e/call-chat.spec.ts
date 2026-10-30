@@ -47,6 +47,8 @@ for (const kind of ['direct', 'group', 'platform'] as const) {
       ng.applyChanges(a);
     }, kind);
     const toggle = page.locator('.call-chat-toggle');
+    await expect(page.locator('.conversation-head .call-chat-toggle')).toHaveCount(0);
+    await expect(page.locator('.call-window__controls .call-chat-toggle')).toHaveCount(1);
     const stream = page.locator('.conversation-stream');
     const stage = page.locator('.call-window-layer');
     await expect(toggle).toBeVisible();
@@ -111,6 +113,18 @@ for (const kind of ['direct', 'group', 'platform'] as const) {
     await expect(stage).toBeVisible();
     for (const width of [393, 320]) {
       await page.setViewportSize({ width, height: 852 });
+      const chatButton = (await toggle.boundingBox())!;
+      const participantsButton = (await page
+        .getByRole('button', { name: 'Участники', exact: true })
+        .boundingBox())!;
+      expect(chatButton.width).toBe(participantsButton.width);
+      expect(chatButton.height).toBe(participantsButton.height);
+      expect(Math.abs(chatButton.y - participantsButton.y)).toBeLessThanOrEqual(1);
+      const endButton = (await page
+        .getByRole('button', { name: 'Завершить звонок', exact: true })
+        .boundingBox())!;
+      expect(Math.abs(endButton.y - chatButton.y)).toBeLessThanOrEqual(1);
+      await page.screenshot({ path: testInfo.outputPath(`${kind}-controls-${width}.png`) });
       await toggle.click();
       await expect(stream).toBeVisible();
       await expect(stage).toHaveCount(0);
