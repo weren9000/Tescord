@@ -1,3 +1,4 @@
+# Install as root:turnserver with mode 0640; this file contains the shared secret.
 listening-port=3478
 tls-listening-port=5349
 

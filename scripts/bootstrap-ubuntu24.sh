@@ -335,6 +335,8 @@ EOF
 rm -f /etc/nginx/sites-enabled/default
 ln -sf /etc/nginx/sites-available/tescord /etc/nginx/sites-enabled/tescord
 
+# Protect the shared signing secret before writing it, including on first install.
+install -o root -g turnserver -m 640 /dev/null /etc/turnserver.conf
 cat > /etc/turnserver.conf <<EOF
 listening-port=3478
 tls-listening-port=5349
