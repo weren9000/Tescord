@@ -1,4 +1,23 @@
 @use '../shared/ui-controls' as ui;
+.auth-form h1 {
+  margin: 0;
+  font-size: 20px;
+}
+.auth-note {
+  margin: 0;
+  color: var(--palette-secondary);
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.auth-page .secondary-button {
+  @include ui.button;
+  background: transparent;
+  color: var(--palette-secondary);
+  border: 1px solid var(--palette-border);
+  min-height: 40px;
+  white-space: normal;
+}
 .auth-page {
   min-height: 100dvh;
   background: radial-gradient(ellipse at 74% 30%, #221e393b, transparent 47%), #0d0f18;

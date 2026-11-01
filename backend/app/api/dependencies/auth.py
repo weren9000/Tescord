@@ -30,6 +30,9 @@ def resolve_user_from_token(token: str, db: Session) -> User:
     if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Пользователь не найден")
 
+    if not user.email_verified_at:
+        raise HTTPException(status_code=403, detail='Сначала подтвердите почту.')
+
     return user
 
 

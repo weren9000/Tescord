@@ -1,0 +1,160 @@
+<section class="security" aria-label="Безопасность аккаунта">
+  <h4>Безопасность</h4>
+  @if (status(); as state) {
+    <div class="security-row">
+      <span>Почта</span
+      ><strong>{{ state.email_verified ? 'Подтверждена' : 'Не подтверждена' }}</strong>
+    </div>
+    <div class="security-row">
+      <span>Двухфакторная защита</span
+      ><strong>{{ state.two_factor_enabled ? 'Включена' : 'Выключена' }}</strong>
+    </div>
+    @if (codes().length) {
+      <p>
+        Сохраните резервные коды на случай потери телефона. Они показаны один раз; каждый подходит
+        для одного входа.
+      </p>
+      <div class="recovery-codes" data-private>
+        @for (value of codes(); track value) {
+          <code>{{ value }}</code>
+        }
+      </div>
+      <div class="security-actions">
+        <button class="primary-button" type="button" (click)="downloadCodes()">Скачать коды</button
+        ><button class="secondary-button" type="button" (click)="clear()">Я сохранил коды</button>
+      </div>
+    } @else if (setup(); as pending) {
+      <p>
+        Добавьте Квачат в Ente Auth, Aegis или другое приложение-аутентификатор. Сканируйте QR-код
+        или введите ключ вручную.
+      </p>
+      <img
+        class="totp-qr"
+        [src]="pending.qr_data_url"
+        alt="QR-код для подключения двухфакторной защиты"
+        data-private
+      />
+      <label class="field"
+        ><span>Ключ для ручного ввода</span
+        ><input readonly [value]="pending.secret" aria-label="Ключ для ручного ввода" data-private
+      /></label>
+      <p>На этом телефоне можно скопировать ключ в приложение. Настройка действует 10 минут.</p>
+      <form (ngSubmit)="confirm()">
+        <label class="field"
+          ><span>Код из приложения</span
+          ><input
+            [(ngModel)]="code"
+            name="confirm_totp"
+            inputmode="numeric"
+            autocomplete="one-time-code"
+            maxlength="6"
+            minlength="6"
+            required
+        /></label>
+        <div class="security-actions">
+          <button class="primary-button" type="submit" [disabled]="busy()">
+            {{ busy() ? 'Проверяем…' : 'Включить 2FA' }}</button
+          ><button class="secondary-button" type="button" [disabled]="busy()" (click)="clear()">
+            Отмена
+          </button>
+        </div>
+      </form>
+    } @else if (action(); as current) {
+      <form (ngSubmit)="submit()">
+        <p>
+          {{
+            current === 'enable'
+              ? 'Подтвердите пароль, чтобы настроить приложение-аутентификатор.'
+              : current === 'disable'
+                ? 'Для отключения защиты подтвердите пароль и второй фактор.'
+                : 'Прежние резервные коды перестанут действовать. Подтвердите замену.'
+          }}
+        </p>
+        <label class="field"
+          ><span>Текущий пароль</span
+          ><input
+            [(ngModel)]="password"
+            name="security_password"
+            type="password"
+            autocomplete="current-password"
+            maxlength="128"
+            required
+        /></label>
+        @if (current !== 'enable') {
+          <label class="field"
+            ><span>Код из приложения или резервный код</span
+            ><input
+              [(ngModel)]="code"
+              name="security_code"
+              autocomplete="one-time-code"
+              maxlength="64"
+              required
+          /></label>
+        }
+        <div class="security-actions">
+          <button class="primary-button" type="submit" [disabled]="busy()">
+            {{
+              busy()
+                ? 'Проверяем…'
+                : current === 'enable'
+                  ? 'Продолжить'
+                  : current === 'disable'
+                    ? 'Отключить 2FA'
+                    : 'Заменить коды'
+            }}</button
+          ><button class="secondary-button" type="button" [disabled]="busy()" (click)="clear()">
+            Отмена
+          </button>
+        </div>
+      </form>
+    } @else {
+      @if (state.two_factor_enabled) {
+        <p>Резервных кодов осталось: {{ state.recovery_codes_remaining }}.</p>
+        <div class="security-actions">
+          <button
+            class="secondary-button"
+            type="button"
+            [disabled]="busy()"
+            (click)="choose('renew')"
+          >
+            Заменить резервные коды</button
+          ><button
+            class="secondary-button"
+            type="button"
+            [disabled]="busy()"
+            (click)="choose('disable')"
+          >
+            Отключить 2FA
+          </button>
+        </div>
+      } @else {
+        <p>При входе потребуется пароль и код из приложения-аутентификатора.</p>
+        @if (state.setup_available) {
+          <button
+            class="secondary-button"
+            type="button"
+            [disabled]="busy()"
+            (click)="choose('enable')"
+          >
+            Настроить 2FA
+          </button>
+        } @else {
+          <p>Подключение 2FA временно недоступно.</p>
+        }
+      }
+    }
+  } @else if (busy()) {
+    <p role="status">Загружаем настройки безопасности…</p>
+  }
+  @if (notice()) {
+    <p role="status">{{ notice() }}</p>
+  }
+  @if (error()) {
+    <p class="security-error" role="alert">{{ error() }}</p>
+    @if (!status()) {
+      <button class="secondary-button" type="button" [disabled]="busy()" (click)="load()">
+        Повторить
+      </button>
+    }
+  }
+</section>

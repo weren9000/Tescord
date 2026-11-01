@@ -13,6 +13,8 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.db.models import ConversationPushSetting, PlatformMember, PushSubscription, Server, ServerKind, ServerMember, User
 from app.db.session import SessionLocal
+from app.db.models import AuthSession
+from datetime import datetime, timezone
 from app.services.app_events import app_event_manager
 
 logger = logging.getLogger(__name__)
@@ -126,6 +128,7 @@ def _collect_push_targets(
 
     rows = db.execute(
         select(PushSubscription)
+        .join(AuthSession, AuthSession.id == PushSubscription.session_id)
         .join(ServerMember, ServerMember.user_id == PushSubscription.user_id)
         .join(
             ConversationPushSetting,
@@ -138,6 +141,9 @@ def _collect_push_targets(
             ServerMember.server_id == server_id,
             PushSubscription.user_id != author_id,
             ConversationPushSetting.push_enabled.is_(True),
+            AuthSession.revoked_at.is_(None),
+            AuthSession.expires_at > datetime.now(timezone.utc),
+            AuthSession.user_id == PushSubscription.user_id,
         )
     ).scalars().all()
 

@@ -3232,7 +3232,7 @@
       (click)="$event.stopPropagation()"
     >
       <div class="modal__header">
-        <h3>Мой профиль</h3>
+        <h3>{{ profileSecurityOpen() ? 'Безопасность аккаунта' : 'Мой профиль' }}</h3>
         <button
           class="icon-button"
           type="button"
@@ -3244,66 +3244,81 @@
         </button>
       </div>
       <div class="modal__body">
-        <div class="profile-card__identity">
-          <button
-            class="profile-card__avatar"
-            type="button"
-            aria-label="Изменить аватар"
-            [disabled]="profileSaving()"
-            (click)="profileAvatarChooserOpen.set(true)"
-          >
-            @if (effectiveProfileAvatarUrl(); as url) {
-              <img [src]="url" alt="" />
-            } @else {
-              <span>{{ displayNickInitials(currentUser()?.nick ?? '') }}</span>
-            }
-          </button>
-          <div>
-            <strong>{{ displayNick(currentUser()?.nick ?? '') }}</strong
-            ><button
-              class="secondary-button"
+        @if (profileSecurityOpen()) {
+          <app-account-security [token]="session()!.access_token" />
+        } @else {
+          <div class="profile-card__identity">
+            <button
+              class="profile-card__avatar"
               type="button"
+              aria-label="Изменить аватар"
               [disabled]="profileSaving()"
               (click)="profileAvatarChooserOpen.set(true)"
             >
-              Изменить аватар
+              @if (effectiveProfileAvatarUrl(); as url) {
+                <img [src]="url" alt="" />
+              } @else {
+                <span>{{ displayNickInitials(currentUser()?.nick ?? '') }}</span>
+              }
             </button>
+            <div>
+              <strong>{{ displayNick(currentUser()?.nick ?? '') }}</strong
+              ><button
+                class="secondary-button"
+                type="button"
+                [disabled]="profileSaving()"
+                (click)="profileAvatarChooserOpen.set(true)"
+              >
+                Изменить аватар
+              </button>
+            </div>
           </div>
-        </div>
-        <dl class="profile-card__details">
-          <div>
-            <dt>Email</dt>
-            <dd>{{ currentUser()?.email }}</dd>
+          <dl class="profile-card__details">
+            <div>
+              <dt>Email</dt>
+              <dd>{{ currentUser()?.email }}</dd>
+            </div>
+            <div>
+              <dt>ID</dt>
+              <dd>{{ currentUser()?.public_id }}</dd>
+            </div>
+          </dl>
+          <button class="secondary-button" type="button" (click)="profileSecurityOpen.set(true)">
+            Безопасность аккаунта
+          </button>
+          <div class="profile-card__feedback" aria-live="polite">
+            @if (profileError()) {
+              <p class="modal-note modal-note--error">{{ profileError() }}</p>
+            }
           </div>
-          <div>
-            <dt>ID</dt>
-            <dd>{{ currentUser()?.public_id }}</dd>
-          </div>
-        </dl>
-        <div class="profile-card__feedback" aria-live="polite">
-          @if (profileError()) {
-            <p class="modal-note modal-note--error">{{ profileError() }}</p>
-          }
-        </div>
+        }
       </div>
       <div class="modal__actions">
-        <button
-          class="secondary-button"
-          type="button"
-          [disabled]="profileSaving()"
-          (click)="closeProfileEditor()"
-        >
-          Отмена</button
-        ><button
-          class="primary-button"
-          type="button"
-          [disabled]="!canSubmitProfile()"
-          (click)="submitProfileChanges()"
-        >
-          {{ profileSaving() ? 'Сохраняем…' : 'Сохранить' }}
-        </button>
+        @if (profileSecurityOpen()) {
+          <button class="secondary-button" type="button" (click)="profileSecurityOpen.set(false)">
+            Вернуться в профиль
+          </button>
+        } @else {
+          <button
+            class="secondary-button"
+            type="button"
+            [disabled]="profileSaving()"
+            (click)="closeProfileEditor()"
+          >
+            Отмена</button
+          ><button
+            class="primary-button"
+            type="button"
+            [disabled]="!canSubmitProfile()"
+            (click)="submitProfileChanges()"
+          >
+            {{ profileSaving() ? 'Сохраняем…' : 'Сохранить' }}
+          </button>
+        }
       </div>
-      <div class="profile-invitation"><app-friend-link [token]="session()!.access_token" /></div>
+      @if (!profileSecurityOpen()) {
+        <div class="profile-invitation"><app-friend-link [token]="session()!.access_token" /></div>
+      }
     </section>
   </div>
   @if (profileAvatarChooserOpen()) {

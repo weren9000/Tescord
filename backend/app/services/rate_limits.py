@@ -61,6 +61,9 @@ class RateLimitMiddleware:
                 if path in {'/api/auth/login', '/api/auth/register'}:
                     limit = 60 if path.endswith('login') else 10
                     await asyncio.to_thread(enforce_limit, path.rsplit('/', 1)[-1], ip, limit, 300)
+                elif path.startswith('/api/auth/'):
+                    limit = 10 if path.endswith('/email/start') else 60
+                    await asyncio.to_thread(enforce_limit, 'auth:' + path, ip, limit, 300)
                 elif scope.get('method') in {'POST', 'PUT', 'DELETE', 'PATCH'}:
                     authorization = dict(scope.get('headers', [])).get(b'authorization', b'').decode('latin-1')
                     if authorization.startswith('Bearer '):

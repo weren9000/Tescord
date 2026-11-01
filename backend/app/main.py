@@ -18,6 +18,7 @@ from app.services.app_events import publish_presence_updated
 from app.services.workspace_defaults import ensure_workspace_defaults_for_all
 from app.services.site_presence import site_presence_manager
 from app.services.message_outbox import run_message_outbox
+from app.services.auth_mail import run_auth_mail
 from app.services.rate_limits import RateLimitMiddleware
 from app.services.voice_sfu import reconcile_media_permissions
 from sqlalchemy import select
@@ -66,6 +67,7 @@ async def lifespan(_: FastAPI):
     performance_task = asyncio.create_task(flush_metrics())
     presence_sweeper_task = asyncio.create_task(run_presence_sweeper())
     outbox_task = asyncio.create_task(run_message_outbox())
+    auth_mail_task = asyncio.create_task(run_auth_mail())
     upload_cleanup_task = asyncio.create_task(run_upload_cleanup())
     media_task = asyncio.create_task(cluster.singleton('media', reconcile_media_permissions))
     rooms_task = asyncio.create_task(cluster.singleton('meetings', run_room_cleanup))
@@ -73,6 +75,8 @@ async def lifespan(_: FastAPI):
     try:
         yield
     finally:
+        auth_mail_task.cancel()
+        await asyncio.gather(auth_mail_task, return_exceptions=True)
         rooms_task.cancel()
         await asyncio.gather(rooms_task, return_exceptions=True)
         performance_task.cancel()
@@ -146,7 +150,7 @@ async def meeting_no_store(request, call_next):
     response = await call_next(request)
     # Includes 410/403 responses: a completed meeting must never poison the
     # shared state URL for the next meeting in the same browser.
-    if request.url.path.startswith(settings.api_prefix + '/rooms/'):
+    if request.url.path.startswith((settings.api_prefix + '/rooms/', settings.api_prefix + '/auth/')):
         response.headers['Cache-Control'] = 'no-store'
         response.headers['Pragma'] = 'no-cache'
         response.headers['Expires'] = '0'

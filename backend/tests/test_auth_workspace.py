@@ -4,6 +4,7 @@ from contextlib import contextmanager
 from uuid import uuid4
 
 import pytest
+from auth_helpers import register_verified
 from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 from sqlalchemy import select
@@ -59,7 +60,7 @@ def register_regular_user(client: TestClient) -> tuple[str, dict[str, str]]:
         "password_confirmation": "testpass123",
         "nick": f"hero_{suffix}",
     }
-    response = client.post("/api/auth/register", json=payload)
+    response = register_verified(client, payload)
 
     assert response.status_code == 201
     return response.json()["access_token"], payload

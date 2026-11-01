@@ -20,6 +20,7 @@ def _normalize_email(value: str) -> str:
 
 
 class RegisterRequest(BaseModel):
+    registration_token: str | None = Field(default=None, min_length=32, max_length=128)
     email: str = Field(min_length=5, max_length=320)
     password: str = Field(min_length=8, max_length=128)
     password_confirmation: str = Field(min_length=8, max_length=128)
@@ -32,6 +33,7 @@ class RegisterRequest(BaseModel):
 
 
 class LoginRequest(BaseModel):
+    auth_protocol: int = 1
     email: str = Field(min_length=5, max_length=320)
     password: str = Field(min_length=8, max_length=128)
 
@@ -67,3 +69,43 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: AuthUserResponse
+
+
+class EmailStartRequest(BaseModel):
+    email: str = Field(min_length=5, max_length=320)
+    challenge_token: str | None = Field(default=None, min_length=32, max_length=128)
+
+    @field_validator('email')
+    @classmethod
+    def validate_email(cls, value: str) -> str:
+        return _normalize_email(value)
+
+
+class ChallengeResponse(BaseModel):
+    challenge_token: str
+    expires_in: int
+    resend_after: int = 60
+
+
+class CodeRequest(BaseModel):
+    challenge_token: str = Field(min_length=32, max_length=128)
+    code: str = Field(min_length=1, max_length=64)
+
+
+class EmailVerifiedResponse(BaseModel):
+    registration_token: str
+    email: str
+
+
+class TwoFactorRequired(BaseModel):
+    status: str = 'two_factor_required'
+    challenge_token: str
+    expires_in: int = 300
+
+
+class PasswordRequest(BaseModel):
+    password: str = Field(min_length=1, max_length=128)
+
+
+class SecurityActionRequest(PasswordRequest):
+    code: str = Field(min_length=1, max_length=64)

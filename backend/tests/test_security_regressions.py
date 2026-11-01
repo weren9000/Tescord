@@ -4,6 +4,7 @@ from concurrent.futures import ThreadPoolExecutor
 from uuid import UUID, uuid4
 
 import pytest
+from auth_helpers import register_verified
 from fastapi.testclient import TestClient
 from sqlalchemy import func, select
 
@@ -185,7 +186,7 @@ def test_concurrent_registration_has_unique_public_ids():
     suffix = uuid4().hex[:8]
     def register(index):
         with TestClient(app, raise_server_exceptions=False) as client:
-            return client.post('/api/auth/register', json={'email': f'concurrent-{suffix}-{index}@example.test', 'nick': f'concurrent-{suffix}-{index}', 'password': 'testpass123', 'password_confirmation': 'testpass123'})
+            return register_verified(client, {'email': f'concurrent-{suffix}-{index}@example.test', 'nick': f'concurrent-{suffix}-{index}', 'password': 'testpass123', 'password_confirmation': 'testpass123'})
     try:
         with ThreadPoolExecutor(max_workers=3) as executor:
             results = list(executor.map(register, range(3)))

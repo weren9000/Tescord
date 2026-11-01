@@ -1,0 +1,89 @@
+@use '../shared/ui-controls' as ui;
+:host {
+  display: block;
+  min-width: 0;
+}
+.security {
+  display: grid;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid var(--palette-border);
+  color: var(--palette-text);
+}
+h4 {
+  margin: 0;
+  font-size: 15px;
+}
+p {
+  margin: 0;
+  color: var(--palette-muted);
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.security-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 13px;
+}
+.security-row strong {
+  font-weight: 600;
+}
+.security-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+form {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+.field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  font-size: 13px;
+}
+input {
+  @include ui.field;
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+}
+button {
+  @include ui.button;
+  min-height: 40px;
+  white-space: normal;
+}
+.primary-button {
+  @include ui.primary;
+}
+.secondary-button {
+  background: var(--palette-hover);
+  color: var(--palette-text);
+  border: 1px solid var(--palette-border);
+}
+.totp-qr {
+  width: min(220px, 100%);
+  height: auto;
+  justify-self: center;
+  background: white;
+  border-radius: 8px;
+}
+.recovery-codes {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  background: var(--palette-canvas);
+  border-radius: 8px;
+}
+code {
+  overflow-wrap: anywhere;
+  font-size: 13px;
+}
+.security-error {
+  color: var(--palette-danger-text);
+}

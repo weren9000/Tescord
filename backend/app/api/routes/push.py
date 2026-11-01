@@ -7,7 +7,10 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy import and_, func, select
 from sqlalchemy.orm import Session
 
-from app.api.dependencies.auth import get_current_user
+from app.api.dependencies.auth import get_current_user, bearer_scheme
+from fastapi.security import HTTPAuthorizationCredentials
+from app.core.security import decode_access_token
+from app.db.models import AuthSession
 from app.core.config import get_settings
 from app.db.models import ConversationPushSetting, PushSubscription, Server, ServerKind, ServerMember, User
 from app.db.session import get_db
@@ -59,6 +62,7 @@ def get_push_config() -> PushConfigResponse:
 def upsert_push_subscription(
     payload: PushSubscriptionUpsertRequest,
     request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> Response:
@@ -71,6 +75,10 @@ def upsert_push_subscription(
 
     # Serialize per-user subscriptions so concurrent devices cannot bypass the cap.
     db.execute(select(User.id).where(User.id == current_user.id).with_for_update())
+    sid = UUID(decode_access_token(credentials.credentials, settings.secret_key)['sid'])
+    session = db.get(AuthSession, sid)
+    if not session or session.revoked_at or session.expires_at <= _utc_now():
+        raise HTTPException(401, 'Сессия завершена')
     user_agent = payload.user_agent or request.headers.get("user-agent")
     subscription = db.execute(
         select(PushSubscription).where(PushSubscription.endpoint == payload.endpoint)
@@ -84,6 +92,7 @@ def upsert_push_subscription(
     if subscription is None:
         subscription = PushSubscription(
             user_id=current_user.id,
+            session_id=sid,
             endpoint=payload.endpoint,
             p256dh=payload.keys.p256dh,
             auth=payload.keys.auth,
@@ -93,6 +102,7 @@ def upsert_push_subscription(
         db.add(subscription)
     else:
         subscription.user_id = current_user.id
+        subscription.session_id = sid
         subscription.p256dh = payload.keys.p256dh
         subscription.auth = payload.keys.auth
         subscription.user_agent = user_agent

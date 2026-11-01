@@ -31,6 +31,13 @@ class Settings(BaseSettings):
     user_upload_quota_bytes: int = 5 * 1024 * 1024 * 1024
     redis_url: str | None = None
     rate_limits_enabled: bool = False
+    auth_encryption_key: SecretStr | None = None
+    smtp_host: str | None = None
+    smtp_port: int = Field(default=587, ge=1, le=65535)
+    smtp_security: Literal['starttls', 'ssl', 'plain'] = 'starttls'
+    smtp_username: str | None = None
+    smtp_password: SecretStr | None = None
+    smtp_from: str | None = None
     livekit_internal_url: str = "http://127.0.0.1:7880"
     voice_room_capacity: int = Field(default=30, ge=1, le=30)
     push_vapid_public_key: str | None = None
@@ -45,6 +52,16 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_production(self):
+        if self.auth_encryption_key:
+            from cryptography.fernet import Fernet
+            try:
+                Fernet(self.auth_encryption_key.get_secret_value().encode())
+            except (ValueError, TypeError):
+                raise ValueError('Invalid auth encryption key') from None
+        if self.smtp_from and any(c in self.smtp_from for c in '\r\n'):
+            raise ValueError('Invalid mail sender')
+        if self.smtp_security == 'plain' and (self.environment != 'development' or self.smtp_host not in {'localhost', '127.0.0.1'}):
+            raise ValueError('Plain SMTP is only allowed on local development servers')
         if bool(self.turn_urls) != bool(self.turn_shared_secret):
             raise ValueError('TURN requires both turn_urls and turn_shared_secret')
         if self.turn_shared_secret and len(self.turn_shared_secret.get_secret_value()) < 32:
@@ -59,6 +76,10 @@ class Settings(BaseSettings):
             if not self.rate_limits_enabled or not self.redis_url:
                 raise ValueError("Production requires rate limiting and redis_url")
         return self
+
+    @property
+    def email_enabled(self) -> bool:
+        return bool(self.smtp_host and self.smtp_from and self.auth_encryption_key)
 
     @property
     def push_notifications_enabled(self) -> bool:

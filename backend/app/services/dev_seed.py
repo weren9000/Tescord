@@ -44,6 +44,8 @@ def ensure_development_seed_data() -> None:
                 email=settings.demo_login.lower(),
                 username=settings.demo_nick,
                 password_hash=hash_password(settings.demo_password),
+                email_verified_at=datetime.now(UTC),
+                email_verification_source='development',
                 is_admin=settings.demo_is_admin,
             )
             db.add(user)

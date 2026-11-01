@@ -33,6 +33,7 @@ import { ChatSkeletonComponent } from './workspace/chat-skeleton.component';
 import { WorkspaceStateStore } from './core/services/workspace-state.store';
 import { prepareProfileAvatarFile, normalizeClipboardAttachmentFile } from './shared/image-files';
 import { AuthPageComponent } from './auth/auth-page.component';
+import { AccountSecurityComponent } from './auth/account-security.component';
 import { SessionStorageService } from './core/services/session-storage.service';
 import { MessageTextComponent } from './workspace/message-text.component';
 import { ShopComponent } from './workspace/shop.component';
@@ -680,6 +681,7 @@ const DEFAULT_SERVER_ICON_ASSET_BY_NAME: Record<string, string> = {
     ChatSkeletonComponent,
     PlatformChatsComponent,
     AuthPageComponent,
+    AccountSecurityComponent,
     MessageTextComponent,
     ShopComponent,
     UserCardDirective,
@@ -2146,6 +2148,7 @@ export class AppComponent {
   readonly settingsPanelOpen = signal(false);
   readonly voiceAdminPanelOpen = signal(false);
   readonly profileEditorOpen = signal(false);
+  readonly profileSecurityOpen = signal(false);
   readonly createConversationModalOpen = signal(false);
   readonly createGroupModalOpen = signal(false);
   readonly createPlatformModalOpen = signal(false);
@@ -2349,6 +2352,7 @@ export class AppComponent {
   readonly profileAvatarChooserOpen = signal(false);
   private readonly profileFocusEffect = effect((cleanup) => {
     if (!this.profileEditorOpen()) return;
+    this.profileSecurityOpen();
     const previous = document.activeElement as HTMLElement | null;
     const timer = setTimeout(() =>
       document.querySelector<HTMLButtonElement>('.profile-card .modal__header button')?.focus(),
@@ -2379,7 +2383,7 @@ export class AppComponent {
     if (event.key !== 'Tab') return;
     const buttons = Array.from(
       (event.currentTarget as HTMLElement).querySelectorAll<HTMLButtonElement>(
-        'button:not(:disabled)',
+        'button:not(:disabled), input:not(:disabled), select:not(:disabled), a[href]',
       ),
     );
     const first = buttons[0],
@@ -5171,6 +5175,7 @@ export class AppComponent {
   }
 
   openProfileEditor(): void {
+    this.profileSecurityOpen.set(false);
     const currentUser = this.currentUser();
     if (!currentUser) {
       return;
@@ -8829,7 +8834,7 @@ export class AppComponent {
     this.conversationPushPendingId.set(null);
     this.friendRequestsError.set(null);
     this.attentionInboxError.set(null);
-    this.authMode.set('login');
+    this.authForm.switchMode('login');
     this.clearStoredSession();
   }
 

@@ -12,3 +12,22 @@ os.environ['TESCORD_DEMO_SERVER_NAME'] = 'Altgramm'
 os.environ['TESCORD_DEBUG'] = 'false'
 os.environ['TESCORD_RATE_LIMITS_ENABLED'] = 'false'
 os.environ['TESCORD_REDIS_URL'] = ''
+os.environ['TESCORD_SMTP_HOST'] = '127.0.0.1'
+os.environ['TESCORD_SMTP_PORT'] = '25259'
+os.environ['TESCORD_SMTP_SECURITY'] = 'plain'
+os.environ['TESCORD_SMTP_FROM'] = 'test@example.test'
+os.environ['TESCORD_SMTP_USERNAME'] = ''
+os.environ['TESCORD_SMTP_PASSWORD'] = ''
+from cryptography.fernet import Fernet
+os.environ.setdefault('TESCORD_AUTH_ENCRYPTION_KEY', Fernet.generate_key().decode())
+
+import asyncio
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def isolate_auth_email_delivery(monkeypatch):
+    import app.main as main
+    async def paused():
+        await asyncio.Event().wait()
+    monkeypatch.setattr(main, 'run_auth_mail', paused)

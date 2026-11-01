@@ -1,6 +1,6 @@
-  <div class="auth-page">
-    <app-guest-header class="auth" />
-    <main class="auth-content">
+<div class="auth-page">
+  <app-guest-header class="auth" />
+  <main class="auth-content">
     <section class="auth-panel auth-panel--form" data-nosnippet>
       <ng-content />
       <div class="auth-tabs">
@@ -9,6 +9,7 @@
           [class.auth-tab--active]="form.mode() === 'login'"
           [attr.aria-pressed]="form.mode() === 'login'"
           type="button"
+          [disabled]="form.loading()"
           (click)="form.switchMode('login')"
         >
           Вход
@@ -18,92 +19,203 @@
           [class.auth-tab--active]="form.mode() === 'register'"
           [attr.aria-pressed]="form.mode() === 'register'"
           type="button"
+          [disabled]="form.loading()"
           (click)="form.switchMode('register')"
         >
           Регистрация
         </button>
       </div>
-
-      @if (form.mode() === 'login') {
-        <form class="auth-form" (ngSubmit)="form.submitLogin()">
-          <label class="field">
-            <span>Email</span>
+      @if (form.loginChallenge()) {
+        <form class="auth-form" (ngSubmit)="form.verifyLogin()">
+          <h1>Подтвердите вход</h1>
+          <p class="auth-note">
+            {{
+              form.recoveryMode
+                ? 'Введите один из сохранённых резервных кодов. Каждый код можно использовать один раз.'
+                : 'Введите код из приложения-аутентификатора.'
+            }}
+          </p>
+          <label class="field"
+            ><span>{{ form.recoveryMode ? 'Резервный код' : 'Код из приложения' }}</span>
             <input
+              [(ngModel)]="form.code"
+              name="totp"
+              autocomplete="one-time-code"
+              [attr.inputmode]="form.recoveryMode ? 'text' : 'numeric'"
+              [maxlength]="form.recoveryMode ? 64 : 6"
+              required
+            />
+          </label>
+          <button class="primary-button" type="submit" [disabled]="form.loading()">
+            {{ form.loading() ? 'Проверяем…' : 'Войти' }}
+          </button>
+          <button
+            class="secondary-button"
+            type="button"
+            [disabled]="form.loading()"
+            (click)="form.recoveryMode = !form.recoveryMode; form.code = ''"
+          >
+            {{ form.recoveryMode ? 'Использовать приложение' : 'Использовать резервный код' }}
+          </button>
+          <button
+            class="secondary-button"
+            type="button"
+            [disabled]="form.loading()"
+            (click)="form.switchMode('login')"
+          >
+            Вернуться к входу
+          </button>
+        </form>
+      } @else if (form.mode() === 'login') {
+        <form class="auth-form" (ngSubmit)="form.submitLogin()">
+          <label class="field"
+            ><span>Email</span
+            ><input
               [(ngModel)]="form.loginForm.email"
               autocomplete="email"
               name="email"
               placeholder="you@example.com"
               type="email"
-            />
-          </label>
-
-          <label class="field">
-            <span>Пароль</span>
-            <input
+              required
+          /></label>
+          <label class="field"
+            ><span>Пароль</span
+            ><input
               [(ngModel)]="form.loginForm.password"
               autocomplete="current-password"
               name="password"
               placeholder="Введите пароль"
               type="password"
-            />
-          </label>
-
-          <div class="auth-actions">
-            <button class="primary-button primary-button--full" type="submit" [disabled]="form.loading()">
-              {{ form.loading() ? 'Входим...' : 'Войти' }}
-            </button>
-          </div>
+              required
+              maxlength="128"
+          /></label>
+          <button
+            class="primary-button primary-button--full"
+            type="submit"
+            [disabled]="form.loading()"
+          >
+            {{ form.loading() ? 'Входим…' : 'Войти' }}
+          </button>
         </form>
-      } @else {
-        <form class="auth-form" (ngSubmit)="form.submitRegistration()">
-          <label class="field">
-            <span>Email</span>
-            <input
+      } @else if (form.registrationStep() === 'email') {
+        <form class="auth-form" (ngSubmit)="form.startEmail()">
+          <p class="auth-note">Пришлём код, чтобы подтвердить, что почта принадлежит вам.</p>
+          <label class="field"
+            ><span>Email</span
+            ><input
               [(ngModel)]="form.registerForm.email"
               autocomplete="email"
               name="register_email"
               placeholder="you@example.com"
               type="email"
-            />
-          </label>
-
-          <label class="field">
-            <span>Пароль</span>
-            <input
+              maxlength="320"
+              required
+          /></label>
+          <button class="primary-button" type="submit" [disabled]="form.loading()">
+            {{ form.loading() ? 'Отправляем…' : 'Получить код' }}
+          </button>
+        </form>
+      } @else if (form.registrationStep() === 'code') {
+        <form class="auth-form" (ngSubmit)="form.verifyEmail()">
+          <h1>Проверьте почту</h1>
+          <p class="auth-note">
+            Код для <strong>{{ form.verifiedEmail() }}</strong> действует 10 минут с первой
+            отправки.
+          </p>
+          <label class="field"
+            ><span>Код из письма</span
+            ><input
+              [(ngModel)]="form.code"
+              name="email_code"
+              inputmode="numeric"
+              autocomplete="one-time-code"
+              maxlength="6"
+              minlength="6"
+              required
+          /></label>
+          <button class="primary-button" type="submit" [disabled]="form.loading()">
+            {{ form.loading() ? 'Проверяем…' : 'Подтвердить почту' }}
+          </button>
+          <button
+            class="secondary-button"
+            type="button"
+            [disabled]="form.loading() || form.resendSeconds() > 0"
+            (click)="form.startEmail(true)"
+          >
+            {{
+              form.resendSeconds() > 0
+                ? 'Отправить снова через ' + form.resendSeconds() + ' с'
+                : 'Отправить код снова'
+            }}
+          </button>
+          <button
+            class="secondary-button"
+            type="button"
+            [disabled]="form.loading()"
+            (click)="form.switchMode('register')"
+          >
+            Изменить почту / начать заново
+          </button>
+        </form>
+      } @else {
+        <form class="auth-form" (ngSubmit)="form.submitRegistration()">
+          <p class="auth-note">
+            Почта подтверждена: <strong>{{ form.verifiedEmail() }}</strong>
+          </p>
+          <label class="field"
+            ><span>Ник</span
+            ><input
+              [(ngModel)]="form.registerForm.nick"
+              name="nick"
+              placeholder="Ваш ник"
+              type="text"
+              minlength="2"
+              maxlength="32"
+              required
+          /></label>
+          <label class="field"
+            ><span>Пароль</span
+            ><input
               [(ngModel)]="form.registerForm.password"
               autocomplete="new-password"
               name="register_password"
               placeholder="Не короче 8 символов"
               type="password"
-            />
-          </label>
-
-          <label class="field">
-            <span>Подтверждение пароля</span>
-            <input
+              minlength="8"
+              maxlength="128"
+              required
+          /></label>
+          <label class="field"
+            ><span>Подтверждение пароля</span
+            ><input
               [(ngModel)]="form.registerForm.password_confirmation"
               autocomplete="new-password"
               name="password_confirmation"
               placeholder="Повторите пароль"
               type="password"
-            />
-          </label>
-
-          <label class="field">
-            <span>Ник</span>
-            <input [(ngModel)]="form.registerForm.nick" name="nick" placeholder="Ваш ник" type="text" />
-          </label>
-
-          <button class="primary-button primary-button--full" type="submit" [disabled]="form.loading()">
-            {{ form.loading() ? 'Создаем аккаунт...' : 'Зарегистрироваться' }}
+              minlength="8"
+              maxlength="128"
+              required
+          /></label>
+          <button class="primary-button" type="submit" [disabled]="form.loading()">
+            {{ form.loading() ? 'Создаём аккаунт…' : 'Зарегистрироваться' }}
           </button>
-
+          <button
+            class="secondary-button"
+            type="button"
+            [disabled]="form.loading()"
+            (click)="form.switchMode('register')"
+          >
+            Начать заново
+          </button>
         </form>
       }
-
+      @if (form.notice()) {
+        <p class="auth-note" role="status">{{ form.notice() }}</p>
+      }
       @if (form.error()) {
         <p class="auth-error" role="alert">{{ form.error() }}</p>
       }
     </section>
-    </main>
-  </div>
+  </main>
+</div>
