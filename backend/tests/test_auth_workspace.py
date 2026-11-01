@@ -274,7 +274,11 @@ def test_avatar_admin_can_update_avatar() -> None:
             avatar_response = client.get(f"/api/users/{updated_user['id']}/avatar")
             assert avatar_response.status_code == 200
             assert avatar_response.headers["content-type"].startswith("image/png")
-            assert avatar_response.content == TEST_PNG_BYTES
+            from io import BytesIO
+            from PIL import Image
+            with Image.open(BytesIO(avatar_response.content)) as image:
+                assert image.size == (1, 1)
+                assert image.convert('RGBA').getpixel((0, 0)) == (0, 0, 0, 0)
         finally:
             delete_user(payload["email"])
 
@@ -627,8 +631,9 @@ def test_regular_user_can_access_invited_groups_channels_and_members() -> None:
     assert members_response.status_code == 200
     members = members_response.json()
     assert members
-    assert any(member["login"] == "weren9000@kva-chat.local" for member in members)
-    assert any(member["login"] == payload["email"] for member in members)
+    assert any(member["nick"] == "weren9000" for member in members)
+    assert any(member["nick"] == payload["nick"] for member in members)
+    assert all(member["login"] == str(member["public_id"]) for member in members)
 
 
 def test_server_members_endpoint_returns_seed_members() -> None:
@@ -643,7 +648,7 @@ def test_server_members_endpoint_returns_seed_members() -> None:
     assert response.status_code == 200
     members = response.json()
     assert members
-    admin_member = next(member for member in members if member["login"] == "weren9000@kva-chat.local")
+    admin_member = next(member for member in members if member["nick"] == "weren9000")
     assert admin_member["nick"] == "weren9000"
     assert admin_member["role"] in {"owner", "admin"}
     assert admin_member["is_online"] is False
@@ -661,7 +666,7 @@ def test_presence_heartbeat_marks_member_online() -> None:
 
     assert response.status_code == 200
     members = response.json()
-    admin_member = next(member for member in members if member["login"] == "weren9000@kva-chat.local")
+    admin_member = next(member for member in members if member["nick"] == "weren9000")
     assert admin_member["is_online"] is True
 
 

@@ -275,4 +275,5 @@ export interface VoiceSfuTokenResponse {
   token: string;
   room_name: string;
   identity: string;
+  ice_servers?: RTCIceServer[];
 }

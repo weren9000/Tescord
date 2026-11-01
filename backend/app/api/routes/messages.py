@@ -82,7 +82,7 @@ def _build_author_summary(user: User) -> MessageAuthorSummary:
     return MessageAuthorSummary(
         id=user.id,
         public_id=user.public_id,
-        login=user.email,
+        login=str(user.public_id),
         nick=user.username,
         avatar_updated_at=user.avatar_updated_at,
     )

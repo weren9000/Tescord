@@ -87,7 +87,7 @@ def _build_request_summary(
         user=FriendRequestUserSummary(
             user_id=counterpart.id,
             public_id=counterpart.public_id,
-            login=counterpart.email,
+            login=str(counterpart.public_id),
             nick=counterpart.username,
             avatar_updated_at=counterpart.avatar_updated_at,
             is_online=counterpart.id in online_user_ids,
@@ -100,7 +100,7 @@ def _build_blocked_friend_summary(block: FriendBlock, online_user_ids: set[UUID]
     return BlockedFriendSummary(
         user_id=user.id,
         public_id=user.public_id,
-        login=user.email,
+        login=str(user.public_id),
         nick=user.username,
         avatar_updated_at=user.avatar_updated_at,
         is_online=user.id in online_user_ids,

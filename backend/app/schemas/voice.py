@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class VoiceChannelCatalogItem(BaseModel):
@@ -52,6 +52,7 @@ class VoiceSfuTokenResponse(BaseModel):
     token: str
     room_name: str
     identity: str
+    ice_servers: list[dict[str, object]] = Field(default_factory=list)
 
 
 class VoiceJoinRequestSummary(BaseModel):

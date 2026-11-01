@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.services.turn_credentials import turn_ice_servers
 
 import asyncio
 
@@ -180,6 +181,7 @@ def _build_voice_sfu_token(channel: Channel, current_user: User, *, owner_muted:
         token=token,
         room_name=room_name,
         identity=str(current_user.id),
+        ice_servers=turn_ice_servers('user:' + str(current_user.id)),
     )
 
 
@@ -301,7 +303,7 @@ def _build_voice_channel_catalog_item(
 def _build_voice_access_entry(access: VoiceChannelAccess, user: User) -> VoiceChannelAccessEntry:
     return VoiceChannelAccessEntry(
         user_id=user.id,
-        login=user.email,
+        login=str(user.public_id),
         nick=user.username,
         avatar_updated_at=user.avatar_updated_at,
         role=access.role.value,
@@ -393,7 +395,7 @@ async def _load_channel_access_entries(db: Session, channel_id: UUID) -> list[Vo
         entries.append(
             VoiceChannelAccessEntry(
                 user_id=user.id,
-                login=user.email,
+                login=str(user.public_id),
                 nick=user.username,
                 avatar_updated_at=user.avatar_updated_at,
                 role=effective_role.value,
@@ -486,7 +488,7 @@ def list_all_users_for_voice_admin(
     return [
         VoiceAccessUserSummary(
             user_id=user.id,
-            login=user.email,
+            login=str(user.public_id),
             nick=user.username,
             avatar_updated_at=user.avatar_updated_at,
             is_online=user.id in online_user_ids,
@@ -859,6 +861,7 @@ async def update_voice_participant_owner_mute(
 @router.post("/channels/{channel_id}/sfu-token", response_model=VoiceSfuTokenResponse)
 async def create_voice_sfu_token(
     channel_id: UUID,
+    response: Response,
     credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -870,6 +873,7 @@ async def create_voice_sfu_token(
 
     await prepare_voice_room(channel.id, current_user.id)
     session_id = decode_access_token(credentials.credentials, settings.secret_key)["sid"]
+    response.headers['Cache-Control'] = 'no-store'
     return _build_voice_sfu_token(channel, current_user, owner_muted=bool(access and access.owner_muted), session_id=session_id)
 
 

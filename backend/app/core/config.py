@@ -4,7 +4,7 @@ from functools import lru_cache
 from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field, model_validator
+from pydantic import Field, SecretStr, model_validator
 
 
 class Settings(BaseSettings):
@@ -39,9 +39,18 @@ class Settings(BaseSettings):
     livekit_url: str | None = None
     livekit_api_key: str | None = None
     livekit_api_secret: str | None = None
+    turn_urls: list[str] = Field(default_factory=list)
+    turn_shared_secret: SecretStr | None = None
+    turn_credential_ttl_seconds: int = Field(default=86400, ge=600, le=86400)
 
     @model_validator(mode="after")
     def validate_production(self):
+        if bool(self.turn_urls) != bool(self.turn_shared_secret):
+            raise ValueError('TURN requires both turn_urls and turn_shared_secret')
+        if self.turn_shared_secret and len(self.turn_shared_secret.get_secret_value()) < 32:
+            raise ValueError('TURN requires a new random shared secret of at least 32 characters')
+        if any(not url.startswith(('turn:', 'turns:')) or any(c.isspace() for c in url) or '@' in url for url in self.turn_urls):
+            raise ValueError('TURN URLs must be turn: or turns: addresses without credentials')
         if self.environment == "production":
             if self.debug or self.secret_key == "tescord-dev-secret-key" or len(self.secret_key) < 32:
                 raise ValueError("Production requires debug=false and a strong secret_key")

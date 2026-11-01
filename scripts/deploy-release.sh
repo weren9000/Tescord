@@ -15,6 +15,13 @@ if [ "$available" -lt 1073741824 ]; then
 fi
 exec 9>/run/lock/kva-deploy.lock
 flock -n 9
+previous=$(readlink -f /srv/tescord/current)
+runtime_source="${TESCORD_RUNTIME_CONFIG_PATH:-$previous/frontend/dist/frontend/browser/runtime-config.js}"
+test -f "$runtime_source"
+if grep -Eiq 'credential|username|iceServers' "$runtime_source"; then
+    echo 'Prepare a public runtime config without TURN credentials; set TESCORD_RUNTIME_CONFIG_PATH. See docs/security-hardening-2026-11.md.' >&2
+    exit 1
+fi
 if [ -n "${TESCORD_EXPECTED_REVISION:-}" ]; then
     test "$(cat /srv/tescord/current/SOURCE_REVISION)" = "$TESCORD_EXPECTED_REVISION" || {
         echo 'Active revision changed; deployment stopped before migration.' >&2
@@ -38,8 +45,7 @@ else
 fi
 cd "$release/backend"
 runuser -u tescord -- .venv/bin/alembic upgrade head
-previous=$(readlink -f /srv/tescord/current)
-cp "$previous/frontend/dist/frontend/browser/runtime-config.js" "$release/frontend/dist/frontend/browser/runtime-config.js"
+cp "$runtime_source" "$release/frontend/dist/frontend/browser/runtime-config.js"
 sha256sum "$release/frontend/dist/frontend/browser/runtime-config.js" > "$release/RUNTIME.sha256"
 # Keep immutable bundles referenced by browsers which loaded the previous HTML.
 find "$previous/frontend/dist/frontend/browser" -maxdepth 1 -type f \( -name '*-*.js' -o -name '*-*.css' \) -exec cp -n -- {} "$release/frontend/dist/frontend/browser/" \;

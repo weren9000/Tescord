@@ -1,4 +1,4 @@
-param(
+﻿param(
     [Parameter(Position = 0)]
     [string]$ServerHost,
     [Parameter(Position = 1)]
@@ -174,31 +174,14 @@ function Write-RuntimeConfig {
         [string]$Path,
         [string]$AppBaseUrl,
         [string]$WebSocketBaseUrl,
-        [string]$SfuBaseUrl,
-        [string]$TurnHost,
-        [string]$TurnPassword
+        [string]$SfuBaseUrl
     )
 
     @"
 window.__TESCORD_RUNTIME_CONFIG__ = {
   apiBaseUrl: '$AppBaseUrl',
   wsBaseUrl: '$WebSocketBaseUrl',
-  sfuUrl: '$SfuBaseUrl',
-  iceServers: [
-    {
-      urls: 'stun:stun.l.google.com:19302'
-    },
-    {
-      urls: ['turn:$TurnHost`:3478?transport=udp', 'turn:$TurnHost`:3478?transport=tcp'],
-      username: 'tescordturn',
-      credential: '$TurnPassword'
-    },
-    {
-      urls: ['turns:$TurnHost`:5349?transport=tcp'],
-      username: 'tescordturn',
-      credential: '$TurnPassword'
-    }
-  ]
+  sfuUrl: '$SfuBaseUrl'
 };
 "@ | Set-Content -Path $Path -Encoding UTF8
 }
@@ -333,7 +316,7 @@ def main() -> None:
             "DB_PASSWORD": payload["db_password"],
             "APP_SECRET": payload["app_secret"],
             "DEMO_PASSWORD": payload["demo_password"],
-            "TURN_PASSWORD": payload["turn_password"],
+            "TURN_SHARED_SECRET": payload["turn_shared_secret"],
             "LIVEKIT_API_KEY": payload["livekit_api_key"],
             "LIVEKIT_API_SECRET": payload["livekit_api_secret"],
             "CUSTOM_SSL_CERT_PATH": payload["remote_custom_certificate_path"],
@@ -421,7 +404,7 @@ Ensure-PythonModule -PythonCommand $pythonCommand -ModuleName 'paramiko'
 $plainPassword = Get-PlainTextPassword -SecurePassword $ServerPassword
 $dbPassword = New-RandomHex -Bytes 18
 $appSecret = New-RandomHex -Bytes 32
-$turnPassword = New-RandomHex -Bytes 18
+$turnSharedSecret = New-RandomHex -Bytes 32
 $livekitApiSecret = New-RandomHex -Bytes 24
 $livekitApiKey = 'tescord-livekit'
 $demoPassword = 'CHANGE_WITH_INTERACTIVE_RESET'
@@ -458,7 +441,7 @@ try {
     $appBaseUrl = "https://$appDomain"
     $webSocketBaseUrl = "wss://$appDomain"
     $sfuBaseUrl = "$webSocketBaseUrl/livekit"
-    Write-RuntimeConfig -Path $runtimeConfigPath -AppBaseUrl $appBaseUrl -WebSocketBaseUrl $webSocketBaseUrl -SfuBaseUrl $sfuBaseUrl -TurnHost $appDomain -TurnPassword $turnPassword
+    Write-RuntimeConfig -Path $runtimeConfigPath -AppBaseUrl $appBaseUrl -WebSocketBaseUrl $webSocketBaseUrl -SfuBaseUrl $sfuBaseUrl
     Write-RemoteDeployScript -Path $remoteDeployScriptPath
 
     $deployPayload = [ordered]@{
@@ -475,7 +458,7 @@ try {
         db_password = $dbPassword
         app_secret = $appSecret
         demo_password = $demoPassword
-        turn_password = $turnPassword
+        turn_shared_secret = $turnSharedSecret
         livekit_api_key = $livekitApiKey
         livekit_api_secret = $livekitApiSecret
         custom_certificate_path = if ($normalizedCustomCertificatePath) { $normalizedCustomCertificatePath } else { '' }
@@ -494,8 +477,7 @@ try {
     Write-Host 'Деплой завершен.' -ForegroundColor Green
     Write-Host "Сайт: https://$appDomain"
     Write-Host "SFU: wss://$appDomain/livekit"
-    Write-Host "TURN пользователь: tescordturn"
-    Write-Host "TURN пароль: $turnPassword"
+    Write-Host 'TURN использует серверный общий секрет; в клиентские файлы он не включается.'
     if ($useCustomCertificate) {
         Write-Host 'SSL: используется кастомный сертификат.' -ForegroundColor Green
     }

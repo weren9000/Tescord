@@ -46,12 +46,11 @@ function buildDefaultSfuUrl(wsBaseUrl: string): string {
 
 const runtimeConfig = getRuntimeConfig();
 export const API_BASE_URL = normalizeBaseUrl(runtimeConfig.apiBaseUrl) ?? buildDefaultApiBaseUrl();
-export const WS_BASE_URL = normalizeBaseUrl(runtimeConfig.wsBaseUrl) ?? buildDefaultWsBaseUrl(API_BASE_URL);
-export const SFU_BASE_URL = normalizeBaseUrl(runtimeConfig.sfuUrl) ?? buildDefaultSfuUrl(WS_BASE_URL);
-export const VOICE_ICE_SERVERS: RTCIceServer[] = runtimeConfig.iceServers?.length
-  ? runtimeConfig.iceServers
-  : [
-      {
-        urls: 'stun:stun.l.google.com:19302'
-      }
-    ];
+export const WS_BASE_URL =
+  normalizeBaseUrl(runtimeConfig.wsBaseUrl) ?? buildDefaultWsBaseUrl(API_BASE_URL);
+export const SFU_BASE_URL =
+  normalizeBaseUrl(runtimeConfig.sfuUrl) ?? buildDefaultSfuUrl(WS_BASE_URL);
+/** TURN credentials arrive with an authorized media grant and stay in memory. */
+export function voiceRtcConfig(iceServers?: RTCIceServer[]): RTCConfiguration | undefined {
+  return iceServers?.length ? { iceServers } : undefined;
+}

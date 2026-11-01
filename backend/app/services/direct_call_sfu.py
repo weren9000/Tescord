@@ -10,6 +10,7 @@ from livekit import api
 from app.core.config import get_settings
 from app.services.voice_sfu import _client
 from app.services.direct_call_signaling import direct_call_signaling_manager
+from app.services.turn_credentials import turn_ice_servers
 
 logger = logging.getLogger(__name__)
 
@@ -49,4 +50,5 @@ async def issue_call_token(call_id: str, user_id: str, nick: str, session_id: st
         .with_ttl(timedelta(minutes=2))
         .with_grants(api.VideoGrants(room_join=True, room=room, can_publish=True, can_subscribe=True))
         .to_jwt())
-    return {'url': settings.livekit_url, 'token': token, 'room_name': room, 'identity': user_id}
+    return {'url': settings.livekit_url, 'token': token, 'room_name': room, 'identity': user_id,
+            'ice_servers': turn_ice_servers('user:' + user_id)}

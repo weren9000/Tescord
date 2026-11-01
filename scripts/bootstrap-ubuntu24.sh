@@ -16,7 +16,7 @@ fi
 : "${DB_PASSWORD:?DB_PASSWORD is required}"
 : "${APP_SECRET:?APP_SECRET is required}"
 : "${DEMO_PASSWORD:?DEMO_PASSWORD is required}"
-: "${TURN_PASSWORD:?TURN_PASSWORD is required}"
+: "${TURN_SHARED_SECRET:?TURN_SHARED_SECRET is required}"
 : "${LIVEKIT_API_KEY:?LIVEKIT_API_KEY is required}"
 : "${LIVEKIT_API_SECRET:?LIVEKIT_API_SECRET is required}"
 
@@ -158,6 +158,9 @@ TESCORD_DEMO_SERVER_NAME=Altgramm
 TESCORD_LIVEKIT_URL=wss://${APP_DOMAIN}/livekit
 TESCORD_LIVEKIT_API_KEY=${LIVEKIT_API_KEY}
 TESCORD_LIVEKIT_API_SECRET=${LIVEKIT_API_SECRET}
+TESCORD_TURN_SHARED_SECRET=${TURN_SHARED_SECRET}
+TESCORD_TURN_URLS=["turn:${APP_DOMAIN}:3478?transport=udp","turn:${APP_DOMAIN}:3478?transport=tcp","turns:${APP_DOMAIN}:5349?transport=tcp"]
+TESCORD_TURN_CREDENTIAL_TTL_SECONDS=86400
 EOF
 
 chown tescord:tescord "${BACKEND_ENV_PATH}"
@@ -339,14 +342,27 @@ listening-ip=${SERVER_HOST}
 relay-ip=${SERVER_HOST}
 external-ip=${SERVER_HOST}
 fingerprint
-lt-cred-mech
+use-auth-secret
 realm=${APP_DOMAIN}
 server-name=${APP_DOMAIN}
-user=tescordturn:${TURN_PASSWORD}
+static-auth-secret=${TURN_SHARED_SECRET}
 cert=${TURN_SSL_FULLCHAIN}
 pkey=${TURN_SSL_KEY}
 total-quota=600
-bps-capacity=0
+user-quota=12
+max-bps=2097152
+bps-capacity=52428800
+no-multicast-peers
+denied-peer-ip=0.0.0.0-0.255.255.255
+denied-peer-ip=10.0.0.0-10.255.255.255
+denied-peer-ip=100.64.0.0-100.127.255.255
+denied-peer-ip=127.0.0.0-127.255.255.255
+denied-peer-ip=169.254.0.0-169.254.255.255
+denied-peer-ip=172.16.0.0-172.31.255.255
+denied-peer-ip=192.168.0.0-192.168.255.255
+denied-peer-ip=::1
+denied-peer-ip=fc00::-fdff:ffff:ffff:ffff:ffff:ffff:ffff:ffff
+denied-peer-ip=fe80::-febf:ffff:ffff:ffff:ffff:ffff:ffff:ffff
 stale-nonce=600
 no-cli
 no-tlsv1

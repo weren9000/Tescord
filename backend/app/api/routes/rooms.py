@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.services.turn_credentials import turn_ice_servers
 
 import json
 import secrets
@@ -323,7 +324,8 @@ def media(authorization: str = Header(), db: Session = Depends(get_db)):
         .with_room_config(api.RoomConfiguration(max_participants=50, empty_timeout=300, departure_timeout=300))
         .with_grants(api.VideoGrants(room_join=True, room=f'meeting-{m.id}', can_publish=not p.silenced, can_subscribe=True, can_publish_data=False))
         .to_jwt())
-    return {'url': settings.livekit_url, 'token': token}
+    subject = 'user:' + str(p.user_id) if p.user_id else 'meeting:' + str(p.id)
+    return {'url': settings.livekit_url, 'token': token, 'ice_servers': turn_ice_servers(subject)}
 
 
 def message_in(db, mid, session_id):

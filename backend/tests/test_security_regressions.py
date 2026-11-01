@@ -208,6 +208,9 @@ def test_voice_tokens_cannot_bypass_mute_kick_or_revoked_session(conversation, m
     monkeypatch.setattr(settings, 'livekit_url', 'wss://voice.example.test')
     monkeypatch.setattr(settings, 'livekit_api_key', 'test-key')
     monkeypatch.setattr(settings, 'livekit_api_secret', 'test-secret-' * 5)
+    from pydantic import SecretStr
+    monkeypatch.setattr(settings, 'turn_urls', ['turn:relay.example.test:3478'])
+    monkeypatch.setattr(settings, 'turn_shared_secret', SecretStr('test-only-turn-shared-secret-' * 2))
     owner_headers = {'Authorization': f'Bearer {owner}'}
     guest_headers = {'Authorization': f'Bearer {guest}'}
     user_id = get_current_user_profile(client, guest)['id']
@@ -218,6 +221,8 @@ def test_voice_tokens_cannot_bypass_mute_kick_or_revoked_session(conversation, m
         assert client.put(f"/api/voice/channels/{channel['id']}/access/{user_id}", headers=owner_headers, json={'role': 'resident'}).status_code == 200
         response = client.post(f"/api/voice/channels/{channel['id']}/sfu-token", headers=guest_headers)
         assert response.status_code == 200, response.text
+        assert response.json()['ice_servers'][0]['credential']
+        assert response.headers['cache-control'] == 'no-store'
         token = response.json()['token']
         claims = api.TokenVerifier(settings.livekit_api_key, settings.livekit_api_secret).verify(token)
         assert client.get('/api/voice/authorize-sfu', headers={'X-Sfu-Token': token}).status_code == 204

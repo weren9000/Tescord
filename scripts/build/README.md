@@ -9,8 +9,8 @@
   локальные каталоги зависимостей. Восстанавливаются через `npm ci` в каждом разделе.
 - `.tools/jdk/<версия>/` — Java 21.
 - `.tools/sdk/` — Android SDK: Platform 36, Build Tools 36.0.0, command-line tools.
-- `.local/native-runtime.json` — проверенная конфигурация production для нативных
-  клиентов, включая TURN. Не публиковать в Git.
+- Публичные адреса сервисов задаёт `scripts/native-runtime.cjs`; временные данные
+  TURN клиент получает после допуска к звонку.
 - `frontend/dist`, `desktop/release`, `mobile/release` — результаты сборок.
 
 Эти файлы исключены из Git. SDK и JDK устанавливаются отдельно; скрипт окружения
@@ -27,7 +27,7 @@ npm --prefix frontend run build
 ```
 
 `env.ps1` задаёт переменные только в текущем терминале, обновляет локальный
-`mobile/android/local.properties` и подключает `.local/native-runtime.json`.
+`mobile/android/local.properties`.
 После переноса проекта запустите его снова.
 
 ## Windows
@@ -56,7 +56,6 @@ try {
 
 Подпись выполняется существующим `mobile/sign-release.ps1` с параметрами
 `-SdkRoot $env:ANDROID_HOME -SigningDirectory <папка-ключа>`.
-Текущий ключ хранится вне репозитория в `..\Backups\android-signing`.
 Не создавать новый ключ для обновления уже установленного приложения.
 
 Старые инструкции в `mobile/README.md` описывают ранние релизы; актуальные

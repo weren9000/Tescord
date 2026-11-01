@@ -15,7 +15,7 @@ import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { Room, RoomEvent, Track, RemoteTrack, TrackPublication } from 'livekit-client';
-import { API_BASE_URL, VOICE_ICE_SERVERS } from '../core/api/api-base';
+import { API_BASE_URL, voiceRtcConfig } from '../core/api/api-base';
 import { SessionStorageService } from '../core/services/session-storage.service';
 import { ThemeControllerComponent } from '../workspace/theme-controller.component';
 import { AndroidCallOutputComponent } from '../workspace/android-call-output.component';
@@ -498,7 +498,10 @@ export class RoomPageComponent implements OnInit, OnDestroy {
   }
   async connectMedia() {
     if (this.room) await this.disconnectMedia();
-    const grant = await this.request<{ url: string; token: string }>('POST', '/media');
+    const grant = await this.request<{ url: string; token: string; ice_servers?: RTCIceServer[] }>(
+      'POST',
+      '/media',
+    );
     if (this.disposed || !this.ticket()) return;
     const room = new Room({ adaptiveStream: true, dynacast: true });
     this.room = room;
@@ -551,7 +554,7 @@ export class RoomPageComponent implements OnInit, OnDestroy {
       this.connected.set(true);
       this.notice.set('');
     });
-    await room.connect(grant.url, grant.token, { rtcConfig: { iceServers: VOICE_ICE_SERVERS } });
+    await room.connect(grant.url, grant.token, { rtcConfig: voiceRtcConfig(grant.ice_servers) });
     if (this.disposed || this.room !== room) {
       await room.disconnect();
       return;

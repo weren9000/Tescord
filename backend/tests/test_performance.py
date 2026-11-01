@@ -120,7 +120,7 @@ def test_thumbnail_revalidation_does_not_regenerate(tmp_path, monkeypatch):
     Image.new('RGB', (128, 128), 'red').save(data, 'PNG')
     response = image_previews.small_preview_response(data.getvalue())
     request = Request({'type': 'http', 'headers': [(b'if-none-match', response.headers['etag'].encode())]})
-    monkeypatch.setattr(image_previews.Image, 'open', lambda *a: (_ for _ in ()).throw(AssertionError('decoded cached image')))
+    monkeypatch.setattr(Image, 'open', lambda *a, **kw: (_ for _ in ()).throw(AssertionError('decoded cached image')))
     assert image_previews.small_preview_response(data.getvalue(), request).status_code == 304
 
 

@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.services.contact_permissions import ensure_can_add_users
 
 from uuid import UUID
 
@@ -56,7 +57,7 @@ def _member_preview(member: ServerMember, online_user_ids: set[UUID]) -> Convers
     return ConversationMemberPreview(
         user_id=user.id,
         public_id=user.public_id,
-        login=user.email,
+        login=str(user.public_id),
         nick=user.username,
         avatar_updated_at=user.avatar_updated_at,
         is_online=user.id in online_user_ids,
@@ -71,7 +72,7 @@ def _conversation_title(server: Server, current_user_id: UUID) -> tuple[str, str
             return server.name, None
 
         peer_user = peer_member.user
-        return peer_user.username, peer_user.email
+        return peer_user.username, str(peer_user.public_id)
 
     return server.name, f"{len(server.members)} участников"
 
@@ -327,7 +328,7 @@ def list_conversation_directory(
         ConversationDirectoryUserSummary(
             user_id=user.id,
             public_id=user.public_id,
-            login=user.email,
+            login=str(user.public_id),
             nick=user.username,
             avatar_updated_at=user.avatar_updated_at,
             is_online=user.id in online_user_ids,
@@ -401,6 +402,8 @@ def create_group_conversation(
     )
     if len(users) != len(member_ids):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Не все участники найдены")
+
+    ensure_can_add_users(db, current_user.id, member_ids)
 
     try:
         icon_asset = normalize_server_icon_asset(payload.icon_asset)

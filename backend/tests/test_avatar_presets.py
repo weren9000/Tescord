@@ -48,7 +48,11 @@ def test_selection_upload_and_removal_restore_saved_preset(account):
     assert uploaded.status_code == 200
     assert uploaded.json()['has_uploaded_avatar']
     assert uploaded.json()['avatar_preset'] == 'owl'
-    assert client.get(url).content == TEST_PNG_BYTES
+    from io import BytesIO
+    from PIL import Image
+    with Image.open(BytesIO(client.get(url).content)) as normalized, Image.open(BytesIO(TEST_PNG_BYTES)) as original:
+        assert normalized.size == original.size
+        assert normalized.convert('RGBA').tobytes() == original.convert('RGBA').tobytes()
     removed = client.put('/api/me/profile', headers=headers, data={'remove_avatar': 'true'})
     assert removed.status_code == 200
     assert not removed.json()['has_uploaded_avatar']

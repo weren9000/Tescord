@@ -51,7 +51,7 @@ def _build_server_member_summary(
         id=member.id,
         user_id=user.id,
         public_id=user.public_id,
-        login=user.email,
+        login=str(user.public_id),
         nick=user.username,
         avatar_updated_at=user.avatar_updated_at,
         role=member.role.value,

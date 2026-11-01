@@ -1,5 +1,5 @@
-import {observeCall} from './call-telemetry';
-import {ParticipantAudioOutput} from '../../shared/participant-audio-output';
+import { observeCall } from './call-telemetry';
+import { ParticipantAudioOutput } from '../../shared/participant-audio-output';
 import { authenticatedWebSocket } from './authenticated-websocket';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
@@ -19,10 +19,14 @@ import type {
 } from 'livekit-client';
 import { firstValueFrom } from 'rxjs';
 
-import { SFU_BASE_URL, VOICE_ICE_SERVERS, WS_BASE_URL } from '../api/api-base';
+import { SFU_BASE_URL, voiceRtcConfig, WS_BASE_URL } from '../api/api-base';
 import { WorkspaceApiService } from '../api/workspace-api.service';
 import { CurrentUserResponse, VoiceSfuTokenResponse } from '../models/workspace.models';
-import { isIphoneLikeBrowser, prepareInlineMediaElement, requestCameraStream } from '../../shared/media-device.utils';
+import {
+  isIphoneLikeBrowser,
+  prepareInlineMediaElement,
+  requestCameraStream,
+} from '../../shared/media-device.utils';
 
 export interface VoiceParticipant {
   id: string;
@@ -137,9 +141,11 @@ const OWNER_MUTED_NOTICE = 'Микрофон заблокирован владе
 const CONTROL_RECONNECT_NOTICE = 'Связь с голосовой комнатой просела, переподключаемся';
 const MEDIA_RECONNECT_NOTICE = 'Связь с медиасервером просела, переподключаемся';
 const RECONNECT_RETRY_NOTICE = 'Не удалось быстро восстановить голос, пробуем ещё раз';
-const AUDIO_UNLOCK_NOTICE = 'Нажмите в любом месте страницы, если браузер не начал воспроизводить голоса автоматически.';
+const AUDIO_UNLOCK_NOTICE =
+  'Нажмите в любом месте страницы, если браузер не начал воспроизводить голоса автоматически.';
 
-const MICROPHONE_SILENCE_NOTICE = 'Микрофон подключён, но браузер получает тишину. Проверьте выбранный микрофон и входную громкость Windows.';
+const MICROPHONE_SILENCE_NOTICE =
+  'Микрофон подключён, но браузер получает тишину. Проверьте выбранный микрофон и входную громкость Windows.';
 
 const TRANSIENT_NOTICES = new Set<string>([
   OWNER_MUTED_NOTICE,
@@ -176,17 +182,16 @@ function loadVoiceSettings(): VoiceSettings {
     }
 
     const parsed = JSON.parse(raw) as Partial<VoiceSettings>;
-    const participantVolumes = Object.entries(parsed.participantVolumes ?? {}).reduce<Record<string, number>>(
-      (accumulator, [userId, volume]) => {
-        accumulator[userId] = clamp(
-          typeof volume === 'number' ? volume : DEFAULT_VOICE_SETTINGS.masterVolume,
-          MIN_PARTICIPANT_VOLUME_PERCENT,
-          MAX_OUTPUT_VOLUME_PERCENT,
-        );
-        return accumulator;
-      },
-      {},
-    );
+    const participantVolumes = Object.entries(parsed.participantVolumes ?? {}).reduce<
+      Record<string, number>
+    >((accumulator, [userId, volume]) => {
+      accumulator[userId] = clamp(
+        typeof volume === 'number' ? volume : DEFAULT_VOICE_SETTINGS.masterVolume,
+        MIN_PARTICIPANT_VOLUME_PERCENT,
+        MAX_OUTPUT_VOLUME_PERCENT,
+      );
+      return accumulator;
+    }, {});
 
     return {
       inputDeviceId: parsed.inputDeviceId ?? null,
@@ -219,8 +224,11 @@ function saveVoiceSettings(settings: VoiceSettings): void {
     return;
   }
 
-  try { localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings)); }
-  catch { /* Storage failure must never interrupt an active audio adjustment. */ }
+  try {
+    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+  } catch {
+    /* Storage failure must never interrupt an active audio adjustment. */
+  }
 }
 
 @Injectable({
@@ -266,31 +274,43 @@ export class VoiceRoomService {
   readonly state = signal<VoiceConnectionState>('idle');
   readonly error = signal<string | null>(null);
   readonly settingsNotice = signal<string | null>(null);
-  readonly reconnecting = computed(() => this.state() === 'connecting' &&
-    [CONTROL_RECONNECT_NOTICE, MEDIA_RECONNECT_NOTICE, RECONNECT_RETRY_NOTICE].includes(this.settingsNotice() ?? ''));
+  readonly reconnecting = computed(
+    () =>
+      this.state() === 'connecting' &&
+      [CONTROL_RECONNECT_NOTICE, MEDIA_RECONNECT_NOTICE, RECONNECT_RETRY_NOTICE].includes(
+        this.settingsNotice() ?? '',
+      ),
+  );
   readonly activeChannelId = signal<string | null>(null);
   readonly participants = signal<VoiceParticipant[]>([]);
   readonly localMuted = signal(false);
   readonly outputMuted = signal(false);
 
   toggleOutputMuted(): void {
-    this.outputMuted.update(value => !value);
+    this.outputMuted.update((value) => !value);
     this.applyAllRemoteVolumes();
   }
   readonly localVideoStream = signal<MediaStream | null>(null);
   readonly localScreenShareStream = signal<MediaStream | null>(null);
   readonly remoteVideoStreams = signal<Record<string, MediaStream | null>>({});
   readonly remoteScreenShareStreams = signal<Record<string, MediaStream | null>>({});
-  readonly ownerMuted = computed(() => this.getParticipant(this.selfId ?? 'local')?.owner_muted === true);
+  readonly ownerMuted = computed(
+    () => this.getParticipant(this.selfId ?? 'local')?.owner_muted === true,
+  );
   readonly settings = signal<VoiceSettings>(loadVoiceSettings());
   readonly devicesLoading = signal(false);
   readonly inputDevices = signal<VoiceDeviceOption[]>([]);
   readonly outputDevices = signal<VoiceDeviceOption[]>([]);
   readonly isConnected = computed(() => this.state() === 'connected');
-  readonly cameraSupported = computed(() => typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia);
+  readonly cameraSupported = computed(
+    () => typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia,
+  );
   readonly cameraEnabled = computed(() => this.localVideoStream() !== null);
   readonly screenShareSupported = computed(
-    () => typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getDisplayMedia && !isIphoneLikeBrowser()
+    () =>
+      typeof navigator !== 'undefined' &&
+      !!navigator.mediaDevices?.getDisplayMedia &&
+      !isIphoneLikeBrowser(),
   );
   readonly screenShareEnabled = computed(() => this.localScreenShareStream() !== null);
   readonly outputDeviceSupported = computed(() => {
@@ -306,8 +326,17 @@ export class VoiceRoomService {
     void this.refreshDevices();
   }
 
-  async join(channelId: string, token: string, currentUser: CurrentUserResponse, force = false): Promise<void> {
-    if (!force && this.activeChannelId() === channelId && (this.state() === 'connecting' || this.state() === 'connected')) {
+  async join(
+    channelId: string,
+    token: string,
+    currentUser: CurrentUserResponse,
+    force = false,
+  ): Promise<void> {
+    if (
+      !force &&
+      this.activeChannelId() === channelId &&
+      (this.state() === 'connecting' || this.state() === 'connected')
+    ) {
       return;
     }
 
@@ -347,7 +376,9 @@ export class VoiceRoomService {
       this.applyLocalMuteState();
       await this.refreshDevices();
 
-      const sfuToken = await firstValueFrom(this.workspaceApi.createVoiceSfuToken(token, channelId));
+      const sfuToken = await firstValueFrom(
+        this.workspaceApi.createVoiceSfuToken(token, channelId),
+      );
       await this.openControlSocket(channelId, token);
       await this.connectRoom(sfuToken);
 
@@ -358,7 +389,9 @@ export class VoiceRoomService {
       this.clearReconnectNoticeIfReady();
       this.updateOperationalState();
     } catch (error) {
-      await this.failSession(this.describeError(error, 'Не удалось подключиться к голосовому каналу'));
+      await this.failSession(
+        this.describeError(error, 'Не удалось подключиться к голосовому каналу'),
+      );
     }
   }
 
@@ -395,12 +428,16 @@ export class VoiceRoomService {
     );
   }
 
-  syncParticipantProfiles(participantsSnapshot: Array<Pick<VoiceParticipant, 'user_id' | 'nick' | 'avatar_updated_at'>>): void {
+  syncParticipantProfiles(
+    participantsSnapshot: Array<Pick<VoiceParticipant, 'user_id' | 'nick' | 'avatar_updated_at'>>,
+  ): void {
     if (!participantsSnapshot.length) {
       return;
     }
 
-    const snapshotByUserId = new Map(participantsSnapshot.map((participant) => [participant.user_id, participant]));
+    const snapshotByUserId = new Map(
+      participantsSnapshot.map((participant) => [participant.user_id, participant]),
+    );
     this.participants.update((participants) =>
       participants.map((participant) => {
         const snapshot = snapshotByUserId.get(participant.user_id);
@@ -432,7 +469,9 @@ export class VoiceRoomService {
     this.applyLocalMuteState();
     this.updateParticipant(this.selfId ?? 'local', {
       muted: nextMuted,
-      speaking: nextMuted ? false : this.activeSpeakerUserIds.has(this.lastJoinContext?.currentUser.id ?? ''),
+      speaking: nextMuted
+        ? false
+        : this.activeSpeakerUserIds.has(this.lastJoinContext?.currentUser.id ?? ''),
     });
     this.sendControlMessage({
       type: 'mute_state',
@@ -442,13 +481,21 @@ export class VoiceRoomService {
 
   readonly cameraDeviceId = signal<string | null>(null);
   async setCameraDevice(deviceId: string | null): Promise<void> {
-    if (!this.localVideoTrack) { this.cameraDeviceId.set(deviceId); return; }
+    if (!this.localVideoTrack) {
+      this.cameraDeviceId.set(deviceId);
+      return;
+    }
     let stream: MediaStream | null = null;
     try {
-      stream = await requestCameraStream(deviceId ? {deviceId:{exact:deviceId}} : {facingMode:'user'});
+      stream = await requestCameraStream(
+        deviceId ? { deviceId: { exact: deviceId } } : { facingMode: 'user' },
+      );
       const track = stream.getVideoTracks()[0];
       const published = this.localVideoTrack;
-      if (!published || !track) { stream.getTracks().forEach(t=>t.stop()); return; }
+      if (!published || !track) {
+        stream.getTracks().forEach((t) => t.stop());
+        return;
+      }
       const oldStream = this.localVideoStreamInternal;
       if (this.localVideoTrackMedia) this.localVideoTrackMedia.onended = null;
       await published.replaceTrack(track, true);
@@ -456,12 +503,14 @@ export class VoiceRoomService {
       this.localVideoStreamInternal = stream;
       this.localVideoStream.set(stream);
       this.cameraDeviceId.set(deviceId);
-      track.onended = () => { if(this.localVideoTrackMedia===track) void this.stopCamera(); };
-      oldStream?.getTracks().forEach(t=>t.stop());
+      track.onended = () => {
+        if (this.localVideoTrackMedia === track) void this.stopCamera();
+      };
+      oldStream?.getTracks().forEach((t) => t.stop());
       this.settingsNotice.set(null);
-    } catch(error) {
-      stream?.getTracks().forEach(t=>t.stop());
-      this.settingsNotice.set(this.describeError(error,'Не удалось переключить камеру'));
+    } catch (error) {
+      stream?.getTracks().forEach((t) => t.stop());
+      this.settingsNotice.set(this.describeError(error, 'Не удалось переключить камеру'));
     }
   }
 
@@ -487,7 +536,7 @@ export class VoiceRoomService {
 
     try {
       const stream = await requestCameraStream({
-        ...(this.cameraDeviceId() ? {deviceId: {exact: this.cameraDeviceId()!}} : {}),
+        ...(this.cameraDeviceId() ? { deviceId: { exact: this.cameraDeviceId()! } } : {}),
         width: { ideal: 960, max: 1280 },
         height: { ideal: 540, max: 720 },
         frameRate: { ideal: 20, max: 24 },
@@ -633,7 +682,9 @@ export class VoiceRoomService {
     }
 
     this.devicesLoading.set(true);
-    this.settingsNotice.set(this.settingsNotice() === OWNER_MUTED_NOTICE ? OWNER_MUTED_NOTICE : null);
+    this.settingsNotice.set(
+      this.settingsNotice() === OWNER_MUTED_NOTICE ? OWNER_MUTED_NOTICE : null,
+    );
 
     try {
       const devices = await navigator.mediaDevices.enumerateDevices();
@@ -662,7 +713,7 @@ export class VoiceRoomService {
   async updateInputDevice(deviceId: string | null): Promise<void> {
     if (this.inputDeviceChanging) return;
     if (!this.rawLocalStream || !this.localAudioTrack) {
-      this.updateSettings({inputDeviceId: deviceId || null});
+      this.updateSettings({ inputDeviceId: deviceId || null });
       return;
     }
     const previous = this.rawLocalStream;
@@ -671,10 +722,14 @@ export class VoiceRoomService {
     this.inputDeviceChanging = true;
     let replacement: MediaStream | null = null;
     try {
-      replacement = await navigator.mediaDevices.getUserMedia({audio: {
-        echoCancellation: true, noiseSuppression: true, autoGainControl: true,
-        ...(deviceId ? {deviceId: {exact: deviceId}} : {}),
-      }});
+      replacement = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          ...(deviceId ? { deviceId: { exact: deviceId } } : {}),
+        },
+      });
       if (this.rawLocalStream !== previous || this.room !== room) return;
       const track = replacement.getAudioTracks()[0];
       if (!track) throw new Error('No microphone track');
@@ -693,13 +748,16 @@ export class VoiceRoomService {
       this.rawLocalStream = replacement;
       replacement = null;
       this.applyLocalMuteState();
-      previous.getTracks().forEach(track => track.stop());
-      this.updateSettings({inputDeviceId: deviceId || null});
+      previous.getTracks().forEach((track) => track.stop());
+      this.updateSettings({ inputDeviceId: deviceId || null });
       await this.refreshDevices();
     } catch {
-      if (this.rawLocalStream === previous) this.settingsNotice.set('Не удалось переключить микрофон. Проверьте устройство и разрешение браузера.');
+      if (this.rawLocalStream === previous)
+        this.settingsNotice.set(
+          'Не удалось переключить микрофон. Проверьте устройство и разрешение браузера.',
+        );
     } finally {
-      replacement?.getTracks().forEach(track => track.stop());
+      replacement?.getTracks().forEach((track) => track.stop());
       this.inputDeviceChanging = false;
     }
   }
@@ -755,20 +813,32 @@ export class VoiceRoomService {
       participantVolumes,
       participantRestoreVolumes: {
         ...this.settings().participantRestoreVolumes,
-        [userId]: nextVolume > 0 ? nextVolume : previousVolume > 0
-          ? previousVolume : this.settings().participantRestoreVolumes[userId] ?? 100,
+        [userId]:
+          nextVolume > 0
+            ? nextVolume
+            : previousVolume > 0
+              ? previousVolume
+              : (this.settings().participantRestoreVolumes[userId] ?? 100),
       },
     });
     this.applyVolumesForUser(userId);
   }
 
   getParticipantVolume(userId: string): number {
-    return clamp(this.settings().participantVolumes[userId] ?? 100, MIN_PARTICIPANT_VOLUME_PERCENT, MAX_OUTPUT_VOLUME_PERCENT);
+    return clamp(
+      this.settings().participantVolumes[userId] ?? 100,
+      MIN_PARTICIPANT_VOLUME_PERCENT,
+      MAX_OUTPUT_VOLUME_PERCENT,
+    );
   }
 
   toggleParticipantMuted(userId: string): void {
-    this.updateParticipantVolume(userId, this.getParticipantVolume(userId) === 0
-      ? this.settings().participantRestoreVolumes[userId] ?? 100 : 0);
+    this.updateParticipantVolume(
+      userId,
+      this.getParticipantVolume(userId) === 0
+        ? (this.settings().participantRestoreVolumes[userId] ?? 100)
+        : 0,
+    );
   }
 
   private async reconnectIfNeeded(): Promise<void> {
@@ -824,9 +894,7 @@ export class VoiceRoomService {
     this.attachRoomListeners(room);
 
     await room.connect(sfuToken.url || SFU_BASE_URL, sfuToken.token, {
-      rtcConfig: {
-        iceServers: VOICE_ICE_SERVERS,
-      },
+      rtcConfig: voiceRtcConfig(sfuToken.ice_servers),
     });
 
     await this.publishAudioIfPermitted();
@@ -834,7 +902,8 @@ export class VoiceRoomService {
     this.syncSubscribedRemoteTracks(room);
     await this.applyAudioOutputPreferences();
     this.applyAllRemoteVolumes();
-    void room.startAudio()
+    void room
+      .startAudio()
       .then(() => {
         void this.retryPendingAudioPlayback();
       })
@@ -853,12 +922,22 @@ export class VoiceRoomService {
 
   private async publishAudioIfPermitted(): Promise<void> {
     const room = this.room;
-    if (!room || room.state !== 'connected' || !room.localParticipant.permissions?.canPublish
-      || !this.localAudioTrack || this.ownerMuted() || this.publishingAudio
-      || room.localParticipant.getTrackPublication(this.sdk.Track.Source.Microphone)) { return; }
+    if (
+      !room ||
+      room.state !== 'connected' ||
+      !room.localParticipant.permissions?.canPublish ||
+      !this.localAudioTrack ||
+      this.ownerMuted() ||
+      this.publishingAudio ||
+      room.localParticipant.getTrackPublication(this.sdk.Track.Source.Microphone)
+    ) {
+      return;
+    }
     this.publishingAudio = true;
     try {
-      await room.localParticipant.publishTrack(this.localAudioTrack, { source: this.sdk.Track.Source.Microphone });
+      await room.localParticipant.publishTrack(this.localAudioTrack, {
+        source: this.sdk.Track.Source.Microphone,
+      });
       this.applyLocalMuteState();
     } catch {
       this.error.set('Не удалось включить микрофон. Повторите подключение.');
@@ -869,7 +948,9 @@ export class VoiceRoomService {
 
   private attachRoomListeners(room: Room): void {
     this.attachRoomEvent(room, 'participantPermissionsChanged', (_, participant) => {
-      if (participant === room.localParticipant) { void this.publishAudioIfPermitted(); }
+      if (participant === room.localParticipant) {
+        void this.publishAudioIfPermitted();
+      }
     });
     this.attachRoomEvent(room, 'connected', () => {
       this.updateOperationalState();
@@ -898,7 +979,11 @@ export class VoiceRoomService {
       void this.refreshDevices();
     });
     this.attachRoomEvent(room, 'localAudioSilenceDetected', (publication) => {
-      if (publication.source !== this.sdk.Track.Source.Microphone || this.localMuted() || this.ownerMuted()) {
+      if (
+        publication.source !== this.sdk.Track.Source.Microphone ||
+        this.localMuted() ||
+        this.ownerMuted()
+      ) {
         return;
       }
 
@@ -921,7 +1006,10 @@ export class VoiceRoomService {
     });
     this.attachRoomEvent(room, 'activeSpeakersChanged', (speakers) => {
       this.activeSpeakerUserIds = new Set(speakers.map((speaker) => speaker.identity));
-      if (this.lastJoinContext && this.activeSpeakerUserIds.has(this.lastJoinContext.currentUser.id)) {
+      if (
+        this.lastJoinContext &&
+        this.activeSpeakerUserIds.has(this.lastJoinContext.currentUser.id)
+      ) {
         this.clearMicrophoneSilenceNotice();
       }
       this.syncSpeakingParticipants();
@@ -947,7 +1035,10 @@ export class VoiceRoomService {
     }
   }
 
-  private attachSubscribedPublication(publication: RemoteTrackPublication, participant: RemoteParticipant): void {
+  private attachSubscribedPublication(
+    publication: RemoteTrackPublication,
+    participant: RemoteParticipant,
+  ): void {
     if (!publication.track || !publication.isSubscribed) {
       return;
     }
@@ -979,7 +1070,9 @@ export class VoiceRoomService {
     }
 
     if (reason === this.sdk.DisconnectReason.DUPLICATE_IDENTITY) {
-      await this.failSession('Этот аккаунт уже подключён к голосовому каналу в другой вкладке или на другом устройстве');
+      await this.failSession(
+        'Этот аккаунт уже подключён к голосовому каналу в другой вкладке или на другом устройстве',
+      );
       return;
     }
 
@@ -994,7 +1087,11 @@ export class VoiceRoomService {
     this.scheduleReconnect('full');
   }
 
-  private async handleTrackSubscribed(track: RemoteTrack, source: Track.Source | undefined, userId: string): Promise<void> {
+  private async handleTrackSubscribed(
+    track: RemoteTrack,
+    source: Track.Source | undefined,
+    userId: string,
+  ): Promise<void> {
     if (track.kind === this.sdk.Track.Kind.Audio) {
       await this.attachRemoteAudio(userId, track as RemoteAudioTrack);
       return;
@@ -1010,7 +1107,11 @@ export class VoiceRoomService {
     }
   }
 
-  private handleTrackUnsubscribed(track: RemoteTrack, source: Track.Source | undefined, userId: string): void {
+  private handleTrackUnsubscribed(
+    track: RemoteTrack,
+    source: Track.Source | undefined,
+    userId: string,
+  ): void {
     if (track.kind === this.sdk.Track.Kind.Audio) {
       const tracks = this.remoteAudioTracks.get(userId);
       if (tracks?.get(track.mediaStreamTrack.id) !== track) return;
@@ -1032,7 +1133,10 @@ export class VoiceRoomService {
 
   private async openControlSocket(channelId: string, token: string): Promise<void> {
     await new Promise<void>((resolve, reject) => {
-      const socket = authenticatedWebSocket(`${WS_BASE_URL}/api/voice/channels/${channelId}/ws`, token);
+      const socket = authenticatedWebSocket(
+        `${WS_BASE_URL}/api/voice/channels/${channelId}/ws`,
+        token,
+      );
       this.controlSocket = socket;
 
       let opened = false;
@@ -1145,16 +1249,21 @@ export class VoiceRoomService {
     this.selfId = message.self_id;
     this.participantUserIds.clear();
 
-    const nextParticipants = [message.self_participant, ...message.participants].map((participant) => {
-      this.participantUserIds.set(participant.id, participant.user_id);
-      return this.toVoiceParticipant(participant, participant.id === message.self_id);
-    });
+    const nextParticipants = [message.self_participant, ...message.participants].map(
+      (participant) => {
+        this.participantUserIds.set(participant.id, participant.user_id);
+        return this.toVoiceParticipant(participant, participant.id === message.self_id);
+      },
+    );
 
     this.participants.set(
       nextParticipants.map((participant) => ({
         ...participant,
         muted: participant.is_self ? this.localMuted() : participant.muted,
-        speaking: !participant.muted && !participant.owner_muted && this.activeSpeakerUserIds.has(participant.user_id),
+        speaking:
+          !participant.muted &&
+          !participant.owner_muted &&
+          this.activeSpeakerUserIds.has(participant.user_id),
       })),
     );
 
@@ -1172,10 +1281,16 @@ export class VoiceRoomService {
     this.clearReconnectNoticeIfReady();
   }
 
-  private toVoiceParticipant(participant: RemoteVoiceParticipant, isSelf: boolean): VoiceParticipant {
+  private toVoiceParticipant(
+    participant: RemoteVoiceParticipant,
+    isSelf: boolean,
+  ): VoiceParticipant {
     return {
       ...participant,
-      speaking: !participant.muted && !participant.owner_muted && this.activeSpeakerUserIds.has(participant.user_id),
+      speaking:
+        !participant.muted &&
+        !participant.owner_muted &&
+        this.activeSpeakerUserIds.has(participant.user_id),
       is_self: isSelf,
     };
   }
@@ -1194,7 +1309,10 @@ export class VoiceRoomService {
                 avatar_updated_at: participant.avatar_updated_at,
                 muted: participant.muted,
                 owner_muted: participant.owner_muted,
-                speaking: !participant.muted && !participant.owner_muted && this.activeSpeakerUserIds.has(participant.user_id),
+                speaking:
+                  !participant.muted &&
+                  !participant.owner_muted &&
+                  this.activeSpeakerUserIds.has(participant.user_id),
               }
             : entry,
         );
@@ -1204,7 +1322,10 @@ export class VoiceRoomService {
         ...participants,
         {
           ...participant,
-          speaking: !participant.muted && !participant.owner_muted && this.activeSpeakerUserIds.has(participant.user_id),
+          speaking:
+            !participant.muted &&
+            !participant.owner_muted &&
+            this.activeSpeakerUserIds.has(participant.user_id),
           is_self: participant.id === this.selfId,
         },
       ];
@@ -1217,12 +1338,16 @@ export class VoiceRoomService {
 
   private updateParticipant(participantId: string, patch: Partial<VoiceParticipant>): void {
     this.participants.update((participants) =>
-      participants.map((participant) => (participant.id === participantId ? { ...participant, ...patch } : participant)),
+      participants.map((participant) =>
+        participant.id === participantId ? { ...participant, ...patch } : participant,
+      ),
     );
   }
 
   private removeParticipant(participantId: string): void {
-    this.participants.update((participants) => participants.filter((participant) => participant.id !== participantId));
+    this.participants.update((participants) =>
+      participants.filter((participant) => participant.id !== participantId),
+    );
     this.participantUserIds.delete(participantId);
     this.syncRemoteVideoParticipantMappings();
     this.syncRemoteScreenShareParticipantMappings();
@@ -1232,7 +1357,10 @@ export class VoiceRoomService {
     this.participants.update((participants) =>
       participants.map((participant) => ({
         ...participant,
-        speaking: !participant.muted && !participant.owner_muted && this.activeSpeakerUserIds.has(participant.user_id),
+        speaking:
+          !participant.muted &&
+          !participant.owner_muted &&
+          this.activeSpeakerUserIds.has(participant.user_id),
       })),
     );
   }
@@ -1299,9 +1427,12 @@ export class VoiceRoomService {
   private async attachRemoteAudio(userId: string, track: RemoteAudioTrack): Promise<void> {
     this.ensureAudiblePlaybackSettings(userId);
     let tracks = this.remoteAudioTracks.get(userId);
-    if (!tracks) { tracks = new Map(); this.remoteAudioTracks.set(userId, tracks); }
+    if (!tracks) {
+      tracks = new Map();
+      this.remoteAudioTracks.set(userId, tracks);
+    }
     tracks.set(track.mediaStreamTrack.id, track);
-    const stream = new MediaStream([...tracks.values()].map(t => t.mediaStreamTrack));
+    const stream = new MediaStream([...tracks.values()].map((t) => t.mediaStreamTrack));
     const remoteAudioOutput = await this.ensureRemoteAudioOutput(userId, stream);
     await this.applyOutputDevice(remoteAudioOutput.audioElement).catch(() => undefined);
     this.applyVolumeToAudioElement(userId);
@@ -1332,7 +1463,8 @@ export class VoiceRoomService {
   private async playRemoteAudio(userId: string, audioElement: HTMLAudioElement): Promise<void> {
     try {
       const playback = this.remoteAudioOutputs.get(userId)?.playback;
-      if (playback) await playback.play(); else await audioElement.play();
+      if (playback) await playback.play();
+      else await audioElement.play();
       this.pendingPlaybackUnlock.delete(userId);
       this.pendingPlaybackUnlock.delete('__room__');
       if (!this.pendingPlaybackUnlock.size) {
@@ -1348,7 +1480,10 @@ export class VoiceRoomService {
     }
   }
 
-  private async ensureRemoteAudioOutput(userId: string, stream: MediaStream): Promise<RemoteAudioOutput> {
+  private async ensureRemoteAudioOutput(
+    userId: string,
+    stream: MediaStream,
+  ): Promise<RemoteAudioOutput> {
     let remoteAudioOutput = this.remoteAudioOutputs.get(userId);
     if (!remoteAudioOutput) {
       const audioElement = document.createElement('audio');
@@ -1381,13 +1516,18 @@ export class VoiceRoomService {
 
     try {
       await sinkCapableElement.setSinkId(outputDeviceId ?? '');
-      if (this.settingsNotice() === 'Браузер не дал переключить устройство вывода звука, используем вывод по умолчанию') {
+      if (
+        this.settingsNotice() ===
+        'Браузер не дал переключить устройство вывода звука, используем вывод по умолчанию'
+      ) {
         this.settingsNotice.set(null);
       }
     } catch {
       this.updateSettings({ outputDeviceId: null });
       await sinkCapableElement.setSinkId('').catch(() => undefined);
-      this.settingsNotice.set('Браузер не дал переключить устройство вывода звука, используем вывод по умолчанию');
+      this.settingsNotice.set(
+        'Браузер не дал переключить устройство вывода звука, используем вывод по умолчанию',
+      );
     }
   }
 
@@ -1416,7 +1556,10 @@ export class VoiceRoomService {
     }
 
     const effectiveGain = this.getRemoteParticipantGain(userId);
-    if (remoteAudioOutput.playback) { remoteAudioOutput.playback.setVolume(effectiveGain); return; }
+    if (remoteAudioOutput.playback) {
+      remoteAudioOutput.playback.setVolume(effectiveGain);
+      return;
+    }
     remoteAudioOutput.audioElement.muted = effectiveGain === 0;
     remoteAudioOutput.audioElement.volume = clamp(effectiveGain, 0, 1);
   }
@@ -1435,10 +1578,18 @@ export class VoiceRoomService {
     this.attachRemoteVisualTrack(userId, track, 'screen-share');
   }
 
-  private attachRemoteVisualTrack(userId: string, track: RemoteVideoTrack, source: VoiceVideoSource): void {
+  private attachRemoteVisualTrack(
+    userId: string,
+    track: RemoteVideoTrack,
+    source: VoiceVideoSource,
+  ): void {
     this.clearRemoteVisualForUser(userId, source);
-    const trackMap = source === 'screen-share' ? this.remoteScreenShareTracks : this.remoteVideoTracks;
-    const streamMap = source === 'screen-share' ? this.remoteScreenShareStreamsByUserId : this.remoteVideoStreamsByUserId;
+    const trackMap =
+      source === 'screen-share' ? this.remoteScreenShareTracks : this.remoteVideoTracks;
+    const streamMap =
+      source === 'screen-share'
+        ? this.remoteScreenShareStreamsByUserId
+        : this.remoteVideoStreamsByUserId;
 
     trackMap.set(userId, track);
     streamMap.set(userId, new MediaStream([track.mediaStreamTrack]));
@@ -1475,7 +1626,10 @@ export class VoiceRoomService {
 
   private syncRemoteVisualParticipantMappings(source: VoiceVideoSource): void {
     const nextStreams: Record<string, MediaStream | null> = {};
-    const streamMap = source === 'screen-share' ? this.remoteScreenShareStreamsByUserId : this.remoteVideoStreamsByUserId;
+    const streamMap =
+      source === 'screen-share'
+        ? this.remoteScreenShareStreamsByUserId
+        : this.remoteVideoStreamsByUserId;
 
     for (const [participantId, userId] of this.participantUserIds.entries()) {
       const stream = streamMap.get(userId);
@@ -1524,8 +1678,12 @@ export class VoiceRoomService {
   }
 
   private clearRemoteVisualForUser(userId: string, source: VoiceVideoSource): void {
-    const trackMap = source === 'screen-share' ? this.remoteScreenShareTracks : this.remoteVideoTracks;
-    const streamMap = source === 'screen-share' ? this.remoteScreenShareStreamsByUserId : this.remoteVideoStreamsByUserId;
+    const trackMap =
+      source === 'screen-share' ? this.remoteScreenShareTracks : this.remoteVideoTracks;
+    const streamMap =
+      source === 'screen-share'
+        ? this.remoteScreenShareStreamsByUserId
+        : this.remoteVideoStreamsByUserId;
     const track = trackMap.get(userId);
     if (track) {
       track.mediaStreamTrack.onended = null;
@@ -1583,7 +1741,10 @@ export class VoiceRoomService {
       return;
     }
 
-    this.localAudioPipeline.gainNode.gain.setValueAtTime(this.getMicrophoneGainMultiplier(), this.audioContext.currentTime);
+    this.localAudioPipeline.gainNode.gain.setValueAtTime(
+      this.getMicrophoneGainMultiplier(),
+      this.audioContext.currentTime,
+    );
   }
 
   private getMicrophoneGainMultiplier(): number {
@@ -1600,7 +1761,9 @@ export class VoiceRoomService {
     }
 
     if (typeof window !== 'undefined' && !window.isSecureContext) {
-      throw new Error('На телефоне микрофон и голосовой канал работают только через HTTPS или localhost. Откройте Altgramm по защищённому домену.');
+      throw new Error(
+        'На телефоне микрофон и голосовой канал работают только через HTTPS или localhost. Откройте Altgramm по защищённому домену.',
+      );
     }
 
     const settings = this.settings();
@@ -1622,7 +1785,9 @@ export class VoiceRoomService {
       });
     } catch {
       if (settings.inputDeviceId) {
-        this.settingsNotice.set('Выбранный микрофон недоступен, подключаемся через устройство по умолчанию');
+        this.settingsNotice.set(
+          'Выбранный микрофон недоступен, подключаемся через устройство по умолчанию',
+        );
       }
 
       return navigator.mediaDevices.getUserMedia({
@@ -1671,7 +1836,8 @@ export class VoiceRoomService {
   }
 
   private async disconnectRoom(): Promise<void> {
-    this.stopTelemetry?.(); this.stopTelemetry = null;
+    this.stopTelemetry?.();
+    this.stopTelemetry = null;
     const room = this.room;
     if (!room) {
       return;
@@ -1809,7 +1975,11 @@ export class VoiceRoomService {
       return;
     }
 
-    if (this.settingsNotice() === CONTROL_RECONNECT_NOTICE || this.settingsNotice() === MEDIA_RECONNECT_NOTICE || this.settingsNotice() === RECONNECT_RETRY_NOTICE) {
+    if (
+      this.settingsNotice() === CONTROL_RECONNECT_NOTICE ||
+      this.settingsNotice() === MEDIA_RECONNECT_NOTICE ||
+      this.settingsNotice() === RECONNECT_RETRY_NOTICE
+    ) {
       this.settingsNotice.set(null);
     }
   }
@@ -1853,7 +2023,10 @@ export class VoiceRoomService {
       }
     }
 
-    const delay = Math.min(VOICE_RECONNECT_BASE_MS * 2 ** this.reconnectAttempt, VOICE_RECONNECT_MAX_MS);
+    const delay = Math.min(
+      VOICE_RECONNECT_BASE_MS * 2 ** this.reconnectAttempt,
+      VOICE_RECONNECT_MAX_MS,
+    );
     this.reconnectAttempt += 1;
     this.reconnectMode = mode;
 
@@ -1941,8 +2114,9 @@ export class VoiceRoomService {
       return null;
     }
 
-    const AudioContextCtor = window.AudioContext
-      ?? (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    const AudioContextCtor =
+      window.AudioContext ??
+      (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
 
     return AudioContextCtor ? new AudioContextCtor() : null;
   }
@@ -1990,7 +2164,8 @@ export class VoiceRoomService {
 
       try {
         const playback = this.remoteAudioOutputs.get(userId)?.playback;
-        if (playback) await playback.play(); else await audioElement.play();
+        if (playback) await playback.play();
+        else await audioElement.play();
         this.pendingPlaybackUnlock.delete(userId);
       } catch {
         return;
@@ -2027,23 +2202,32 @@ export class VoiceRoomService {
   }
 
   private isFatalControlSocketCloseCode(code: number): boolean {
-    return code === 4003 || code === 4401 || code === 4403 || code === 4404 || code === 4409 || code === 4429;
+    return (
+      code === 4003 ||
+      code === 4401 ||
+      code === 4403 ||
+      code === 4404 ||
+      code === 4409 ||
+      code === 4429
+    );
   }
 
   private isFatalControlSocketMessage(message: string): boolean {
     return (
-      message === this.getControlSocketFailureMessage(4429)
-      || message === this.getControlSocketFailureMessage(4409)
-      || message === 'Владелец закрыл вам доступ к голосовому каналу'
-      || message === 'Сессия голосового канала истекла, подключитесь заново'
-      || message === 'У вас больше нет доступа к голосовому каналу'
-      || message === 'Голосовой канал больше недоступен'
+      message === this.getControlSocketFailureMessage(4429) ||
+      message === this.getControlSocketFailureMessage(4409) ||
+      message === 'Владелец закрыл вам доступ к голосовому каналу' ||
+      message === 'Сессия голосового канала истекла, подключитесь заново' ||
+      message === 'У вас больше нет доступа к голосовому каналу' ||
+      message === 'Голосовой канал больше недоступен'
     );
   }
 
   private getControlSocketFailureMessage(code: number): string {
-    if (code === 4429) return 'В голосовой комнате уже 30 участников. Подключитесь, когда освободится место';
-    if (code === 4409) return 'Вы уже подключены к этой комнате в другой вкладке или на другом устройстве';
+    if (code === 4429)
+      return 'В голосовой комнате уже 30 участников. Подключитесь, когда освободится место';
+    if (code === 4409)
+      return 'Вы уже подключены к этой комнате в другой вкладке или на другом устройстве';
     if (code === 4003) {
       return 'Владелец закрыл вам доступ к голосовому каналу';
     }

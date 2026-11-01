@@ -58,26 +58,13 @@
 window.__TESCORD_RUNTIME_CONFIG__ = {
   apiBaseUrl: 'https://api.tes-cord.ru',
   wsBaseUrl: 'wss://api.tes-cord.ru',
-  sfuUrl: 'wss://api.tes-cord.ru/livekit',
-  iceServers: [
-    {
-      urls: 'stun:stun.l.google.com:19302'
-    },
-    {
-      urls: ['turn:turn.tes-cord.ru:3478?transport=udp', 'turn:turn.tes-cord.ru:3478?transport=tcp'],
-      username: 'TURN_USERNAME',
-      credential: 'TURN_PASSWORD'
-    },
-    {
-      urls: ['turns:turn.tes-cord.ru:5349?transport=tcp'],
-      username: 'TURN_USERNAME',
-      credential: 'TURN_PASSWORD'
-    }
-  ]
+  sfuUrl: 'wss://api.tes-cord.ru/livekit'
 };
 ```
 
 ## DNS для гибридной схемы
+
+TURN настраивается только на VPS: backend выдаёт временные credentials после допуска к звонку. Постоянный пароль в `runtime-config.js` не размещать. Порядок перехода существующего сервера: [исправления безопасности](docs/security-hardening-2026-11.md).
 
 Нужно будет настроить:
 

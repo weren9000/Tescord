@@ -1,4 +1,4 @@
-"""Authenticate multipart requests before Starlette spools their file bodies."""
+"""Authenticate and bound form bodies before FastAPI runs its form parser."""
 import asyncio
 
 from fastapi import HTTPException
@@ -29,22 +29,32 @@ class UploadAdmissionMiddleware:
         self.slots = asyncio.Semaphore(4)
 
     async def __call__(self, scope, receive, send):
-        headers = dict(scope.get('headers', []))
-        if scope['type'] != 'http' or not headers.get(b'content-type', b'').lower().startswith(b'multipart/form-data'):
+        if scope['type'] != 'http':
             return await self.app(scope, receive, send)
+        headers = dict(scope.get('headers', []))
+        content_type = headers.get(b'content-type', b'').split(b';', 1)[0].strip().lower()
+        if content_type not in {b'multipart/form-data', b'application/x-www-form-urlencoded'}:
+            return await self.app(scope, receive, send)
+        path = scope.get('path', '').rstrip('/')
         authorization = headers.get(b'authorization', b'').decode('latin-1')
         try:
             if not authorization.startswith('Bearer '):
                 raise HTTPException(401, 'Authentication required')
-            await asyncio.to_thread(_authenticate, authorization[7:], scope.get('path', ''))
+            await asyncio.to_thread(_authenticate, authorization[7:], path)
         except HTTPException as exc:
             return await JSONResponse({'detail': exc.detail}, status_code=exc.status_code)(scope, receive, send)
         maximum = get_settings().max_message_upload_bytes + 1024 * 1024
+        if content_type == b'application/x-www-form-urlencoded':
+            maximum = 64 * 1024
+        elif path.endswith('/icon-file') or path == get_settings().api_prefix + '/me/profile':
+            maximum = 2 * 1024 * 1024 + 64 * 1024
+        elif path.endswith('/icon') or path == get_settings().api_prefix + '/inventory/catalog':
+            maximum = 10 * 1024 * 1024 + 64 * 1024
         try:
             length = int(headers.get(b'content-length', b'0'))
         except ValueError:
             return await JSONResponse({'detail': 'Invalid content length'}, status_code=400)(scope, receive, send)
-        if length > maximum:
+        if length < 0 or length > maximum:
             return await JSONResponse({'detail': 'Upload too large'}, status_code=413)(scope, receive, send)
         try:
             await asyncio.wait_for(self.slots.acquire(), timeout=0.2)

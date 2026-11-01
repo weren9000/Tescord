@@ -1,4 +1,6 @@
 from __future__ import annotations
+from starlette.concurrency import run_in_threadpool
+from app.services.safe_images import normalize_profile_image
 from fastapi import Request
 
 from datetime import datetime, timezone
@@ -134,8 +136,9 @@ async def update_current_user_profile(
                     detail="Аватарка превышает лимит 2 МБ",
                 )
 
+            payload, content_type = await run_in_threadpool(normalize_profile_image, payload)
             current_user.avatar_filename = _sanitize_filename(avatar.filename)
-            current_user.avatar_mime_type = (avatar.content_type or "application/octet-stream").lower()
+            current_user.avatar_mime_type = content_type
             current_user.avatar_size_bytes = len(payload)
             current_user.avatar_content = payload
             current_user.avatar_updated_at = datetime.now(timezone.utc)

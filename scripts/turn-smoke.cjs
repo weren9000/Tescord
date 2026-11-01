@@ -1,16 +1,21 @@
 const { chromium } = require('../desktop/node_modules/playwright');
 
 (async () => {
+  // Feed an authorized media grant as JSON on stdin; never put credentials in argv or logs.
+  let input = '';
+  for await (const chunk of process.stdin) input += chunk;
+  const grant = JSON.parse(input);
+  const iceServers = grant.ice_servers;
+  if (!Array.isArray(iceServers) || !iceServers.length) throw Error('A media grant with temporary ICE servers is required on stdin');
   const browser = await chromium.launch({
-    executablePath: process.env.KVA_CHROME || 'C:/Users/admin/AppData/Local/ms-playwright/chromium-1223/chrome-win64/chrome.exe',
+    executablePath: process.env.KVA_CHROME || undefined,
     headless: true
   });
   try {
     const page = await browser.newPage();
     await page.goto('https://kvachat.ru/login');
-    const result = await page.evaluate(async () => {
-      const config = { iceServers: window.__TESCORD_RUNTIME_CONFIG__.iceServers, iceTransportPolicy: 'relay' };
-      if (!config.iceServers?.length) throw Error('No configured ICE servers');
+    const result = await page.evaluate(async (iceServers) => {
+      const config = { iceServers, iceTransportPolicy: 'relay' };
       const a = new RTCPeerConnection(config), b = new RTCPeerConnection(config);
       const pendingA = [], pendingB = [];
       a.onicecandidate = e => { if(e.candidate) b.remoteDescription ? b.addIceCandidate(e.candidate) : pendingB.push(e.candidate); };
@@ -34,7 +39,7 @@ const { chromium } = require('../desktop/node_modules/playwright');
         const pair = [...stats.values()].find(s => s.type === 'candidate-pair' && s.state === 'succeeded' && s.nominated);
         return { message, local: stats.get(pair?.localCandidateId)?.candidateType, remote: stats.get(pair?.remoteCandidateId)?.candidateType };
       } finally { a.close(); b.close(); }
-    });
+    }, iceServers);
     if(result.message !== 'kva-relay-check' || result.local !== 'relay' || result.remote !== 'relay') throw Error('Relay verification failed');
     console.log('PASS: production TURN, relay-to-relay connection and data transfer');
   } finally { await browser.close(); }

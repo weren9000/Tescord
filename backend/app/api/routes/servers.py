@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.services.contact_permissions import ensure_can_add_users
 from fastapi import Request
 
 from datetime import datetime, timezone
@@ -41,6 +42,7 @@ from app.services.attachment_storage import delete_stored_attachment
 from app.services.server_access import get_accessible_server, is_server_blocked
 from app.services.server_icons import get_default_server_icon_asset, normalize_server_icon_asset
 from app.services.image_previews import small_preview_response
+from app.services.safe_images import normalize_profile_image
 from app.services.site_presence import site_presence_manager
 from app.services.workspace_defaults import ensure_workspace_defaults
 from app.services.workspace_events import list_server_channels_for_user
@@ -112,7 +114,7 @@ def _build_server_member_summary(
         id=member.id,
         user_id=user.id,
         public_id=user.public_id,
-        login=user.email,
+        login=str(user.public_id),
         nick=user.username,
         avatar_updated_at=user.avatar_updated_at,
         role=member.role.value,
@@ -344,7 +346,7 @@ async def upload_server_icon_file(
                 detail="Поддерживаются только PNG и JPG иконки группы",
             )
 
-        payload = await icon.read()
+        payload = await icon.read(MAX_SERVER_ICON_SIZE_BYTES + 1)
         if not payload:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Файл иконки пустой")
         if len(payload) > MAX_SERVER_ICON_SIZE_BYTES:
@@ -353,6 +355,7 @@ async def upload_server_icon_file(
                 detail="Иконка группы превышает лимит 2 МБ",
             )
 
+        payload, content_type = await run_in_threadpool(normalize_profile_image, payload)
         server.icon_asset = None
         server.icon_filename = _sanitize_filename(icon.filename)
         server.icon_mime_type = content_type
@@ -438,9 +441,6 @@ def add_server_member(
 
     _ensure_manage_permission(membership, current_user)
 
-    # Serialize membership changes with invitation joins for this same server.
-    db.execute(select(Server).where(Server.id == server_id).with_for_update()).scalar_one()
-
     if payload.user_id is not None:
         user = db.get(User, payload.user_id)
     else:
@@ -449,6 +449,10 @@ def add_server_member(
 
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден")
+
+    ensure_can_add_users(db, current_user.id, [user.id])
+    # Serialize membership changes after the friendship lock, matching block operations.
+    db.execute(select(Server).where(Server.id == server_id).with_for_update()).scalar_one()
 
     if server.kind in {ServerKind.GROUP_CHAT, ServerKind.WORKSPACE} and is_server_blocked(db, server.id, user.id):
         raise HTTPException(
