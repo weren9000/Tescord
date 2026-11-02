@@ -17,7 +17,7 @@ const command=(...args)=>execFileSync(adb,args,{timeout:15000});
   const session=await login(0),previous=await api('/rooms/start',session.access_token,{});await api('/rooms/control',previous.token,{action:'end'});
   const context=await browser.newContext();await instrument(context);await context.addInitScript(s=>localStorage.setItem('tescord.session',JSON.stringify(s)),session);
   const owner=await context.newPage();await owner.goto(uiBase+'/my-room');await owner.getByRole('button',{name:'Начать / вернуться во встречу'}).click();
-  await expect(owner.locator('app-call-encryption code')).toBeVisible({timeout:15000});
+  await expect(owner.locator('app-call-encryption [data-phase="secure"]')).toBeVisible({timeout:15000});
   ticket=await api('/rooms/start',session.access_token,{});ticket.invite=(await api('/rooms/invite',ticket.token,{hours:1,uses:10})).invite;
   guest=mobile.contexts()[0].pages()[0];await instrument(guest.context());
   await guest.route('**/api/**',async route=>{
@@ -45,18 +45,20 @@ const command=(...args)=>execFileSync(adb,args,{timeout:15000});
   await guest.goto('https://localhost/room/'+ticket.invite);
   await guest.getByLabel('Ваше имя').fill('Android crypto guest');await guest.getByRole('button',{name:'Присоединиться',exact:true}).click();
   const pages=[owner,guest];
-  for(const page of pages)await expect(page.getByRole('button',{name:'Код совпадает у всех',exact:true})).toBeVisible({timeout:20000});
-  await expect.poll(async()=>new Set(await Promise.all(pages.map(p=>p.locator('app-call-encryption code').innerText()))).size,{timeout:15000}).toBe(1);
-  for(const page of pages)await page.getByRole('button',{name:'Код совпадает у всех',exact:true}).click();
+  for(const page of pages)await expect(page.locator('app-call-encryption code')).toHaveCount(0);
   for(const page of pages)await expect(page.locator('app-call-encryption [data-phase="secure"]')).toBeVisible({timeout:20000});
   await owner.getByRole('button',{name:'Включить микрофон',exact:true}).click();
   await expect.poll(()=>guest.evaluate(()=>window.testPcm()),{timeout:25000}).toBeGreaterThan(.01);
   await owner.getByRole('button',{name:'Включить камеру',exact:true}).click();
   await guest.waitForFunction(()=>[...document.querySelectorAll('video')].some(v=>v.videoWidth>0));
+  await guest.waitForFunction(async()=>{
+   const stats=await Promise.all(window.testPeers.map(pc=>pc.getStats()));
+   return stats.some(report=>[...report.values()].some(s=>s.type==='inbound-rtp'&&s.kind==='video'&&s.framesDecoded>=5));
+  });
   await guest.screenshot({path:output+'/android-encrypted-call.png'});
   await guest.getByRole('button',{name:'Выйти из встречи',exact:true}).click();
   await guest.waitForFunction(()=>window.testPeers.every(p=>p.connectionState==='closed'));
-  console.log('PASS Android WebView: encrypted call verification, actual incoming PCM and video, leave');
+  console.log('PASS Android WebView: automatic encrypted call, actual incoming PCM and video, leave');
  }catch(error){
   if(guest){await guest.screenshot({path:output+'/android-call-failure.png'}).catch(()=>{});console.error('Android test stopped at: '+String(error.stack).split('\n').filter(line=>line.includes('encryption-android-call-smoke.cjs:')).at(-1));}
   throw error;

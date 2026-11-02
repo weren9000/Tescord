@@ -16,8 +16,7 @@ export interface MediaCryptoGrant {
   identity: string;
 }
 export interface CallEncryptionState {
-  phase: 'waiting' | 'verify' | 'secure' | 'error';
-  code: string;
+  phase: 'waiting' | 'secure' | 'error';
   detail: string;
   participants: number;
 }
@@ -42,18 +41,23 @@ interface CryptoRequest {
   type: number;
   body: string;
 }
+interface IncomingKey {
+  roster: string;
+  generation: number;
+  key: Uint8Array<ArrayBuffer>;
+}
 const matrixUser = (id: string) => '@' + id + ':kvachat';
 const encode = (data: Uint8Array) => btoa(String.fromCharCode(...data));
 const decode = (data: string) => Uint8Array.from(atob(data), (c) => c.charCodeAt(0));
 
 /** A fresh, memory-only Olm identity per call. Media keys are sent only to the
- * currently present, explicitly verified devices, inside authenticated Olm.
+ * currently present devices authorized by the call server, inside authenticated Olm.
+ * Local trust is automatic; it is not an out-of-band identity verification.
  * Neither the API nor LiveKit receives plaintext media key material.
  */
 export class CallEncryption {
   readonly state = signal<CallEncryptionState>({
     phase: 'waiting',
-    code: '',
     detail: 'Подготавливаем защиту звонка…',
     participants: 0,
   });
@@ -75,13 +79,16 @@ export class CallEncryption {
   private disposed = false;
   private polling = false;
   private roster = '';
-  private verified = '';
+  private approved = '';
+  private deviceKeys = new Map<string, string>();
   private generation = 0;
   private membershipEpoch = 0;
   private material = crypto.getRandomValues(new Uint8Array(32));
   private rotation: Promise<void> = Promise.resolve();
   private sent = new Set<string>();
   private received = new Map<string, number>();
+  private incoming = new Map<string, IncomingKey>();
+  private lastReceived = new Map<string, number>();
   private pending: { recipient: string; id: string; ciphertext: unknown; generation: number }[] =
     [];
   private seen = new Set<number>();
@@ -159,7 +166,7 @@ export class CallEncryption {
     room.on(this.sdk.RoomEvent.Reconnected, this.membershipChanged);
     room.on(this.sdk.RoomEvent.TrackPublished, this.checkPublication);
     room.on(this.sdk.RoomEvent.TrackSubscribed, this.checkSubscription);
-    // Missing decrypt keys are expected before verification and while rotating.
+    // Missing decrypt keys are expected during exchange and while rotating.
     // The worker drops those frames; it must never fall back to plaintext.
     await room.setE2EEEnabled(true);
     this.timer = setInterval(() => {
@@ -178,8 +185,14 @@ export class CallEncryption {
         }
       }
     }
+    for (const [device, key] of this.incoming) {
+      if (key.roster === this.roster) {
+        key.key.fill(0);
+        this.incoming.delete(device);
+      }
+    }
     this.roster = '';
-    this.verified = '';
+    this.approved = '';
     this.sent.clear();
     this.received.clear();
     this.generation++;
@@ -191,14 +204,13 @@ export class CallEncryption {
     this.rotation = this.rotation.then(async () => {
       if (!valid()) return;
       await this.provider.install(material, this.grant.identity, valid);
-      // Forget old receive keys too; re-verification must not play stale media.
+      // Forget old receive keys too; a changed roster must not play stale media.
       for (const id of identities)
         if (id !== this.grant.identity)
           await this.provider.install(crypto.getRandomValues(new Uint8Array(32)), id, valid);
     });
     this.state.set({
       phase: 'waiting',
-      code: '',
       detail: 'Обновляем ключи участников…',
       participants: this.identities().length,
     });
@@ -295,17 +307,32 @@ export class CallEncryption {
     );
     const identities: string[] = [];
     for (const id of ids) {
-      const peer = this.snapshot.devices.find((peer) => peer.identity === id)!;
+      const devices = this.snapshot.devices.filter((peer) => peer.identity === id);
+      if (devices.length !== 1) throw new Error('Неоднозначное устройство участника.');
+      const peer = devices[0];
+      const ed25519 = peer.device_keys.keys['ed25519:' + peer.id];
+      const curve25519 = peer.device_keys.keys['curve25519:' + peer.id];
+      const identity = `${id}:${peer.id}:${ed25519}:${curve25519}`;
+      const previous = this.deviceKeys.get(peer.id);
+      if (previous && previous !== identity)
+        throw new Error('Ключ существующего устройства изменился.');
       const device = await this.machine.getDevice(
         new this.module.UserId(matrixUser(id)),
         new this.module.DeviceId(peer.id),
       );
-      if (!device?.ed25519Key || !device.curve25519Key)
-        throw new Error('Не удалось проверить ключ участника.');
-      identities.push(
-        `${id}:${peer.id}:${device.ed25519Key.toBase64()}:${device.curve25519Key.toBase64()}`,
-      );
-      device.free();
+      try {
+        if (
+          !device?.ed25519Key ||
+          !device.curve25519Key ||
+          device.ed25519Key.toBase64() !== ed25519 ||
+          device.curve25519Key.toBase64() !== curve25519
+        )
+          throw new Error('Не удалось проверить ключ участника.');
+        this.deviceKeys.set(peer.id, identity);
+        identities.push(identity);
+      } finally {
+        device?.free();
+      }
     }
     const digest = new Uint8Array(
       await crypto.subtle.digest(
@@ -329,7 +356,6 @@ export class CallEncryption {
         if (!roster) {
           this.state.set({
             phase: 'waiting',
-            code: '',
             detail: 'Ожидаем защищённые устройства всех участников.',
             participants: this.identities().length,
           });
@@ -340,7 +366,13 @@ export class CallEncryption {
           this.membershipChanged();
           this.roster = roster;
         }
+        const currentEpoch = this.membershipEpoch;
+        const current = () =>
+          !this.stopped && currentEpoch === this.membershipEpoch && roster === this.roster;
         await this.rotation;
+        if (!current()) return;
+        if (this.approved !== roster) await this.approveDevices(roster, current);
+        if (!current()) return;
         await this.machine.receiveSyncChangesMsc4186(
           '[]',
           new this.module.DeviceLists(),
@@ -348,25 +380,22 @@ export class CallEncryption {
         );
         for (const request of await this.machine.outgoingRequests())
           await this.process(request as CryptoRequest);
-        if (this.verified === roster) {
+        if (!current()) return;
+        if (this.approved === roster) {
           await this.share();
+          if (!current()) return;
           await this.receive();
         }
+        if (!current()) return;
         const peers = this.snapshot.devices.filter(
           (peer) => peer.id !== this.deviceId && this.identities().includes(peer.identity),
         );
         const secure =
-          peers.length > 0 &&
-          this.verified === roster &&
+          this.approved === roster &&
           peers.every((peer) => this.received.has(peer.id) && this.sent.has(peer.id));
         this.state.set({
-          phase: secure ? 'secure' : this.verified === roster ? 'waiting' : 'verify',
-          code: roster.match(/.{8}/g)!.join(' '),
-          detail: secure
-            ? 'Сквозное шифрование · участники проверены'
-            : this.verified === roster
-              ? 'Ожидаем подтверждения собеседников…'
-              : 'Сверьте код со всеми участниками по доверенному каналу.',
+          phase: secure ? 'secure' : 'waiting',
+          detail: secure ? 'Звонок зашифрован' : 'Устанавливаем защищённое соединение…',
           participants: peers.length + 1,
         });
       })
@@ -393,29 +422,25 @@ export class CallEncryption {
     return task;
   }
 
-  async confirm(displayed: string): Promise<void> {
-    await this.refresh();
-    const task = this.queue.then(async () => {
-      if (this.stopped || !this.roster || displayed.replaceAll(' ', '') !== this.roster) return;
-      for (const peer of this.snapshot.devices) {
-        if (peer.id === this.deviceId || !this.identities().includes(peer.identity)) continue;
-        const device = await this.machine.getDevice(
-          new this.module.UserId(matrixUser(peer.identity)),
-          new this.module.DeviceId(peer.id),
-        );
-        if (!device) throw new Error('Устройство участника изменилось.');
+  private async approveDevices(roster: string, current: () => boolean): Promise<void> {
+    for (const peer of this.snapshot.devices) {
+      if (!current()) return;
+      if (peer.id === this.deviceId || !this.identities().includes(peer.identity)) continue;
+      const device = await this.machine.getDevice(
+        new this.module.UserId(matrixUser(peer.identity)),
+        new this.module.DeviceId(peer.id),
+      );
+      try {
+        if (!current()) return;
+        if (!device) throw new Error('Устройство участника недоступно.');
+        // SDK local trust permits encrypted delivery to server-authorized peers.
+        // Never present this as manual identity verification in the UI.
         await device.setLocalTrust(this.module.LocalTrust.Verified);
-        device.free();
+      } finally {
+        device?.free();
       }
-      this.verified = this.roster;
-    });
-    this.queue = task.catch(() => undefined);
-    try {
-      await task;
-      await this.refresh();
-    } catch {
-      this.abort('Не удалось подтвердить устройства звонка.');
     }
+    if (current()) this.approved = roster;
   }
 
   private async share(): Promise<void> {
@@ -430,7 +455,7 @@ export class CallEncryption {
     );
     if (claim) await this.process(claim);
     for (const peer of peers) {
-      if (this.stopped || generation !== this.generation || roster !== this.verified) return;
+      if (this.stopped || generation !== this.generation || roster !== this.approved) return;
       if (this.sent.has(peer.id)) continue;
       let pending = this.pending.find(
         (item) => item.recipient === peer.id && item.generation === generation,
@@ -441,7 +466,7 @@ export class CallEncryption {
           new this.module.DeviceId(peer.id),
         );
         if (!device?.isLocallyTrusted())
-          throw new Error('Сначала подтвердите устройство участника.');
+          throw new Error('Не удалось установить доверие к устройству участника.');
         const ciphertext = JSON.parse(
           await device.encryptToDeviceEvent(
             'ru.kvachat.media-key',
@@ -456,7 +481,7 @@ export class CallEncryption {
       if (
         this.stopped ||
         generation !== this.generation ||
-        roster !== this.verified ||
+        roster !== this.approved ||
         !this.identities().includes(peer.identity)
       )
         return;
@@ -472,18 +497,20 @@ export class CallEncryption {
   }
 
   private async receive(): Promise<void> {
-    const epoch = this.membershipEpoch;
     const completed: number[] = [];
     for (const row of this.snapshot.envelopes) {
       if (this.seen.has(row.sequence)) {
         completed.push(row.sequence);
         continue;
       }
-      const peer = this.snapshot.devices.find(
-        (peer) => peer.id === row.sender_id && this.identities().includes(peer.identity),
-      );
+      const peer = this.snapshot.devices.find((peer) => peer.id === row.sender_id);
       if (!peer) {
         completed.push(row.sequence);
+        continue;
+      }
+      if (!this.identities().includes(peer.identity)) {
+        // The key directory can see a joining participant before LiveKit does.
+        // Keep their envelope until membership catches up; ACK would lose the key.
         continue;
       }
       const events = await this.machine.receiveSyncChangesMsc4186(
@@ -510,33 +537,58 @@ export class CallEncryption {
         if (
           value.type !== 'ru.kvachat.media-key' ||
           body.room !== this.grant.room ||
+          typeof body.roster !== 'string' ||
+          !/^[0-9a-f]{64}$/.test(body.roster) ||
           !Number.isSafeInteger(body.generation) ||
           body.generation < 0 ||
           typeof body.key !== 'string' ||
           !/^[A-Za-z0-9+/]{43}=$/.test(body.key)
         )
           throw new Error('Некорректный ключ медиа.');
-        if (
-          !this.stopped &&
-          epoch === this.membershipEpoch &&
-          body.roster === this.verified &&
-          body.roster === this.roster &&
-          body.generation > (this.received.get(peer.id) ?? -1)
-        ) {
-          await this.provider.install(
-            decode(body.key),
-            peer.identity,
-            () => !this.stopped && epoch === this.membershipEpoch,
-          );
-          if (!this.stopped && epoch === this.membershipEpoch)
-            this.received.set(peer.id, body.generation);
+        if (!this.stopped && body.generation > (this.lastReceived.get(peer.id) ?? -1)) {
+          // A known sender can learn about the next roster before this client.
+          // Olm events cannot be decrypted twice, so retain the latest valid key
+          // in memory until its roster arrives instead of discarding it on ACK.
+          this.incoming.get(peer.id)?.key.fill(0);
+          this.incoming.set(peer.id, {
+            roster: body.roster,
+            generation: body.generation,
+            key: decode(body.key),
+          });
+          this.lastReceived.set(peer.id, body.generation);
         }
         event.free();
       }
       this.seen.add(row.sequence);
       completed.push(row.sequence);
     }
+    await this.installIncoming();
     if (completed.length) await this.request('/ack', { sequences: completed });
+  }
+
+  private async installIncoming(): Promise<void> {
+    const epoch = this.membershipEpoch;
+    const current = () => !this.stopped && epoch === this.membershipEpoch;
+    for (const [id, key] of this.incoming) {
+      if (!current()) return;
+      const peer = this.snapshot.devices.find((peer) => peer.id === id);
+      if (!peer) {
+        key.key.fill(0);
+        this.incoming.delete(id);
+        continue;
+      }
+      if (
+        !this.identities().includes(peer.identity) ||
+        key.roster !== this.roster ||
+        key.roster !== this.approved
+      )
+        continue;
+      await this.provider.install(key.key, peer.identity, current);
+      if (!current()) return;
+      this.received.set(id, key.generation);
+      key.key.fill(0);
+      this.incoming.delete(id);
+    }
   }
 
   private abort(message: string): void {
@@ -551,6 +603,10 @@ export class CallEncryption {
     this.worker?.terminate();
     this.material.fill(0);
     this.pending = [];
+    this.deviceKeys.clear();
+    for (const key of this.incoming.values()) key.key.fill(0);
+    this.incoming.clear();
+    this.lastReceived.clear();
   }
   close(): void {
     if (this.stopped) return;

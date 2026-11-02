@@ -1,5 +1,5 @@
 const {chromium, expect} = require('../frontend/node_modules/@playwright/test');
-const {uiBase, fixture, output, api, login, instrument, verify} = require('./encryption-smoke-utils.cjs');
+const {uiBase, fixture, output, api, login, instrument, verify, checkCallLayout} = require('./encryption-smoke-utils.cjs');
 (async () => {
   const sessions = await Promise.all([login(0), login(1), login(2)]);
   const direct = await api('/conversations/direct', sessions[0].access_token, {user_id: fixture.users[1].id});
@@ -46,6 +46,7 @@ const {uiBase, fixture, output, api, login, instrument, verify} = require('./enc
     await a.getByRole('button', {name: 'Остановить показ экрана', exact: true}).first().click();
     await expect(b.locator('.conference-stage--presentation')).toHaveCount(0);
     await b.screenshot({path: output + '/group-encrypted.png'});
+    await checkCallLayout(b, 'group-auto');
     for (const page of pages) await page.getByRole('button', {name: 'Завершить звонок', exact: true}).first().click();
     for (const page of pages) await page.waitForFunction(() => window.testPeers.every(pc => pc.connectionState === 'closed'));
     console.log('PASS encrypted direct and three-person group calls: PCM, camera, screen, direct rejoin, leave');

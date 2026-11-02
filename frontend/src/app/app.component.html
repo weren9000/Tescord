@@ -91,6 +91,9 @@
           <app-ui-icon name="expand" />
         </button>
         <div class="call-tray__controls">
+          <app-call-encryption
+            [session]="call.kind === 'direct' ? directCallEncryption() : voiceCallEncryption()"
+          />
           @if (isIncomingDirectCall()) {
             <button class="call-tray__answer" type="button" (click)="acceptDirectCall()">
               <app-ui-icon name="phone" />Ответить
@@ -172,9 +175,6 @@
           [class.call-window--direct]="call.kind === 'direct'"
           [class.call-window--voice]="call.kind !== 'direct'"
         >
-          <app-call-encryption
-            [session]="call.kind === 'direct' ? directCallEncryption() : voiceCallEncryption()"
-          />
           @if (call.kind === 'direct' && directCallPeer(); as peer) {
             <div class="call-window__body call-window__body--direct">
               @if (directCallError()) {
@@ -685,7 +685,6 @@
                 >
                   <app-ui-icon name="callSettings" />
                 </button>
-                <span class="call-controls-divider"></span>
                 <button
                   class="call-control-button call-control-button--danger"
                   type="button"
@@ -1529,6 +1528,13 @@
               </div>
 
               @if (callWindowExpanded()) {
+                <app-call-encryption
+                  [session]="
+                    activeCallSurface()?.kind === 'direct'
+                      ? directCallEncryption()
+                      : voiceCallEncryption()
+                  "
+                />
                 <button
                   class="call-control-button"
                   type="button"

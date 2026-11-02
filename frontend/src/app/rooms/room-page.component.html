@@ -97,9 +97,9 @@
   } @else {
     <header class="meeting-head">
       <strong>{{ personal ? 'Моя комната' : 'Встреча' }}</strong>
+      <app-call-encryption [session]="encryption()" />
     </header>
     <div class="meeting-status">
-      <app-call-encryption [session]="encryption()" />
       @if (state()?.owner_deadline) {
         <div class="owner-away" role="status">
           Владелец отключился · до завершения {{ countdown() }}. Он может вернуться.

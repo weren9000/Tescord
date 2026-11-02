@@ -1,72 +1,93 @@
 import { Component, input } from '@angular/core';
 import { CallEncryption } from '../core/services/call-encryption';
+import { UiIconComponent } from '../workspace/ui-icon.component';
 
 @Component({
   selector: 'app-call-encryption',
   standalone: true,
+  imports: [UiIconComponent],
   template: `@if (session(); as crypto) {
     @let state = crypto.state();
-    <section class="call-encryption" aria-label="Шифрование звонка" [attr.data-phase]="state.phase">
+    <button
+      type="button"
+      class="call-encryption"
+      [attr.data-phase]="state.phase"
+      [attr.aria-label]="state.detail"
+      [title]="state.detail"
+      [attr.popovertarget]="'call-protection-' + crypto.deviceId"
+    >
+      <app-ui-icon
+        [name]="state.phase === 'secure' ? 'lock' : state.phase === 'error' ? 'info' : 'refresh'"
+      />
+    </button>
+    <div class="call-encryption-detail" [id]="'call-protection-' + crypto.deviceId" popover>
       <p role="status">{{ state.detail }}</p>
-      @if (state.phase !== 'secure' && state.code) {
-        <code aria-label="Код проверки звонка">{{ state.code }}</code>
-        @if (state.phase === 'verify' && state.participants > 1) {
-          <p>
-            До подтверждения звук и видео недоступны собеседникам. Сравните весь код лично или в уже
-            проверенном секретном чате.
-          </p>
-          <button type="button" (click)="crypto.confirm(state.code)">Код совпадает у всех</button>
-        }
-      }
-      @if (state.phase === 'secure') {
-        <details>
-          <summary>Код проверки</summary>
-          <code>{{ state.code }}</code>
-        </details>
-      }
-    </section>
+    </div>
+    <span class="sr-only" role="status">{{ state.detail }}</span>
   }`,
   styles: `
     :host {
-      display: block;
-      min-width: 0;
-      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      flex: none;
+    }
+    :host:empty {
+      display: none;
     }
     .call-encryption {
-      padding: 8px 12px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      min-height: 44px;
+      padding: 0;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--palette-muted);
+      cursor: pointer;
+    }
+    app-ui-icon {
+      width: 16px;
+      height: 16px;
+    }
+    [data-phase='secure'] {
+      color: var(--palette-cyan);
+    }
+    [data-phase='error'] {
+      color: var(--palette-danger-text);
+    }
+    .call-encryption:hover {
+      background: var(--palette-hover);
+    }
+    .call-encryption:focus-visible {
+      outline: 2px solid var(--palette-cyan);
+      outline-offset: 2px;
+    }
+    .call-encryption-detail {
+      max-width: min(300px, calc(100vw - 32px));
+      box-sizing: border-box;
+      padding: 12px 16px;
+      border: 1px solid var(--palette-border);
+      border-radius: 12px;
       background: var(--palette-surface);
       color: var(--palette-text);
-      border-bottom: 1px solid var(--palette-border);
-      font-size: 12px;
-    }
-    .call-encryption p {
-      margin: 0 0 6px;
-    }
-    code {
-      display: block;
+      font-size: 13px;
       overflow-wrap: anywhere;
-      white-space: normal;
-      font-size: 12px;
-      user-select: all;
-      margin: 6px 0;
     }
-    button {
-      min-height: 44px;
-      max-width: 100%;
-      padding: 8px 12px;
-      border: 1px solid var(--palette-border);
-      border-radius: 8px;
-      background: var(--palette-surface-alt, var(--palette-surface));
-      color: inherit;
-      cursor: pointer;
+    p {
+      margin: 0;
     }
-    summary {
-      cursor: pointer;
-    }
-    button:focus-visible,
-    summary:focus-visible {
-      outline: 2px solid var(--palette-accent);
-      outline-offset: 2px;
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+      border: 0;
     }
   `,
 })
