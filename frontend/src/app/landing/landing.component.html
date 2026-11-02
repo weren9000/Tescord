@@ -3,7 +3,10 @@
   <main>
     <section class="landing-hero container" aria-labelledby="landing-title">
       <h1 id="landing-title">Свои люди.<br />Всегда <span>рядом.</span></h1>
-      <p class="landing-lead">Переписывайтесь, созванивайтесь и собирайтесь вместе.</p>
+      <p class="landing-lead">
+        Переписывайтесь лично и в группах, собирайтесь в комнате<br class="desktop-break" />
+        и создавайте площадки для своих сообществ.
+      </p>
       <div class="entry-actions" id="download">
         <div class="landing-actions">
           <a class="landing-open" href="/register">Зарегистрироваться</a>
@@ -60,22 +63,31 @@
           alt=""
         />
         <figure class="landing-preview">
-          <img
-            src="/assets/landing-chat.png"
-            alt="Групповая беседа в Квачате: сообщения, реакции и созвон"
-            width="1120"
-            height="700"
-            fetchpriority="high"
-          />
+          <button
+            class="picture-button"
+            (click)="openPicture(pictureDialog, $event)"
+            aria-label="Рассмотреть интерфейс Квачата"
+          >
+            <img
+              src="/assets/landing-chat.png"
+              alt="Групповая беседа в Квачате: сообщения, реакции и созвон"
+              width="1120"
+              height="700"
+              fetchpriority="high"
+            />
+          </button>
         </figure>
       </div>
     </section>
 
     <section class="section container" id="features" aria-labelledby="spaces-title">
       <h2 id="spaces-title">Комната, группы и площадки</h2>
-      <p class="section-intro">
-        Начните с друзей: приглашайте по ссылке, переписывайтесь и звоните лично.
-      </p>
+      <div class="friends-line">
+        <span class="small-icon"><app-ui-icon name="friends" /></span>
+        <p>
+          <strong>Начните с друзей.</strong> Приглашайте по ссылке, переписывайтесь и звоните лично.
+        </p>
+      </div>
       <div class="space-grid">
         <article>
           <div class="space-art" aria-hidden="true">
@@ -168,7 +180,11 @@
 
     <section class="section container split-section" aria-labelledby="calls-title">
       <div class="section-copy">
-        <h2 id="calls-title">Разговор продолжается</h2>
+        <span class="eyebrow">Голос, видео и экран</span>
+        <h2 id="calls-title">
+          Разговор<br />
+          продолжается
+        </h2>
         <p>
           Голос, видео и демонстрация экрана. Переходите к переписке во время созвона и настраивайте
           громкость каждого участника отдельно.
@@ -209,24 +225,54 @@
     <section class="section container" aria-labelledby="documents-title">
       <div class="split-section">
         <div class="section-copy">
-          <h2 id="documents-title">Сообщения, файлы и длинные тексты</h2>
+          <span class="eyebrow">От короткого ответа до большого файла</span>
+          <h2 id="documents-title">
+            Сообщения, файлы<br />
+            и длинные тексты
+          </h2>
           <p>Отвечайте, отмечайте людей, добавляйте реакции и исправляйте написанное.</p>
           <p>
             Длинный текст Квачат подготовит как файл. Выберите имя и расширение — и отправляйте. Код
             удобно читать с подсветкой, Markdown — в виде документа.
           </p>
-          <ul class="file-formats" aria-label="Примеры текстовых форматов">
-            <li>.yaml</li>
-            <li>.py</li>
-            <li>.json</li>
-            <li>.md</li>
-          </ul>
+          <div class="file-formats" aria-label="Примеры текстовых форматов">
+            <button (click)="selectFormat('yaml')" [attr.aria-pressed]="format() === 'yaml'">
+              .yaml
+            </button>
+            <button (click)="selectFormat('py')" [attr.aria-pressed]="format() === 'py'">
+              .py
+            </button>
+            <button (click)="selectFormat('md')" [attr.aria-pressed]="format() === 'md'">
+              .md
+            </button>
+          </div>
         </div>
         <div class="document-illustration surface" aria-label="Пример просмотра файла config.yaml">
           <div class="panel-header">
-            <span><app-ui-icon name="files" />config.yaml</span><small>Только просмотр</small>
+            <span
+              ><app-ui-icon name="files" /><span [textContent]="file().name"
+                >config.yaml</span
+              ></span
+            ><button (click)="downloadFile()" aria-label="Скачать пример файла">
+              <app-ui-icon name="download" />
+            </button>
           </div>
-          <pre><code><span class="syntax-comment"># Настройки проекта</span>
+          <div class="document-toolbar">
+            <button (click)="wrap.set(!wrap())" [attr.aria-pressed]="wrap()">Перенос строк</button
+            ><button
+              hidden
+              [hidden]="format() !== 'md'"
+              (click)="documentMode.set(!documentMode())"
+              [attr.aria-pressed]="documentMode()"
+            >
+              Документ</button
+            ><button (click)="copyFile()">Копировать</button>
+          </div>
+          <pre
+            [class.wrap]="wrap()"
+            [hidden]="documentMode()"
+            tabindex="0"
+          ><code [textContent]="file().text"><span class="syntax-comment"># Настройки проекта</span>
 <span class="syntax-key">project:</span>
   <span class="syntax-key">name:</span> evening-club
   <span class="syntax-key">language:</span> ru
@@ -237,6 +283,17 @@
 
 <span class="syntax-key">logging:</span>
   <span class="syntax-key">level:</span> info</code></pre>
+          <article class="markdown-example" hidden [hidden]="!documentMode()">
+            <h3>Вечер книжного клуба</h3>
+            <p>Встречаемся в пятницу в 20:00.</p>
+            <h4>Что обсудим</h4>
+            <ul>
+              <li>Любимые главы</li>
+              <li>Вопросы к финалу</li>
+              <li>Следующую книгу</li>
+            </ul>
+          </article>
+          <span class="file-notice" role="status" [textContent]="fileNotice()"></span>
         </div>
       </div>
       <div class="message-benefits">
@@ -258,13 +315,22 @@
       </div>
     </section>
 
-    <section class="section container" aria-labelledby="appearance-title">
+    <section class="section container" id="appearance" aria-labelledby="appearance-title">
       <div class="split-section appearance-section">
-        <div class="appearance-illustration surface" aria-hidden="true">
+        <div
+          class="appearance-illustration surface"
+          [attr.data-theme]="theme()"
+          [ngStyle]="previewPalette()"
+          [style.--preview-text-size]="textSize() + 'px'"
+        >
           <div class="panel-header">
             <span><app-ui-icon name="chat" />Своя компания</span>
           </div>
-          <div class="appearance-chat">
+          <div
+            class="appearance-chat"
+            [style.background-image]="wallpaperImage()"
+            [attr.data-wallpaper]="wallpaper()"
+          >
             <div class="preview-message">
               <div class="framed-avatar">
                 <img
@@ -275,6 +341,7 @@
                   loading="lazy"
                 /><img
                   class="avatar-frame"
+                  [hidden]="!frame()"
                   src="/assets/landing/amethyst.webp"
                   width="54"
                   height="54"
@@ -296,34 +363,128 @@
                 <small>18:25</small>
               </div>
             </div>
+            <div class="preview-message">
+              <img src="/assets/landing/cat.webp" width="38" height="38" alt="" loading="lazy" />
+              <div class="bubble">
+                <strong>Маша</strong>
+                <p>А я сделала текст покрупнее.</p>
+                <small>18:26</small>
+              </div>
+            </div>
           </div>
         </div>
         <div class="section-copy">
-          <h2 id="appearance-title">Квачат в вашем стиле</h2>
+          <h2 id="appearance-title">
+            Квачат<br />
+            в вашем стиле
+          </h2>
           <p>
-            Обои, аватары, темы оформления и рамки аватарок. Настраивайте размер текста и плотность
-            интерфейса так, как удобно вам.
+            Выберите свой стиль и обои. Добавьте любимый аватар и рамку — и чувствуйте себя дома.
           </p>
-          <p>
-            Находите оформление в каталоге, примеряйте и дарите друзьям. Свои предметы хранятся в
-            инвентаре.
-          </p>
+          <div class="appearance-picker">
+            <div class="appearance-label" id="preview-style-label">Стиль</div>
+            <div class="theme-options" role="group" aria-labelledby="preview-style-label">
+              <button (click)="theme.set('base')" [attr.aria-pressed]="theme() === 'base'">
+                Квачат</button
+              ><button (click)="theme.set('sakura')" [attr.aria-pressed]="theme() === 'sakura'">
+                Сакура</button
+              ><button (click)="theme.set('emerald')" [attr.aria-pressed]="theme() === 'emerald'">
+                Изумруд
+              </button>
+            </div>
+            <div class="appearance-label" id="preview-wallpaper-label">Обои</div>
+            <div class="wallpaper-options" role="group" aria-labelledby="preview-wallpaper-label">
+              <button (click)="wallpaper.set('none')" [attr.aria-pressed]="wallpaper() === 'none'">
+                <span class="wallpaper-swatch no-wallpaper"></span>Без обоев
+              </button>
+              <button
+                (click)="wallpaper.set('forest')"
+                [attr.aria-pressed]="wallpaper() === 'forest'"
+              >
+                <img
+                  src="/assets/landing/forest.webp"
+                  alt=""
+                  width="64"
+                  height="40"
+                  loading="lazy"
+                />Лес
+              </button>
+              <button
+                (click)="wallpaper.set('space')"
+                [attr.aria-pressed]="wallpaper() === 'space'"
+              >
+                <img
+                  src="/assets/landing/space.webp"
+                  alt=""
+                  width="64"
+                  height="40"
+                  loading="lazy"
+                />Космос
+              </button>
+              <button
+                (click)="wallpaper.set('magic')"
+                [attr.aria-pressed]="wallpaper() === 'magic'"
+              >
+                <img
+                  src="/assets/landing/magic.webp"
+                  alt=""
+                  width="64"
+                  height="40"
+                  loading="lazy"
+                />Магия
+              </button>
+            </div>
+          </div>
+          <details class="appearance-more">
+            <summary>Размер текста и рамка</summary>
+            <div class="appearance-controls">
+              <label
+                >Размер текста
+                <input
+                  type="range"
+                  min="13"
+                  max="20"
+                  value="15"
+                  [value]="textSize()"
+                  (input)="setTextSize($event)" /></label
+              ><label
+                ><input
+                  type="checkbox"
+                  checked
+                  [checked]="frame()"
+                  (change)="frame.set(!frame())"
+                />
+                Рамка аватара</label
+              >
+            </div>
+            <p>В приложении также настраиваются плотность интерфейса и ширина боковых списков.</p>
+          </details>
         </div>
       </div>
+      <div class="items-line">
+        <span class="small-icon"><app-ui-icon name="gift" /></span>
+        <div>
+          <h3>Оформление можно подарить</h3>
+          <p>Находите предметы в каталоге, примеряйте и дарите друзьям.</p>
+        </div>
+      </div>
+    </section>
+    <section class="section container settings-section" aria-labelledby="settings-title">
+      <h2 id="settings-title">Настройте общение под себя</h2>
       <div class="settings-grid">
         <details>
-          <summary><app-ui-icon name="bell" />Уведомления</summary>
+          <summary><app-ui-icon name="bell" />Уведомления<app-ui-icon name="down" /></summary>
           <p>
             Упоминания, заявки в друзья и приглашения собраны в событиях. Уведомления отдельных
             бесед можно отключить.
           </p>
         </details>
         <details>
-          <summary><app-ui-icon name="block" />Блокировки</summary>
+          <summary><app-ui-icon name="block" />Блокировки<app-ui-icon name="down" /></summary>
           <p>Управляйте заблокированными пользователями, группами и площадками в настройках.</p>
         </details>
         <details>
-          <summary><app-ui-icon name="lock" />Защита аккаунта</summary>
+          <summary><app-ui-icon name="lock" />Защита аккаунта<app-ui-icon name="down" /></summary>
           <p>
             Почта подтверждается при регистрации. В профиле можно включить двухфакторную защиту с
             кодами из приложения-аутентификатора.
@@ -340,34 +501,36 @@
           <span class="app-mark"><app-ui-icon name="calendar" /></span>
           <div>
             <h3>Когда игра</h3>
-            <p>
-              Календарь ролевых игр и конвентов. Ищите события по датам и регионам, сохраняйте
-              избранное и подбирайте игры на время отпуска.
-            </p>
+            <p>Календарь ролевых игр и конвентов.</p>
           </div>
         </article>
         <article>
           <span class="app-mark islands-mark"><app-ui-icon name="platforms" /></span>
           <div>
             <h3>Острова</h3>
-            <p>
-              Настольная стратегия для 3–4 игроков. Собирайте ресурсы, стройте поселения и торгуйте
-              с друзьями.
-            </p>
+            <p>Настольная стратегия для 3–4 игроков.</p>
           </div>
         </article>
       </div>
-    </section>
-
-    <section class="landing-news section container" id="news" aria-labelledby="news-title">
-      <div class="section-heading">
-        <h2 id="news-title">Новое в Квачате</h2>
-        <a href="/news">Все новости <app-ui-icon name="forward" /></a>
-      </div>
-      <app-news-feed [limit]="3" [featured]="true" />
     </section>
   </main>
   <footer class="landing-footer container">
     <span>Квачат</span><span>Свои люди. Всегда рядом.</span>
   </footer>
+  <dialog
+    #pictureDialog
+    class="picture-dialog"
+    aria-label="Интерфейс Квачата"
+    (close)="restoreFocus()"
+  >
+    <form method="dialog">
+      <button aria-label="Закрыть изображение">Закрыть <app-ui-icon name="close" /></button>
+    </form>
+    <img
+      src="/assets/landing-chat.png"
+      alt="Групповая беседа в Квачате"
+      width="1120"
+      height="700"
+    />
+  </dialog>
 </div>

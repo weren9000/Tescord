@@ -28,7 +28,10 @@ const html = fs
   .replace(
     /<app-news-feed[^>]*\/>/,
     '<p class="landing-help">Новости загружаются при открытии страницы.</p><noscript><p>Для просмотра новостей включите JavaScript.</p></noscript>',
-  );
+  )
+  .replace(/\s(?:\[[^\]]+\]|\([^)]+\))="[^"]*"/g, '')
+  .replace(/\s#pictureDialog/g, '')
+  .replace(/<button\b/g, '<button disabled');
 const css =
   fs.readFileSync(path.join(root, 'src/app/landing/landing.component.css'), 'utf8') +
   fs.readFileSync(path.join(root, 'src/app/landing/guest-header.component.css'), 'utf8');
