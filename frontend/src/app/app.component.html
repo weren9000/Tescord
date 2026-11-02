@@ -1031,12 +1031,6 @@
             <app-ui-icon name="profile" /><span class="account-menu__label">Мой профиль</span>
             <app-ui-icon name="forward" class="account-menu__chevron" />
           </button>
-          @if (secretChats.enabled()) {
-            <button type="button" (click)="closeSideMenu(); secretChats.open()">
-              <app-ui-icon name="lock" /><span class="account-menu__label">Секретные чаты</span>
-              <app-ui-icon name="forward" class="account-menu__chevron" />
-            </button>
-          }
           <button type="button" (click)="closeSideMenu(); openFriendRequestsModal()">
             <app-ui-icon name="bell" /><span class="account-menu__label">Уведомления</span>
             @if (notificationAlertCount()) {
@@ -5937,7 +5931,7 @@
       <app-user-card
         [token]="auth.access_token"
         [voiceControls]="userCardVoiceControls()"
-        [secretEnabled]="secretChats.enabled()"
+        [secretEnabled]="false"
         (secretChat)="secretChats.choosePeer($event)"
         (chat)="openUserCardChat($event)"
         (profile)="openProfileEditor()"
