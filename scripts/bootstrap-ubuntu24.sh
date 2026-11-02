@@ -283,6 +283,12 @@ server {
     root ${FRONTEND_DIR};
     index index.html;
 
+    location ^~ /assets/crypto/ {
+        types { application/javascript js mjs; application/wasm wasm; }
+        add_header Cache-Control "no-store";
+        try_files \$uri =404;
+    }
+
     location = /index.html {
         add_header Cache-Control "no-store";
         try_files /index.html =404;
