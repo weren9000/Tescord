@@ -1,0 +1,22 @@
+[Unit]
+Description=Kvachat Islands game service
+After=network.target
+
+[Service]
+User=kva-islands
+Group=kva-islands
+WorkingDirectory=/srv/tescord/plugins/islands/current
+EnvironmentFile=/etc/kvachat/islands.env
+ExecStart=/srv/tescord/plugins/islands/current/.venv/bin/uvicorn islands.api:create_app --factory --host 127.0.0.1 --port 8013 --workers 1 --root-path /plugins/islands --ws-max-size 2048 --limit-concurrency 256 --timeout-keep-alive 5 --no-access-log
+Restart=on-failure
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/srv/tescord/plugins/islands/data
+UMask=0077
+MemoryMax=384M
+TasksMax=64
+
+[Install]
+WantedBy=multi-user.target

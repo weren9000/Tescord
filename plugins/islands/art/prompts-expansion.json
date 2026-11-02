@@ -1,0 +1,42 @@
+{
+  "generator": "Built-in image_gen",
+  "created": "2026-11-02",
+  "assets": [
+    {
+      "name": "terrain-hills",
+      "prompt": "Production bitmap illustration for original fantasy board game Islands. Hand painted storybook fantasy, broad simplified shapes, soft visible brushwork, excellent clarity at tiny board-game size, warm sunlight from upper left. No photorealism, no fine texture or tiny decoration, no lettering, numbers, frames, symbols, UI, or watermarks. Square overhead terrain painting covering whole canvas, top-down map perspective without horizon. Terracotta red clay hills and a simple shallow quarry on the outer half, broad quiet reddish ochre clearing in the center for a number token. Sparse olive shrubs. Clearly RED / orange terrain, not gray mountains. Keep all four corners low, no buildings or roads.",
+      "transparent": false,
+      "references": []
+    },
+    {
+      "name": "terrain-fields",
+      "prompt": "Production bitmap illustration for original fantasy board game Islands. Hand painted storybook fantasy, broad simplified shapes, soft visible brushwork, excellent clarity at tiny board-game size, warm sunlight from upper left. No photorealism, no fine texture or tiny decoration, no lettering, numbers, frames, symbols, UI, or watermarks. Square overhead terrain painting covering whole canvas, top-down map perspective without horizon. Golden wheat fields in three large curved strips on outer half, small bundles of wheat near edges, broad quiet pale gold clearing in center for a number token. Clearly warm GOLD / amber terrain, no green meadow, no buildings or roads, low corners.",
+      "transparent": false,
+      "references": []
+    },
+    {
+      "name": "terrain-desert",
+      "prompt": "Production bitmap illustration for original fantasy board game Islands. Hand painted storybook fantasy, broad simplified shapes, soft visible brushwork, excellent clarity at tiny board-game size, warm sunlight from upper left. No photorealism, no fine texture or tiny decoration, no lettering, numbers, frames, symbols, UI, or watermarks. Square overhead terrain painting covering whole canvas, top-down map perspective without horizon. Quiet pale cream sand dunes with three large curved dune crests near outer half and a single small dry tree near edge, calm empty center for a game marker. Minimal ochre shadows, clearly PALE SAND terrain, no buildings or roads, low corners.",
+      "transparent": false,
+      "references": []
+    },
+    {
+      "name": "resource-brick",
+      "prompt": "Production bitmap illustration for original fantasy board game Islands. Hand painted storybook fantasy, broad simplified shapes, soft visible brushwork, excellent clarity at tiny board-game size, warm sunlight from upper left. No photorealism, no fine texture or tiny decoration, no lettering, numbers, frames, symbols, UI, or watermarks. Portrait 2:3 resource card illustration, THREE LARGE TERRACOTTA BRICKS stacked in lower center dominating scene, clear simple rectangular silhouettes, very few chips. Quiet hazy red-clay quarry background and warm light, no busy scenery. Resource instantly recognizable when card is 60 pixels tall.",
+      "transparent": false,
+      "references": []
+    },
+    {
+      "name": "resource-wool",
+      "prompt": "Production bitmap illustration for original fantasy board game Islands. Hand painted storybook fantasy, broad simplified shapes, soft visible brushwork, excellent clarity at tiny board-game size, warm sunlight from upper left. No photorealism, no fine texture or tiny decoration, no lettering, numbers, frames, symbols, UI, or watermarks. Portrait 2:3 resource card illustration, TWO LARGE CREAM WOOL BUNDLES loosely tied with simple rope in lower center dominating scene. Broad soft rounded white shapes with a few wool curls, no microdetail. Quiet hazy pale-green meadow background, sheep silhouette far away. Resource instantly recognizable at 60 pixels.",
+      "transparent": false,
+      "references": []
+    },
+    {
+      "name": "resource-grain",
+      "prompt": "Production bitmap illustration for original fantasy board game Islands. Hand painted storybook fantasy, broad simplified shapes, soft visible brushwork, excellent clarity at tiny board-game size, warm sunlight from upper left. No photorealism, no fine texture or tiny decoration, no lettering, numbers, frames, symbols, UI, or watermarks. Portrait 2:3 resource card illustration, ONE LARGE TIED SHEAF OF GOLDEN WHEAT dominating lower center, about seven large clearly shaped ears and thick straw bundle, no fine filaments. Quiet hazy amber harvest field background. Resource instantly recognizable at 60 pixels.",
+      "transparent": false,
+      "references": []
+    }
+  ]
+}

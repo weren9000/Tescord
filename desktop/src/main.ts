@@ -107,7 +107,7 @@ else {
         }
         if (appPage(request.url)) {
           const html = fs.readFileSync(path.join(web, 'index.html'));
-          return new Response(html, {headers:{'Content-Type':'text/html; charset=utf-8', 'Content-Security-Policy':"default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; media-src 'self' https: blob:; connect-src 'self' https: wss:; font-src 'self' data:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-src 'none'"}});
+          return new Response(html, {headers:{'Content-Type':'text/html; charset=utf-8', 'Content-Security-Policy':"default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; media-src 'self' https: blob:; connect-src 'self' https: wss:; font-src 'self' data:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-src https://kvachat.ru/plugins/islands/"}});
         }
       }
       return net.fetch(request, {bypassCustomProtocolHandlers:true});

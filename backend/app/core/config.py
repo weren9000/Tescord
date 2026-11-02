@@ -36,6 +36,8 @@ class Settings(BaseSettings):
     data_keyring_path: str | None = None
     data_encryption_required: bool = False
     secret_chats_enabled: bool = False
+    islands_enabled: bool = False
+    islands_grant_private_key_path: str | None = None
     media_encryption_enabled: bool = False
     smtp_host: str | None = None
     smtp_port: int = Field(default=587, ge=1, le=65535)

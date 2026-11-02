@@ -39,6 +39,8 @@ with tarfile.open(output, 'w:gz') as target:
         for entry in archive:
             if not entry.isfile():
                 continue
+            if entry.name.startswith('plugins/islands/'):
+                continue  # Independent service, packaged with its runtime allowlist.
             content = archive.extractfile(entry).read()
             target.addfile(entry, io.BytesIO(content))
             checksums.append((entry.name, hashlib.sha256(content).hexdigest()))

@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark light" />
+    <title>Острова Квачата — образец оформления</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="./palette.css" />
+    <link rel="stylesheet" href="./style.css" />
+    <script type="module" src="./app.mjs"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#island">К игровому полю</a>
+    <header class="masthead">
+      <a class="brand" href="#island" aria-label="Острова Квачата — к полю">
+        <span class="brand-mark" aria-hidden="true"
+          ><svg viewBox="0 0 40 40">
+            <path d="M20 3 35 12v16L20 37 5 28V12Z" />
+            <path d="m11 26 6-13 5 8 4-5 5 10Z" /></svg
+        ></span>
+        <span
+          ><span class="eyebrow">КВАЧАТ · НАСТОЛЬНЫЕ МИРЫ</span
+          ><strong>Острова</strong></span
+        >
+      </a>
+      <nav class="header-nav" aria-label="Разделы образца">
+        <a href="#island">Поле</a><a href="#resources">Ресурсы</a
+        ><a href="#pieces">Постройки</a>
+      </nav>
+      <div class="header-actions">
+        <span class="prototype-badge">Образец оформления</span>
+        <button
+          class="icon-button"
+          id="theme-toggle"
+          aria-label="Включить светлую тему"
+          title="Сменить тему"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2"
+            />
+          </svg>
+        </button>
+        <button
+          class="icon-button"
+          id="help"
+          aria-label="Как пользоваться образцом"
+          title="Как пользоваться"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18M12 11v6M12 7h.01" />
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <main class="layout">
+      <div class="error-banner" id="asset-error" role="alert" hidden>
+        Не удалось загрузить часть изображений.
+        <button id="retry-assets">Повторить</button>
+      </div>
+      <section class="island-panel" id="island" aria-labelledby="island-title">
+        <div class="panel-heading">
+          <div>
+            <span class="eyebrow">РИСОВАННОЕ ФЭНТЕЗИ</span>
+            <h1 id="island-title">Мир начинается с острова</h1>
+          </div>
+          <span class="terrain-counter"
+            ><span aria-hidden="true">✧</span> 3 вида земель</span
+          >
+        </div>
+        <div class="board-stage" id="board-stage" aria-busy="true">
+          <div class="loading-state" id="loading" role="status">
+            Собираем остров…
+          </div>
+          <svg
+            id="board"
+            viewBox="0 0 900 680"
+            role="group"
+            aria-label="Образец острова. Выберите тайл или разместите постройку."
+            tabindex="0"
+          >
+            <defs>
+              <filter
+                id="piece-shadow"
+                x="-50%"
+                y="-50%"
+                width="200%"
+                height="200%"
+              >
+                <feDropShadow
+                  dx="0"
+                  dy="4"
+                  stdDeviation="3"
+                  flood-color="#040812"
+                  flood-opacity=".8"
+                />
+              </filter>
+              <filter
+                id="land-shadow"
+                x="-30%"
+                y="-30%"
+                width="160%"
+                height="170%"
+              >
+                <feDropShadow
+                  dx="0"
+                  dy="7"
+                  stdDeviation="6"
+                  flood-color="#02050b"
+                  flood-opacity=".65"
+                />
+              </filter>
+            </defs>
+            <g id="land-layer"></g>
+            <g id="roads-layer" pointer-events="none"></g>
+            <g id="buildings-layer" pointer-events="none"></g>
+            <g id="targets-layer"></g>
+            <g id="ghost-layer" pointer-events="none"></g>
+          </svg>
+          <div class="compass" aria-hidden="true">
+            <span>С</span
+            ><svg viewBox="0 0 44 44">
+              <path d="m22 3 6 16 13 3-16 6-3 13-6-16L3 22l16-6Z" />
+              <path d="M22 3v38M3 22h38" />
+            </svg>
+          </div>
+          <div class="map-label" aria-hidden="true">
+            ЗЕМЛИ КВАЧАТА<span>Леса · горы · пастбища</span>
+          </div>
+          <div class="zoom-tools" aria-label="Масштаб поля">
+            <button
+              class="icon-button"
+              id="zoom-out"
+              aria-label="Уменьшить поле"
+              title="Уменьшить"
+            >
+              −</button
+            ><output id="zoom-value" aria-label="Текущий масштаб">100%</output
+            ><button
+              class="icon-button"
+              id="zoom-in"
+              aria-label="Увеличить поле"
+              title="Увеличить"
+            >
+              +</button
+            ><button
+              class="icon-button"
+              id="zoom-fit"
+              aria-label="Показать весь остров"
+              title="Весь остров"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M14 4h6v6M20 4l-8 8M10 20H4v-6M4 20l8-8" />
+              </svg>
+            </button>
+          </div>
+          <div class="placement-bar" id="placement-bar" hidden>
+            <span id="placement-label"></span
+            ><button class="primary-button" id="confirm-placement">
+              Поставить</button
+            ><button class="text-button" id="cancel-placement">Отмена</button>
+          </div>
+        </div>
+        <div class="board-caption">
+          <span class="status-dot" aria-hidden="true"></span>
+          <p id="board-hint" role="status" aria-live="polite">
+            Нажмите на тайл, чтобы рассмотреть его.
+          </p>
+          <button class="text-button" id="reset-board">Сбросить</button>
+        </div>
+        <section class="piece-dock" id="pieces" aria-labelledby="pieces-title">
+          <div class="dock-copy">
+            <span class="eyebrow">ВАШ ЦВЕТ · АМЕТИСТ</span>
+            <h2 id="pieces-title">Оставьте свой след</h2>
+            <p>Выберите фишку и место на поле.</p>
+          </div>
+          <div
+            class="piece-options"
+            role="group"
+            aria-label="Выбрать постройку"
+          >
+            <button class="piece-option" data-piece="road" aria-pressed="false">
+              <img
+                src="./assets/piece-road.webp"
+                alt=""
+                width="100"
+                height="60"
+              /><span>Дорога</span>
+            </button>
+            <button
+              class="piece-option"
+              data-piece="settlement"
+              aria-pressed="false"
+            >
+              <img
+                src="./assets/piece-settlement.webp"
+                alt=""
+                width="100"
+                height="60"
+              /><span>Поселение</span>
+            </button>
+            <button class="piece-option" data-piece="city" aria-pressed="false">
+              <img
+                src="./assets/piece-city.webp"
+                alt=""
+                width="100"
+                height="60"
+              /><span>Город</span>
+            </button>
+          </div>
+          <button class="text-button undo-button" id="undo" disabled>
+            Отменить размещение
+          </button>
+        </section>
+      </section>
+
+      <aside class="side-panel" aria-label="Земли и карточки ресурсов">
+        <section class="terrain-detail" aria-labelledby="terrain-title">
+          <div class="section-heading">
+            <span class="eyebrow">АТЛАС ОСТРОВА</span
+            ><span id="terrain-index">01 / 03</span>
+          </div>
+          <button
+            id="terrain-art"
+            class="terrain-art"
+            aria-label="Рассмотреть лес крупно"
+          >
+            <img
+              id="terrain-image"
+              src="./assets/terrain-forest.webp"
+              alt="Сказочный лес с солнечными полянами"
+              width="768"
+              height="768"
+            /><span class="image-corner" aria-hidden="true">↗</span>
+          </button>
+          <div class="terrain-description">
+            <h2 id="terrain-title">Изумрудный лес</h2>
+            <span class="resource-tag" id="terrain-resource">Древесина</span>
+            <p id="terrain-description">
+              Солнечные поляны среди старых деревьев. Здесь начинается дорога к
+              вашему первому поселению.
+            </p>
+          </div>
+          <div class="terrain-switch" role="group" aria-label="Виды местности">
+            <button data-terrain="forest" aria-pressed="true">Лес</button
+            ><button data-terrain="mountains" aria-pressed="false">Горы</button
+            ><button data-terrain="pasture" aria-pressed="false">
+              Пастбище
+            </button>
+          </div>
+        </section>
+        <section
+          class="resource-section"
+          id="resources"
+          aria-labelledby="resources-title"
+        >
+          <div class="section-heading">
+            <h2 id="resources-title">Ресурсы острова</h2>
+            <span>02</span>
+          </div>
+          <p class="section-description">Маленькие сокровища больших земель.</p>
+          <div class="resource-cards">
+            <button
+              class="resource-card wood"
+              data-resource="wood"
+              aria-label="Рассмотреть карточку Древесина"
+            >
+              <img
+                src="./assets/resource-wood.webp"
+                alt="Связка брёвен в солнечном лесу"
+                width="640"
+                height="960"
+              /><span class="card-ornament" aria-hidden="true">✧</span
+              ><span class="card-caption"
+                ><small>ЛЕСНОЙ РЕСУРС</small><strong>Древесина</strong></span
+              >
+            </button>
+            <button
+              class="resource-card ore"
+              data-resource="ore"
+              aria-label="Рассмотреть карточку Руда"
+            >
+              <img
+                src="./assets/resource-ore.webp"
+                alt="Руда с металлическими прожилками на фоне гор"
+                width="640"
+                height="960"
+              /><span class="card-ornament" aria-hidden="true">✧</span
+              ><span class="card-caption"
+                ><small>ГОРНЫЙ РЕСУРС</small><strong>Руда</strong></span
+              >
+            </button>
+          </div>
+        </section>
+        <div class="prototype-note">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18M12 11v6M12 7h.01" />
+          </svg>
+          <p>
+            Это образец оформления со свободным размещением фишек. Правила и
+            сетевые партии появятся на следующих этапах.
+          </p>
+        </div>
+      </aside>
+    </main>
+
+    <dialog id="art-dialog" aria-labelledby="art-title">
+      <div class="dialog-header">
+        <div>
+          <span class="eyebrow" id="art-kind">ИЛЛЮСТРАЦИЯ</span>
+          <h2 id="art-title"></h2>
+        </div>
+        <button class="icon-button dialog-close" aria-label="Закрыть просмотр">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M6 6l12 12M18 6 6 18" />
+          </svg>
+        </button>
+      </div>
+      <img id="art-image" alt="" />
+      <p id="art-caption"></p>
+    </dialog>
+    <dialog id="help-dialog" aria-labelledby="help-title">
+      <div class="dialog-header">
+        <h2 id="help-title">Рассмотрите новый мир</h2>
+        <button class="icon-button dialog-close" aria-label="Закрыть справку">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M6 6l12 12M18 6 6 18" />
+          </svg>
+        </button>
+      </div>
+      <ol>
+        <li>Нажмите на тайл: справа появятся его иллюстрация и описание.</li>
+        <li>Карточки ресурсов и изображение в атласе открываются крупно.</li>
+        <li>
+          Выберите дорогу или здание, затем свободное место и нажмите
+          «Поставить».
+        </li>
+        <li>
+          Увеличивайте поле кнопками или колёсиком. Перетаскивайте поле, чтобы
+          перемещаться по нему.
+        </li>
+        <li>
+          Клавиатура: Tab — выбор элемента, Enter — действие, Escape — отмена.
+          Стрелки перемещают поле, когда оно в фокусе.
+        </li>
+      </ol>
+      <p>
+        Размещение свободное: этот образец помогает проверить размер и
+        читаемость графики.
+      </p>
+    </dialog>
+  </body>
+</html>

@@ -1,0 +1,60 @@
+{
+  "generator": "Built-in image_gen",
+  "created": "2026-11-02",
+  "assets": [
+    {
+      "name": "development-knight",
+      "prompt": "Production illustration for original hand painted fantasy board game Islands. Simplified storybook painting with broad readable shapes, gentle brushwork, warm light from top left, rich muted colors, one clear focal subject, very little fine texture. No text, letters, numbers, border, interface or watermark. Portrait 2:3 card art. Kind vigilant knight in a simple steel helmet and blue-violet cloak holding a broad round shield, chest-up three-quarter pose, large confident silhouette. Quiet hazy castle valley behind. No heraldic detail, no violence.",
+      "transparent": false,
+      "references": []
+    },
+    {
+      "name": "development-road_building",
+      "prompt": "Production illustration for original hand painted fantasy board game Islands. Simplified storybook painting with broad readable shapes, gentle brushwork, warm light from top left, rich muted colors, one clear focal subject, very little fine texture. No text, letters, numbers, border, interface or watermark. Portrait 2:3 card art. Large wooden mallet and simple stone bridge being built over a stream. Broad shapes, curved inviting path through quiet green valley, no small busy workers. Main bridge dominates lower middle.",
+      "transparent": false,
+      "references": []
+    },
+    {
+      "name": "development-plenty",
+      "prompt": "Production illustration for original hand painted fantasy board game Islands. Simplified storybook painting with broad readable shapes, gentle brushwork, warm light from top left, rich muted colors, one clear focal subject, very little fine texture. No text, letters, numbers, border, interface or watermark. Portrait 2:3 card art. One large horn of plenty with a golden wheat sheaf, pale wool and three red bricks. Broad recognizable silhouettes, peaceful pale green harvest valley behind, simple still life.",
+      "transparent": false,
+      "references": []
+    },
+    {
+      "name": "development-monopoly",
+      "prompt": "Production illustration for original hand painted fantasy board game Islands. Simplified storybook painting with broad readable shapes, gentle brushwork, warm light from top left, rich muted colors, one clear focal subject, very little fine texture. No text, letters, numbers, border, interface or watermark. Portrait 2:3 card art. A confident friendly fantasy merchant in a teal cloak, one large closed wooden resource chest in foreground, simple market canopy behind. Clear shapes, few accessories, not a caricature.",
+      "transparent": false,
+      "references": []
+    },
+    {
+      "name": "development-victory",
+      "prompt": "Production illustration for original hand painted fantasy board game Islands. Simplified storybook painting with broad readable shapes, gentle brushwork, warm light from top left, rich muted colors, one clear focal subject, very little fine texture. No text, letters, numbers, border, interface or watermark. Portrait 2:3 card art. A single luminous golden five-pointed star medallion on a velvet violet cushion, large centered object, quiet dusky fantasy hall background. Regal and restrained, very few decorative details.",
+      "transparent": false,
+      "references": []
+    },
+    {
+      "name": "card-back",
+      "prompt": "Production illustration for original hand painted fantasy board game Islands. Simplified storybook painting with broad readable shapes, gentle brushwork, warm light from top left, rich muted colors, one clear focal subject, very little fine texture. No text, letters, numbers, border, interface or watermark. Portrait 2:3 playing-card back painting. Symmetrical simple golden compass rose over a deep teal ocean, one central fantasy island silhouette, violet corner accents. Large shapes, no tiny ornament, 180-degree visual balance.",
+      "transparent": false,
+      "references": []
+    },
+    {
+      "name": "piece-robber",
+      "prompt": "Production illustration for original hand painted fantasy board game Islands. Simplified storybook painting with broad readable shapes, gentle brushwork, warm light from top left, rich muted colors, one clear focal subject, very little fine texture. No text, letters, numbers, border, interface or watermark. Square isolated full-body hooded fantasy traveler game piece, charcoal purple cloak and large satchel, neutral mysterious pose, compact pawn silhouette. Elevated three-quarter view matches toy buildings, no base, no cast shadow, completely transparent surrounding background. Recognizable at 40px.",
+      "transparent": true,
+      "references": []
+    },
+    {
+      "name": "ocean",
+      "prompt": "Production illustration for original hand painted fantasy board game Islands. Simplified storybook painting with broad readable shapes, gentle brushwork, warm light from top left, rich muted colors, one clear focal subject, very little fine texture. No text, letters, numbers, border, interface or watermark. Square top-down ocean texture covering whole canvas. Deep muted teal blue water, a few wide gentle wave marks, softly painted depth variation. Calm and low-contrast for placing a detailed island over it. No land, objects, white foam, grid, horizon.",
+      "transparent": false,
+      "references": []
+    },
+    {
+      "name": "piece-port",
+      "prompt": "Production illustration for original hand painted fantasy board game Islands. Simplified storybook painting with broad readable shapes, gentle brushwork, warm light from top left, rich muted colors, one clear focal subject, very little fine texture. No text, letters, numbers, border, interface or watermark. Square isolated tiny harbor pier made from 6 broad wooden planks, one little furled sailboat alongside and two simple cargo crates. Top down boardgame camera, compact readable silhouette, no lettering or water, no base, no shadow, genuine transparent background.",
+      "transparent": true,
+      "references": []
+    }
+  ]
+}

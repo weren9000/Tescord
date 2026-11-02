@@ -12,6 +12,6 @@ fs.writeFileSync(path.join(destination, 'android-bootstrap.js'),
   fs.readFileSync(path.join(root, 'bootstrap.js'), 'utf8').replace('__KVA_VERSION__', version));
 fs.writeFileSync(path.join(destination, 'runtime-config.js'), runtime);
 const index = path.join(destination, 'index.html');
-fs.writeFileSync(index, fs.readFileSync(index,'utf8').replace('<head>', '<head><meta http-equiv="Content-Security-Policy" content="frame-src \'none\'; object-src \'none\'; base-uri \'self\'"><script src="/android-bootstrap.js"></script>'));
+fs.writeFileSync(index, fs.readFileSync(index,'utf8').replace('<head>', '<head><meta http-equiv="Content-Security-Policy" content="frame-src https://kvachat.ru/plugins/islands/; object-src \'none\'; base-uri \'self\'"><script src="/android-bootstrap.js"></script>'));
 // Let Capacitor keep content inside system bars; the web layout handles keyboard resizing.
 fs.writeFileSync(index, fs.readFileSync(index, 'utf8').replace('viewport-fit=cover, ', ''));

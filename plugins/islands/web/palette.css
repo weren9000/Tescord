@@ -1,0 +1,22 @@
+/* Generated from frontend/src/_palette.scss. */
+:root {
+  --palette-canvas: #10121c;
+  --palette-primary: #754bff;
+  --palette-cyan: #57c8d5;
+  --palette-text: #f6f7fb;
+  --palette-surface: #161925;
+  --palette-raised: #1d2130;
+  --palette-hover: #262b3d;
+  --palette-border: #30364a;
+  --palette-subtle: #8289a4;
+  --palette-muted: #a6aec4;
+  --palette-secondary: #d4d8e8;
+  --palette-primary-text: #c4b5fd;
+  --palette-primary-hover: #6940eb;
+  --palette-selected: #242039;
+  --palette-danger: #ff718a;
+  --palette-danger-surface: #a63f56;
+  --palette-danger-text: #ffd4dc;
+  --palette-warning: #f2c46d;
+  --palette-shadow: #000000;
+}

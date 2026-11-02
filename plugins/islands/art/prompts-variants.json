@@ -1,0 +1,110 @@
+{
+  "generator": "Built-in image_gen",
+  "created": "2026-11-02",
+  "assets": [
+    {
+      "name": "terrain-forest-2",
+      "prompt": "Create a distinct terrain-layout variant by editing this existing top-down fantasy board-game terrain painting. Preserve square canvas, overhead camera without horizon, exact dominant palette, warm upper-left light, broad simplified brushwork and low fine detail. New layout: three broad tree clusters around a curved glade, fallen log at left edge. Keep a calm central area for a number token and low unobstructed corners for buildings. Change the arrangement of the terrain shapes clearly, rather than rotating the whole image. The same terrain type must remain instantly recognizable at 90 pixels. No border, hexagon outline, roads, buildings, letters, numbers, icons or UI.",
+      "transparent": false,
+      "references": [
+        "terrain-forest-v2.png"
+      ]
+    },
+    {
+      "name": "terrain-forest-3",
+      "prompt": "Create a distinct terrain-layout variant by editing this existing top-down fantasy board-game terrain painting. Preserve square canvas, overhead camera without horizon, exact dominant palette, warm upper-left light, broad simplified brushwork and low fine detail. New layout: two large oak canopies at upper right and a fern clearing below, dark green forest ring. Keep a calm central area for a number token and low unobstructed corners for buildings. Change the arrangement of the terrain shapes clearly, rather than rotating the whole image. The same terrain type must remain instantly recognizable at 90 pixels. No border, hexagon outline, roads, buildings, letters, numbers, icons or UI.",
+      "transparent": false,
+      "references": [
+        "terrain-forest-v2.png"
+      ]
+    },
+    {
+      "name": "terrain-forest-4",
+      "prompt": "Create a distinct terrain-layout variant by editing this existing top-down fantasy board-game terrain painting. Preserve square canvas, overhead camera without horizon, exact dominant palette, warm upper-left light, broad simplified brushwork and low fine detail. New layout: a broad forest ring with one small rock outcrop at lower left and a quiet irregular clearing. Keep a calm central area for a number token and low unobstructed corners for buildings. Change the arrangement of the terrain shapes clearly, rather than rotating the whole image. The same terrain type must remain instantly recognizable at 90 pixels. No border, hexagon outline, roads, buildings, letters, numbers, icons or UI.",
+      "transparent": false,
+      "references": [
+        "terrain-forest-v2.png"
+      ]
+    },
+    {
+      "name": "terrain-pasture-2",
+      "prompt": "Create a distinct terrain-layout variant by editing this existing top-down fantasy board-game terrain painting. Preserve square canvas, overhead camera without horizon, exact dominant palette, warm upper-left light, broad simplified brushwork and low fine detail. New layout: two sheep grazing near upper left, a smooth pale lime meadow and shrubs along lower edge. Keep a calm central area for a number token and low unobstructed corners for buildings. Change the arrangement of the terrain shapes clearly, rather than rotating the whole image. The same terrain type must remain instantly recognizable at 90 pixels. No border, hexagon outline, roads, buildings, letters, numbers, icons or UI.",
+      "transparent": false,
+      "references": [
+        "terrain-pasture-v2.png"
+      ]
+    },
+    {
+      "name": "terrain-pasture-3",
+      "prompt": "Create a distinct terrain-layout variant by editing this existing top-down fantasy board-game terrain painting. Preserve square canvas, overhead camera without horizon, exact dominant palette, warm upper-left light, broad simplified brushwork and low fine detail. New layout: small flock near bottom right, large rolling bright meadow, a lone tree far at top edge. Keep a calm central area for a number token and low unobstructed corners for buildings. Change the arrangement of the terrain shapes clearly, rather than rotating the whole image. The same terrain type must remain instantly recognizable at 90 pixels. No border, hexagon outline, roads, buildings, letters, numbers, icons or UI.",
+      "transparent": false,
+      "references": [
+        "terrain-pasture-v2.png"
+      ]
+    },
+    {
+      "name": "terrain-pasture-4",
+      "prompt": "Create a distinct terrain-layout variant by editing this existing top-down fantasy board-game terrain painting. Preserve square canvas, overhead camera without horizon, exact dominant palette, warm upper-left light, broad simplified brushwork and low fine detail. New layout: open pale green grassland with sheep pair at left and one smooth gentle hill at right. Keep a calm central area for a number token and low unobstructed corners for buildings. Change the arrangement of the terrain shapes clearly, rather than rotating the whole image. The same terrain type must remain instantly recognizable at 90 pixels. No border, hexagon outline, roads, buildings, letters, numbers, icons or UI.",
+      "transparent": false,
+      "references": [
+        "terrain-pasture-v2.png"
+      ]
+    },
+    {
+      "name": "terrain-fields-2",
+      "prompt": "Create a distinct terrain-layout variant by editing this existing top-down fantasy board-game terrain painting. Preserve square canvas, overhead camera without horizon, exact dominant palette, warm upper-left light, broad simplified brushwork and low fine detail. New layout: broad golden wheat strips diagonally crossing the outer area, quiet gold center. Keep a calm central area for a number token and low unobstructed corners for buildings. Change the arrangement of the terrain shapes clearly, rather than rotating the whole image. The same terrain type must remain instantly recognizable at 90 pixels. No border, hexagon outline, roads, buildings, letters, numbers, icons or UI.",
+      "transparent": false,
+      "references": [
+        "terrain-fields.png"
+      ]
+    },
+    {
+      "name": "terrain-fields-3",
+      "prompt": "Create a distinct terrain-layout variant by editing this existing top-down fantasy board-game terrain painting. Preserve square canvas, overhead camera without horizon, exact dominant palette, warm upper-left light, broad simplified brushwork and low fine detail. New layout: three broad arcing golden crop strips, one sheaf near top right edge, calm center. Keep a calm central area for a number token and low unobstructed corners for buildings. Change the arrangement of the terrain shapes clearly, rather than rotating the whole image. The same terrain type must remain instantly recognizable at 90 pixels. No border, hexagon outline, roads, buildings, letters, numbers, icons or UI.",
+      "transparent": false,
+      "references": [
+        "terrain-fields.png"
+      ]
+    },
+    {
+      "name": "terrain-fields-4",
+      "prompt": "Create a distinct terrain-layout variant by editing this existing top-down fantasy board-game terrain painting. Preserve square canvas, overhead camera without horizon, exact dominant palette, warm upper-left light, broad simplified brushwork and low fine detail. New layout: large amber wheat patches on left and bottom right, an open sunlit center. Keep a calm central area for a number token and low unobstructed corners for buildings. Change the arrangement of the terrain shapes clearly, rather than rotating the whole image. The same terrain type must remain instantly recognizable at 90 pixels. No border, hexagon outline, roads, buildings, letters, numbers, icons or UI.",
+      "transparent": false,
+      "references": [
+        "terrain-fields.png"
+      ]
+    },
+    {
+      "name": "terrain-hills-2",
+      "prompt": "Create a distinct terrain-layout variant by editing this existing top-down fantasy board-game terrain painting. Preserve square canvas, overhead camera without horizon, exact dominant palette, warm upper-left light, broad simplified brushwork and low fine detail. New layout: two smooth red clay ridges framing a quiet terracotta central basin. Keep a calm central area for a number token and low unobstructed corners for buildings. Change the arrangement of the terrain shapes clearly, rather than rotating the whole image. The same terrain type must remain instantly recognizable at 90 pixels. No border, hexagon outline, roads, buildings, letters, numbers, icons or UI.",
+      "transparent": false,
+      "references": [
+        "terrain-hills.png"
+      ]
+    },
+    {
+      "name": "terrain-hills-3",
+      "prompt": "Create a distinct terrain-layout variant by editing this existing top-down fantasy board-game terrain painting. Preserve square canvas, overhead camera without horizon, exact dominant palette, warm upper-left light, broad simplified brushwork and low fine detail. New layout: a shallow red terracotta quarry along lower right and a broad warm red plateau. Keep a calm central area for a number token and low unobstructed corners for buildings. Change the arrangement of the terrain shapes clearly, rather than rotating the whole image. The same terrain type must remain instantly recognizable at 90 pixels. No border, hexagon outline, roads, buildings, letters, numbers, icons or UI.",
+      "transparent": false,
+      "references": [
+        "terrain-hills.png"
+      ]
+    },
+    {
+      "name": "terrain-mountains-2",
+      "prompt": "Create a distinct terrain-layout variant by editing this existing top-down fantasy board-game terrain painting. Preserve square canvas, overhead camera without horizon, exact dominant palette, warm upper-left light, broad simplified brushwork and low fine detail. New layout: two broad cool gray ridges on left and upper right, quiet stony central valley. Keep a calm central area for a number token and low unobstructed corners for buildings. Change the arrangement of the terrain shapes clearly, rather than rotating the whole image. The same terrain type must remain instantly recognizable at 90 pixels. No border, hexagon outline, roads, buildings, letters, numbers, icons or UI.",
+      "transparent": false,
+      "references": [
+        "terrain-mountains-v2.png"
+      ]
+    },
+    {
+      "name": "terrain-mountains-3",
+      "prompt": "Create a distinct terrain-layout variant by editing this existing top-down fantasy board-game terrain painting. Preserve square canvas, overhead camera without horizon, exact dominant palette, warm upper-left light, broad simplified brushwork and low fine detail. New layout: large slate blue-gray rock formations on lower left and top, quiet gray central basin. Keep a calm central area for a number token and low unobstructed corners for buildings. Change the arrangement of the terrain shapes clearly, rather than rotating the whole image. The same terrain type must remain instantly recognizable at 90 pixels. No border, hexagon outline, roads, buildings, letters, numbers, icons or UI.",
+      "transparent": false,
+      "references": [
+        "terrain-mountains-v2.png"
+      ]
+    }
+  ]
+}

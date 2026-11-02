@@ -1,0 +1,64 @@
+{
+  "generator": "Built-in image_gen",
+  "created": "2026-11-02",
+  "revision": 2,
+  "style": "Drawn fantasy simplified for readability: broad shapes, low texture noise, distinct terrain colors, large building silhouettes.",
+  "assets": [
+    {
+      "name": "terrain-forest",
+      "sourceFile": "terrain-forest-v2.png",
+      "prompt": "EDIT the supplied FOREST game terrain image for much better readability at 100-160 pixels. Preserve the square top-down terrain composition with woodland around a quiet central clearing, warm upper-left light and fantasy storybook identity. SUBSTANTIALLY SIMPLIFY the artwork: replace thousands of tiny leaves with 7-9 large clearly shaped tree crowns grouped into three masses, remove all gravel, flowers, tiny sticks and small scattered stones, reduce texture and visual noise by about 80 percent. Use broad smooth hand-painted shapes with restrained 2-3 value shading, clear silhouette edges, deep cool emerald/teal forest greens distinct from yellow-green pasture, warm simple earthen clearing. Charming premium illustrated board-game art, not photorealism, not glossy plastic 3D, not pixel art, not a flat generic icon. Quiet outer corners for board-game pieces and quiet center for token. Still edge-to-edge square painting that code will clip into a point-up hexagon, no drawn hexagon border, no text, numbers, symbols, buildings, roads or water. Only simplify and clarify this terrain, do not introduce extra subjects.",
+      "transparent": false,
+      "references": ["terrain-forest.png"]
+    },
+    {
+      "name": "terrain-mountains",
+      "sourceFile": "terrain-mountains-v2.png",
+      "prompt": "Image 1 is the MOUNTAIN terrain to edit. Image 2 is the new simplified FOREST style reference, not an edit target. Simplify Image 1 to match Image 2's smooth broad painterly shapes and remove fine texture for a fantasy board game at 100 pixels. Keep top-down square terrain and upper-left sunlight. Make this terrain UNMISTAKABLY COOL BLUE-GRAY MOUNTAINS: 3 or 4 large solid rocky ridge masses around a quiet stone central valley, angular readable rock silhouettes, blue-gray and muted slate-violet shadows, restrained golden light on top edges. Remove tiny rock fragments, gravel, flowers, most grass and all tiny noisy details. No grassy central meadow: center should be a muted warm-gray stone plateau. Only tiny patches of moss. Lightly illustrated fantasy 2D, not realism, not low-poly 3D. Fill square edge to edge; no frame, drawn hexagon, text, numbers, buildings, paths, signs or people. Preserve a quiet center for the number token.",
+      "transparent": false,
+      "references": ["terrain-mountains.png", "terrain-forest-v2.png"]
+    },
+    {
+      "name": "terrain-pasture",
+      "sourceFile": "terrain-pasture-v2.png",
+      "prompt": "Image 1 is the PASTURE terrain to edit. Image 2 is the new simplified FOREST style reference. Simplify Image 1 into a highly legible LIGHT GREEN MEADOW game tile. Keep a top-down square composition and upper-left soft warm light. Use broad gently rolling shapes, pale fresh yellow-green grass with only 2 or 3 subtle tonal areas. Two small groups of 3 cream-white sheep with simple rounded wool silhouettes, easily recognized at 100 pixels. Remove every tiny flower, all gravel, almost all rocks and all dense shrubs and tree-like foliage. This is open bright pasture, radically clearer and more open than dark forest. Smooth restrained hand-painted fantasy shading, no noisy texture, no individual grass blades. Keep a quiet center and corners for game markers. Edge-to-edge square art, no drawn hexagon border, text, numbers, UI, buildings, people or water.",
+      "transparent": false,
+      "references": ["terrain-pasture.png", "terrain-forest-v2.png"]
+    },
+    {
+      "name": "resource-wood",
+      "sourceFile": "resource-wood-v2.png",
+      "prompt": "Image 1 is the asset to EDIT. Image 2 is the newly simplified forest, a painterly STYLE reference only. Improve readability at small game scale. Preserve the original subject, composition orientation, upper-left warm light and fantasy identity. Reduce microtexture and tiny detail by about 80 percent: large clear painted shapes, 2-3 shading values, clean strong silhouettes, smooth broad brushwork. Do not introduce text, symbols, numbers, UI, logos or additional objects. Keep portrait 2:3 card artwork. Reduce the log bundle to three very large recognizable logs, a simple rope and a single small oak sprig. Use only 2 concentric end-grain rings per log, remove all tiny bark marks, gravel and flowers. The background is soft dark emerald woodland in broad quiet masses. A beautiful strongly recognizable WOOD resource, not photorealistic.",
+      "transparent": false,
+      "references": ["resource-wood.png", "terrain-forest-v2.png"]
+    },
+    {
+      "name": "resource-ore",
+      "sourceFile": "resource-ore-v2.png",
+      "prompt": "Image 1 is the asset to EDIT. Image 2 is the newly simplified forest, a painterly STYLE reference only. Improve readability at small game scale. Preserve the original subject, composition orientation, upper-left warm light and fantasy identity. Reduce microtexture and tiny detail by about 80 percent: large clear painted shapes, 2-3 shading values, clean strong silhouettes, smooth broad brushwork. Do not introduce text, symbols, numbers, UI, logos or additional objects. Keep portrait 2:3 card artwork. Show three large dark blue-gray ore chunks with just a few warm mineral highlights. Remove the pile of dozens of tiny stones, gravel, fine vein texture and intricate scenery. Distant mountains are broad simple muted blue shapes. Strong dark foreground resource silhouette and subdued background, illustrated not photorealistic.",
+      "transparent": false,
+      "references": ["resource-ore.png", "terrain-forest-v2.png"]
+    },
+    {
+      "name": "piece-settlement",
+      "sourceFile": "piece-settlement-v2.png",
+      "prompt": "Image 1 is the asset to EDIT. Image 2 is the newly simplified forest, a painterly STYLE reference only. Improve readability at small game scale. Preserve the original subject, composition orientation, upper-left warm light and fantasy identity. Reduce microtexture and tiny detail by about 80 percent: large clear painted shapes, 2-3 shading values, clean strong silhouettes, smooth broad brushwork. Do not introduce text, symbols, numbers, UI, logos or additional objects. Keep the isolated cottage and genuine transparent background, square composition and violet player roof. Simplify to one main violet roof with 3-4 broad shingle bands, warm cream walls with a few thick timber beams, one large door and two clearly readable windows. Remove tiny tile lines, brick patterns, mullions, brass ornaments and tiny roof details. Make the house silhouette compact and clear at 40 pixels. Same overall camera, no scenery, no base or extra shadow.",
+      "transparent": true,
+      "references": ["piece-settlement.png", "terrain-forest-v2.png"]
+    },
+    {
+      "name": "piece-city",
+      "sourceFile": "piece-city-v2.png",
+      "prompt": "Image 1 is the asset to EDIT. Image 2 is the newly simplified forest, a painterly STYLE reference only. Improve readability at small game scale. Preserve the original subject, composition orientation, upper-left warm light and fantasy identity. Reduce microtexture and tiny detail by about 80 percent: large clear painted shapes, 2-3 shading values, clean strong silhouettes, smooth broad brushwork. Do not introduce text, symbols, numbers, UI, logos or additional objects. Keep one compact city building cluster on a genuine transparent background, violet player roofs and two clear towers. Simplify the three main roof forms, pale warm stone walls, large arched gate and two amber windows. Remove tiny shingles, stone brick lines, spindles, ornate dormers and small windows. Use large readable roof planes and simple strong tower shapes. Same camera, square composition, must differ clearly from one cottage even at 60 pixels. No scenery or base.",
+      "transparent": true,
+      "references": ["piece-city.png", "terrain-forest-v2.png"]
+    },
+    {
+      "name": "piece-road",
+      "sourceFile": "piece-road-v2.png",
+      "prompt": "Image 1 is the asset to EDIT. Image 2 is the newly simplified forest, a painterly STYLE reference only. Improve readability at small game scale. Preserve the original subject, composition orientation, upper-left warm light and fantasy identity. Reduce microtexture and tiny detail by about 80 percent: large clear painted shapes, 2-3 shading values, clean strong silhouettes, smooth broad brushwork. Do not introduce text, symbols, numbers, UI, logos or additional objects. Keep the single straight horizontal road on a genuine transparent background and the same wide slender aspect ratio. Simplify paving to one row of 7 large smooth warm-gray stones, simple violet edging on both sides and only two brass end caps. No tiny gravel, repeated nails, rough grain, ornate gold detail or new objects. Clean readable silhouette at 70 pixels wide. Orthographic top down.",
+      "transparent": true,
+      "references": ["piece-road.png", "terrain-forest-v2.png"]
+    }
+  ]
+}

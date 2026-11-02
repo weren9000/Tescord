@@ -1,0 +1,14 @@
+.messenger-workspace--islands {
+  position: relative;
+}
+.messenger-workspace--islands > :not(app-islands) {
+  visibility: hidden;
+}
+
+@media (max-width: 980px) {
+  .messenger-shell.messenger-shell--islands
+    > .call-tray:not(.call-tray--incoming)
+    .call-tray__leave {
+    display: inline-flex;
+  }
+}

@@ -1,0 +1,8 @@
+// Test-only application ID. Never use this init script for a release.
+allprojects { project ->
+    project.afterEvaluate {
+        if (project.name == 'app') {
+            project.android.defaultConfig.applicationId = 'ru.kvachat.islandscheck'
+        }
+    }
+}

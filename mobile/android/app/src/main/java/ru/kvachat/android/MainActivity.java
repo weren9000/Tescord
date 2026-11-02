@@ -59,6 +59,9 @@ public class MainActivity extends BridgeActivity {
             @Override public boolean shouldOverrideUrlLoading(WebView view,WebResourceRequest request){
                 Uri uri=request.getUrl();
                 if("https".equals(uri.getScheme())&&"localhost".equals(uri.getHost())&&(uri.getPort()==-1||uri.getPort()==443))return false;
+                if(!request.isForMainFrame() && "https".equals(uri.getScheme()) && "kvachat.ru".equals(uri.getHost())
+                    && (uri.getPort()==-1||uri.getPort()==443) && uri.getPath()!=null
+                    && uri.getPath().startsWith("/plugins/islands/"))return false;
                 String link = appLink(uri);
                 if (request.isForMainFrame() && link != null) {view.loadUrl("https://localhost" + link);return true;}
                 if(request.isForMainFrame()&&("https".equals(uri.getScheme())||"http".equals(uri.getScheme())))try{startActivity(new Intent(Intent.ACTION_VIEW,uri));}catch(ActivityNotFoundException ignored){}

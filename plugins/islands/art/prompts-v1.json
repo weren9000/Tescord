@@ -1,0 +1,55 @@
+{
+  "generator": "Built-in image_gen",
+  "created": "2026-11-02",
+  "style": "Рисованное фэнтези, общий свет сверху слева, живописные земли и выразительные постройки.",
+  "assets": [
+    {
+      "name": "terrain-forest",
+      "prompt": "Use case: stylized-concept. Asset type: single square terrain illustration for an original fantasy tabletop strategy game, FOREST terrain. A premium hand-painted storybook fantasy map, lush emerald and moss-green old woodland, a few broad beautifully shaped tree crowns, small rocks, winding earthen clearings, restrained painterly brushwork and warm sunlit details. Orthographic view from almost directly above, tiny amount of volume in the tree crowns, consistent soft light from upper left. Artwork fills the entire square edge to edge and will be clipped by code into a point-up regular hexagon. Composition: large readable masses, quiet small clearing at center reserved for a number token; keep outer corners relatively calm so game buildings remain legible. Deep greens contrasted with warm ochre ground, coherent natural terrain rather than noisy miniature objects. No houses, no figures, no roads, no water, no frame, no border, no lettering, no numbers, no UI, no logos. Crisp highly crafted 2D fantasy illustration, not a photograph, not plastic 3D, no isometric floating island. One terrain image only, not a sheet or collage. Square aspect ratio, high resolution.",
+      "references": [],
+      "transparent": false
+    },
+    {
+      "name": "terrain-mountains",
+      "prompt": "Use the supplied forest image ONLY as a reference for painterly technique, top-down camera, scale, warm upper-left lighting, and richly illustrated fantasy board-game style. Create a NEW single square terrain painting filling the image edge to edge. The artwork will be clipped by code into a point-up regular hexagon: do not draw hexagon borders, frames, numbers, UI, letters or symbols. Keep a quiet center for a number token, readable large forms and relatively calm outer corners for buildings. Original hand-painted fantasy map asset, high quality; no collage, no floating island, no plastic 3D. Subject: craggy slate-blue and cool gray mountains with warm sunlit stone ridges and a few visible coppery mineral veins. A rocky grassy valley through the center. Small areas of deep green moss. Terrain is unmistakably MOUNTAIN, distinct from green forest; fine storybook craftsmanship, top down with lightly raised rocky forms. No trees, no buildings, no ice, no crystals, no people.",
+      "references": ["terrain-forest"],
+      "transparent": false
+    },
+    {
+      "name": "terrain-pasture",
+      "prompt": "Use the supplied forest image ONLY as a reference for painterly technique, top-down camera, scale, warm upper-left lighting, and richly illustrated fantasy board-game style. Create a NEW single square terrain painting filling the image edge to edge. The artwork will be clipped by code into a point-up regular hexagon: do not draw hexagon borders, frames, numbers, UI, letters or symbols. Keep a quiet center for a number token, readable large forms and relatively calm outer corners for buildings. Original hand-painted fantasy map asset, high quality; no collage, no floating island, no plastic 3D. Subject: PASTURE, a luminous open rolling meadow in light sage and spring-green tones with short grass, scattered cream-white sheep seen from above in two small clusters, a few wildflowers and gentle earth paths. Large open spaces with subtle terrain variations, no large trees, no buildings. Make the sheep legible but not oversized mascots. Terrain is clearly brighter and more open than dense forest, a welcoming richly painted fairy-tale landscape.",
+      "references": ["terrain-forest"],
+      "transparent": false
+    },
+    {
+      "name": "resource-wood",
+      "prompt": "The supplied forest image is ONLY a style reference: match its premium hand-painted storybook fantasy technique, rich natural colors, crisp painterly detail and warm light from the upper left. Create one new original game asset. No text, numbers, letters, logos or UI; no collage. Asset: portrait 2:3 fantasy resource-card illustration, fills the entire rectangle with no external border or lettering. Primary subject: a small beautiful bundle of stout freshly cut logs with visible warm end-grain, tied with coarse rope on mossy ground, a single oak sprig and golden dappled forest light. Logs dominate center and lower half, readable at small size. Deep emerald woodland softens behind, tasteful luminous atmosphere and rich material detail. Close storybook still life, no tools, people, faces or architecture. The app will add its own card frame and caption.",
+      "references": ["terrain-forest"],
+      "transparent": false
+    },
+    {
+      "name": "resource-ore",
+      "prompt": "The supplied forest image is ONLY a style reference: match its premium hand-painted storybook fantasy technique, rich natural colors, crisp painterly detail and warm light from the upper left. Create one new original game asset. No text, numbers, letters, logos or UI; no collage. Asset: portrait 2:3 fantasy resource-card illustration filling the rectangle with no external border or lettering. Primary subject: a beautiful pile of rough dark slate-gray iron ore stones with subtle bronze mineral seams and small metallic highlights, resting on stone near a mountain ledge. Ore dominates center and lower half, a dramatic cool blue-gray mountain setting softens behind, warm sunlight touches rock edges. Rich crafted painterly fantasy still life, readable solid silhouette, no giant glowing crystals, no tools, people, faces or text. The app adds its own card frame and caption.",
+      "references": ["terrain-forest"],
+      "transparent": false
+    },
+    {
+      "name": "piece-settlement",
+      "prompt": "The supplied forest image is ONLY a style reference: match its premium hand-painted storybook fantasy technique, rich natural colors, crisp painterly detail and warm light from the upper left. Create one new original game asset. No text, numbers, letters, logos or UI; no collage. Asset: one isolated small fantasy SETTLEMENT building game sprite on a fully transparent background, square composition with generous transparent margin. A charming compact half-timbered cottage, warm pale plaster, honey-colored timber framing, deep violet shingle roof, tiny brass roof finial, stone doorway and two small amber windows. Clear strong silhouette suitable for 40-60 pixel display. Camera elevated 60 degrees, looking down, showing roof and front, no perspective distortion. Warm soft upper-left lighting, finely drawn illustration with controlled detail. Entire building visible, footprint centered at bottom of the object, no scenery, no grass base, no cast shadow outside building, no labels. One cottage only, no people, no extra objects, no comparison sheet. Violet roof is the player color.",
+      "references": ["terrain-forest"],
+      "transparent": true
+    },
+    {
+      "name": "piece-city",
+      "prompt": "Use the reference cottage only as an exact STYLE, CAMERA, MATERIAL and PLAYER COLOR reference. Create a new single original fantasy CITY game sprite: a compact cluster consisting of a grand warm pale-stone town hall and two stout corner towers, deep violet shingle roofs with brass tips, a broad arched entry and a few amber-lit windows. Clearly larger and richer than the cottage, instantly readable silhouette with two distinct towers. Keep the same painterly storybook craftsmanship, upper-left warm light and elevated view showing roof and front. One compact city building cluster only, entire object visible, centered square composition with transparent margins, genuine transparent background. No ground tile, no scenery, no trees, no people, no flags with letters, no labels, no numbers, no UI. No disconnected buildings, no tiny ornamental clutter. At 60 pixels this should still read as a city.",
+      "references": ["piece-settlement"],
+      "transparent": true
+    },
+    {
+      "name": "piece-road",
+      "prompt": "Use the reference cottage only as a reference for hand-painted fantasy craftsmanship, violet player accents and warm upper-left light. Create a single game ROAD segment sprite on a genuinely transparent background: a short straight, horizontal strip of honey-gray cobblestone paving with violet-painted timber edging on both long sides and small brass fastening caps. Straight across the image from left to right, seen directly from above, not diagonally, not curving, no forced perspective. The object has a slender aspect ratio about 5:1 and fills most of the image width, centered vertically with transparent margins. Clear clean ends so it connects to game board vertices, no extra props, no terrain ground, no posts, no characters, no shadows outside object, no text or numbers. Rich crisp illustrated materials, simple readable silhouette at 60 pixels width. One road only, no sheet or collage.",
+      "references": ["piece-settlement"],
+      "transparent": true
+    }
+  ]
+}

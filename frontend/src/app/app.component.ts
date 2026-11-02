@@ -1,6 +1,7 @@
 import { MessageTextPresenter } from './core/services/message-text.presenter';
 import { MessageEditState, MessageEditSession } from './core/services/message-edit-state';
 import { ApplicationsComponent } from './workspace/applications.component';
+import { IslandsComponent } from './workspace/islands.component';
 import { afterNextRender, Injector, HostListener } from '@angular/core';
 import {
   MessageContentSegment,
@@ -675,6 +676,7 @@ const DEFAULT_SERVER_ICON_ASSET_BY_NAME: Record<string, string> = {
   selector: 'app-root',
   imports: [
     ApplicationsComponent,
+    IslandsComponent,
     PhotoGridComponent,
     PhotoThumbnailComponent,
     PhotoViewerComponent,
@@ -738,10 +740,12 @@ const DEFAULT_SERVER_ICON_ASSET_BY_NAME: Record<string, string> = {
     './platform-calm.scss',
     './platform-navigation.scss',
     './call-chat.scss',
+    './islands-workspace.scss',
   ],
 })
 export class AppComponent {
   readonly applicationsOpen = signal(false);
+  readonly islandsOpen = signal(false);
   private applicationsOpener: HTMLElement | null = null;
   private readonly applicationsInjector = inject(Injector);
 
@@ -750,6 +754,13 @@ export class AppComponent {
       document.activeElement instanceof HTMLElement ? document.activeElement : null;
     this.closeSideMenu();
     this.applicationsOpen.set(true);
+  }
+
+  openIslands(): void {
+    this.applicationsOpen.set(false);
+    this.minimizeCallWindow();
+    this.closeMobilePanel();
+    this.islandsOpen.set(true);
   }
 
   closeApplications(): void {
@@ -7256,6 +7267,8 @@ export class AppComponent {
       return;
     }
 
+    this.islandsOpen.set(false);
+
     const target = this.activeCallChatTarget();
     if (!target) return;
     this.rememberCallChatScroll();
@@ -8822,6 +8835,7 @@ export class AppComponent {
     this.friendRequestsModalOpen.set(false);
     this.appearanceOpen.set(false);
     this.applicationsOpen.set(false);
+    this.islandsOpen.set(false);
     this.blockedFriendsModalOpen.set(false);
     this.blockedServersModalOpen.set(false);
     this.groupMembersModalOpen.set(false);

@@ -849,6 +849,7 @@
     [class.messenger-shell--call-active]="hasActiveCallSurface()"
     [class.messenger-shell--call-window-open]="callWindowExpanded()"
     [class.messenger-shell--side-menu-open]="sideMenuOpen()"
+    [class.messenger-shell--islands]="islandsOpen()"
   >
     <ng-container *ngTemplateOutlet="activeCallTray" />
     <input
@@ -1096,7 +1097,11 @@
       </app-action-menu>
     }
     @if (applicationsOpen()) {
-      <app-applications [token]="session()!.access_token" (closed)="closeApplications()" />
+      <app-applications
+        [token]="session()!.access_token"
+        (closed)="closeApplications()"
+        (islandsOpened)="openIslands()"
+      />
     }
     @if (appearanceOpen()) {
       <app-desktop-preferences
@@ -1427,7 +1432,13 @@
           <span class="navigation-handle"><app-ui-icon name="back" /></span>
         </button>
       }
-      <main class="messenger-workspace">
+      <main class="messenger-workspace" [class.messenger-workspace--islands]="islandsOpen()">
+        @if (islandsOpen()) {
+          <app-islands
+            [token]="session()!.access_token"
+            (closed)="islandsOpen.set(false); closeApplications()"
+          />
+        }
         @if (!adminDirectoryOpen()) {
           <button
             type="button"

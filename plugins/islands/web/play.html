@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark light" />
+    <title>Острова · Квачат</title>
+    <link rel="stylesheet" href="palette.css" />
+    <link rel="stylesheet" href="game.css" />
+  </head>
+  <body>
+    <header class="masthead">
+      <div>
+        <span class="eyebrow">КВАЧАТ · НАСТОЛЬНЫЕ МИРЫ</span>
+        <h1>Острова</h1>
+      </div>
+      <nav aria-label="Игра">
+        <button id="rooms" type="button">Мои партии</button
+        ><button id="theme" type="button" aria-label="Переключить тему">
+          ◐</button
+        ><button id="rules" type="button">Правила</button>
+      </nav>
+    </header>
+    <div id="connection" role="status">Входим через Квачат…</div>
+    <div id="error" role="alert" hidden></div>
+    <main id="game">
+      <section class="welcome">
+        <h2>Ваш остров ждёт</h2>
+        <p>
+          Откройте «Острова» в приложениях Квачата, чтобы пригласить друзей и
+          начать партию.
+        </p>
+      </section>
+    </main>
+    <dialog id="dialog" aria-labelledby="dialog-title">
+      <div id="dialog-content"></div>
+      <button id="dialog-close" type="button">Закрыть</button>
+    </dialog>
+    <script type="module" src="game.mjs"></script>
+  </body>
+</html>

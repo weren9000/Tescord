@@ -1,0 +1,78 @@
+{
+  "generator": "Built-in image_gen",
+  "created": "2026-11-02",
+  "assets": [
+    {
+      "name": "piece-settlement-cyan",
+      "prompt": "Edit this existing hand-painted fantasy settlement game piece. Change ONLY its violet/purple team-color surfaces (the roofs) to clear turquoise cyan. Keep the silhouette, every structural form, perspective, orientation, scale, materials, gold trim, cream stone, lighting and all transparent margins exactly identical. Keep the simplified readable painting with broad shapes, do not introduce detail. The output must have real transparent background, identical crop and aspect ratio to reference. No text, number, base, added shadow or surrounding objects.",
+      "transparent": true,
+      "references": [
+        "piece-settlement-v2.png"
+      ]
+    },
+    {
+      "name": "piece-settlement-coral",
+      "prompt": "Edit this existing hand-painted fantasy settlement game piece. Change ONLY its violet/purple team-color surfaces (the roofs) to warm coral red. Keep the silhouette, every structural form, perspective, orientation, scale, materials, gold trim, cream stone, lighting and all transparent margins exactly identical. Keep the simplified readable painting with broad shapes, do not introduce detail. The output must have real transparent background, identical crop and aspect ratio to reference. No text, number, base, added shadow or surrounding objects.",
+      "transparent": true,
+      "references": [
+        "piece-settlement-v2.png"
+      ]
+    },
+    {
+      "name": "piece-settlement-gold",
+      "prompt": "Edit this existing hand-painted fantasy settlement game piece. Change ONLY its violet/purple team-color surfaces (the roofs) to golden yellow. Keep the silhouette, every structural form, perspective, orientation, scale, materials, gold trim, cream stone, lighting and all transparent margins exactly identical. Keep the simplified readable painting with broad shapes, do not introduce detail. The output must have real transparent background, identical crop and aspect ratio to reference. No text, number, base, added shadow or surrounding objects.",
+      "transparent": true,
+      "references": [
+        "piece-settlement-v2.png"
+      ]
+    },
+    {
+      "name": "piece-city-cyan",
+      "prompt": "Edit this existing hand-painted fantasy city game piece. Change ONLY its violet/purple team-color surfaces (the roofs) to clear turquoise cyan. Keep the silhouette, every structural form, perspective, orientation, scale, materials, gold trim, cream stone, lighting and all transparent margins exactly identical. Keep the simplified readable painting with broad shapes, do not introduce detail. The output must have real transparent background, identical crop and aspect ratio to reference. No text, number, base, added shadow or surrounding objects.",
+      "transparent": true,
+      "references": [
+        "piece-city-v2.png"
+      ]
+    },
+    {
+      "name": "piece-city-coral",
+      "prompt": "Edit this existing hand-painted fantasy city game piece. Change ONLY its violet/purple team-color surfaces (the roofs) to warm coral red. Keep the silhouette, every structural form, perspective, orientation, scale, materials, gold trim, cream stone, lighting and all transparent margins exactly identical. Keep the simplified readable painting with broad shapes, do not introduce detail. The output must have real transparent background, identical crop and aspect ratio to reference. No text, number, base, added shadow or surrounding objects.",
+      "transparent": true,
+      "references": [
+        "piece-city-v2.png"
+      ]
+    },
+    {
+      "name": "piece-city-gold",
+      "prompt": "Edit this existing hand-painted fantasy city game piece. Change ONLY its violet/purple team-color surfaces (the roofs) to golden yellow. Keep the silhouette, every structural form, perspective, orientation, scale, materials, gold trim, cream stone, lighting and all transparent margins exactly identical. Keep the simplified readable painting with broad shapes, do not introduce detail. The output must have real transparent background, identical crop and aspect ratio to reference. No text, number, base, added shadow or surrounding objects.",
+      "transparent": true,
+      "references": [
+        "piece-city-v2.png"
+      ]
+    },
+    {
+      "name": "piece-road-cyan",
+      "prompt": "Edit this existing hand-painted fantasy road game piece. Change ONLY its violet/purple team-color surfaces (the two long side rails) to clear turquoise cyan. Keep the silhouette, every structural form, perspective, orientation, scale, materials, gold trim, cream stone, lighting and all transparent margins exactly identical. Keep the simplified readable painting with broad shapes, do not introduce detail. The output must have real transparent background, identical crop and aspect ratio to reference. No text, number, base, added shadow or surrounding objects.",
+      "transparent": true,
+      "references": [
+        "piece-road-v2.png"
+      ]
+    },
+    {
+      "name": "piece-road-coral",
+      "prompt": "Edit this existing hand-painted fantasy road game piece. Change ONLY its violet/purple team-color surfaces (the two long side rails) to warm coral red. Keep the silhouette, every structural form, perspective, orientation, scale, materials, gold trim, cream stone, lighting and all transparent margins exactly identical. Keep the simplified readable painting with broad shapes, do not introduce detail. The output must have real transparent background, identical crop and aspect ratio to reference. No text, number, base, added shadow or surrounding objects.",
+      "transparent": true,
+      "references": [
+        "piece-road-v2.png"
+      ]
+    },
+    {
+      "name": "piece-road-gold",
+      "prompt": "Edit this existing hand-painted fantasy road game piece. Change ONLY its violet/purple team-color surfaces (the two long side rails) to golden yellow. Keep the silhouette, every structural form, perspective, orientation, scale, materials, gold trim, cream stone, lighting and all transparent margins exactly identical. Keep the simplified readable painting with broad shapes, do not introduce detail. The output must have real transparent background, identical crop and aspect ratio to reference. No text, number, base, added shadow or surrounding objects.",
+      "transparent": true,
+      "references": [
+        "piece-road-v2.png"
+      ]
+    }
+  ]
+}

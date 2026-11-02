@@ -62,7 +62,9 @@ import { UiIconComponent } from './ui-icon.component';
               @for (item of visible(); track item.id) {
                 @if (tab() === 'catalog') {
                   <div class="application-row">
-                    <span class="application-icon"><app-ui-icon name="calendar" /></span>
+                    <span class="application-icon"
+                      ><app-ui-icon [name]="item.id === 'islands' ? 'inventory' : 'calendar'"
+                    /></span>
                     <div class="application-copy">
                       <strong>{{ item.name }}</strong>
                       <small>{{ item.description }}</small>
@@ -85,10 +87,14 @@ import { UiIconComponent } from './ui-icon.component';
                     type="button"
                     [disabled]="state.busy()"
                     [attr.aria-label]="'Открыть ' + item.name"
-                    title="Откроется в новой вкладке"
+                    [title]="
+                      item.id === 'islands' ? 'Откроется в Квачате' : 'Откроется в новой вкладке'
+                    "
                     (click)="open(item)"
                   >
-                    <span class="application-icon"><app-ui-icon name="calendar" /></span>
+                    <span class="application-icon"
+                      ><app-ui-icon [name]="item.id === 'islands' ? 'inventory' : 'calendar'"
+                    /></span>
                     <strong>{{ item.name }}</strong>
                     <small>{{ item.description }}</small>
                   </button>
@@ -105,6 +111,7 @@ import { UiIconComponent } from './ui-icon.component';
 export class ApplicationsComponent {
   readonly token = input.required<string>();
   readonly closed = output<void>();
+  readonly islandsOpened = output<void>();
   readonly state = inject(PluginPreferencesService);
   readonly tab = signal<'mine' | 'catalog'>('mine');
   readonly connected = computed(() => this.state.items().filter((item) => item.enabled));
@@ -117,6 +124,7 @@ export class ApplicationsComponent {
   }
 
   open(item: ConnectedApplication): void {
+    if (item.enabled && item.id === 'islands' && !this.state.busy()) this.islandsOpened.emit();
     if (item.enabled && item.id === 'game-calendar' && !this.state.busy()) openGameCalendar();
   }
 

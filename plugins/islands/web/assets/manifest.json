@@ -1,0 +1,457 @@
+{
+  "version": 2,
+  "generator": "Built-in image_gen; browser WebP export",
+  "totalBytes": 4021052,
+  "assets": [
+    {
+      "id": "terrain-forest",
+      "file": "terrain-forest.webp",
+      "width": 768,
+      "height": 768,
+      "bytes": 152502,
+      "transparent": false,
+      "transparentPixels": 0,
+      "sourceSha256": "18e6ef373cd7a382a37ad7ba6017b75c56b950b8f7fd8803f820a9b51e9ba831"
+    },
+    {
+      "id": "terrain-mountains",
+      "file": "terrain-mountains.webp",
+      "width": 768,
+      "height": 768,
+      "bytes": 113654,
+      "transparent": false,
+      "transparentPixels": 0,
+      "sourceSha256": "22680f2e51c7aa87cc00a2a5a90e446aba3a8f961ac229b2f62a004833faa41a"
+    },
+    {
+      "id": "terrain-pasture",
+      "file": "terrain-pasture.webp",
+      "width": 768,
+      "height": 768,
+      "bytes": 82844,
+      "transparent": false,
+      "transparentPixels": 0,
+      "sourceSha256": "cc3cd884d62d7e7cf38b211c3bcd49add79e1ec1b72f81bb834b57ab3881196d"
+    },
+    {
+      "id": "resource-wood",
+      "file": "resource-wood.webp",
+      "width": 640,
+      "height": 960,
+      "bytes": 93820,
+      "transparent": false,
+      "transparentPixels": 0,
+      "sourceSha256": "1810b301b7f569a5fc8c33211caba4591cf456f35ac06009984c792170cfc61d"
+    },
+    {
+      "id": "resource-ore",
+      "file": "resource-ore.webp",
+      "width": 640,
+      "height": 960,
+      "bytes": 145658,
+      "transparent": false,
+      "transparentPixels": 0,
+      "sourceSha256": "2c18ec9c1403869b14143ae375ee59c209ca718f3962d7beea0168334cf37397"
+    },
+    {
+      "id": "piece-settlement",
+      "file": "piece-settlement.webp",
+      "width": 384,
+      "height": 384,
+      "bytes": 26296,
+      "transparent": true,
+      "transparentPixels": 85673,
+      "sourceSha256": "da48dbcf5b0e38fb550ba34c79af8dc68aae0d3cd89b646d88555cb144629764"
+    },
+    {
+      "id": "piece-city",
+      "file": "piece-city.webp",
+      "width": 384,
+      "height": 384,
+      "bytes": 37614,
+      "transparent": true,
+      "transparentPixels": 65137,
+      "sourceSha256": "3b258fa5024643c1d4229419c0191a199d37d29d431fecd2b42931058275421e"
+    },
+    {
+      "id": "piece-road",
+      "file": "piece-road.webp",
+      "width": 768,
+      "height": 256,
+      "bytes": 24952,
+      "transparent": true,
+      "transparentPixels": 102139,
+      "sourceSha256": "d88fd472ce0e693bd6bbca6b76375e11b06154eac89aa865b33913bc2dc8de0f"
+    },
+    {
+      "id": "terrain-hills",
+      "file": "terrain-hills.webp",
+      "width": 768,
+      "height": 768,
+      "bytes": 155604,
+      "transparent": false,
+      "transparentPixels": 0,
+      "sourceSha256": "55d2a5d3aa331bc56c5254903307f0ed56555b1824974fa8cbec430551a414b4"
+    },
+    {
+      "id": "terrain-fields",
+      "file": "terrain-fields.webp",
+      "width": 768,
+      "height": 768,
+      "bytes": 160816,
+      "transparent": false,
+      "transparentPixels": 0,
+      "sourceSha256": "f73b31e8ca78af07b0e105be81850344de52b4fe59dbbabd2923515f9e63d689"
+    },
+    {
+      "id": "terrain-desert",
+      "file": "terrain-desert.webp",
+      "width": 768,
+      "height": 768,
+      "bytes": 47530,
+      "transparent": false,
+      "transparentPixels": 0,
+      "sourceSha256": "57481b0909e8972049536738268421291552fa0f35739a2c3199f7e5e3ad8f0b"
+    },
+    {
+      "id": "resource-brick",
+      "file": "resource-brick.webp",
+      "width": 640,
+      "height": 960,
+      "bytes": 68094,
+      "transparent": false,
+      "transparentPixels": 0,
+      "sourceSha256": "d0ea2e114db5ed5ef4b45c1e1b414f8f6c83d2006cd4f98ec9f7146b3711d17f"
+    },
+    {
+      "id": "resource-wool",
+      "file": "resource-wool.webp",
+      "width": 640,
+      "height": 960,
+      "bytes": 96154,
+      "transparent": false,
+      "transparentPixels": 0,
+      "sourceSha256": "813501628e5866d2cf6b1edcef526f1f90edeb75c670dbc8c375576c5fa41229"
+    },
+    {
+      "id": "resource-grain",
+      "file": "resource-grain.webp",
+      "width": 640,
+      "height": 960,
+      "bytes": 93896,
+      "transparent": false,
+      "transparentPixels": 0,
+      "sourceSha256": "9810580498ab0ac4a6302f073d9395b6d9c22af9e262077033e3dbb25963f61e"
+    },
+    {
+      "id": "development-knight",
+      "file": "development-knight.webp",
+      "width": 640,
+      "height": 960,
+      "bytes": 73440,
+      "transparent": false,
+      "transparentPixels": 0,
+      "sourceSha256": "d58239b33f706aac6a2c8164a7e2b2a43c698e059981b42b02cd30a0abab95cb"
+    },
+    {
+      "id": "development-road_building",
+      "file": "development-road_building.webp",
+      "width": 640,
+      "height": 960,
+      "bytes": 116940,
+      "transparent": false,
+      "transparentPixels": 0,
+      "sourceSha256": "3204e6244ca0b0cd0a3a993a539eb91927f55e26f6b2ff45f44814f6936bd1dd"
+    },
+    {
+      "id": "development-plenty",
+      "file": "development-plenty.webp",
+      "width": 640,
+      "height": 960,
+      "bytes": 134504,
+      "transparent": false,
+      "transparentPixels": 0,
+      "sourceSha256": "d431bb2cd39208089f120afc7d203f4a52ba6049d448094211aefdf3cae1de61"
+    },
+    {
+      "id": "development-monopoly",
+      "file": "development-monopoly.webp",
+      "width": 640,
+      "height": 960,
+      "bytes": 82602,
+      "transparent": false,
+      "transparentPixels": 0,
+      "sourceSha256": "f0dc1d6fb5d97a11b66d155c187eb416de571d8d5d65b645763a3b3412890dbd"
+    },
+    {
+      "id": "development-victory",
+      "file": "development-victory.webp",
+      "width": 640,
+      "height": 960,
+      "bytes": 51074,
+      "transparent": false,
+      "transparentPixels": 0,
+      "sourceSha256": "2c8e77089781910475a3329cccfbf22b5882a2c9828c9617f77b9bc70f853e55"
+    },
+    {
+      "id": "card-back",
+      "file": "card-back.webp",
+      "width": 640,
+      "height": 960,
+      "bytes": 108924,
+      "transparent": false,
+      "transparentPixels": 0,
+      "sourceSha256": "620b994ba6ab86e473c92ac3838b081367a1b3016598b9cd2a787eb7317a650c"
+    },
+    {
+      "id": "piece-robber",
+      "file": "piece-robber.webp",
+      "width": 384,
+      "height": 384,
+      "bytes": 23172,
+      "transparent": true,
+      "transparentPixels": 103372,
+      "sourceSha256": "8ebcb8d1475ee829479c5136816afcb9243902469fe652a9edc34bbb2e360b39"
+    },
+    {
+      "id": "ocean",
+      "file": "ocean.webp",
+      "width": 768,
+      "height": 768,
+      "bytes": 38560,
+      "transparent": false,
+      "transparentPixels": 0,
+      "sourceSha256": "b1a21cc2eadaf6d0eba41fce2a7d7b69bc2f4caf868279e8db304ac54d26e0e0"
+    },
+    {
+      "id": "piece-port",
+      "file": "piece-port.webp",
+      "width": 384,
+      "height": 384,
+      "bytes": 39392,
+      "transparent": true,
+      "transparentPixels": 83977,
+      "sourceSha256": "e1c1facf12c5da199b95dd551d54f62cdec57357ce85b77b7aaedfdbaed428a8"
+    },
+    {
+      "id": "piece-settlement-cyan",
+      "file": "piece-settlement-cyan.webp",
+      "width": 384,
+      "height": 384,
+      "bytes": 26230,
+      "transparent": true,
+      "transparentPixels": 85273,
+      "sourceSha256": "691801a948ca3605b143ac473d1c290e3e49aa2774041f0bcf6579b784766561"
+    },
+    {
+      "id": "piece-settlement-coral",
+      "file": "piece-settlement-coral.webp",
+      "width": 384,
+      "height": 384,
+      "bytes": 25246,
+      "transparent": true,
+      "transparentPixels": 85304,
+      "sourceSha256": "a306c87adfd87074bcd684a489839296b63eec256f2332f6c0594a797f310a64"
+    },
+    {
+      "id": "piece-settlement-gold",
+      "file": "piece-settlement-gold.webp",
+      "width": 384,
+      "height": 384,
+      "bytes": 25752,
+      "transparent": true,
+      "transparentPixels": 85064,
+      "sourceSha256": "cb5447f4249b5c17d0aed378020c436ea7d65b50eda15ca59191b29515f7d4b9"
+    },
+    {
+      "id": "piece-city-cyan",
+      "file": "piece-city-cyan.webp",
+      "width": 384,
+      "height": 384,
+      "bytes": 33774,
+      "transparent": true,
+      "transparentPixels": 64525,
+      "sourceSha256": "16e34c275209b023e8e3ba9c436526a303a541030e211249fb0662e8b0ab7e6d"
+    },
+    {
+      "id": "piece-city-coral",
+      "file": "piece-city-coral.webp",
+      "width": 384,
+      "height": 384,
+      "bytes": 33482,
+      "transparent": true,
+      "transparentPixels": 64222,
+      "sourceSha256": "5691aef6c14765935adf5237fc93d5d4ebfe669969b722b9c668b5d11eb18bde"
+    },
+    {
+      "id": "piece-city-gold",
+      "file": "piece-city-gold.webp",
+      "width": 384,
+      "height": 384,
+      "bytes": 33850,
+      "transparent": true,
+      "transparentPixels": 63941,
+      "sourceSha256": "651bbfd764a5a8834cb0228d95cf25c872fc4061d1c0115b8ee22b75deedf0ce"
+    },
+    {
+      "id": "piece-road-cyan",
+      "file": "piece-road-cyan.webp",
+      "width": 768,
+      "height": 256,
+      "bytes": 21470,
+      "transparent": true,
+      "transparentPixels": 100749,
+      "sourceSha256": "45c857bab9b2e0d2f036ca7189cff46802275a220910fcf04616125007c7b824"
+    },
+    {
+      "id": "piece-road-coral",
+      "file": "piece-road-coral.webp",
+      "width": 768,
+      "height": 256,
+      "bytes": 19708,
+      "transparent": true,
+      "transparentPixels": 100744,
+      "sourceSha256": "1940ceba386369a657ecbe73472ab965eaf785938fba089f8687ba035c741fa0"
+    },
+    {
+      "id": "piece-road-gold",
+      "file": "piece-road-gold.webp",
+      "width": 768,
+      "height": 256,
+      "bytes": 21286,
+      "transparent": true,
+      "transparentPixels": 100058,
+      "sourceSha256": "e0b6a69a83300bdfeb30c74303c922017d19d5a5574cfbe3a2e9aa178dfac824"
+    },
+    {
+      "id": "terrain-forest-2",
+      "file": "terrain-forest-2.webp",
+      "width": 768,
+      "height": 768,
+      "bytes": 149594,
+      "transparent": false,
+      "transparentPixels": 0,
+      "sourceSha256": "f12e9afc0501e1a228172ebdca9c181013ff4ebf0dcb3ef9d1c1e8cfd89cbdf1"
+    },
+    {
+      "id": "terrain-forest-3",
+      "file": "terrain-forest-3.webp",
+      "width": 768,
+      "height": 768,
+      "bytes": 180962,
+      "transparent": false,
+      "transparentPixels": 0,
+      "sourceSha256": "c8df9dfed8d83331b6164cd0f99ac3a756ef05924ef3b5eca498f7e5a7bd93cf"
+    },
+    {
+      "id": "terrain-forest-4",
+      "file": "terrain-forest-4.webp",
+      "width": 768,
+      "height": 768,
+      "bytes": 163832,
+      "transparent": false,
+      "transparentPixels": 0,
+      "sourceSha256": "76ede27c60499558ec94bd2c1ac1495bad9b5a857ab8e3cdaaef3d1da783353a"
+    },
+    {
+      "id": "terrain-pasture-2",
+      "file": "terrain-pasture-2.webp",
+      "width": 768,
+      "height": 768,
+      "bytes": 101314,
+      "transparent": false,
+      "transparentPixels": 0,
+      "sourceSha256": "904db5f2b877e98ff4ddbbb3c0338ea67e23efa25c08349cf6a9005a46dd84e8"
+    },
+    {
+      "id": "terrain-pasture-3",
+      "file": "terrain-pasture-3.webp",
+      "width": 768,
+      "height": 768,
+      "bytes": 93294,
+      "transparent": false,
+      "transparentPixels": 0,
+      "sourceSha256": "d93e068b0145fc8f125b1e113d4dac418ffaa881606741518772fb96a20ab093"
+    },
+    {
+      "id": "terrain-pasture-4",
+      "file": "terrain-pasture-4.webp",
+      "width": 768,
+      "height": 768,
+      "bytes": 94594,
+      "transparent": false,
+      "transparentPixels": 0,
+      "sourceSha256": "76c40601360e20e739cb48fed93dcc4c6f62cd34fe68a5b28eb9b8a2c28685fa"
+    },
+    {
+      "id": "terrain-fields-2",
+      "file": "terrain-fields-2.webp",
+      "width": 768,
+      "height": 768,
+      "bytes": 165206,
+      "transparent": false,
+      "transparentPixels": 0,
+      "sourceSha256": "02a49cb3e5d95bc2aaed888a3303e9bda83fb31bb548ea2701ee5b4942f0bb2c"
+    },
+    {
+      "id": "terrain-fields-3",
+      "file": "terrain-fields-3.webp",
+      "width": 768,
+      "height": 768,
+      "bytes": 153584,
+      "transparent": false,
+      "transparentPixels": 0,
+      "sourceSha256": "a7835cb3caa0e08b2c81b3bac001dc9be92e5301997a90f339ff8154fa33a071"
+    },
+    {
+      "id": "terrain-fields-4",
+      "file": "terrain-fields-4.webp",
+      "width": 768,
+      "height": 768,
+      "bytes": 144958,
+      "transparent": false,
+      "transparentPixels": 0,
+      "sourceSha256": "c9d5db7f7b57064ca4a955cd94ed79c4db08ceb560e90388bc40025d28e9e12d"
+    },
+    {
+      "id": "terrain-hills-2",
+      "file": "terrain-hills-2.webp",
+      "width": 768,
+      "height": 768,
+      "bytes": 148746,
+      "transparent": false,
+      "transparentPixels": 0,
+      "sourceSha256": "627ce7a33d1a32704f704ff0bd3a5b0cc35acb8e6245337ea468d5808d9b6f36"
+    },
+    {
+      "id": "terrain-hills-3",
+      "file": "terrain-hills-3.webp",
+      "width": 768,
+      "height": 768,
+      "bytes": 172336,
+      "transparent": false,
+      "transparentPixels": 0,
+      "sourceSha256": "39027e025b685cb78d08db311fdf8b8ed60f7b7b99e27dd16e9d8695d5af3780"
+    },
+    {
+      "id": "terrain-mountains-2",
+      "file": "terrain-mountains-2.webp",
+      "width": 768,
+      "height": 768,
+      "bytes": 115808,
+      "transparent": false,
+      "transparentPixels": 0,
+      "sourceSha256": "14ad5e048b1623c0b486d380efe4ab2c4bf243468327e22f6929816b71aca145"
+    },
+    {
+      "id": "terrain-mountains-3",
+      "file": "terrain-mountains-3.webp",
+      "width": 768,
+      "height": 768,
+      "bytes": 127984,
+      "transparent": false,
+      "transparentPixels": 0,
+      "sourceSha256": "b15b91bebc322723171e080682fcf1eb89274571444c67f101a3402ffb75ed50"
+    }
+  ]
+}
