@@ -1,0 +1,134 @@
+<section
+  class="news-admin"
+  tabindex="-1"
+  aria-label="Управление новостями"
+  (keydown)="keydown($event)"
+>
+  <header class="news-toolbar">
+    <div>
+      <h2>Новости</h2>
+      <p>Публикации на главной странице Квачата.</p>
+    </div>
+    <button class="primary" [disabled]="saving()" (click)="edit()">Написать новость</button>
+  </header>
+  <div class="news-workspace" [class.is-editing]="editing()">
+    <aside class="news-index" aria-label="Список новостей">
+      @if (loading()) {
+        <p role="status">Загружаем новости…</p>
+      }
+      @if (listError()) {
+        <div role="alert">
+          <p>{{ listError() }}</p>
+          <button (click)="load()">Повторить</button>
+        </div>
+      }
+      @for (post of result()?.items ?? []; track post.id) {
+        <button
+          class="news-entry"
+          [class.selected]="editing() && id === post.id"
+          [disabled]="saving()"
+          (click)="edit(post)"
+        >
+          <span class="entry-state"
+            >{{ post.published ? 'Опубликовано' : 'Черновик' }} ·
+            {{ date(post.published_at || post.created_at) }}</span
+          >
+          <strong>{{ post.title }}</strong
+          ><span>{{ post.excerpt }}</span>
+        </button>
+      } @empty {
+        @if (!loading() && !listError()) {
+          <p>Публикаций пока нет.</p>
+        }
+      }
+      @if (result(); as data) {
+        @if (data.pages > 1) {
+          <nav aria-label="Страницы публикаций">
+            <button [disabled]="loading() || data.page === 1" (click)="load(data.page - 1)">
+              Назад</button
+            ><span>{{ data.page }} / {{ data.pages }}</span
+            ><button
+              [disabled]="loading() || data.page === data.pages"
+              (click)="load(data.page + 1)"
+            >
+              Дальше
+            </button>
+          </nav>
+        }
+      }
+    </aside>
+    @if (editing()) {
+      <form class="news-editor" (ngSubmit)="save(published)">
+        <div class="editor-heading">
+          <h3>{{ id ? 'Редактирование' : 'Новая новость' }}</h3>
+          <button type="button" [disabled]="saving()" (click)="close()">Закрыть</button>
+        </div>
+        <fieldset [disabled]="saving()">
+          <label
+            >Заголовок<input name="title" [(ngModel)]="form.title" maxlength="160" required
+          /></label>
+          <label
+            >Короткое описание<textarea
+              name="excerpt"
+              [(ngModel)]="form.excerpt"
+              maxlength="320"
+              rows="2"
+              required
+            ></textarea
+            ><small>Одна-две фразы для главной страницы.</small></label
+          >
+          <label
+            >Текст новости<textarea
+              class="body-input"
+              name="body"
+              [(ngModel)]="form.body"
+              maxlength="20000"
+              rows="9"
+              required
+            ></textarea>
+          </label>
+          <div class="image-field">
+            <span>Картинка · необязательно</span
+            ><input
+              #imageUpload
+              hidden
+              aria-label="Картинка новости"
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              (change)="chooseImage($event)"
+            /><button type="button" (click)="imageUpload.click()">
+              {{ preview() ? 'Заменить картинку' : 'Добавить картинку' }}</button
+            ><small>PNG, JPEG или WebP, до 4 МБ.</small>
+          </div>
+          @if (preview()) {
+            <div class="image-preview">
+              <img [src]="preview()" alt="Картинка новости" /><button
+                type="button"
+                (click)="clearImage()"
+              >
+                Убрать картинку
+              </button>
+            </div>
+          }
+          <div class="editor-actions">
+            <button class="primary" type="submit">
+              {{
+                saving() ? 'Сохраняем…' : published ? 'Сохранить изменения' : 'Сохранить черновик'
+              }}
+            </button>
+            <button type="button" (click)="save(!published)">
+              {{ published ? 'Снять с публикации' : 'Опубликовать' }}
+            </button>
+            @if (published && id) {
+              <a [href]="'/news/' + id" target="_blank" rel="noopener">Открыть новость ↗</a>
+            }
+          </div>
+        </fieldset>
+        @if (error()) {
+          <p class="error" role="alert">{{ error() }}</p>
+        }
+        <p class="notice" role="status">{{ notice() }}</p>
+      </form>
+    }
+  </div>
+</section>

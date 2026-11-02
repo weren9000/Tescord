@@ -1,151 +1,373 @@
-<div class="landing">
-  <app-guest-header />
+﻿<div class="landing">
+  <app-guest-header [showLogin]="false" />
   <main>
-    <section class="landing-hero" aria-labelledby="landing-title">
-      <div class="landing-intro">
-        <h1 id="landing-title">Своё болото.<br /><span>Свои люди.</span></h1>
-        <p class="landing-lead">
-          Переписывайтесь, созванивайтесь<br class="wide-break" />
-          и собирайтесь вместе.
-        </p>
-        <a class="landing-open" href="/login"
-          >Открыть в браузере
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6" /></svg
-        ></a>
-        <div class="landing-downloads" id="download" aria-label="Скачать приложение">
+    <section class="landing-hero container" aria-labelledby="landing-title">
+      <h1 id="landing-title">Свои люди.<br />Всегда <span>рядом.</span></h1>
+      <p class="landing-lead">Переписывайтесь, созванивайтесь и собирайтесь вместе.</p>
+      <div class="entry-actions" id="download">
+        <div class="landing-actions">
+          <a class="landing-open" href="/register">Зарегистрироваться</a>
+          <a class="secondary-action" href="/login">Войти</a>
+        </div>
+        <div class="landing-downloads" aria-label="Скачать приложение">
           <a
             class="landing-download windows-download"
             href="/downloads/KvaChat-Setup-0.5.35-x64.exe"
             download
           >
-            <svg viewBox="0 0 24 24" aria-hidden="true" class="os-icon">
-              <path
-                fill="currentColor"
-                stroke="none"
-                d="M3 4h8v7H3zm10 0h8v7h-8zM3 13h8v7H3zm10 0h8v7h-8z"
-              />
-            </svg>
-            <span
-              ><strong>Для Windows</strong><small>10 / 11 · x64</small
-              ><small class="release-meta">v0.5.35 · 119 МБ</small></span
-            >
-            <svg class="download-arrow" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M12 3v12m-4-4 4 4 4-4M5 17v4h14v-4" />
-            </svg>
+            <app-ui-icon name="download" />
+            <span><strong>Windows · EXE</strong><small>10 / 11 · x64 · v0.5.35</small></span>
           </a>
           <a
             class="landing-download android-download"
             href="/downloads/KvaChat-0.3.38-android.apk"
             download
           >
-            <svg viewBox="0 0 24 24" aria-hidden="true" class="os-icon">
-              <path d="m7 4-2-3m12 3 2-3M3 12a9 9 0 0 1 18 0Z" />
-              <path d="M7.5 8h.01M16.5 8h.01" stroke-width="2.8" />
-              <path d="M4 15v4h16v-4M8 19v3m8-3v3" />
-            </svg>
-            <span
-              ><strong>Для Android</strong><small>10+ · APK · Тестовая</small
-              ><small class="release-meta">v0.3.38 · 18 МБ</small></span
-            >
-            <svg class="download-arrow" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M12 3v12m-4-4 4 4 4-4M5 17v4h14v-4" />
-            </svg>
+            <app-ui-icon name="download" />
+            <span><strong>Android · APK</strong><small>10+ · v0.3.38</small></span>
           </a>
         </div>
-        <p class="landing-help">
-          Звонки со сквозным шифрованием подключаются автоматически. Обновите Квачат на всех
-          устройствах.
-        </p>
-        <details class="landing-help">
-          <summary>Как установить</summary>
-          <div>
-            <p>
-              <strong>Windows.</strong> Откройте EXE и следуйте шагам установщика. Установщик пока
-              без подписи издателя.
-            </p>
-            <p>
-              <strong>Android.</strong> Версия 0.3.38 устанавливается поверх 0.3.34–0.3.37. При
-              переходе с 0.3.33 и более ранних версий удалите старое приложение, установите новое и
-              войдите в аккаунт заново. Сохранённые на сервере переписки останутся; локальные
-              настройки и несохранённые данные приложения могут быть удалены. Откройте APK и
-              разрешите установку из выбранного браузера или файлового менеджера. Для уведомлений
-              разрешите фоновую работу. Звонки в фоне и демонстрация пока требуют проверки на
-              телефоне.
-            </p>
-            <p class="checksum-links">
-              SHA-256: <a href="/downloads/KvaChat-Setup-0.5.35-x64.exe.sha256" download>Windows</a
-              ><a href="/downloads/KvaChat-0.3.38-android.apk.sha256" download>Android</a>
-            </p>
+      </div>
+      <details class="landing-help">
+        <summary>Как установить</summary>
+        <div>
+          <p>
+            <strong>Windows.</strong> Откройте EXE и следуйте шагам установщика. Установщик пока без
+            подписи издателя.
+          </p>
+          <p>
+            <strong>Android.</strong> Откройте APK и разрешите установку из выбранного браузера или
+            файлового менеджера. Версия тестовая. Для уведомлений разрешите фоновую работу; звонки в
+            фоне и демонстрация требуют проверки на телефоне.
+          </p>
+          <p>
+            Версия 0.3.38 устанавливается поверх 0.3.34–0.3.37. При переходе с 0.3.33 и более ранних
+            версий удалите старое приложение и войдите заново. Переписки на сервере сохранятся,
+            локальные настройки и несохранённые данные могут быть удалены.
+          </p>
+          <p class="checksum-links">
+            SHA-256: <a href="/downloads/KvaChat-Setup-0.5.35-x64.exe.sha256" download>Windows</a
+            ><a href="/downloads/KvaChat-0.3.38-android.apk.sha256" download>Android</a>
+          </p>
+        </div>
+      </details>
+      <div class="hero-scene">
+        <img
+          class="hero-ribbons"
+          src="/assets/landing/ribbons.png"
+          width="1672"
+          height="940"
+          alt=""
+        />
+        <figure class="landing-preview">
+          <img
+            src="/assets/landing-chat.png"
+            alt="Групповая беседа в Квачате: сообщения, реакции и созвон"
+            width="1120"
+            height="700"
+            fetchpriority="high"
+          />
+        </figure>
+      </div>
+    </section>
+
+    <section class="section container" id="features" aria-labelledby="spaces-title">
+      <h2 id="spaces-title">Комната, группы и площадки</h2>
+      <p class="section-intro">
+        Начните с друзей: приглашайте по ссылке, переписывайтесь и звоните лично.
+      </p>
+      <div class="space-grid">
+        <article>
+          <div class="space-art" aria-hidden="true">
+            <div class="mini-title">Моя комната <span>3 участника</span></div>
+            <div class="room-people">
+              <div>
+                <img
+                  src="/assets/landing/frog.webp"
+                  width="58"
+                  height="58"
+                  alt=""
+                  loading="lazy"
+                /><span>Аня</span>
+              </div>
+              <div>
+                <img
+                  src="/assets/landing/fox.webp"
+                  width="58"
+                  height="58"
+                  alt=""
+                  loading="lazy"
+                /><span>Саша</span>
+              </div>
+              <div>
+                <img
+                  src="/assets/landing/cat.webp"
+                  width="58"
+                  height="58"
+                  alt=""
+                  loading="lazy"
+                /><span>Маша</span>
+              </div>
+            </div>
+            <div class="mini-controls">
+              <app-ui-icon name="mic" /><app-ui-icon name="camera" /><app-ui-icon
+                name="screen"
+              /><app-ui-icon name="groups" /><span class="hangup"
+                ><app-ui-icon name="hangup"
+              /></span>
+            </div>
           </div>
+          <h3>Комната</h3>
+          <p>Встреча по ссылке. Гости подключаются без аккаунта — с голосом, камерой и чатом.</p>
+        </article>
+        <article>
+          <div class="space-art" aria-hidden="true">
+            <div class="mini-title">Книжный клуб <span>5 участников</span></div>
+            <div class="mini-message">
+              <img
+                src="/assets/landing/frog.webp"
+                width="30"
+                height="30"
+                alt=""
+                loading="lazy"
+              /><span><b>Аня</b>Давайте обсудим вечером?</span>
+            </div>
+            <div class="mini-message">
+              <img
+                src="/assets/landing/fox.webp"
+                width="30"
+                height="30"
+                alt=""
+                loading="lazy"
+              /><span><b>Саша</b>Я за. В восемь удобно?</span>
+            </div>
+            <div class="mini-composer">
+              <app-ui-icon name="plus" />Написать сообщение…<app-ui-icon name="send" />
+            </div>
+          </div>
+          <h3>Группы</h3>
+          <p>Общая переписка, файлы и созвоны для своей компании. Всё обсуждение в одном месте.</p>
+        </article>
+        <article>
+          <div class="space-art" aria-hidden="true">
+            <div class="mini-title">Наша площадка <span>Каналы сообщества</span></div>
+            <div class="channel"><app-ui-icon name="chat" />Общий</div>
+            <div class="channel"><app-ui-icon name="code" />Разработка</div>
+            <div class="channel selected">
+              <app-ui-icon name="headphones" />Болталка <small>3 в созвоне</small>
+            </div>
+          </div>
+          <h3>Площадки</h3>
+          <p>
+            Сообщества с отдельными каналами для разных тем. Со своими участниками и правилами
+            доступа.
+          </p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section container split-section" aria-labelledby="calls-title">
+      <div class="section-copy">
+        <h2 id="calls-title">Разговор продолжается</h2>
+        <p>
+          Голос, видео и демонстрация экрана. Переходите к переписке во время созвона и настраивайте
+          громкость каждого участника отдельно.
+        </p>
+      </div>
+      <div class="call-illustration surface" aria-hidden="true">
+        <div class="panel-header">
+          <span><app-ui-icon name="headphones" />Вечерняя компания</span><small>3 участника</small>
+        </div>
+        <div class="call-people">
+          <div>
+            <img
+              src="/assets/landing/frog.webp"
+              width="72"
+              height="72"
+              alt=""
+              loading="lazy"
+            /><span>Аня</span>
+          </div>
+          <div>
+            <img src="/assets/landing/fox.webp" width="72" height="72" alt="" loading="lazy" /><span
+              >Саша</span
+            >
+          </div>
+          <div>
+            <img src="/assets/landing/cat.webp" width="72" height="72" alt="" loading="lazy" /><span
+              >Маша</span
+            >
+          </div>
+        </div>
+        <div class="call-capabilities">
+          <span><app-ui-icon name="mic" />Голос</span><span><app-ui-icon name="camera" />Видео</span
+          ><span><app-ui-icon name="screen" />Экран</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="section container" aria-labelledby="documents-title">
+      <div class="split-section">
+        <div class="section-copy">
+          <h2 id="documents-title">Сообщения, файлы и длинные тексты</h2>
+          <p>Отвечайте, отмечайте людей, добавляйте реакции и исправляйте написанное.</p>
+          <p>
+            Длинный текст Квачат подготовит как файл. Выберите имя и расширение — и отправляйте. Код
+            удобно читать с подсветкой, Markdown — в виде документа.
+          </p>
+          <ul class="file-formats" aria-label="Примеры текстовых форматов">
+            <li>.yaml</li>
+            <li>.py</li>
+            <li>.json</li>
+            <li>.md</li>
+          </ul>
+        </div>
+        <div class="document-illustration surface" aria-label="Пример просмотра файла config.yaml">
+          <div class="panel-header">
+            <span><app-ui-icon name="files" />config.yaml</span><small>Только просмотр</small>
+          </div>
+          <pre><code><span class="syntax-comment"># Настройки проекта</span>
+<span class="syntax-key">project:</span>
+  <span class="syntax-key">name:</span> evening-club
+  <span class="syntax-key">language:</span> ru
+
+<span class="syntax-key">server:</span>
+  <span class="syntax-key">host:</span> localhost
+  <span class="syntax-key">port:</span> 8080
+
+<span class="syntax-key">logging:</span>
+  <span class="syntax-key">level:</span> info</code></pre>
+        </div>
+      </div>
+      <div class="message-benefits">
+        <div>
+          <app-ui-icon name="search" /><span
+            ><strong>Найти нужное</strong>Поиск сообщений в беседе</span
+          >
+        </div>
+        <div>
+          <app-ui-icon name="files" /><span
+            ><strong>Собрать материалы</strong>Файлы беседы в одном списке</span
+          >
+        </div>
+        <div>
+          <app-ui-icon name="pin" /><span
+            ><strong>Держать под рукой</strong>Закрепление бесед и быстрый переход</span
+          >
+        </div>
+      </div>
+    </section>
+
+    <section class="section container" aria-labelledby="appearance-title">
+      <div class="split-section appearance-section">
+        <div class="appearance-illustration surface" aria-hidden="true">
+          <div class="panel-header">
+            <span><app-ui-icon name="chat" />Своя компания</span>
+          </div>
+          <div class="appearance-chat">
+            <div class="preview-message">
+              <div class="framed-avatar">
+                <img
+                  src="/assets/landing/frog.webp"
+                  width="38"
+                  height="38"
+                  alt=""
+                  loading="lazy"
+                /><img
+                  class="avatar-frame"
+                  src="/assets/landing/amethyst.webp"
+                  width="54"
+                  height="54"
+                  alt=""
+                  loading="lazy"
+                />
+              </div>
+              <div class="bubble">
+                <strong>Аня</strong>
+                <p>Как вам новый фон?</p>
+                <small>18:24</small>
+              </div>
+            </div>
+            <div class="preview-message">
+              <img src="/assets/landing/fox.webp" width="38" height="38" alt="" loading="lazy" />
+              <div class="bubble">
+                <strong>Саша</strong>
+                <p>Очень уютно. Оставляем!</p>
+                <small>18:25</small>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="section-copy">
+          <h2 id="appearance-title">Квачат в вашем стиле</h2>
+          <p>
+            Обои, аватары, темы оформления и рамки аватарок. Настраивайте размер текста и плотность
+            интерфейса так, как удобно вам.
+          </p>
+          <p>
+            Находите оформление в каталоге, примеряйте и дарите друзьям. Свои предметы хранятся в
+            инвентаре.
+          </p>
+        </div>
+      </div>
+      <div class="settings-grid">
+        <details>
+          <summary><app-ui-icon name="bell" />Уведомления</summary>
+          <p>
+            Упоминания, заявки в друзья и приглашения собраны в событиях. Уведомления отдельных
+            бесед можно отключить.
+          </p>
+        </details>
+        <details>
+          <summary><app-ui-icon name="block" />Блокировки</summary>
+          <p>Управляйте заблокированными пользователями, группами и площадками в настройках.</p>
+        </details>
+        <details>
+          <summary><app-ui-icon name="lock" />Защита аккаунта</summary>
+          <p>
+            Почта подтверждается при регистрации. В профиле можно включить двухфакторную защиту с
+            кодами из приложения-аутентификатора.
+          </p>
         </details>
       </div>
-      <figure class="landing-preview">
-        <img
-          src="/assets/landing-chat.png"
-          alt="Групповая беседа в Квачате: сообщения, реакции и кнопки созвона"
-          width="1120"
-          height="700"
-          fetchpriority="high"
-        />
-      </figure>
     </section>
-    <section class="landing-features" id="features" aria-labelledby="features-title">
-      <div class="features-heading">
-        <h2 id="features-title">Есть о чём поговорить.</h2>
-        <p>Для разговоров, общих планов и вечеров вместе.</p>
-      </div>
-      <div class="feature-grid">
+
+    <section class="section container" aria-labelledby="applications-title">
+      <h2 id="applications-title">Дополнительные приложения</h2>
+      <p class="section-intro">Подключаются через каталог Квачата.</p>
+      <div class="application-grid">
         <article>
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M20 11a8 8 0 0 1-8 8H4l-2 3V11a9 9 0 0 1 18 0ZM6 10h9M6 14h6" />
-          </svg>
-          <h3>Переписка</h3>
-          <p>
-            Личные сообщения, группы,<br />
-            файлы и реакции.
-          </p>
+          <span class="app-mark"><app-ui-icon name="calendar" /></span>
+          <div>
+            <h3>Когда игра</h3>
+            <p>
+              Календарь ролевых игр и конвентов. Ищите события по датам и регионам, сохраняйте
+              избранное и подбирайте игры на время отпуска.
+            </p>
+          </div>
         </article>
         <article>
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <rect x="2" y="5" width="13" height="14" rx="3" />
-            <path d="m15 9 7-4v14l-7-4" />
-          </svg>
-          <h3>Созвоны</h3>
-          <p>
-            Голос, видео и демонстрация<br />
-            экрана.
-          </p>
-        </article>
-        <article>
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <rect x="3" y="3" width="7" height="7" rx="1.5" />
-            <rect x="14" y="3" width="7" height="7" rx="1.5" />
-            <rect x="3" y="14" width="7" height="7" rx="1.5" />
-            <rect x="14" y="14" width="7" height="7" rx="1.5" />
-          </svg>
-          <h3>Сообщества</h3>
-          <p>
-            Площадки с каналами для разных<br />
-            тем и компаний.
-          </p>
-        </article>
-        <article>
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <rect x="3" y="3" width="18" height="18" rx="4" />
-            <circle cx="8" cy="8" r="1.5" />
-            <path d="m3 17 5-5 4 4 4-6 5 7" />
-          </svg>
-          <h3>Ваш стиль</h3>
-          <p>
-            Обои, аватары и рамки<br />
-            на ваш вкус.
-          </p>
+          <span class="app-mark islands-mark"><app-ui-icon name="platforms" /></span>
+          <div>
+            <h3>Острова</h3>
+            <p>
+              Настольная стратегия для 3–4 игроков. Собирайте ресурсы, стройте поселения и торгуйте
+              с друзьями.
+            </p>
+          </div>
         </article>
       </div>
+    </section>
+
+    <section class="landing-news section container" id="news" aria-labelledby="news-title">
+      <div class="section-heading">
+        <h2 id="news-title">Новое в Квачате</h2>
+        <a href="/news">Все новости <app-ui-icon name="forward" /></a>
+      </div>
+      <app-news-feed [limit]="3" [featured]="true" />
     </section>
   </main>
-  <footer class="landing-footer">
-    <span>Квачат</span><span>Своё болото. Свои люди.</span
-    ><a href="/login">Зайти в чат <span aria-hidden="true">↗</span></a>
+  <footer class="landing-footer container">
+    <span>Квачат</span><span>Свои люди. Всегда рядом.</span>
   </footer>
 </div>

@@ -19,7 +19,9 @@ def _authenticate(token, path=''):
             from app.services.meeting_rooms import principal
             principal(db, token)
             return
-        resolve_user_from_token(token, db)
+        user = resolve_user_from_token(token, db)
+        if path.startswith(get_settings().api_prefix + '/admin/news') and not user.is_admin:
+            raise HTTPException(403, 'Требуются права администратора системы')
 
 
 class UploadTooLarge(HTTPException):
@@ -53,7 +55,9 @@ class UploadAdmissionMiddleware:
         except HTTPException as exc:
             return await JSONResponse({'detail': exc.detail}, status_code=exc.status_code)(scope, receive, send)
         maximum = get_settings().max_message_upload_bytes + 1024 * 1024
-        if secret_body:
+        if path.startswith(get_settings().api_prefix + '/admin/news'):
+            maximum = 4 * 1024 * 1024 + 128 * 1024
+        elif secret_body:
             maximum = 1024*1024+16 if content_type == b'application/octet-stream' else 256*1024
         elif content_type == b'application/x-www-form-urlencoded':
             maximum = 64 * 1024

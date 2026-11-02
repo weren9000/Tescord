@@ -11,4 +11,11 @@ import { GuestHeaderComponent } from '../landing/guest-header.component';
 })
 export class AuthPageComponent {
   readonly form = inject(AuthFormStore);
+  constructor() {
+    if (
+      /^\/register\/?$/.test(location.pathname) ||
+      new URLSearchParams(location.search).get('mode') === 'register'
+    )
+      this.form.switchMode('register');
+  }
 }

@@ -28,6 +28,8 @@ from app.api.routes.voice import router as voice_router
 from app.api.routes.wallpapers import router as wallpapers_router
 
 api_router = APIRouter()
+from app.api.routes.news import router as news_router
+api_router.include_router(news_router)
 from app.api.routes.secret_chats import router as secret_chats_router
 api_router.include_router(secret_chats_router)
 from app.api.routes.media_encryption import router as media_encryption_router

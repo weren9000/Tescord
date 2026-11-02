@@ -1,0 +1,59 @@
+<div class="news-feed" [attr.aria-busy]="loading()">
+  @if (loading() && !result()) {
+    <p class="news-state" role="status">Загружаем новости…</p>
+  }
+  @if (error()) {
+    <div class="news-state" role="alert">
+      Не удалось загрузить новости. <button (click)="load(result()?.page ?? 1)">Повторить</button>
+    </div>
+  }
+  @if (result(); as data) {
+    @for (post of data.items; track post.id; let first = $first) {
+      <article
+        class="news-row"
+        [class.news-featured]="featured() && first"
+        [class.has-image]="featured() && first && post.image_url && !failedImages().has(post.id)"
+      >
+        <time [attr.datetime]="post.published_at">{{ date(post.published_at) }}</time>
+        <a [href]="'/news/' + post.id">
+          @if (featured() && first && post.image_url && !failedImages().has(post.id)) {
+            <img
+              class="news-cover"
+              [src]="api.imageUrl(post.image_url)"
+              alt=""
+              loading="lazy"
+              width="640"
+              height="400"
+              (error)="imageFailed(post.id)"
+            />
+          }
+          <div>
+            <h3>{{ post.title }}</h3>
+            <p>{{ post.excerpt }}</p>
+            @if (featured() && first) {
+              <span class="read-news">Читать новость <span aria-hidden="true">↗</span></span>
+            }
+          </div>
+          @if (!featured() || !first) {
+            <span aria-hidden="true">↗</span>
+          }
+        </a>
+      </article>
+    } @empty {
+      @if (!error()) {
+        <p class="news-state">Здесь будут новости и обновления Квачата.</p>
+      }
+    }
+    @if (archive() && data.pages > 1) {
+      <nav class="news-pages" aria-label="Страницы новостей">
+        <button [disabled]="loading() || data.page === 1" (click)="load(data.page - 1)">
+          Назад
+        </button>
+        <span aria-live="polite">{{ data.page }} / {{ data.pages }}</span>
+        <button [disabled]="loading() || data.page === data.pages" (click)="load(data.page + 1)">
+          Дальше
+        </button>
+      </nav>
+    }
+  }
+</div>

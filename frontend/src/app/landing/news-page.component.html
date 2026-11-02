@@ -1,0 +1,40 @@
+<div class="landing">
+  <app-guest-header />
+  <main class="news-main">
+    <a class="back-link" [href]="id ? '/news' : '/'">← {{ id ? 'Все новости' : 'На главную' }}</a>
+    @if (!id) {
+      <h1 class="page-title">Новости Квачата</h1>
+      <app-news-feed [archive]="true" />
+    } @else {
+      @if (loading()) {
+        <p role="status">Загружаем новость…</p>
+      }
+      @if (error()) {
+        <div role="alert">
+          <p>{{ error() }}</p>
+          <button class="secondary-action" (click)="load()">Повторить</button>
+        </div>
+      }
+      @if (post(); as article) {
+        <article class="news-article">
+          <time [attr.datetime]="article.published_at">{{ date(article.published_at) }}</time>
+          <h1 class="page-title">{{ article.title }}</h1>
+          <p class="article-intro">{{ article.excerpt }}</p>
+          @if (article.image_url && !imageFailed()) {
+            <img
+              class="article-image"
+              [src]="api.imageUrl(article.image_url)"
+              alt="Иллюстрация к новости"
+              (error)="imageFailed.set(true)"
+            />
+          }
+          <div class="article-body">{{ article.body }}</div>
+        </article>
+      }
+    }
+  </main>
+  <footer class="landing-footer container">
+    <a href="/">Квачат</a><a href="/register">Создать аккаунт</a
+    ><a href="/#download">Скачать приложение</a>
+  </footer>
+</div>
