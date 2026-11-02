@@ -9,6 +9,7 @@ from app.core.config import get_settings
 from app.db.models import Base
 from app.db import inventory  # Register collectible tables in migration metadata.
 from app.db import analytics, shop
+from app.db import secret_chats
 
 config = context.config
 settings = get_settings()

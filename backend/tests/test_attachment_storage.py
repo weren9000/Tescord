@@ -14,7 +14,11 @@ def test_upload_is_atomic_and_preserves_checksum(tmp_path, monkeypatch):
     content = b"attachment" * 200_000
     upload = UploadFile(filename="report.txt", file=BytesIO(content))
     stored = storage.store_upload_file(upload, uuid4(), "report.txt", max_size_bytes=len(content))
-    assert storage.resolve_attachment_path(stored.storage_path).read_bytes() == content
+    from app.services.encrypted_files import StoredReader
+    path = storage.resolve_attachment_path(stored.storage_path)
+    assert path.read_bytes() != content
+    with StoredReader(path) as reader:
+        assert reader.read() == content
     assert stored.size_bytes == len(content)
     assert stored.checksum_sha256 == sha256(content).hexdigest()
     assert not list(tmp_path.rglob("*.part"))

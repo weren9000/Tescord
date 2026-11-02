@@ -434,7 +434,7 @@ export class WorkspaceApiService {
       `${API_BASE_URL}/api/voice/channels/${channelId}/sfu-token`,
       null,
       {
-        headers: this.buildAuthHeaders(token),
+        headers: this.buildAuthHeaders(token).set('X-Kva-Media-Crypto', 'olm-livekit-v1'),
       },
     );
   }

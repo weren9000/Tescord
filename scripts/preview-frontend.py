@@ -9,7 +9,7 @@ class Handler(SimpleHTTPRequestHandler):
         super().__init__(*args, directory=str(root), **kwargs)
     def do_GET(self):
         path = urlsplit(self.path).path
-        if path == '/login' or path.startswith(('/invite/', '/channels/')):
+        if path in ('/login', '/my-room', '/my-room/') or path.startswith(('/invite/', '/channels/', '/room/')):
             self.path = '/index.html'
         super().do_GET()
 

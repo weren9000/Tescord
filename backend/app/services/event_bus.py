@@ -12,6 +12,7 @@ from uuid import uuid4
 from collections import OrderedDict
 
 from app.core.config import get_settings
+from app.services.data_encryption import keyring, seal, unseal
 
 logger = logging.getLogger(__name__)
 _local_delivery = ContextVar('local_event_delivery', default=False)
@@ -35,7 +36,10 @@ def distributed_event(function):
     @wraps(function)
     async def publish(*args, **kwargs):
         if not _local_delivery.get() and _client is not None:
-            await _client.publish(CHANNEL, json.dumps({'id': uuid4().hex, 'origin': _origin, 'name': name, 'args': args, 'kwargs': kwargs}, default=_json_default))
+            payload = json.dumps({'id': uuid4().hex, 'origin': _origin, 'name': name, 'args': args, 'kwargs': kwargs}, default=_json_default).encode()
+            if keyring() is not None:
+                payload = seal(payload, 'app-events/v1')
+            await _client.publish(CHANNEL, payload)
         token = _local_delivery.set(True)
         try:
             return await function(*args, **kwargs)
@@ -65,7 +69,10 @@ async def start_event_bus():
                         resync_needed = False
                     if not message:
                         continue
-                    payload = json.loads(message['data'])
+                    data = message['data']
+                    if keyring() is not None:
+                        data = unseal(data, 'app-events/v1')
+                    payload = json.loads(data)
                     if payload.get('origin') == _origin or payload.get('name') not in _handlers:
                         continue
                     event_id = payload.get('id')

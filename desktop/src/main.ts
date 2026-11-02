@@ -3,6 +3,7 @@ import type {DesktopCapturerSource, IpcMainEvent} from 'electron';
 import fs from 'node:fs';
 import path from 'node:path';
 import {pathToFileURL} from 'node:url';
+import {registerSecretDownloads} from './secret-downloads';
 
 const ORIGIN = 'https://kvachat.ru';
 const root = path.resolve(__dirname, '..');
@@ -30,6 +31,8 @@ const isMain = (event: IpcMainEvent | Electron.IpcMainInvokeEvent) => !!main && 
 const isPicker = (event: Electron.IpcMainEvent | Electron.IpcMainInvokeEvent) => !!picker && event.sender === picker.webContents && event.senderFrame === picker.webContents.mainFrame;
 const stateFile = () => path.join(app.getPath('userData'), 'window.json');
 const sessionFile = () => path.join(app.getPath('userData'), 'session.bin');
+const secretVaultFile = (userId: unknown) => typeof userId === 'string' && /^[a-f0-9-]{36}$/.test(userId)
+  ? path.join(app.getPath('userData'), 'secret-vault-' + userId + '.bin') : null;
 
 function readState(): {width?:number;height?:number;x?:number;y?:number;maximized?:boolean} {
   try {return JSON.parse(fs.readFileSync(stateFile(), 'utf8'));} catch {return {};}
@@ -54,6 +57,12 @@ else {
   app.on('before-quit', () => {quitting = true; saveState(); finishCapture?.();});
   app.on('window-all-closed', () => {if (quitting) app.quit();});
   app.whenReady().then(async () => {
+    const cancelSecretDownloads = registerSecretDownloads(isMain, () => main);
+    app.on('before-quit', cancelSecretDownloads);
+    app.on('web-contents-created', (_event, contents) => {
+      contents.on('render-process-gone', cancelSecretDownloads);
+      contents.on('will-navigate', cancelSecretDownloads);
+    });
     ipcMain.on('app:version', event => {
       event.returnValue = isMain(event) ? app.getVersion() : '';
     });
@@ -98,7 +107,7 @@ else {
         }
         if (appPage(request.url)) {
           const html = fs.readFileSync(path.join(web, 'index.html'));
-          return new Response(html, {headers:{'Content-Type':'text/html; charset=utf-8', 'Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; media-src 'self' https: blob:; connect-src 'self' https: wss:; font-src 'self' data:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-src 'none'"}});
+          return new Response(html, {headers:{'Content-Type':'text/html; charset=utf-8', 'Content-Security-Policy':"default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; media-src 'self' https: blob:; connect-src 'self' https: wss:; font-src 'self' data:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-src 'none'"}});
         }
       }
       return net.fetch(request, {bypassCustomProtocolHandlers:true});
@@ -117,6 +126,29 @@ else {
       let value: string | null=null;
       try {if (isMain(event) && safeStorage.isEncryptionAvailable() && fs.existsSync(sessionFile())) value = safeStorage.decryptString(fs.readFileSync(sessionFile()));} catch {}
       event.returnValue=value;
+    });
+    ipcMain.on('secret-vault:read', (event, userId: unknown) => {
+      let result: string | null = null;
+      try {
+        const file = secretVaultFile(userId);
+        if (isMain(event) && file && safeStorage.isEncryptionAvailable() && fs.existsSync(file)) {
+          const envelope = JSON.parse(safeStorage.decryptString(fs.readFileSync(file)));
+          if (envelope.userId === userId && typeof envelope.value === 'string') result = envelope.value;
+        }
+      } catch {} finally { event.returnValue = result; }
+    });
+    ipcMain.on('secret-vault:write', (event, userId: unknown, value: unknown) => {
+      let success = false;
+      try {
+        const file = secretVaultFile(userId);
+        if (!isMain(event) || !file) return;
+        if (value === null) { fs.rmSync(file, {force:true}); success = true; return; }
+        if (typeof value !== 'string' || value.length > 8192 || !safeStorage.isEncryptionAvailable()) return;
+        const temporary = file + '.tmp';
+        fs.writeFileSync(temporary, safeStorage.encryptString(JSON.stringify({userId,value})));
+        fs.renameSync(temporary,file);
+        success = true;
+      } catch {} finally { event.returnValue = success; }
     });
     ipcMain.on('session:write', (event, value: unknown) => {
       let success=false;

@@ -21,6 +21,21 @@ os.environ['TESCORD_SMTP_PASSWORD'] = ''
 from cryptography.fernet import Fernet
 os.environ.setdefault('TESCORD_AUTH_ENCRYPTION_KEY', Fernet.generate_key().decode())
 
+# Exercise the normal suite with cloud encryption enabled, using ephemeral keys.
+import atexit
+import base64
+import json
+from pathlib import Path
+import tempfile
+from uuid import uuid4
+_test_key_directory = tempfile.TemporaryDirectory(prefix='kvachat-test-key-')
+atexit.register(_test_key_directory.cleanup)
+_test_key_id = uuid4().hex
+_test_key_file = Path(_test_key_directory.name) / 'keyring.json'
+_test_key_file.write_text(json.dumps({'active':_test_key_id, 'keys':{_test_key_id:base64.b64encode(os.urandom(32)).decode()}}), encoding='utf-8')
+os.environ['TESCORD_DATA_KEYRING_PATH'] = str(_test_key_file)
+os.environ['TESCORD_DATA_ENCRYPTION_REQUIRED'] = 'true'
+
 import asyncio
 import pytest
 

@@ -27,6 +27,8 @@ public class BackgroundService extends Service {
     private final Map<String,Integer> unread=new HashMap<>();
     private final Set<String> seen=new LinkedHashSet<>();
     private boolean initialized=false;
+    private long secretLatest=0;
+    private final Runnable secretPoll=new Runnable(){public void run(){if(stopped)return;pollSecret();handler.postDelayed(this,15000);}};
     private PowerManager.WakeLock wakeLock;
 
     @Override public void onCreate(){super.onCreate();instance=this;channels();}
@@ -75,7 +77,24 @@ public class BackgroundService extends Service {
         if(eventsReady&&events!=null)events.send("{\"type\":\"activity\"}");
         handler.postDelayed(this,60000);
     }};
-    private void connect(){if(stopped||token==null)return;events=socket("events");calls=socket("calls");handler.post(presence);}
+    private void connect(){if(stopped||token==null)return;secretLatest=0;events=socket("events");calls=socket("calls");handler.post(presence);handler.post(secretPoll);}
+    private void pollSecret(){
+        if(visible)return;
+        try {
+            String raw=SessionStore.read(this); if(raw==null)return;
+            String user=new JSONObject(raw).getJSONObject("user").getString("id");
+            String vault=SessionStore.readVault(this,user); if(vault==null)return;
+            String device=new JSONObject(vault).getString("deviceId"); final int epoch=generation;
+            client.newCall(new Request.Builder().url(ORIGIN+"/api/secret/unread").header("Authorization","Bearer "+token).header("X-Secret-Device",device).build()).enqueue(new Callback(){
+                @Override public void onFailure(Call call,java.io.IOException error){}
+                @Override public void onResponse(Call call,Response response){try(response){
+                    if(!response.isSuccessful())return;
+                    long latest=new JSONObject(response.body().string()).optLong("latest");
+                    handler.post(()->{if(!stopped&&epoch==generation&&latest>secretLatest){secretLatest=latest;show("secret-"+latest,"Квачат","Новое секретное сообщение","secret");}});
+                }catch(Exception ignored){}}
+            });
+        }catch(Exception ignored){}
+    }
     private WebSocket socket(String kind){
         if(kind.equals("events"))eventsReady=false;
         final int epoch=generation;

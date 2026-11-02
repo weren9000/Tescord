@@ -10,6 +10,10 @@ from app.db.session import SessionLocal
 
 
 def _authenticate(token, path=''):
+    if path.startswith(get_settings().api_prefix + '/media-encryption/'):
+        from app.services.media_encryption import authorize
+        authorize(token)
+        return
     with SessionLocal() as db:
         if path == get_settings().api_prefix + '/rooms/uploads':
             from app.services.meeting_rooms import principal
@@ -33,10 +37,15 @@ class UploadAdmissionMiddleware:
             return await self.app(scope, receive, send)
         headers = dict(scope.get('headers', []))
         content_type = headers.get(b'content-type', b'').split(b';', 1)[0].strip().lower()
-        if content_type not in {b'multipart/form-data', b'application/x-www-form-urlencoded'}:
-            return await self.app(scope, receive, send)
         path = scope.get('path', '').rstrip('/')
+        secret_body = path.startswith(get_settings().api_prefix + '/secret/') and scope.get('method') in {'POST','PUT','PATCH'}
+        media_body = path.startswith(get_settings().api_prefix + '/media-encryption/') and scope.get('method') in {'POST','PUT','PATCH'}
+        secret_body = secret_body or media_body
+        if content_type not in {b'multipart/form-data', b'application/x-www-form-urlencoded'} and not secret_body:
+            return await self.app(scope, receive, send)
         authorization = headers.get(b'authorization', b'').decode('latin-1')
+        if media_body:
+            authorization = 'Bearer '+headers.get(b'x-media-token',b'').decode('latin-1')
         try:
             if not authorization.startswith('Bearer '):
                 raise HTTPException(401, 'Authentication required')
@@ -44,7 +53,9 @@ class UploadAdmissionMiddleware:
         except HTTPException as exc:
             return await JSONResponse({'detail': exc.detail}, status_code=exc.status_code)(scope, receive, send)
         maximum = get_settings().max_message_upload_bytes + 1024 * 1024
-        if content_type == b'application/x-www-form-urlencoded':
+        if secret_body:
+            maximum = 1024*1024+16 if content_type == b'application/octet-stream' else 256*1024
+        elif content_type == b'application/x-www-form-urlencoded':
             maximum = 64 * 1024
         elif path.endswith('/icon-file') or path == get_settings().api_prefix + '/me/profile':
             maximum = 2 * 1024 * 1024 + 64 * 1024

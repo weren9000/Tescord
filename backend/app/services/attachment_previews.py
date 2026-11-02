@@ -2,9 +2,11 @@
 import logging
 import threading
 import warnings
+from io import BytesIO
 from pathlib import Path
 from uuid import uuid4
 from PIL import Image, ImageOps, UnidentifiedImageError
+from app.services.encrypted_files import StoredReader, encrypted_path, is_encrypted, write_file
 
 MAX_PREVIEW_PIXELS = 25_000_000
 MAX_SOURCE_BYTES = 64 * 1024 * 1024
@@ -13,7 +15,10 @@ _locks = [threading.Lock() for _ in range(32)]
 
 
 def preview_paths(source: Path):
-    return Path(str(source)+'.preview.webp'), Path(str(source)+'.preview-unavailable')
+    target = Path(str(source)+'.preview.webp')
+    if is_encrypted(source):
+        target = encrypted_path(target)
+    return target, Path(str(source)+'.preview-unavailable')
 
 
 def ensure_preview(source: Path) -> Path | None:
@@ -32,7 +37,7 @@ def ensure_preview(source: Path) -> Path | None:
                 if source.stat().st_size > MAX_SOURCE_BYTES:
                     unavailable.touch()
                     return None
-                with Image.open(source) as original:
+                with StoredReader(source) as stream, Image.open(stream) as original:
                     if original.format not in {'JPEG','PNG','WEBP','GIF'} or original.width*original.height > MAX_PREVIEW_PIXELS:
                         unavailable.touch()
                         return None
@@ -41,12 +46,14 @@ def ensure_preview(source: Path) -> Path | None:
                     image = ImageOps.exif_transpose(original)
                     image.thumbnail((640,640), Image.Resampling.LANCZOS)
                     image = image.convert('RGBA' if 'A' in image.getbands() or 'transparency' in image.info else 'RGB')
-                    image.save(temporary,format='WEBP',quality=78,method=3)
+                    buffer = BytesIO()
+                    image.save(buffer,format='WEBP',quality=78,method=3)
                     image.close()
                 # A concurrent deletion must not recreate orphan previews.
                 if not source.is_file():
                     return None
-                temporary.replace(target)
+                buffer.seek(0)
+                write_file(buffer, target, max_bytes=MAX_SOURCE_BYTES)
                 return target
         except (UnidentifiedImageError, Image.DecompressionBombError, Image.DecompressionBombWarning, ValueError, EOFError):
             if source.is_file():unavailable.touch()

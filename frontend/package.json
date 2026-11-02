@@ -26,6 +26,7 @@
     "@angular/platform-browser": "^21.2.25",
     "@angular/platform-browser-dynamic": "^21.2.25",
     "@angular/router": "^21.2.25",
+    "@matrix-org/matrix-sdk-crypto-wasm": "18.9.0",
     "highlight.js": "^11.12.0",
     "livekit-client": "^2.18.4",
     "marked": "^18.1.1",

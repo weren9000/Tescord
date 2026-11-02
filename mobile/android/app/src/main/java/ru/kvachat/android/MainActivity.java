@@ -17,6 +17,11 @@ public class MainActivity extends BridgeActivity {
     private static WeakReference<MainActivity> current=new WeakReference<>(null);
     private volatile String target="";
     private DirectAudio directAudio;
+    private final SecretDownloads secretDownloads=new SecretDownloads(this);
+    private final ActivityResultLauncher<Intent> secretSave=registerForActivityResult(new ActivityResultContracts.StartActivityForResult(),result->{
+        String id=secretDownloads.selected(result.getResultCode()==RESULT_OK && result.getData()!=null ? result.getData().getData() : null);
+        emit("kva-secret-save",id);
+    });
     private String appLink(Uri uri) {
         if (uri == null || !"https".equals(uri.getScheme()) || !"kvachat.ru".equals(uri.getHost())
             || (uri.getPort() != -1 && uri.getPort() != 443)) return null;
@@ -67,7 +72,7 @@ public class MainActivity extends BridgeActivity {
     @Override public void onResume(){super.onResume();current=new WeakReference<>(this);BackgroundService.visible=true;if(SessionStore.read(this)!=null)startBackground();}
     @Override public void onPause(){BackgroundService.visible=false;super.onPause();}
     @Override protected void onNewIntent(Intent intent){super.onNewIntent(intent);setIntent(intent);target=intentTarget(intent);if(target!=null)emit("kva-open",target);}
-    @Override public void onDestroy(){if(directAudio!=null)directAudio.active(false);super.onDestroy();}
+    @Override public void onDestroy(){secretDownloads.abort();if(directAudio!=null)directAudio.active(false);super.onDestroy();}
     private void startBackground(){startForegroundService(new Intent(this,BackgroundService.class));}
     static void emit(String name,String detail){MainActivity activity=current.get();if(activity!=null)activity.runOnUiThread(()->{
         if(activity.getBridge()!=null)activity.getBridge().getWebView().evaluateJavascript("window.dispatchEvent(new CustomEvent("+JSONObject.quote(name)+",{detail:"+JSONObject.quote(detail)+"}))",null);
@@ -77,6 +82,19 @@ public class MainActivity extends BridgeActivity {
         @JavascriptInterface public String audioRoutes(){return directAudio.routes();}
         @JavascriptInterface public boolean selectAudioRoute(String id){return directAudio.select(id);}
         @JavascriptInterface public String readSession(){return SessionStore.read(MainActivity.this);}
+        @JavascriptInterface public String readSecretVault(String userId){return SessionStore.readVault(MainActivity.this,userId);}
+        @JavascriptInterface public boolean writeSecretVault(String userId,String value){return SessionStore.writeVault(MainActivity.this,userId,value);}
+        @JavascriptInterface public String beginSecretDownload(String name,long size){
+            if(name==null || name.length()>255) return null;
+            String id=secretDownloads.reserve(size); if(id==null) return null;
+            runOnUiThread(()->{
+                try { secretSave.launch(new Intent(Intent.ACTION_CREATE_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("application/octet-stream").putExtra(Intent.EXTRA_TITLE,name.replaceAll("[\\\\/:*?\"<>|\\p{Cntrl}]","_"))); }
+                catch(Exception error) { secretDownloads.abort();emit("kva-secret-save",""); }
+            });
+            return id;
+        }
+        @JavascriptInterface public boolean writeSecretDownload(String id,int index,String data){return secretDownloads.write(id,index,data);}
+        @JavascriptInterface public boolean endSecretDownload(String id,boolean commit){return secretDownloads.finish(id,commit);}
         @JavascriptInterface public boolean writeSession(String value){
             try{if(value!=null){JSONObject data=new JSONObject(value);if(value.length()>1048576||data.getString("access_token").isEmpty())return false;}}
             catch(Exception error){return false;}

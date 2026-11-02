@@ -18,6 +18,7 @@ self.addEventListener('push', (event) => {
     data: {
       conversationId: payload.conversationId || null,
       url: payload.url || '/',
+      secretChat: payload.secretChat === true,
     },
   };
 
@@ -37,6 +38,10 @@ self.addEventListener('notificationclick', (event) => {
         const clientUrl = new URL(client.url);
         if (clientUrl.origin !== self.location.origin) {
           continue;
+        }
+        if (data.secretChat) {
+          client.postMessage({ type: 'open_secret_chats' });
+          return client.focus();
         }
 
         client.postMessage({

@@ -176,11 +176,13 @@ def _build_voice_sfu_token(channel: Channel, current_user: User, *, owner_muted:
         .to_jwt()
     )
 
+    from app.services.media_encryption import grant
     return VoiceSfuTokenResponse(
         url=settings.livekit_url,
         token=token,
         room_name=room_name,
         identity=str(current_user.id),
+        media_crypto=grant(room_name,str(current_user.id),{'session_id':session_id}),
         ice_servers=turn_ice_servers('user:' + str(current_user.id)),
     )
 
@@ -862,10 +864,13 @@ async def update_voice_participant_owner_mute(
 async def create_voice_sfu_token(
     channel_id: UUID,
     response: Response,
+    x_kva_media_crypto: str = Header(default=''),
     credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> VoiceSfuTokenResponse:
+    from app.services.media_encryption import require_client
+    require_client(x_kva_media_crypto)
     channel = _get_voice_channel_or_404(db, channel_id)
     _, access, membership_created = _require_voice_join_access(db, channel, current_user)
     if membership_created:

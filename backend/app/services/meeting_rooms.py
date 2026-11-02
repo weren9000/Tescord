@@ -40,6 +40,14 @@ def files_root(session_id: UUID) -> Path:
     return Path(get_settings().uploads_dir).resolve().parent / 'meeting-files' / str(UUID(str(session_id)))
 
 
+def upload_path(upload) -> Path:
+    path = files_root(upload.session_id) / str(upload.id)
+    if upload.storage_encrypted:
+        from app.services.encrypted_files import encrypted_path
+        path = encrypted_path(path)
+    return path
+
+
 def owner_deadline(meeting: RoomSession):
     # Abrupt disconnects use the last acknowledged presence time, so server
     # restarts never reset or extend the five minute grace period.

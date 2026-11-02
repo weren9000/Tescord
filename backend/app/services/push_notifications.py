@@ -20,6 +20,27 @@ from app.services.app_events import app_event_manager
 logger = logging.getLogger(__name__)
 
 
+def send_secret_push(device_id: UUID) -> None:
+    """Best-effort generic notification, bound to the recipient's auth session."""
+    if not _notifications_enabled():
+        return
+    from app.db.secret_chats import SecretDevice
+    with SessionLocal() as db:
+        device = db.get(SecretDevice,device_id)
+        if not device or device.revoked:
+            return
+        subscriptions = db.scalars(select(PushSubscription).join(AuthSession,AuthSession.id == PushSubscription.session_id).where(
+            PushSubscription.user_id == device.user_id, PushSubscription.session_id == device.auth_session_id,
+            AuthSession.revoked_at.is_(None),AuthSession.expires_at > datetime.now(timezone.utc)))
+        for row in subscriptions:
+            target = PushDeliveryTarget(row.id,row.endpoint,row.p256dh,row.auth)
+            delivered, code = _send_web_push(target=target,payload={'title':'Квачат','body':'Новое секретное сообщение',
+                'url':'/?secretChats=1','tag':'kvachat-secret','secretChat':True})
+            if code in {404,410}:
+                db.delete(row)
+        db.commit()
+
+
 @dataclass(slots=True)
 class PushDeliveryTarget:
     subscription_id: UUID

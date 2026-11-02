@@ -1,4 +1,5 @@
 import { observeCall } from './call-telemetry';
+import { CallEncryption, MediaCryptoGrant } from './call-encryption';
 import { ParticipantAudioOutput } from '../../shared/participant-audio-output';
 import { computed, signal } from '@angular/core';
 import type { Room, LocalAudioTrack, LocalVideoTrack, RemoteTrack, Track } from 'livekit-client';
@@ -10,6 +11,7 @@ export type DirectCallState = 'idle' | 'outgoing' | 'incoming' | 'connecting' | 
 /** LiveKit transport with the same publication sources and connection options as group calls. */
 export abstract class DirectCallMedia {
   protected room: Room | null = null;
+  readonly encryption = signal<CallEncryption | null>(null);
   private stopTelemetry: (() => void) | null = null;
   private sdk: typeof import('livekit-client') | null = null;
   protected mediaGeneration = 0;
@@ -62,7 +64,12 @@ export abstract class DirectCallMedia {
   }
 
   protected async connectMedia(
-    credentials: { url: string; token: string; ice_servers?: RTCIceServer[] },
+    credentials: {
+      url: string;
+      token: string;
+      ice_servers?: RTCIceServer[];
+      media_crypto?: MediaCryptoGrant | null;
+    },
     peerId: string,
     telemetryToken: () => string | null,
   ): Promise<void> {
@@ -82,13 +89,29 @@ export abstract class DirectCallMedia {
     const sdk = await import('livekit-client');
     if (generation !== this.mediaGeneration) return;
     this.sdk = sdk;
+    const encryption = credentials.media_crypto
+      ? new CallEncryption(credentials.media_crypto, (message) => this.mediaFailed(message))
+      : null;
+    this.encryption.set(encryption);
+    try {
+      await encryption?.initialize();
+    } catch (error) {
+      encryption?.close();
+      throw error;
+    }
+    if (generation !== this.mediaGeneration) {
+      encryption?.close();
+      return;
+    }
     const room = new sdk.Room({
+      ...encryption?.options,
       adaptiveStream: false,
       dynacast: true,
       disconnectOnPageLeave: false,
       stopLocalTrackOnUnpublish: false,
     });
     this.room = room;
+    await encryption?.attach(room);
     this.stopTelemetry?.();
     this.stopTelemetry = observeCall(room, telemetryToken);
     const current = () => this.room === room && generation === this.mediaGeneration;
@@ -405,6 +428,8 @@ export abstract class DirectCallMedia {
     void this.playAudio();
   }
   protected disconnectMedia(): void {
+    this.encryption()?.close();
+    this.encryption.set(null);
     this.audioPeerId = null;
     this.stopTelemetry?.();
     this.stopTelemetry = null;

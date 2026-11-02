@@ -7,7 +7,7 @@ from uuid import UUID, uuid4
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, Response, status
 from fastapi import UploadFile
-from fastapi.responses import FileResponse
+from app.services.encrypted_files import StoredFileResponse as FileResponse
 from sqlalchemy import and_, or_, select, func
 from sqlalchemy.orm import Session, joinedload, load_only, selectinload
 
@@ -598,17 +598,15 @@ def search_channel_messages(
     if not terms:
         return []
 
-    filters = [
-        Message.content.ilike(f"%{_escape_like_term(term)}%", escape="\\")
-        for term in terms
-    ]
+    from app.services.encrypted_search import search_message_ids
+    ids = search_message_ids(db, channel.id, terms, limit)
 
     rows = db.execute(
         select(Message)
         .where(
             Message.channel_id == channel.id,
             Message.type == MessageType.TEXT,
-            *filters,
+            Message.id.in_(ids),
         )
         .options(*_message_load_options())
         .order_by(Message.created_at.desc(), Message.id.desc())

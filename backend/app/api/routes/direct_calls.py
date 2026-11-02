@@ -4,7 +4,7 @@ from app.api.dependencies.websocket_auth import authenticate_websocket, receive_
 
 from uuid import UUID
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Response
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Response, Header
 from fastapi.security import HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field
 from sqlalchemy import and_, or_, select
@@ -29,7 +29,10 @@ class CallTokenRequest(BaseModel):
 @router.post('/{call_id}/sfu-token')
 async def create_direct_sfu_token(call_id: str, body: CallTokenRequest, response: Response,
         current_user: User = Depends(get_current_user),
+        x_kva_media_crypto: str = Header(default=''),
         credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)):
+    from app.services.media_encryption import require_client
+    require_client(x_kva_media_crypto)
     session_id = decode_access_token(credentials.credentials, get_settings().secret_key)['sid']
     response.headers['Cache-Control'] = 'no-store'
     return await issue_call_token(call_id, str(current_user.id), current_user.username, session_id, body.client_id)

@@ -40,6 +40,8 @@ import { ShopComponent } from './workspace/shop.component';
 import { UserCardDirective } from './workspace/user-card.directive';
 import { UserCardService } from './workspace/user-card.service';
 import { UserCardComponent } from './workspace/user-card.component';
+import { SecretChatsComponent } from './workspace/secret-chats.component';
+import { SecretChatsService } from './core/services/secret-chats.service';
 import { AndroidCallOutputComponent } from './workspace/android-call-output.component';
 import { WalletDialogComponent } from './workspace/wallet-dialog.component';
 import { WalletBalanceComponent } from './workspace/wallet-balance.component';
@@ -69,6 +71,7 @@ import { synchronizeMessages } from './core/services/message-sync';
 import { InventoryComponent } from './workspace/inventory.component';
 import { SectionNavigationComponent } from './workspace/section-navigation.component';
 import { UiIconComponent } from './workspace/ui-icon.component';
+import { CallEncryptionComponent } from './shared/call-encryption.component';
 import { ConversationListComponent } from './workspace/conversation-list.component';
 import { QuickSwitchComponent, QuickLink } from './workspace/quick-switch.component';
 import { InviteManagerComponent } from './workspace/invite-manager.component';
@@ -686,6 +689,7 @@ const DEFAULT_SERVER_ICON_ASSET_BY_NAME: Record<string, string> = {
     ShopComponent,
     UserCardDirective,
     UserCardComponent,
+    SecretChatsComponent,
     WalletDialogComponent,
     WalletBalanceComponent,
     AndroidCallOutputComponent,
@@ -704,6 +708,7 @@ const DEFAULT_SERVER_ICON_ASSET_BY_NAME: Record<string, string> = {
     MediaStreamSrcDirective,
     SectionNavigationComponent,
     UiIconComponent,
+    CallEncryptionComponent,
     ConversationListComponent,
     QuickSwitchComponent,
     InviteManagerComponent,
@@ -866,6 +871,7 @@ export class AppComponent {
   readonly pendingFriendInvite = signal(new URLSearchParams(window.location.search).get('friend'));
   readonly walletOpen = signal(false);
   readonly userCards = inject(UserCardService);
+  readonly secretChats = inject(SecretChatsService);
   readonly userCardVoiceControls = computed(() => {
     const id = this.userCards.selected()?.id;
     return !!id && this.activeCallVoiceParticipants().some((p) => p.user_id === id);
@@ -2530,6 +2536,8 @@ export class AppComponent {
   readonly voiceLocalScreenStream = this.voiceRoom.localScreenShareStream;
   readonly outputDeviceSupported = this.voiceRoom.outputDeviceSupported;
   readonly directCallState = this.directCall.state;
+  readonly directCallEncryption = this.directCall.encryption;
+  readonly voiceCallEncryption = this.voiceRoom.encryption;
   readonly directCallError = this.directCall.error;
   readonly directCallNotice = this.directCall.notice;
   readonly directCallPeer = this.directCall.peer;
@@ -3948,6 +3956,7 @@ export class AppComponent {
   });
 
   constructor() {
+    effect(() => this.secretChats.configure(this.session()));
     this.attachmentPreviews.failed.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((event) => {
       this.handleAttachmentActionError(
         event.error,
@@ -4091,6 +4100,10 @@ export class AppComponent {
     });
     this.bindActionPipelines();
     const stopDesktopNotifications = window.kvaDesktop?.onNotificationOpen?.((target) => {
+      if (target === 'secret') {
+        this.secretChats.open();
+        return;
+      }
       if (
         /^\/(?:invite\/|channels\/|login(?:\?|$)|\?|$)/.test(target) &&
         !target.startsWith('//')
@@ -8717,7 +8730,24 @@ export class AppComponent {
     this.resolveVoiceRequest(activeRequest, action);
   }
 
-  logout(): void {
+  async logout(manual = false): Promise<void> {
+    const secretUserId = this.session()?.user.id;
+    if (
+      manual &&
+      secretUserId &&
+      (await this.secretChats.hasLocalKeys(secretUserId)) &&
+      !window.confirm(
+        'После выхода секретная история этого устройства будет удалена. Обычная переписка сохранится. Выйти?',
+      )
+    )
+      return;
+    try {
+      if (manual && secretUserId) await this.secretChats.eraseForLogout(secretUserId);
+      else await this.secretChats.lockForReauthentication();
+    } catch {
+      this.secretChats.open();
+      return;
+    }
     this.messageEdits.clear();
     this.cancelMessageUploadTrigger$.next();
     this.uploadQueue.discard();
@@ -8732,7 +8762,7 @@ export class AppComponent {
     this.spaceInvitations.set([]);
     this.inviteManagerSpace.set(null);
     const token = this.session()?.access_token;
-    if (token) {
+    if (token && manual) {
       void fetch(`${API_BASE_URL}/api/auth/logout`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },

@@ -414,10 +414,15 @@ def join(token: str, user: User = Depends(get_current_user), db: Session = Depen
 def search_messages(platform_id: UUID, query: str = Query(min_length=1, max_length=120),
                     user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     platform_context(db, platform_id, user.id)
+    if not query.strip():
+        return []
+    from app.services.encrypted_search import search_message_ids
+    base = select(Message).join(Channel, Channel.id == Message.channel_id).join(Server, Server.id == Channel.server_id).where(Server.platform_id == platform_id)
+    ids = search_message_ids(db, None, [query.strip()], 60, base_statement=base)
     rows = db.execute(select(Message, Server.name, Server.id, User.username)
         .join(Channel, Channel.id == Message.channel_id).join(Server, Server.id == Channel.server_id)
         .join(User, User.id == Message.author_id)
-        .where(Server.platform_id == platform_id, Message.content.icontains(query.strip(), autoescape=True))
+        .where(Server.platform_id == platform_id, Message.id.in_(ids))
         .order_by(Message.created_at.desc(), Message.id.desc()).limit(60)).all()
     return [{"id": message.id, "channel_id": message.channel_id, "chat_id": chat_id,
              "chat_name": name, "author": author, "content": message.content, "created_at": message.created_at}

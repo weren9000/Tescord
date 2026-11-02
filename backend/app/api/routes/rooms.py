@@ -310,7 +310,9 @@ def rotate(options: InviteOptions, authorization: str = Header(), db: Session = 
 
 
 @router.post('/media')
-def media(authorization: str = Header(), db: Session = Depends(get_db)):
+def media(authorization: str = Header(), x_kva_media_crypto: str = Header(default=''), db: Session = Depends(get_db)):
+    from app.services.media_encryption import require_client, grant
+    require_client(x_kva_media_crypto)
     m, p = access(db, authorization, lock=True)
     reserve(db, m, p)
     if p.last_seen_at <= service.now()-service.PRESENCE_TTL:
@@ -325,7 +327,8 @@ def media(authorization: str = Header(), db: Session = Depends(get_db)):
         .with_grants(api.VideoGrants(room_join=True, room=f'meeting-{m.id}', can_publish=not p.silenced, can_subscribe=True, can_publish_data=False))
         .to_jwt())
     subject = 'user:' + str(p.user_id) if p.user_id else 'meeting:' + str(p.id)
-    return {'url': settings.livekit_url, 'token': token, 'ice_servers': turn_ice_servers(subject)}
+    return {'url': settings.livekit_url, 'token': token, 'ice_servers': turn_ice_servers(subject),
+        'media_crypto':grant(f'meeting-{m.id}',str(p.id),{'meeting':str(m.id),'auth_sid':str(p.auth_session_id) if p.user_id or p.is_owner else None})}
 
 
 def message_in(db, mid, session_id):
@@ -403,7 +406,7 @@ def delete_message(mid: UUID, authorization: str = Header(), db: Session = Depen
     # Files stay owned by the session cleanup job even after removing a message.
     # Delete them before the rows: failed deletion can safely be retried.
     for u in db.scalars(select(RoomUpload).where(RoomUpload.message_id == mid)):
-        path = service.files_root(m.id)/str(u.id)
+        path = service.upload_path(u)
         path.unlink(missing_ok=True)
         from app.services.attachment_previews import delete_preview
         delete_preview(path)
@@ -449,14 +452,16 @@ def upload(file: UploadFile = File(), authorization: str = Header(), db: Session
     root = service.files_root(m.id)
     root.mkdir(parents=True, exist_ok=True)
     path = root/str(u.id)
-    written = 0
+    from app.services.data_encryption import keyring
+    from app.services.encrypted_files import encrypted_path, write_file, FileTooLarge
+    u.storage_encrypted = keyring() is not None
+    if u.storage_encrypted:
+        path = encrypted_path(path)
     try:
-        with path.open('xb') as out:
-            while chunk := file.file.read(1024*1024):
-                written += len(chunk)
-                if written > settings.max_message_upload_bytes or total+written > settings.user_upload_quota_bytes:
-                    raise HTTPException(413, 'Файл слишком большой')
-                out.write(chunk)
+        try:
+            written, _ = write_file(file.file, path, max_bytes=min(settings.max_message_upload_bytes, settings.user_upload_quota_bytes-total))
+        except FileTooLarge:
+            raise HTTPException(413, 'Файл слишком большой') from None
         u.size_bytes = written
         db.commit()
     except BaseException:
@@ -471,7 +476,7 @@ def discard_upload(uid: UUID, authorization: str = Header(), db: Session = Depen
     u = db.get(RoomUpload, uid)
     if not u or u.session_id != m.id or u.author_id != p.id or u.message_id:
         raise HTTPException(404, 'Файл недоступен')
-    (service.files_root(m.id)/str(uid)).unlink(missing_ok=True)
+    service.upload_path(u).unlink(missing_ok=True)
     db.delete(u)
     db.commit()
     return {'ok': True}
@@ -483,17 +488,19 @@ def download(uid: UUID, preview: bool = False, text_preview: bool = False, autho
     u = db.get(RoomUpload, uid)
     if not u or u.session_id != m.id or (not u.message_id and u.author_id != p.id):
         raise HTTPException(404, 'Файл недоступен')
-    path = service.files_root(m.id)/str(u.id)
+    path = service.upload_path(u)
     if not path.is_file():
         raise HTTPException(404, 'Файл удалён')
     if text_preview:
-        with path.open('rb') as source:
+        from app.services.encrypted_files import StoredReader
+        with StoredReader(path) as source:
             return Response(source.read(1024*1024+1), media_type='text/plain', headers={'Cache-Control':'no-store', 'X-Content-Type-Options':'nosniff'})
     if preview:
         from app.services.attachment_previews import ensure_preview
         path = ensure_preview(path)
         if not path:
             raise HTTPException(404, 'Предпросмотр недоступен')
-    return FileResponse(path, media_type='image/webp' if preview else 'application/octet-stream',
+    from app.services.encrypted_files import StoredFileResponse
+    return StoredFileResponse(path, media_type='image/webp' if preview else 'application/octet-stream',
                         filename=None if preview else u.filename,
                         headers={'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff'})

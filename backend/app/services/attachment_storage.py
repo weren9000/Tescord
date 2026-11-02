@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from hashlib import sha256
 from pathlib import Path
 from uuid import UUID
 
 from fastapi import UploadFile
 
 from app.core.config import get_settings
+from app.services.data_encryption import keyring
+from app.services.encrypted_files import encrypted_path, write_file, FileTooLarge
 
 CHUNK_SIZE_BYTES = 1024 * 1024
 
@@ -35,6 +36,8 @@ def _uploads_root() -> Path:
 
 def _storage_relative_path(attachment_id: UUID, filename: str) -> Path:
     suffix = Path(filename).suffix.lower()
+    if suffix == '.kvaenc':
+        suffix = '.bin'
     if len(suffix) > 16:
         suffix = suffix[:16]
     return Path("attachments") / attachment_id.hex[:2] / f"{attachment_id}{suffix}"
@@ -79,33 +82,15 @@ def store_upload_file(
 ) -> StoredAttachment:
     """Copy a spooled upload in a worker thread, never directly on the event loop."""
     relative_path = _storage_relative_path(attachment_id, filename)
+    if keyring() is not None:
+        relative_path = encrypted_path(relative_path)
     final_path = resolve_attachment_path(relative_path.as_posix())
-    temp_path = final_path.with_suffix(f"{final_path.suffix}.part")
-    final_path.parent.mkdir(parents=True, exist_ok=True)
-
-    file_hash = sha256()
-    size_bytes = 0
-
     try:
-        with temp_path.open("wb") as target_file:
-            while True:
-                chunk = upload.file.read(CHUNK_SIZE_BYTES)
-                if not chunk:
-                    break
+        size_bytes, checksum = write_file(upload.file, final_path, max_bytes=max_size_bytes)
+    except FileTooLarge:
+        raise AttachmentTooLargeError from None
 
-                size_bytes += len(chunk)
-                if size_bytes > max_size_bytes:
-                    raise AttachmentTooLargeError
-
-                file_hash.update(chunk)
-                target_file.write(chunk)
-
-        temp_path.replace(final_path)
-    except Exception:
-        temp_path.unlink(missing_ok=True)
-        raise
-
-    if final_path.suffix.lower() in {'.jpg','.jpeg','.png','.webp','.gif'}:
+    if Path(filename).suffix.lower() in {'.jpg','.jpeg','.png','.webp','.gif'}:
         from app.services.attachment_previews import ensure_preview
         ensure_preview(final_path)
 
@@ -114,5 +99,5 @@ def store_upload_file(
         mime_type=upload.content_type or "application/octet-stream",
         storage_path=relative_path.as_posix(),
         size_bytes=size_bytes,
-        checksum_sha256=file_hash.hexdigest(),
+        checksum_sha256=checksum,
     )

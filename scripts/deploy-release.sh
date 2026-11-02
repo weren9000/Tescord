@@ -38,11 +38,12 @@ python="${TESCORD_DEPLOY_PYTHON:-python3}"
 "$python" -m venv backend/.venv
 backend/.venv/bin/pip install --disable-pip-version-check -q -r backend/requirements.lock
 chown -R tescord:tescord "$release"
-if [ -x /usr/local/sbin/kva-backup ]; then
-    /usr/local/sbin/kva-backup
-else
-    bash "$release/scripts/backup-server.sh"
-fi
+# Check the configured private keyring before any migration or service switch.
+cd "$release/backend"
+runuser -u tescord -- .venv/bin/python -c 'from app.services.data_encryption import required_keyring; required_keyring()'
+# Always use this release's encrypted backup implementation, even if an older
+# installed helper still writes plaintext backups.
+bash "$release/scripts/backup-server.sh"
 cd "$release/backend"
 runuser -u tescord -- .venv/bin/alembic upgrade head
 cp "$runtime_source" "$release/frontend/dist/frontend/browser/runtime-config.js"
@@ -54,6 +55,19 @@ find "$previous/frontend/dist/frontend/browser" -maxdepth 1 -type f \( -name '*-
 find "$release/frontend/dist/frontend/browser" -type d -exec chmod 755 {} +
 find "$release/frontend/dist/frontend/browser" -type f -exec chmod 644 {} +
 rollback() {
+    if [ ! -f "$previous/backend/app/services/data_encryption.py" ]; then
+        if ! runuser -u tescord -- .venv/bin/python -c '
+import sys
+from sqlalchemy import text
+from app.db.session import engine
+with engine.connect() as c:
+    encrypted = c.scalar(text("SELECT EXISTS(SELECT 1 FROM messages WHERE encrypted_content IS NOT NULL) OR EXISTS(SELECT 1 FROM room_messages WHERE encrypted_content IS NOT NULL) OR EXISTS(SELECT 1 FROM room_uploads WHERE storage_encrypted) OR EXISTS(SELECT 1 FROM attachments WHERE storage_path LIKE :suffix) OR EXISTS(SELECT 1 FROM pending_uploads WHERE storage_path LIKE :suffix)"), {"suffix":"%.kvaenc"})
+sys.exit(1 if encrypted else 0)
+'; then
+            echo 'Automatic rollback refused: encrypted data requires a compatible backend. Keep the current release and repair it, or restore the verified encrypted backup during maintenance.' >&2
+            return 1
+        fi
+    fi
     ln -sfn "$previous" /srv/tescord/current.next
     mv -Tf /srv/tescord/current.next /srv/tescord/current
     systemctl restart tescord-backend
@@ -73,6 +87,7 @@ nginx -t
 systemctl reload nginx
 curl --fail --silent --max-time 15 --resolve kvachat.ru:443:127.0.0.1 https://kvachat.ru/runtime-config.js >/dev/null
 trap - ERR
+install -m 0755 "$release/scripts/backup-server.sh" /usr/local/sbin/kva-backup
 if [ "${TESCORD_PRUNE_RELEASES:-false}" = true ] && [ -f "$release/scripts/prune-releases.py" ]; then
     python3 "$release/scripts/prune-releases.py" "$previous" --apply || echo 'Release cleanup failed; check disk space.' >&2
 elif [ "${TESCORD_PRUNE_RELEASES:-false}" = true ] && [ -f /usr/local/sbin/kva-prune-releases ]; then

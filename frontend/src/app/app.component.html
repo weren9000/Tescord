@@ -172,6 +172,9 @@
           [class.call-window--direct]="call.kind === 'direct'"
           [class.call-window--voice]="call.kind !== 'direct'"
         >
+          <app-call-encryption
+            [session]="call.kind === 'direct' ? directCallEncryption() : voiceCallEncryption()"
+          />
           @if (call.kind === 'direct' && directCallPeer(); as peer) {
             <div class="call-window__body call-window__body--direct">
               @if (directCallError()) {
@@ -1028,6 +1031,12 @@
             <app-ui-icon name="profile" /><span class="account-menu__label">Мой профиль</span>
             <app-ui-icon name="forward" class="account-menu__chevron" />
           </button>
+          @if (secretChats.enabled()) {
+            <button type="button" (click)="closeSideMenu(); secretChats.open()">
+              <app-ui-icon name="lock" /><span class="account-menu__label">Секретные чаты</span>
+              <app-ui-icon name="forward" class="account-menu__chevron" />
+            </button>
+          }
           <button type="button" (click)="closeSideMenu(); openFriendRequestsModal()">
             <app-ui-icon name="bell" /><span class="account-menu__label">Уведомления</span>
             @if (notificationAlertCount()) {
@@ -1086,7 +1095,7 @@
           </section>
         }
         <section>
-          <button type="button" (click)="closeSideMenu(); logout()">
+          <button type="button" (click)="closeSideMenu(); logout(true)">
             <app-ui-icon name="logout" /><span class="account-menu__label">Выход</span>
           </button>
         </section>
@@ -5928,10 +5937,17 @@
       <app-user-card
         [token]="auth.access_token"
         [voiceControls]="userCardVoiceControls()"
+        [secretEnabled]="secretChats.enabled()"
+        (secretChat)="secretChats.choosePeer($event)"
         (chat)="openUserCardChat($event)"
         (profile)="openProfileEditor()"
         (voice)="openUserCardVoice($event)"
       />
+    }
+  }
+  @if (secretChats.opened()) {
+    @defer (on immediate) {
+      <app-secret-chats />
     }
   }
   @defer (on immediate) {

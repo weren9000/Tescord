@@ -5,6 +5,21 @@
     version: 'android-__KVA_VERSION__',
     readSession: () => native.readSession(),
     writeSession: value => native.writeSession(value),
+    readSecretVault: userId => native.readSecretVault(userId) ?? null,
+    writeSecretVault: (userId, value) => native.writeSecretVault(userId, value),
+    beginSecretDownload: (name, size) => new Promise(resolve => {
+      let id;
+      const selected = event => { if (!event.detail || event.detail === id) { window.removeEventListener('kva-secret-save', selected); resolve(event.detail || null); } };
+      window.addEventListener('kva-secret-save', selected);
+      id = native.beginSecretDownload(name, size);
+      if (!id) { window.removeEventListener('kva-secret-save', selected); resolve(null); }
+    }),
+    writeSecretDownload: async (id, index, data) => {
+      let text = '';
+      for (let i = 0; i < data.length; i += 8192) text += String.fromCharCode(...data.subarray(i, i + 8192));
+      return native.writeSecretDownload(id, index, btoa(text));
+    },
+    endSecretDownload: async (id, commit) => native.endSecretDownload(id, commit),
     // Native background service owns notifications, avoiding duplicate web notifications.
     notify: async () => false,
     clearNotifications: target => { if (target) native.clear(target); },

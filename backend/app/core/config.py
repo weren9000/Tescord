@@ -1,6 +1,7 @@
 ﻿from __future__ import annotations
 
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -32,6 +33,10 @@ class Settings(BaseSettings):
     redis_url: str | None = None
     rate_limits_enabled: bool = False
     auth_encryption_key: SecretStr | None = None
+    data_keyring_path: str | None = None
+    data_encryption_required: bool = False
+    secret_chats_enabled: bool = False
+    media_encryption_enabled: bool = False
     smtp_host: str | None = None
     smtp_port: int = Field(default=587, ge=1, le=65535)
     smtp_security: Literal['starttls', 'ssl', 'plain'] = 'starttls'
@@ -69,6 +74,9 @@ class Settings(BaseSettings):
         if any(not url.startswith(('turn:', 'turns:')) or any(c.isspace() for c in url) or '@' in url for url in self.turn_urls):
             raise ValueError('TURN URLs must be turn: or turns: addresses without credentials')
         if self.environment == "production":
+            self.data_encryption_required = True
+            if not self.data_keyring_path or not Path(self.data_keyring_path).is_absolute():
+                raise ValueError('Data encryption requires a private data_keyring_path')
             if self.debug or self.secret_key == "tescord-dev-secret-key" or len(self.secret_key) < 32:
                 raise ValueError("Production requires debug=false and a strong secret_key")
             if self.seed_demo_data:
@@ -102,6 +110,7 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         env_prefix="TESCORD_",
         extra="ignore",
+        hide_input_in_errors=True,
     )
 
 

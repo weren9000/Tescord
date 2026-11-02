@@ -24,6 +24,8 @@ import { isTextFile } from '../shared/text-files';
 import { ParticipantAudioOutput } from '../shared/participant-audio-output';
 import { UiIconComponent } from '../workspace/ui-icon.component';
 import { AuthUser } from '../core/models/auth.models';
+import { CallEncryption, MediaCryptoGrant } from '../core/services/call-encryption';
+import { CallEncryptionComponent } from '../shared/call-encryption.component';
 
 interface Ticket {
   token: string;
@@ -103,6 +105,7 @@ export class MeetingTrackDirective implements OnDestroy {
     AndroidCallOutputComponent,
     TextFileViewerComponent,
     UiIconComponent,
+    CallEncryptionComponent,
   ],
   templateUrl: './room-page.component.html',
   styleUrl: './room-page.component.scss',
@@ -167,6 +170,7 @@ export class RoomPageComponent implements OnInit, OnDestroy {
   readonly personalVolume: Partial<Record<string, number>> = {};
   readonly emojis = ['👍', '❤️', '😂', '🎉', '👀', '😢'];
   private room: Room | null = null;
+  readonly encryption = signal<CallEncryption | null>(null);
   private outputDeviceId = 'default';
   private timer?: ReturnType<typeof setInterval>;
   private polling = false;
@@ -273,7 +277,10 @@ export class RoomPageComponent implements OnInit, OnDestroy {
     return firstValueFrom(
       this.http.request<T>(method, API_BASE_URL + '/api/rooms' + path, {
         body,
-        headers: token ? { Authorization: 'Bearer ' + token } : {},
+        headers: {
+          ...(token ? { Authorization: 'Bearer ' + token } : {}),
+          ...(path === '/media' ? { 'X-Kva-Media-Crypto': 'olm-livekit-v1' } : {}),
+        },
       }),
     );
   }
@@ -498,13 +505,34 @@ export class RoomPageComponent implements OnInit, OnDestroy {
   }
   async connectMedia() {
     if (this.room) await this.disconnectMedia();
-    const grant = await this.request<{ url: string; token: string; ice_servers?: RTCIceServer[] }>(
-      'POST',
-      '/media',
-    );
+    const grant = await this.request<{
+      url: string;
+      token: string;
+      ice_servers?: RTCIceServer[];
+      media_crypto?: MediaCryptoGrant | null;
+    }>('POST', '/media');
     if (this.disposed || !this.ticket()) return;
-    const room = new Room({ adaptiveStream: true, dynacast: true });
+    const encryption = grant.media_crypto
+      ? new CallEncryption(grant.media_crypto, (message) => {
+          this.error.set(message);
+          void this.disconnectMedia();
+        })
+      : null;
+    this.encryption.set(encryption);
+    try {
+      await encryption?.initialize();
+    } catch (error) {
+      encryption?.close();
+      if (this.encryption() === encryption) this.encryption.set(null);
+      throw error;
+    }
+    if (this.disposed || !this.ticket()) {
+      encryption?.close();
+      return;
+    }
+    const room = new Room({ adaptiveStream: true, dynacast: true, ...encryption?.options });
     this.room = room;
+    await encryption?.attach(room);
     room.on(RoomEvent.TrackSubscribed, (track, _publication, p) => {
       if (track.kind === Track.Kind.Audio) {
         this.removeAudio(track.sid!);
@@ -554,7 +582,12 @@ export class RoomPageComponent implements OnInit, OnDestroy {
       this.connected.set(true);
       this.notice.set('');
     });
-    await room.connect(grant.url, grant.token, { rtcConfig: voiceRtcConfig(grant.ice_servers) });
+    try {
+      await room.connect(grant.url, grant.token, { rtcConfig: voiceRtcConfig(grant.ice_servers) });
+    } catch (error) {
+      if (this.room === room) await this.disconnectMedia();
+      throw error;
+    }
     if (this.disposed || this.room !== room) {
       await room.disconnect();
       return;
@@ -742,6 +775,8 @@ export class RoomPageComponent implements OnInit, OnDestroy {
     }
   }
   private async disconnectMedia() {
+    this.encryption()?.close();
+    this.encryption.set(null);
     window.kvaAndroid?.directAudio?.(false);
     const room = this.room;
     this.room = null;

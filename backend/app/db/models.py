@@ -7,10 +7,26 @@ from datetime import datetime
 from sqlalchemy import JSON, BigInteger, CheckConstraint, Boolean, DateTime, Enum, ForeignKey, Index, Integer, LargeBinary, String, Text, Uuid, UniqueConstraint, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, deferred, mapped_column, relationship
 from app.services.avatar_presets import random_avatar_preset
+from sqlalchemy import event
+from sqlalchemy.dialects.postgresql import ARRAY
+from app.services.data_encryption import EncryptedContent, encrypt_content_before_write
 
 
 class Base(DeclarativeBase):
     pass
+
+
+class EncryptionKeyCheck(Base):
+    __tablename__ = 'encryption_key_checks'
+    key_id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    ciphertext: Mapped[bytes] = mapped_column(LargeBinary)
+
+
+class EncryptionCleanup(Base):
+    __tablename__ = 'encryption_cleanup'
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    storage_kind: Mapped[str] = mapped_column(String(16))
+    relative_path: Mapped[str] = mapped_column(String(512))
 
 
 class UserApplication(Base):
@@ -59,12 +75,13 @@ class RoomParticipant(Base):
     silenced: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
-class RoomMessage(Base):
+class RoomMessage(EncryptedContent, Base):
     __tablename__ = 'room_messages'
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     session_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('room_sessions.id', ondelete='CASCADE'), index=True)
     author_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('room_participants.id', ondelete='CASCADE'))
-    content: Mapped[str] = mapped_column(Text, default='')
+    legacy_content: Mapped[str] = mapped_column('content', Text, default='')
+    encrypted_content: Mapped[bytes | None] = mapped_column(LargeBinary)
     reply_to_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('room_messages.id', ondelete='SET NULL'))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     edited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -79,6 +96,7 @@ class RoomUpload(Base):
     filename: Mapped[str] = mapped_column(String(255))
     mime_type: Mapped[str] = mapped_column(String(128))
     size_bytes: Mapped[int] = mapped_column(BigInteger)
+    storage_encrypted: Mapped[bool] = mapped_column(Boolean, default=False, server_default='false')
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -572,7 +590,7 @@ class ConversationPushSetting(Base):
     server: Mapped["Server"] = relationship(back_populates="push_settings")
 
 
-class Message(TimestampMixin, Base):
+class Message(EncryptedContent, TimestampMixin, Base):
     __tablename__ = "messages"
     __table_args__ = (Index("ix_messages_channel_created_at", "channel_id", "created_at"),
                       UniqueConstraint("author_id", "client_message_id", name="uq_messages_author_client"),)
@@ -585,7 +603,9 @@ class Message(TimestampMixin, Base):
         nullable=True,
     )
     client_message_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
-    content: Mapped[str] = mapped_column(Text, nullable=False)
+    legacy_content: Mapped[str] = mapped_column('content', Text, nullable=False)
+    encrypted_content: Mapped[bytes | None] = mapped_column(LargeBinary)
+    search_tokens: Mapped[list[str] | None] = mapped_column(ARRAY(String(64)), nullable=True)
     type: Mapped[MessageType] = mapped_column(
         Enum(MessageType, name="messagetype", values_callable=enum_values),
         default=MessageType.TEXT,
@@ -802,3 +822,8 @@ class OutboxEvent(Base):
     attempts: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     available_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
     delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+for _encrypted_model in (Message, RoomMessage):
+    event.listen(_encrypted_model, 'before_insert', encrypt_content_before_write)
+    event.listen(_encrypted_model, 'before_update', encrypt_content_before_write)

@@ -52,6 +52,7 @@ class VoiceSfuTokenResponse(BaseModel):
     token: str
     room_name: str
     identity: str
+    media_crypto: dict[str,str] | None = None
     ice_servers: list[dict[str, object]] = Field(default_factory=list)
 
 

@@ -30,6 +30,7 @@ from app.services import cluster
 from sqlalchemy import text
 from redis.exceptions import RedisError
 from starlette.responses import JSONResponse
+from app.services.data_encryption import EncryptionUnavailable, keyring
 
 from app.services.performance import PerformanceMiddleware, flush_metrics
 from app.services.resource_events import ResourceEventsMiddleware
@@ -50,8 +51,11 @@ async def run_presence_sweeper() -> None:
 
 
 def initialize_database():
+    keyring()  # Fail before serving requests if a configured keyring cannot be read.
     with SessionLocal() as db:
         db.execute(text('SELECT pg_advisory_xact_lock(743190038)'))
+        from app.services.data_encryption import check_database_keys
+        check_database_keys(db)
         ensure_development_seed_data()
         db.execute(select(AuthSession.id).limit(0))
         db.execute(select(OutboxEvent.id).limit(0))
@@ -105,6 +109,12 @@ app = FastAPI(
 )
 
 
+@app.exception_handler(EncryptionUnavailable)
+async def encryption_unavailable(request, exc):
+    return JSONResponse({'detail': 'Зашифрованные данные временно недоступны. Обратитесь к администратору.'},
+                        status_code=503, headers={'Cache-Control': 'no-store'})
+
+
 @app.exception_handler(RedisError)
 async def redis_unavailable(request, exc):
     if request.scope['type'] == 'websocket':
@@ -150,7 +160,7 @@ async def meeting_no_store(request, call_next):
     response = await call_next(request)
     # Includes 410/403 responses: a completed meeting must never poison the
     # shared state URL for the next meeting in the same browser.
-    if request.url.path.startswith((settings.api_prefix + '/rooms/', settings.api_prefix + '/auth/')):
+    if request.url.path.startswith((settings.api_prefix + '/rooms/', settings.api_prefix + '/auth/', settings.api_prefix + '/secret/', settings.api_prefix + '/media-encryption/')):
         response.headers['Cache-Control'] = 'no-store'
         response.headers['Pragma'] = 'no-cache'
         response.headers['Expires'] = '0'

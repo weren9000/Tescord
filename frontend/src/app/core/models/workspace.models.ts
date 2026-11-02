@@ -271,6 +271,7 @@ export interface VoiceJoinRequestCreateResponse {
 }
 
 export interface VoiceSfuTokenResponse {
+  media_crypto?: import('../services/call-encryption').MediaCryptoGrant | null;
   url: string;
   token: string;
   room_name: string;

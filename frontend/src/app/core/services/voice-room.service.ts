@@ -235,6 +235,7 @@ function saveVoiceSettings(settings: VoiceSettings): void {
   providedIn: 'root',
 })
 export class VoiceRoomService {
+  readonly encryption = signal<CallEncryption | null>(null);
   private readonly workspaceApi = inject(WorkspaceApiService);
 
   private audioContext: AudioContext | null = null;
@@ -882,13 +883,31 @@ export class VoiceRoomService {
   }
 
   private async connectRoom(sfuToken: VoiceSfuTokenResponse): Promise<void> {
+    const encryption = sfuToken.media_crypto
+      ? new CallEncryption(sfuToken.media_crypto, (message) => {
+          void this.failSession(message);
+        })
+      : null;
+    this.encryption.set(encryption);
+    try {
+      await encryption?.initialize();
+    } catch (error) {
+      encryption?.close();
+      throw error;
+    }
+    if (this.encryption() !== encryption) {
+      encryption?.close();
+      return;
+    }
     const room = new this.sdk.Room({
+      ...encryption?.options,
       adaptiveStream: false,
       dynacast: true,
       disconnectOnPageLeave: false,
       stopLocalTrackOnUnpublish: false,
     });
     this.room = room;
+    await encryption?.attach(room);
     this.stopTelemetry?.();
     this.stopTelemetry = observeCall(room, () => this.lastJoinContext?.token ?? null);
     this.attachRoomListeners(room);
@@ -1836,6 +1855,8 @@ export class VoiceRoomService {
   }
 
   private async disconnectRoom(): Promise<void> {
+    this.encryption()?.close();
+    this.encryption.set(null);
     this.stopTelemetry?.();
     this.stopTelemetry = null;
     const room = this.room;
@@ -2251,3 +2272,4 @@ export class VoiceRoomService {
     return this.participants().find((participant) => participant.id === participantId);
   }
 }
+import { CallEncryption } from './call-encryption';

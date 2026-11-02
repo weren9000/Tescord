@@ -50,5 +50,7 @@ async def issue_call_token(call_id: str, user_id: str, nick: str, session_id: st
         .with_ttl(timedelta(minutes=2))
         .with_grants(api.VideoGrants(room_join=True, room=room, can_publish=True, can_subscribe=True))
         .to_jwt())
+    from app.services.media_encryption import grant
     return {'url': settings.livekit_url, 'token': token, 'room_name': room, 'identity': user_id,
+            'media_crypto':grant(room,user_id,{'session_id':session_id,'client_id':client_id}),
             'ice_servers': turn_ice_servers('user:' + user_id)}
