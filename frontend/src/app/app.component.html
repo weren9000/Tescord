@@ -2083,23 +2083,23 @@
                       />
                       @if (hasMessageSearchQuery()) {
                         <button
-                          class="message-search__clear"
+                          class="kva-icon-action message-search__clear"
                           type="button"
                           aria-label="Очистить поиск"
                           title="Очистить поиск"
                           (click)="updateMessageSearchQuery('')"
                         >
-                          ×
+                          <app-ui-icon name="close" />
                         </button>
                       }
                       <button
-                        class="message-search__close"
+                        class="kva-icon-action message-search__close"
                         type="button"
                         aria-label="Закрыть поиск"
                         title="Закрыть поиск"
                         (click)="closeMessageSearchPanel()"
                       >
-                        ×
+                        <app-ui-icon name="close" />
                       </button>
                     </div>
 
@@ -2544,13 +2544,13 @@
                           <strong>{{ replyPreviewText(replyMessage) }}</strong>
                         </div>
                         <button
-                          class="composer__reply-close"
+                          class="kva-icon-action composer__reply-close"
                           type="button"
                           aria-label="Отменить ответ"
                           title="Отменить ответ"
                           (click)="clearReplyTarget()"
                         >
-                          ✕
+                          <app-ui-icon name="close" />
                         </button>
                       </div>
                     }
@@ -2633,7 +2633,7 @@
                       [class.composer__surface--mentioning]="composerMentionMenuOpen()"
                     >
                       <button
-                        class="secondary-button composer__attach"
+                        class="kva-icon-action secondary-button composer__attach"
                         type="button"
                         [disabled]="
                           messageSubmitting() || !!currentUpload() || !!editingMessage()?.saving
@@ -2643,7 +2643,7 @@
                         aria-label="Прикрепить файл"
                         title="Прикрепить файл"
                       >
-                        <span class="composer__attach-icon">+</span>
+                        <app-ui-icon name="attach" />
                       </button>
 
                       <label
@@ -2780,7 +2780,7 @@
                           [class.composer__submit--cancel]="messageSubmitting()"
                         >
                           @if (messageSubmitting()) {
-                            ×
+                            <app-ui-icon name="close" />
                           } @else {
                             <app-ui-icon name="send" />
                           }
@@ -2789,8 +2789,13 @@
                     </div>
                   } @else {
                     <div class="composer__surface composer__surface--disabled">
-                      <button class="secondary-button composer__attach" type="button" disabled>
-                        <span class="composer__attach-icon">+</span>
+                      <button
+                        class="kva-icon-action secondary-button composer__attach"
+                        type="button"
+                        disabled
+                        aria-label="Прикрепить файл"
+                      >
+                        <app-ui-icon name="attach" />
                       </button>
                       <label class="composer__field">
                         <textarea disabled placeholder="Чат недоступен" rows="1"></textarea>
@@ -3078,13 +3083,13 @@
     (keydown)="onFullscreenMediaKeydown($event)"
   >
     <button
-      class="call-control-button call-media-fullscreen__back"
+      class="kva-icon-action call-control-button call-media-fullscreen__back"
       type="button"
       title="Вернуться к звонку"
       aria-label="Вернуться к звонку"
       (click)="closeFullscreenMedia($event)"
     >
-      <span aria-hidden="true">×</span>
+      <app-ui-icon name="close" />
     </button>
 
     <main class="call-media-fullscreen__stage" (pointerup)="onFullscreenStagePointerUp($event)">
@@ -3297,7 +3302,14 @@
         <div>
           <h3>Центр внимания</h3>
         </div>
-        <button class="icon-button" type="button" (click)="closeFriendRequestsModal()">×</button>
+        <button
+          class="kva-icon-action icon-button"
+          type="button"
+          (click)="closeFriendRequestsModal()"
+          aria-label="Закрыть"
+        >
+          <app-ui-icon name="close" />
+        </button>
       </div>
 
       <div class="modal__body">
@@ -3611,12 +3623,12 @@
       <div class="modal__header">
         <h3 id="block-settings-title">Блокировки</h3>
         <button
-          class="icon-button"
+          class="kva-icon-action icon-button"
           type="button"
           aria-label="Закрыть блокировки"
           (click)="closeBlockedFriendsModal(); closeBlockedServersModal()"
         >
-          ×
+          <app-ui-icon name="close" />
         </button>
       </div>
       <nav class="block-settings-tabs" aria-label="Категории блокировок">
@@ -3763,7 +3775,14 @@
         <div>
           <h3>{{ activeServer()?.name ?? 'Текущая ' + activeManagedSpaceLabel() }}</h3>
         </div>
-        <button class="icon-button" type="button" (click)="closeGroupOwnershipModal()">×</button>
+        <button
+          class="kva-icon-action icon-button"
+          type="button"
+          (click)="closeGroupOwnershipModal()"
+          aria-label="Закрыть"
+        >
+          <app-ui-icon name="close" />
+        </button>
       </div>
 
       <div class="modal__body">
@@ -3846,7 +3865,14 @@
         <div>
           <h3>{{ activeServer()?.name ?? 'Текущий чат' }}</h3>
         </div>
-        <button class="icon-button" type="button" (click)="closeChatFilesModal()">×</button>
+        <button
+          class="kva-icon-action icon-button"
+          type="button"
+          (click)="closeChatFilesModal()"
+          aria-label="Закрыть"
+        >
+          <app-ui-icon name="close" />
+        </button>
       </div>
 
       <div class="modal__body">
@@ -4006,7 +4032,14 @@
         <div>
           <h3>{{ pendingJoin.channelName }}</h3>
         </div>
-        <button class="icon-button" type="button" (click)="closePendingVoiceJoin()">✕</button>
+        <button
+          class="kva-icon-action icon-button"
+          type="button"
+          (click)="closePendingVoiceJoin()"
+          aria-label="Закрыть"
+        >
+          <app-ui-icon name="close" />
+        </button>
       </div>
 
       <div class="modal__body">
@@ -4030,7 +4063,14 @@
         <div>
           <h3>{{ blockedNotice.channelName }}</h3>
         </div>
-        <button class="icon-button" type="button" (click)="closeBlockedVoiceJoinNotice()">✕</button>
+        <button
+          class="kva-icon-action icon-button"
+          type="button"
+          (click)="closeBlockedVoiceJoinNotice()"
+          aria-label="Закрыть"
+        >
+          <app-ui-icon name="close" />
+        </button>
       </div>
 
       <div class="modal__body">
@@ -4054,7 +4094,14 @@
         <div>
           <h3>{{ displayNick(activeRequest.requester_nick) }}</h3>
         </div>
-        <button class="icon-button" type="button" (click)="closeActiveOwnerRequest()">✕</button>
+        <button
+          class="kva-icon-action icon-button"
+          type="button"
+          (click)="closeActiveOwnerRequest()"
+          aria-label="Закрыть"
+        >
+          <app-ui-icon name="close" />
+        </button>
       </div>
 
       <div class="modal__body">
@@ -4137,7 +4184,14 @@
         <div>
           <h3>Звук и микрофон</h3>
         </div>
-        <button class="icon-button" type="button" (click)="closeVoiceSettings()">✕</button>
+        <button
+          class="kva-icon-action icon-button"
+          type="button"
+          (click)="closeVoiceSettings()"
+          aria-label="Закрыть"
+        >
+          <app-ui-icon name="close" />
+        </button>
       </div>
 
       <div class="modal__body">
@@ -4243,7 +4297,14 @@
         <div>
           <h3>Доступ к голосовым каналам</h3>
         </div>
-        <button class="icon-button" type="button" (click)="closeVoiceAdminPanel()">✕</button>
+        <button
+          class="kva-icon-action icon-button"
+          type="button"
+          (click)="closeVoiceAdminPanel()"
+          aria-label="Закрыть"
+        >
+          <app-ui-icon name="close" />
+        </button>
       </div>
 
       <div class="modal__body voice-admin">
@@ -4498,8 +4559,13 @@
             {{ conversationCreateTab() === 'direct' ? 'Добавить друга' : 'Новая мини-группа' }}
           </h3>
         </div>
-        <button class="icon-button" type="button" (click)="closeCreateConversationModal()">
-          ×
+        <button
+          class="kva-icon-action icon-button"
+          type="button"
+          (click)="closeCreateConversationModal()"
+          aria-label="Закрыть"
+        >
+          <app-ui-icon name="close" />
         </button>
       </div>
 
@@ -4670,7 +4736,14 @@
         <div>
           <h3>Добавить участника</h3>
         </div>
-        <button class="icon-button" type="button" (click)="closeAddGroupMemberModal()">×</button>
+        <button
+          class="kva-icon-action icon-button"
+          type="button"
+          (click)="closeAddGroupMemberModal()"
+          aria-label="Закрыть"
+        >
+          <app-ui-icon name="close" />
+        </button>
       </div>
 
       <div class="modal__body conversation-create entity-create">
@@ -4769,7 +4842,14 @@
         <div>
           <h3>Новая группа</h3>
         </div>
-        <button class="icon-button" type="button" (click)="closeCreateGroupModal()">✕</button>
+        <button
+          class="kva-icon-action icon-button"
+          type="button"
+          (click)="closeCreateGroupModal()"
+          aria-label="Закрыть"
+        >
+          <app-ui-icon name="close" />
+        </button>
       </div>
 
       <form class="modal__body stack-form entity-create" (ngSubmit)="submitCreateGroup()">
@@ -4853,7 +4933,14 @@
         <div>
           <h3>Новая площадка</h3>
         </div>
-        <button class="icon-button" type="button" (click)="closeCreatePlatformModal()">✕</button>
+        <button
+          class="kva-icon-action icon-button"
+          type="button"
+          (click)="closeCreatePlatformModal()"
+          aria-label="Закрыть"
+        >
+          <app-ui-icon name="close" />
+        </button>
       </div>
 
       <form class="modal__body stack-form entity-create" (ngSubmit)="submitCreatePlatform()">
@@ -4913,7 +5000,14 @@
             }}
           </h3>
         </div>
-        <button class="icon-button" type="button" (click)="closeCreateChannelModal()">✕</button>
+        <button
+          class="kva-icon-action icon-button"
+          type="button"
+          (click)="closeCreateChannelModal()"
+          aria-label="Закрыть"
+        >
+          <app-ui-icon name="close" />
+        </button>
       </div>
 
       <form class="modal__body stack-form" (ngSubmit)="submitCreateChannel()">
@@ -4971,7 +5065,14 @@
             }}
           </h3>
         </div>
-        <button class="icon-button" type="button" (click)="closePlatformSettingsModal()">×</button>
+        <button
+          class="kva-icon-action icon-button"
+          type="button"
+          (click)="closePlatformSettingsModal()"
+          aria-label="Закрыть"
+        >
+          <app-ui-icon name="close" />
+        </button>
       </div>
 
       <div class="modal__body">
@@ -5461,7 +5562,14 @@
         <div>
           <h3>Пользователи</h3>
         </div>
-        <button class="icon-button" type="button" (click)="closeGroupMembersPanel()">×</button>
+        <button
+          class="kva-icon-action icon-button"
+          type="button"
+          (click)="closeGroupMembersPanel()"
+          aria-label="Закрыть"
+        >
+          <app-ui-icon name="close" />
+        </button>
       </div>
 
       <div class="modal__body conversation-create">
@@ -5501,14 +5609,14 @@
                 </button>
                 @if (canRemoveGroupMember(member)) {
                   <button
-                    class="conversation-picker-row__remove"
+                    class="kva-icon-action conversation-picker-row__remove"
                     type="button"
                     [disabled]="isRemovingGroupMember(member.userId)"
                     title="Удалить из группы"
                     aria-label="Удалить из группы"
                     (click)="removeGroupMember(member)"
                   >
-                    ×
+                    <app-ui-icon name="close" />
                   </button>
                 }
                 @if (!member.isSelf) {
@@ -5622,7 +5730,14 @@
         <div>
           <h3>{{ displayNick(member.nick) }}</h3>
         </div>
-        <button class="icon-button" type="button" (click)="closeMemberVolume()">✕</button>
+        <button
+          class="kva-icon-action icon-button"
+          type="button"
+          (click)="closeMemberVolume()"
+          aria-label="Закрыть"
+        >
+          <app-ui-icon name="close" />
+        </button>
       </div>
 
       <div class="modal__body">
@@ -5949,8 +6064,13 @@
         ↗
       </button>
       @if (job.status === 'done') {
-        <button type="button" aria-label="Скрыть уведомление" (click)="uploadQueue.job.set(null)">
-          ✕
+        <button
+          type="button"
+          aria-label="Скрыть уведомление"
+          (click)="uploadQueue.job.set(null)"
+          class="kva-icon-action"
+        >
+          <app-ui-icon name="close" />
         </button>
       }
     </aside>

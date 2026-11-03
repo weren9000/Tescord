@@ -1,4 +1,15 @@
-import { AfterViewInit, Component, DestroyRef, ElementRef, ViewChild, inject, input, output, signal } from '@angular/core';
+import { UiIconComponent } from './ui-icon.component';
+import {
+  AfterViewInit,
+  Component,
+  DestroyRef,
+  ElementRef,
+  ViewChild,
+  inject,
+  input,
+  output,
+  signal,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -6,49 +17,159 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { InviteSummary, InvitesApiService, InviteFriend } from '../core/api/invites-api.service';
 
 @Component({
-  selector: 'app-invite-manager', imports: [CommonModule, FormsModule],
+  selector: 'app-invite-manager',
+  imports: [UiIconComponent, CommonModule, FormsModule],
   template: `
-    <dialog #dialog aria-labelledby="invite-title" (cancel)="$event.preventDefault(); dismiss()" (keydown.escape)="$event.stopPropagation()">
-      <header><div><h2 id="invite-title">Пригласить</h2><p>{{ space().name }}</p></div><button type="button" aria-label="Закрыть приглашения" (click)="dismiss()">×</button></header>
-      <div class="invite-tabs"><button type="button" [attr.aria-pressed]="tab() === 'friends'" (click)="tab.set('friends')">Друзья</button><button type="button" [attr.aria-pressed]="tab() === 'link'" (click)="tab.set('link')">По ссылке</button></div>
+    <dialog
+      #dialog
+      aria-labelledby="invite-title"
+      (cancel)="$event.preventDefault(); dismiss()"
+      (keydown.escape)="$event.stopPropagation()"
+    >
+      <header>
+        <div>
+          <h2 id="invite-title">Пригласить</h2>
+          <p>{{ space().name }}</p>
+        </div>
+        <button
+          type="button"
+          aria-label="Закрыть приглашения"
+          (click)="dismiss()"
+          class="kva-icon-action"
+        >
+          <app-ui-icon name="close" />
+        </button>
+      </header>
+      <div class="invite-tabs">
+        <button
+          type="button"
+          [attr.aria-pressed]="tab() === 'friends'"
+          (click)="tab.set('friends')"
+        >
+          Друзья</button
+        ><button type="button" [attr.aria-pressed]="tab() === 'link'" (click)="tab.set('link')">
+          По ссылке
+        </button>
+      </div>
       @if (tab() === 'friends') {
         <input aria-label="Найти друга" placeholder="Найти друга" [(ngModel)]="query" />
         <div class="list friend-choices">
           @for (friend of filteredFriends(); track friend.user_id) {
-            <label><input type="checkbox" [checked]="selected().includes(friend.user_id)" [disabled]="busy() || friend.state !== 'available'" (change)="toggleFriend(friend.user_id)" /><span>{{ friend.nick }}</span>@if(friend.state !== 'available'){<small>{{ friend.state === 'member' ? 'Уже участник' : 'Приглашён' }}</small>}</label>
-          } @empty {<p class="hint">{{ loading() ? 'Загрузка…' : 'Друзья не найдены' }}</p>}
+            <label
+              ><input
+                type="checkbox"
+                [checked]="selected().includes(friend.user_id)"
+                [disabled]="busy() || friend.state !== 'available'"
+                (change)="toggleFriend(friend.user_id)"
+              /><span>{{ friend.nick }}</span>
+              @if (friend.state !== 'available') {
+                <small>{{ friend.state === 'member' ? 'Уже участник' : 'Приглашён' }}</small>
+              }
+            </label>
+          } @empty {
+            <p class="hint">{{ loading() ? 'Загрузка…' : 'Друзья не найдены' }}</p>
+          }
         </div>
-        <button class="primary" type="button" [disabled]="busy() || !selected().length" (click)="sendFriends()">Пригласить{{ selected().length ? ' · ' + selected().length : '' }}</button>
-        @if (sent()) {<p role="status">Приглашения отправлены</p>}
+        <button
+          class="primary"
+          type="button"
+          [disabled]="busy() || !selected().length"
+          (click)="sendFriends()"
+        >
+          Пригласить{{ selected().length ? ' · ' + selected().length : '' }}
+        </button>
+        @if (sent()) {
+          <p role="status">Приглашения отправлены</p>
+        }
       } @else {
-      <form (ngSubmit)="create()">
-        <div class="options"><label>Срок действия<select name="expiry" [(ngModel)]="days"><option [ngValue]="1">1 день</option><option [ngValue]="7">7 дней</option><option [ngValue]="30">30 дней</option><option [ngValue]="null">Бессрочно</option></select></label>
-        <label>Лимит вступлений<select name="uses" [(ngModel)]="limit"><option [ngValue]="null">Без ограничения</option><option [ngValue]="1">Одноразовая</option><option [ngValue]="5">5 человек</option><option [ngValue]="10">10 человек</option><option [ngValue]="100">100 человек</option></select></label></div>
-        <button class="primary" type="submit" [disabled]="busy()">{{ busy() ? 'Подождите…' : 'Создать ссылку' }}</button>
-      </form>
-      @if (link()) {
-        <div class="link"><label>Ссылка приглашения<input #linkInput readonly [value]="link()" (click)="linkInput.select()" /></label><button type="button" (click)="copy()">{{ copied() ? 'Скопировано' : 'Копировать' }}</button>@if(canShare){<button type="button" [disabled]="sharing()" (click)="share()">Поделиться</button>}</div>
-        <p class="hint">Скопируйте ссылку: после закрытия её текст недоступен.</p>
+        <form (ngSubmit)="create()">
+          <div class="options">
+            <label
+              >Срок действия<select name="expiry" [(ngModel)]="days">
+                <option [ngValue]="1">1 день</option>
+                <option [ngValue]="7">7 дней</option>
+                <option [ngValue]="30">30 дней</option>
+                <option [ngValue]="null">Бессрочно</option>
+              </select></label
+            >
+            <label
+              >Лимит вступлений<select name="uses" [(ngModel)]="limit">
+                <option [ngValue]="null">Без ограничения</option>
+                <option [ngValue]="1">Одноразовая</option>
+                <option [ngValue]="5">5 человек</option>
+                <option [ngValue]="10">10 человек</option>
+                <option [ngValue]="100">100 человек</option>
+              </select></label
+            >
+          </div>
+          <button class="primary" type="submit" [disabled]="busy()">
+            {{ busy() ? 'Подождите…' : 'Создать ссылку' }}
+          </button>
+        </form>
+        @if (link()) {
+          <div class="link">
+            <label
+              >Ссылка приглашения<input
+                #linkInput
+                readonly
+                [value]="link()"
+                (click)="linkInput.select()" /></label
+            ><button type="button" (click)="copy()">
+              {{ copied() ? 'Скопировано' : 'Копировать' }}
+            </button>
+            @if (canShare) {
+              <button type="button" [disabled]="sharing()" (click)="share()">Поделиться</button>
+            }
+          </div>
+          <p class="hint">Скопируйте ссылку: после закрытия её текст недоступен.</p>
+        }
+        @if (error()) {
+          <p class="error" role="alert">{{ error() }}</p>
+        }
+        <h3>Созданные ссылки</h3>
+        @if (loading()) {
+          <p class="hint" role="status">Загрузка…</p>
+        }
+        <div class="list">
+          @for (invite of invites(); track invite.id) {
+            <article>
+              <div>
+                <strong
+                  >{{ stateLabel(invite.state) }} · {{ invite.uses
+                  }}{{ invite.max_uses ? ' / ' + invite.max_uses : '' }} вступлений</strong
+                >
+                <small
+                  >{{ invite.created_by }} ·
+                  {{ invite.created_at | date: 'dd.MM.yyyy HH:mm' }}</small
+                >
+                <small>{{
+                  invite.expires_at
+                    ? 'До ' + (invite.expires_at | date: 'dd.MM.yyyy HH:mm')
+                    : 'Без срока действия'
+                }}</small>
+              </div>
+              @if (invite.state === 'active') {
+                <button type="button" [disabled]="busy()" (click)="revoke(invite.id)">
+                  Отключить
+                </button>
+              }
+            </article>
+          } @empty {
+            @if (!loading()) {
+              <p class="hint">Ссылок пока нет.</p>
+            }
+          }
+        </div>
       }
-      @if (error()) {<p class="error" role="alert">{{ error() }}</p>}
-      <h3>Созданные ссылки</h3>
-      @if (loading()) {<p class="hint" role="status">Загрузка…</p>}
-      <div class="list">
-        @for (invite of invites(); track invite.id) {
-          <article><div><strong>{{ stateLabel(invite.state) }} · {{ invite.uses }}{{ invite.max_uses ? ' / ' + invite.max_uses : '' }} вступлений</strong>
-          <small>{{ invite.created_by }} · {{ invite.created_at | date:'dd.MM.yyyy HH:mm' }}</small>
-          <small>{{ invite.expires_at ? 'До ' + (invite.expires_at | date:'dd.MM.yyyy HH:mm') : 'Без срока действия' }}</small></div>
-          @if (invite.state === 'active') {<button type="button" [disabled]="busy()" (click)="revoke(invite.id)">Отключить</button>}</article>
-        } @empty { @if (!loading()) {<p class="hint">Ссылок пока нет.</p>} }
-      </div>
+      @if (tab() === 'friends' && error()) {
+        <p class="error" role="alert">{{ error() }}</p>
       }
-      @if (tab() === 'friends' && error()) {<p class="error" role="alert">{{ error() }}</p>}
     </dialog>
   `,
   styleUrl: './invite-manager.component.scss',
 })
 export class InviteManagerComponent implements AfterViewInit {
-  readonly space = input.required<{id: string; name: string}>();
+  readonly space = input.required<{ id: string; name: string }>();
   readonly token = input.required<string>();
   readonly close = output<void>();
   private readonly api = inject(InvitesApiService);
@@ -61,15 +182,36 @@ export class InviteManagerComponent implements AfterViewInit {
   readonly selected = signal<string[]>([]);
   readonly sent = signal(false);
   query = '';
-  filteredFriends() { return this.friends().filter(f => f.nick.toLocaleLowerCase().includes(this.query.trim().toLocaleLowerCase())); }
-  toggleFriend(id: string) { this.selected.update(ids => ids.includes(id) ? ids.filter(item => item !== id) : [...ids, id]); }
+  filteredFriends() {
+    return this.friends().filter((f) =>
+      f.nick.toLocaleLowerCase().includes(this.query.trim().toLocaleLowerCase()),
+    );
+  }
+  toggleFriend(id: string) {
+    this.selected.update((ids) =>
+      ids.includes(id) ? ids.filter((item) => item !== id) : [...ids, id],
+    );
+  }
   sendFriends() {
     if (this.busy() || !this.selected().length) return;
-    this.busy.set(true); this.error.set(''); this.sent.set(false);
-    this.api.inviteFriends(this.token(), this.space().id, this.selected()).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: () => {this.busy.set(false); this.selected.set([]); this.sent.set(true); this.reload();},
-      error: e => {this.busy.set(false); this.error.set(this.message(e));}
-    });
+    this.busy.set(true);
+    this.error.set('');
+    this.sent.set(false);
+    this.api
+      .inviteFriends(this.token(), this.space().id, this.selected())
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.busy.set(false);
+          this.selected.set([]);
+          this.sent.set(true);
+          this.reload();
+        },
+        error: (e) => {
+          this.busy.set(false);
+          this.error.set(this.message(e));
+        },
+      });
   }
   readonly link = signal('');
   readonly copied = signal(false);
@@ -81,36 +223,109 @@ export class InviteManagerComponent implements AfterViewInit {
   private linkId = '';
   days: number | null = 7;
   limit: number | null = null;
-  ngAfterViewInit(): void { this.dialog.nativeElement.showModal(); this.reload(); }
-  dismiss(): void { this.dialog.nativeElement.close(); this.close.emit(); }
-  private message(error: unknown): string { return error instanceof HttpErrorResponse && typeof error.error?.detail === 'string' ? error.error.detail : 'Не удалось выполнить действие. Попробуйте ещё раз.'; }
+  ngAfterViewInit(): void {
+    this.dialog.nativeElement.showModal();
+    this.reload();
+  }
+  dismiss(): void {
+    this.dialog.nativeElement.close();
+    this.close.emit();
+  }
+  private message(error: unknown): string {
+    return error instanceof HttpErrorResponse && typeof error.error?.detail === 'string'
+      ? error.error.detail
+      : 'Не удалось выполнить действие. Попробуйте ещё раз.';
+  }
   private reload(): void {
-    this.api.friends(this.token(), this.space().id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({next: rows => this.friends.set(rows), error: e => this.error.set(this.message(e))});
-    this.api.list(this.token(), this.space().id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({next: rows => {this.invites.set(rows); this.loading.set(false);}, error: e => {this.loading.set(false); this.error.set(this.message(e));}});
+    this.api
+      .friends(this.token(), this.space().id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (rows) => this.friends.set(rows),
+        error: (e) => this.error.set(this.message(e)),
+      });
+    this.api
+      .list(this.token(), this.space().id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (rows) => {
+          this.invites.set(rows);
+          this.loading.set(false);
+        },
+        error: (e) => {
+          this.loading.set(false);
+          this.error.set(this.message(e));
+        },
+      });
   }
   create(): void {
     if (this.busy()) return;
-    this.busy.set(true); this.error.set(''); this.copied.set(false);
-    this.api.create(this.token(), this.space().id, this.days, this.limit).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: result => {this.linkId = result.id; this.link.set(new URL('/invite/' + result.token, window.location.origin).href); this.busy.set(false); this.reload();},
-      error: e => {this.busy.set(false); this.error.set(this.message(e));},
-    });
+    this.busy.set(true);
+    this.error.set('');
+    this.copied.set(false);
+    this.api
+      .create(this.token(), this.space().id, this.days, this.limit)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (result) => {
+          this.linkId = result.id;
+          this.link.set(new URL('/invite/' + result.token, window.location.origin).href);
+          this.busy.set(false);
+          this.reload();
+        },
+        error: (e) => {
+          this.busy.set(false);
+          this.error.set(this.message(e));
+        },
+      });
   }
   revoke(id: string): void {
     if (this.busy()) return;
-    this.busy.set(true); this.error.set('');
-    this.api.revoke(this.token(), this.space().id, id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({next: () => {if (this.linkId === id) this.link.set(''); this.busy.set(false); this.reload();}, error: e => {this.busy.set(false); this.error.set(this.message(e));}});
+    this.busy.set(true);
+    this.error.set('');
+    this.api
+      .revoke(this.token(), this.space().id, id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          if (this.linkId === id) this.link.set('');
+          this.busy.set(false);
+          this.reload();
+        },
+        error: (e) => {
+          this.busy.set(false);
+          this.error.set(this.message(e));
+        },
+      });
   }
   async copy(): Promise<void> {
-    try { await navigator.clipboard.writeText(this.link()); this.copied.set(true); }
-    catch { this.linkInput?.nativeElement.select(); this.error.set('Выделили ссылку — скопируйте её вручную.'); }
+    try {
+      await navigator.clipboard.writeText(this.link());
+      this.copied.set(true);
+    } catch {
+      this.linkInput?.nativeElement.select();
+      this.error.set('Выделили ссылку — скопируйте её вручную.');
+    }
   }
   async share(): Promise<void> {
     if (!this.link() || this.sharing()) return;
-    this.sharing.set(true); this.error.set('');
-    try { await navigator.share({title: this.space().name, url: this.link()}); }
-    catch (error) { if (!(error instanceof DOMException && error.name === 'AbortError')) this.error.set('Не удалось поделиться. Скопируйте ссылку.'); }
-    finally { this.sharing.set(false); }
+    this.sharing.set(true);
+    this.error.set('');
+    try {
+      await navigator.share({ title: this.space().name, url: this.link() });
+    } catch (error) {
+      if (!(error instanceof DOMException && error.name === 'AbortError'))
+        this.error.set('Не удалось поделиться. Скопируйте ссылку.');
+    } finally {
+      this.sharing.set(false);
+    }
   }
-  stateLabel(state: InviteSummary['state']): string { return {active: 'Активна', revoked: 'Отключена', expired: 'Истекла', exhausted: 'Лимит исчерпан'}[state]; }
+  stateLabel(state: InviteSummary['state']): string {
+    return {
+      active: 'Активна',
+      revoked: 'Отключена',
+      expired: 'Истекла',
+      exhausted: 'Лимит исчерпан',
+    }[state];
+  }
 }

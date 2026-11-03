@@ -1,3 +1,4 @@
+import { DialogSurfaceDirective } from './shared/dialog-surface.directive';
 import { MessageTextPresenter } from './core/services/message-text.presenter';
 import { MessageEditState, MessageEditSession } from './core/services/message-edit-state';
 import { ApplicationsComponent } from './workspace/applications.component';
@@ -676,6 +677,7 @@ const DEFAULT_SERVER_ICON_ASSET_BY_NAME: Record<string, string> = {
   selector: 'app-root',
   host: { class: 'kva-app' },
   imports: [
+    DialogSurfaceDirective,
     ApplicationsComponent,
     IslandsComponent,
     PhotoGridComponent,

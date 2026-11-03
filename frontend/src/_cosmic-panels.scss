@@ -38,6 +38,10 @@
 }
 
 app-root.kva-app.kva-app.kva-app {
+  // Initial focus is on the dialog surface; interactive controls keep their focus rings.
+  section.modal[tabindex='-1']:focus {
+    outline: none;
+  }
   :is(
     .auth-panel,
     .modal,
@@ -51,7 +55,14 @@ app-root.kva-app.kva-app.kva-app {
     .panel-shade > .confirm,
     .panel-shade > .filter-sheet,
     .panel-shade > .role-confirm,
-    .sheet-shade > .filter-sheet
+    .sheet-shade > .filter-sheet,
+    app-emoji-picker > .picker,
+    app-avatar-picker > .picker,
+    app-wallpapers .shade > section,
+    app-user-card .card,
+    app-admin-statistics .card,
+    app-admin-statistics .panel,
+    app-wallet .confirmation
   ):not(:where(.landing *, app-photo-viewer *, app-islands *)) {
     @include surface;
   }
@@ -83,7 +94,10 @@ app-root.kva-app.kva-app.kva-app {
     .meeting-page .side-panel,
     .meeting-page .panel-head,
     .action-menu,
-    .store-toolbar
+    .store-toolbar,
+    app-info-panel header,
+    app-inventory .catalog-toolbar,
+    app-shop .catalog-toolbar
   ) {
     @include quiet;
   }

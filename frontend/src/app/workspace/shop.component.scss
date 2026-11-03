@@ -1,3 +1,4 @@
+@use '../shared/painted-material' as material;
 @use '../shared/compact-ui' as compact;
 @use '../shared/catalog-ui' as ui;
 @use '../shared/modal-layer' as modal;
@@ -13,7 +14,7 @@
   padding: 0;
   overflow: hidden;
   border: 1px solid var(--palette-border);
-  border-radius: 20px;
+  border-radius: var(--ui-radius-dialog, 16px);
   background: var(--palette-surface);
   color: var(--palette-text);
   box-shadow: 0 24px 80px #0005;
@@ -310,7 +311,7 @@ nav button {
   width: 140px;
   height: 140px;
   object-fit: contain;
-  border-radius: 18px;
+  border-radius: var(--ui-radius-dialog, 16px);
 }
 .empty {
   text-align: center;
@@ -1683,4 +1684,12 @@ fieldset:not(:first-child) {
     overflow: hidden;
     border-radius: 18px 18px 0 0;
   }
+}
+
+// Shared appearance; retain each component's sizing and behavior.
+.empty button,
+.catalog-toolbar > button,
+.filter-sheet > button,
+.pagination button {
+  @include material.secondary;
 }

@@ -27,7 +27,7 @@
       [attr.aria-label]="hasNested() ? 'Назад' : 'Закрыть предметы'"
       (click)="backStep()"
     >
-      {{ mobile() ? '←' : '×' }}
+      <app-ui-icon [name]="mobile() ? 'back' : 'close'" />
     </button>
     <div>
       <h2 id="shop-title">Предметы</h2>
@@ -338,11 +338,11 @@
                 }
                 @if (collections().length > 1) {
                   <button
-                    class="banner-next"
+                    class="kva-icon-action banner-next"
                     aria-label="Следующая подборка"
                     (click)="bannerIndex.update(nextBanner)"
                   >
-                    ›
+                    <app-ui-icon name="forward" />
                   </button>
                 }
               </section>
@@ -350,8 +350,12 @@
             @if (collection) {
               <div class="collection-selected">
                 <strong>{{ collectionName() }}</strong
-                ><button (click)="collection = ''; load(true)" aria-label="Закрыть подборку">
-                  ×
+                ><button
+                  (click)="collection = ''; load(true)"
+                  aria-label="Закрыть подборку"
+                  class="kva-icon-action"
+                >
+                  <app-ui-icon name="close" />
                 </button>
               </div>
             }
@@ -372,11 +376,11 @@
                     @if (q) {
                       <button
                         type="button"
-                        class="clear-search"
+                        class="kva-icon-action clear-search"
                         aria-label="Очистить поиск"
                         (click)="q = ''; submitSearch()"
                       >
-                        ×
+                        <app-ui-icon name="close" />
                       </button>
                     }</span
                   ><button
@@ -411,9 +415,7 @@
                     [attr.aria-expanded]="filtersOpen()"
                     aria-label="Фильтры"
                   >
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M3 4h18l-7 8v7l-4 2v-9z" />
-                    </svg>
+                    <app-ui-icon name="heart" />
                     @if (activeFilters()) {
                       <span class="filter-count">{{ activeFilters() }}</span>
                     }
@@ -621,7 +623,13 @@
       >
         <header>
           <h3>Фильтры</h3>
-          <button aria-label="Закрыть фильтры" (click)="filtersOpen.set(false)">×</button>
+          <button
+            aria-label="Закрыть фильтры"
+            (click)="filtersOpen.set(false)"
+            class="kva-icon-action"
+          >
+            <app-ui-icon name="close" />
+          </button>
         </header>
         <div class="filter-sheet-body">
           @if (catalogMode() || mode() === 'purchases') {

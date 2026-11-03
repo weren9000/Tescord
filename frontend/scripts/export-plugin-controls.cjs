@@ -15,6 +15,17 @@ require('node:vm').runInNewContext(
   { exports: mod.exports },
 );
 const glyphs = mod.exports.PAINTED_GLYPHS;
+// Independent applications consume the same geometry without Angular.
+const islandGlyphs = ['appearance', 'info', 'close'];
+fs.writeFileSync(
+  path.join(root, 'plugins/islands/web/cosmic-glyphs.svg'),
+  `<svg xmlns="http://www.w3.org/2000/svg">${islandGlyphs
+    .map((name) => {
+      const { body, line } = glyphs[name];
+      return `<symbol id="${name}" viewBox="0 0 24 24"><path d="${body}" fill="currentColor" fill-rule="evenodd"/><path d="${line}" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/></symbol>`;
+    })
+    .join('')}</svg>\n`,
+);
 const dirs = ['plugins/game-calendar/game_calendar/web', 'plugins/islands/web', 'desktop/ui'];
 for (const dir of dirs) {
   const to = path.join(root, dir);

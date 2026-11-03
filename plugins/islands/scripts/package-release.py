@@ -15,7 +15,7 @@ prefix = 'plugins/islands/'
 allowed = {'pyproject.toml', 'requirements.lock', 'DEPLOYMENT.md', 'scripts/create-grant-key.py',
            'web/play.html', 'web/game.mjs', 'web/game-board.mjs', 'web/game.css',
            'web/connection.mjs', 'web/palette.css', 'web/cosmic.css',
-           'web/cosmic-panel.webp', 'web/cosmic-logo.webp',
+           'web/cosmic-panel.webp', 'web/cosmic-logo.webp', 'web/cosmic-glyphs.svg',
            'web/cosmic-button-primary.webp', 'web/cosmic-button-danger.webp'}
 source = subprocess.check_output(['git', '-c', 'core.autocrlf=false', 'archive', '--format=tar', 'HEAD', prefix], cwd=root)
 checksums = []

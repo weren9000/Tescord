@@ -1,3 +1,4 @@
+import { UiIconComponent } from './ui-icon.component';
 import { ResourceRefreshService } from '../core/services/resource-refresh.service';
 import {
   AfterViewInit,
@@ -26,6 +27,7 @@ interface Person {
   server_id: string | null;
 }
 @Component({
+  imports: [UiIconComponent],
   selector: 'app-user-card',
   standalone: true,
   template: ` <dialog
@@ -38,8 +40,13 @@ interface Person {
     <section>
       <header>
         <strong>Пользователь</strong
-        ><button type="button" aria-label="Закрыть карточку пользователя" (click)="close()">
-          ×
+        ><button
+          type="button"
+          aria-label="Закрыть карточку пользователя"
+          (click)="close()"
+          class="kva-icon-action"
+        >
+          <app-ui-icon name="close" />
         </button>
       </header>
       @if (person(); as p) {
@@ -113,7 +120,7 @@ interface Person {
         overflow: auto;
         padding: 0;
         border: 1px solid var(--palette-border);
-        border-radius: 14px;
+        border-radius: var(--ui-radius-panel, 12px);
         background: var(--palette-surface);
         color: var(--palette-text);
         box-shadow: 0 14px 48px #0004;

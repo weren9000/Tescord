@@ -22,7 +22,14 @@ import { UiIconComponent } from './ui-icon.component';
     <dialog #dialog aria-labelledby="secret-title" (cancel)="$event.preventDefault(); close()">
       <header>
         <h2 id="secret-title"><app-ui-icon name="lock" />Секретные чаты</h2>
-        <button type="button" aria-label="Закрыть секретные чаты" (click)="close()">×</button>
+        <button
+          type="button"
+          aria-label="Закрыть секретные чаты"
+          (click)="close()"
+          class="kva-icon-action"
+        >
+          <app-ui-icon name="close" />
+        </button>
       </header>
       @if (service.error()) {
         <p class="error" role="alert">{{ service.error() }}</p>
@@ -261,8 +268,9 @@ import { UiIconComponent } from './ui-icon.component';
                           type="button"
                           aria-label="Отменить ответ или редактирование"
                           (click)="reply = null; edit = null"
+                          class="kva-icon-action"
                         >
-                          ×
+                          <app-ui-icon name="close" />
                         </button>
                       </div>
                     }

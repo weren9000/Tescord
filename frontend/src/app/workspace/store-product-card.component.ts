@@ -1,3 +1,4 @@
+import { UiIconComponent } from './ui-icon.component';
 import { API_BASE_URL } from '../core/api/api-base';
 import { CIRCULAR_FRAME_IDS } from './circular-frames';
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
@@ -9,7 +10,7 @@ import type { Offer } from './shop.component';
 @Component({
   selector: 'app-store-product-card',
   standalone: true,
-  imports: [AssetPreviewComponent, DecimalPipe, RarityBadgeComponent],
+  imports: [UiIconComponent, AssetPreviewComponent, DecimalPipe, RarityBadgeComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: ` <div class="product">
     <button
@@ -70,11 +71,7 @@ import type { Offer } from './shop.component';
         [disabled]="disabled() || favoriteBusy()"
         (click)="favorite.emit()"
       >
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path
-            d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z"
-          />
-        </svg>
+        <app-ui-icon name="heart" />
       </button>
     }
   </div>`,
@@ -210,7 +207,7 @@ import type { Offer } from './shop.component';
         color: var(--palette-text);
         cursor: pointer;
       }
-      .favorite svg {
+      .favorite app-ui-icon {
         width: 18px;
         height: 18px;
         fill: none;

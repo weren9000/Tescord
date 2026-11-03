@@ -1,3 +1,4 @@
+import { UiIconComponent } from './ui-icon.component';
 import { AdminNewsComponent } from './admin-news.component';
 import { UserCardDirective } from './user-card.directive';
 import {
@@ -72,6 +73,7 @@ const emptyPage = (): Page => ({ items: [], total: 0, page: 1, pages: 1 });
   selector: 'app-admin-directory',
   standalone: true,
   imports: [
+    UiIconComponent,
     AdminNewsComponent,
     AdminWalletBatchComponent,
     AdminUserInventoryComponent,

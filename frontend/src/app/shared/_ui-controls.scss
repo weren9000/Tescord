@@ -1,3 +1,4 @@
+@use 'painted-material' as material;
 // Shared geometry and states; all colors follow the selected user palette.
 @mixin focus {
   &:focus-visible {
@@ -33,15 +34,11 @@
     cursor: default;
   }
   @include focus;
+  @include material.secondary;
 }
 
 @mixin primary {
-  background: var(--palette-primary);
-  border-color: transparent;
-  color: white;
-  &:hover:not(:disabled) {
-    background: var(--palette-primary-hover, var(--palette-primary));
-  }
+  @include material.primary;
 }
 
 @mixin icon {
@@ -53,6 +50,9 @@
   flex-shrink: 0;
   background: transparent;
   border-color: transparent;
+  border-image: none;
+  border-radius: var(--ui-radius-control);
+  box-shadow: none;
   app-ui-icon {
     display: flex;
     width: 20px;

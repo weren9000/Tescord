@@ -8,7 +8,10 @@
 >
   @if (ticket() && error()) {
     <div class="alert" role="alert">
-      {{ error() }} <button (click)="error.set('')" aria-label="Закрыть ошибку">×</button>
+      {{ error() }}
+      <button (click)="error.set('')" aria-label="Закрыть ошибку" class="kva-icon-action">
+        <app-ui-icon name="close" />
+      </button>
     </div>
   }
   @if (ticket() && notice()) {
@@ -430,8 +433,9 @@
                     [disabled]="busy()"
                     (click)="discard(u)"
                     aria-label="Убрать файл"
+                    class="kva-icon-action"
                   >
-                    ×
+                    <app-ui-icon name="close" />
                   </button>
                 </div>
               }
@@ -714,7 +718,8 @@
       [attr.aria-label]="image.filename"
       (click)="closePreview()"
     >
-      <button (click)="closePreview()" aria-label="Закрыть предпросмотр">×</button
+      <button (click)="closePreview()" aria-label="Закрыть предпросмотр" class="kva-icon-action">
+        <app-ui-icon name="close" /></button
       ><img [src]="image.url" [alt]="image.filename" />
     </div>
   }

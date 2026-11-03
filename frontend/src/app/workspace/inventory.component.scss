@@ -1,3 +1,4 @@
+@use '../shared/painted-material' as material;
 @use '../shared/compact-ui' as compact;
 @use '../shared/catalog-ui' as ui;
 @use '../shared/modal-layer' as modal;
@@ -404,7 +405,7 @@ nav .active {
   position: relative;
   width: 88px;
   height: 88px;
-  border-radius: 20px;
+  border-radius: var(--ui-radius-dialog, 16px);
 }
 .tile > img {
   display: block;
@@ -508,7 +509,7 @@ nav .active {
   width: 80px;
   height: 80px;
   object-fit: cover;
-  border-radius: 18px;
+  border-radius: var(--ui-radius-dialog, 16px);
 }
 .catalog-item.selected {
   border-color: var(--palette-primary);
@@ -607,7 +608,7 @@ form {
   max-height: 88dvh;
   background: var(--palette-surface);
   border: 1px solid var(--palette-border);
-  border-radius: 14px;
+  border-radius: var(--ui-radius-panel, 12px);
   box-shadow: 0 24px 80px #0008;
   overflow: auto;
 }
@@ -623,7 +624,7 @@ form {
 .item-summary img {
   width: 64px;
   height: 64px;
-  border-radius: 14px;
+  border-radius: var(--ui-radius-panel, 12px);
   object-fit: cover;
 }
 .event {
@@ -727,7 +728,7 @@ form {
 .theme-preview {
   width: 100%;
   height: auto;
-  border-radius: 14px;
+  border-radius: var(--ui-radius-panel, 12px);
 }
 .inventory nav {
   flex-wrap: wrap;
@@ -1047,7 +1048,7 @@ form {
     min-height: 36px;
   }
   .inventory .tile {
-    border-radius: 18px;
+    border-radius: var(--ui-radius-dialog, 16px);
   }
 }
 
@@ -1713,4 +1714,13 @@ form {
     overflow: hidden;
     border-radius: 18px 18px 0 0;
   }
+}
+
+// Shared appearance; retain each component's sizing and behavior.
+.empty button,
+.catalog-toolbar > button,
+.subpanel footer > button,
+.filter-sheet > button,
+.pagination button {
+  @include material.secondary;
 }

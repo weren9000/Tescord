@@ -1,3 +1,4 @@
+import { UiIconComponent } from './ui-icon.component';
 import {
   AfterViewInit,
   Component,
@@ -11,6 +12,7 @@ import {
 
 /** Shared top-layer surface: anchored on desktop, bottom sheet on touch-sized screens. */
 @Component({
+  imports: [UiIconComponent],
   selector: 'app-action-menu',
   standalone: true,
   encapsulation: ViewEncapsulation.None,
@@ -27,7 +29,14 @@ import {
   >
     <header class="action-menu__header">
       <strong>{{ label() }}</strong
-      ><button type="button" aria-label="Закрыть меню" (click)="close.emit()">×</button>
+      ><button
+        type="button"
+        aria-label="Закрыть меню"
+        (click)="close.emit()"
+        class="kva-icon-action"
+      >
+        <app-ui-icon name="close" />
+      </button>
     </header>
     <div class="action-menu__pinned"><ng-content select="[menuPinned]" /></div>
     <div class="action-menu__body"><ng-content /></div>
@@ -51,7 +60,7 @@ import {
         max-height: calc(100dvh - 24px);
         padding: 8px;
         border: 1px solid var(--palette-border);
-        border-radius: 14px;
+        border-radius: var(--ui-radius-panel, 12px);
         background: var(--palette-surface);
         color: var(--palette-text);
         box-shadow: 0 12px 40px rgb(0 0 0 / 0.22);

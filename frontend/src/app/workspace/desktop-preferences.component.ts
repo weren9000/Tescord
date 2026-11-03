@@ -1,3 +1,4 @@
+import { UiIconComponent } from './ui-icon.component';
 import {
   AfterViewInit,
   Component,
@@ -14,6 +15,7 @@ import { API_BASE_URL } from '../core/api/api-base';
 import { DesktopPreferencesService, Density } from './desktop-preferences.service';
 
 @Component({
+  imports: [UiIconComponent],
   selector: 'app-desktop-preferences',
   standalone: true,
   template: `
@@ -28,7 +30,14 @@ import { DesktopPreferencesService, Density } from './desktop-preferences.servic
     >
       <header>
         <h2>Оформление</h2>
-        <button type="button" aria-label="Закрыть оформление" (click)="dialog.close()">×</button>
+        <button
+          type="button"
+          aria-label="Закрыть оформление"
+          (click)="dialog.close()"
+          class="kva-icon-action"
+        >
+          <app-ui-icon name="close" />
+        </button>
       </header>
       @if (token()) {
         <label class="range"
@@ -174,7 +183,7 @@ import { DesktopPreferencesService, Density } from './desktop-preferences.servic
         overflow: auto;
         padding: 16px;
         border: 1px solid var(--palette-border);
-        border-radius: 14px;
+        border-radius: var(--ui-radius-panel, 12px);
         background: var(--palette-surface);
         color: var(--palette-text);
       }

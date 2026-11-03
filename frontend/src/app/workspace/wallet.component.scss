@@ -1,3 +1,4 @@
+@use '../shared/painted-material' as material;
 @use '../shared/compact-ui' as compact;
 @use '../shared/ui-controls' as ui;
 :host {
@@ -220,4 +221,12 @@ textarea {
 }
 .history-title {
   margin-top: 14px;
+}
+
+// Shared appearance; retain each component's sizing and behavior.
+.actions > button,
+.search > button,
+.adjust > button,
+.history-title > button {
+  @include material.secondary;
 }

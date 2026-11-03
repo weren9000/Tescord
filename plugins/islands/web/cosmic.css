@@ -13,3 +13,9 @@ button:focus-visible,a:focus-visible { outline:3px solid #57c8d5; outline-offset
 @media(forced-colors:active){button.primary,.primary-button,button.danger { border-image:none; background:ButtonFace; color:ButtonText; border:1px solid ButtonText; }}
 
 input:not([type="range"]):not([type="checkbox"]):not([type="radio"]),select,textarea { border-radius:8px; }
+
+/* Secondary actions share the quiet painted material. */
+.masthead button, .actions > button, #dialog-close { background-color:var(--surface, #191724); background-image:linear-gradient(color-mix(in srgb, var(--surface, #191724) 88%, transparent), color-mix(in srgb, var(--surface, #191724) 88%, transparent)), url("./cosmic-panel.webp"); background-size:cover; color:var(--text, #fff5e6); border:1px solid var(--line, #51435f); box-shadow:inset 0 1px #c99aee40, inset 0 -1px #57c8d526; }
+@media (forced-colors:active) { .masthead button, .actions > button, #dialog-close { background:ButtonFace; border-color:ButtonText; color:ButtonText; box-shadow:none; } }
+.cosmic-glyph { width:20px; height:20px; vertical-align:middle; fill:currentColor; stroke:none; }
+body.light :is(dialog,.welcome,.panel) { background-image:linear-gradient(#fffdf8ee,#fffdf8ee),url("./cosmic-panel.webp"); color:var(--text); border-color:var(--line); }

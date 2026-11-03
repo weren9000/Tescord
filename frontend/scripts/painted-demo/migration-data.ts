@@ -55,7 +55,7 @@ export const MIGRATION = [
     name: 'attach',
     oldPath: 'M8 12l7-7a4 4 0 0 1 6 6L10 22a6 6 0 0 1-8-8L13 3M6 16l10-10',
     ready: true,
-    count: 1,
+    count: 3,
   },
   {
     name: 'cameraOff',
@@ -86,7 +86,7 @@ export const MIGRATION = [
     name: 'close',
     oldPath: 'M6 6l12 12M18 6L6 18',
     ready: true,
-    count: 16,
+    count: 69,
   },
   {
     name: 'copy',
@@ -179,7 +179,7 @@ export const MIGRATION = [
     name: 'pin',
     oldPath: 'M9 3h6l-1 6 4 4v2H6v-2l4-4zM12 15v6',
     ready: true,
-    count: 2,
+    count: 3,
   },
   {
     name: 'inventory',
@@ -293,7 +293,7 @@ export const MIGRATION = [
     name: 'plus',
     oldPath: 'M12 5v14M5 12h14',
     ready: true,
-    count: 9,
+    count: 10,
   },
   {
     name: 'menu',
@@ -311,19 +311,19 @@ export const MIGRATION = [
     name: 'back',
     oldPath: 'M15 18l-6-6 6-6',
     ready: true,
-    count: 8,
+    count: 18,
   },
   {
     name: 'forward',
     oldPath: 'M9 6l6 6-6 6',
     ready: true,
-    count: 13,
+    count: 24,
   },
   {
     name: 'down',
     oldPath: 'M6 9l6 6 6-6',
     ready: true,
-    count: 5,
+    count: 6,
   },
   {
     name: 'phone',

@@ -10,3 +10,10 @@ header { background-image:url('./cosmic-logo.webp'),linear-gradient(#191724eb,#1
 @media(forced-colors:active){body,header,footer,button { background:Canvas; color:CanvasText; border-color:ButtonText; }}
 
 input:not([type="range"]):not([type="checkbox"]):not([type="radio"]),select,textarea { border-radius:8px; }
+
+/* Secondary actions share the quiet painted material. */
+/* Use the texture centre, without stretching a capsule-shaped frame across the window. */
+footer { background-size:100% 100%,100% 600%; background-position:center; }
+header { background-size:36px 36px,100% 100%,100% 600%; background-position:20px 22px,center,center; }
+footer button { background-color:#191724; background-image:linear-gradient(color-mix(in srgb, #191724 88%, transparent), color-mix(in srgb, #191724 88%, transparent)), url("./cosmic-panel.webp"); background-size:cover; color:#fff5e6; border:1px solid #51435f; box-shadow:inset 0 1px #c99aee40, inset 0 -1px #57c8d526; }
+@media (forced-colors:active) { footer button { background:ButtonFace; border-color:ButtonText; color:ButtonText; box-shadow:none; } }

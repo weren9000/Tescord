@@ -6,7 +6,9 @@
 >
   <header>
     <div><h1>Админка</h1></div>
-    <button type="button" (click)="close.emit()">Вернуться к чатам</button>
+    <button type="button" (click)="close.emit()">
+      <app-ui-icon name="back" /> Вернуться к чатам
+    </button>
   </header>
   @if (!batchActive()) {
     <nav aria-label="Разделы админки">
@@ -361,8 +363,12 @@
         <aside class="detail" aria-label="Подробности записи">
           <div class="detail-head">
             <h2>Подробности</h2>
-            <button class="detail-close" aria-label="Закрыть подробности" (click)="closeDetail()">
-              ×
+            <button
+              class="kva-icon-action detail-close"
+              aria-label="Закрыть подробности"
+              (click)="closeDetail()"
+            >
+              <app-ui-icon name="close" />
             </button>
           </div>
           <div class="detail-body">
@@ -508,15 +514,17 @@
                     aria-label="Предыдущая страница подробностей"
                     [disabled]="related().page === 1 || relatedLoading()"
                     (click)="loadRelated(related().page - 1)"
+                    class="kva-icon-action"
                   >
-                    ‹</button
+                    <app-ui-icon name="back" /></button
                   ><span>{{ related().page }} / {{ related().pages }}</span
                   ><button
                     aria-label="Следующая страница подробностей"
                     [disabled]="related().page === related().pages || relatedLoading()"
                     (click)="loadRelated(related().page + 1)"
+                    class="kva-icon-action"
                   >
-                    ›
+                    <app-ui-icon name="forward" />
                   </button>
                 </div>
               }
@@ -534,15 +542,17 @@
         aria-label="Предыдущая страница"
         [disabled]="loading() || result().page === 1"
         (click)="go(result().page - 1)"
+        class="kva-icon-action"
       >
-        ‹</button
+        <app-ui-icon name="back" /></button
       ><span>{{ result().page }} / {{ result().pages }}</span
       ><button
         aria-label="Следующая страница"
         [disabled]="loading() || result().page === result().pages"
         (click)="go(result().page + 1)"
+        class="kva-icon-action"
       >
-        ›
+        <app-ui-icon name="forward" />
       </button>
     </footer>
   }

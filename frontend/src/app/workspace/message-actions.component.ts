@@ -25,7 +25,7 @@ import { EmojiPickerComponent } from './emoji-picker.component';
   >
     <h2 id="message-actions-title">Действия с сообщением</h2>
     @if (expanded()) {
-      <button type="button" (click)="expanded.set(false)">‹ Назад</button>
+      <button type="button" (click)="expanded.set(false)"><app-ui-icon name="back" /> Назад</button>
       <app-emoji-picker
         [token]="token()"
         [embedded]="true"
@@ -40,7 +40,7 @@ import { EmojiPickerComponent } from './emoji-picker.component';
           </button>
         }
         <button type="button" aria-label="Все эмодзи" (click)="expanded.set(true)">
-          <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" /></svg>
+          <app-ui-icon name="down" />
         </button>
       </div>
       <div class="actions">
@@ -183,7 +183,7 @@ import { EmojiPickerComponent } from './emoji-picker.component';
         border: 0;
         padding: 4px;
         margin-bottom: 6px;
-        border-radius: 24px;
+        border-radius: var(--ui-radius-dialog, 16px);
         background: var(--palette-surface);
       }
       .quick-reactions button {

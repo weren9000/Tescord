@@ -2,7 +2,14 @@
   <header>
     <h2>{{ admin() ? 'Валюты' : 'Кошелёк' }}</h2>
     @if (!admin()) {
-      <button type="button" aria-label="Закрыть кошелёк" (click)="close.emit()">×</button>
+      <button
+        type="button"
+        aria-label="Закрыть кошелёк"
+        (click)="close.emit()"
+        class="kva-icon-action"
+      >
+        <app-ui-icon name="close" />
+      </button>
     }
   </header>
   @if (admin() && !target()) {

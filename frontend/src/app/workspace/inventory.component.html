@@ -25,7 +25,14 @@
               События
             </button>
           }
-          <button aria-label="Закрыть инвентарь" [disabled]="busy()" (click)="dismiss()">×</button>
+          <button
+            aria-label="Закрыть инвентарь"
+            [disabled]="busy()"
+            (click)="dismiss()"
+            class="kva-icon-action"
+          >
+            <app-ui-icon name="close" />
+          </button>
         </div>
       </header>
       <div
@@ -137,7 +144,7 @@
                 <option value="new">Сначала новые</option>
                 <option value="old">Сначала старые</option>
                 <option value="name">По названию</option></select
-              ><button (click)="shop.emit()">В магазин ↗</button>
+              ><button class="primary" (click)="shop.emit()">В магазин ↗</button>
             </div>
           }
         }
@@ -420,7 +427,7 @@
                     @if (filter || rarity || favorites || usage !== 'all') {
                       <button (click)="resetFilters()">Сбросить фильтры</button>
                     }
-                    <button (click)="shop.emit()">Открыть магазин</button>
+                    <button class="primary" (click)="shop.emit()">Открыть магазин</button>
                   }
                 </div>
               }
@@ -435,8 +442,9 @@
                   aria-label="Предыдущая страница"
                   [disabled]="currentPage() === 1 || loading() || busy()"
                   (click)="goPage(currentPage() - 1)"
+                  class="kva-icon-action"
                 >
-                  ‹
+                  <app-ui-icon name="back" />
                 </button>
                 @for (n of pageNumbers(); track n) {
                   <button
@@ -453,8 +461,9 @@
                   aria-label="Следующая страница"
                   [disabled]="currentPage() === pageCount() || loading() || busy()"
                   (click)="goPage(currentPage() + 1)"
+                  class="kva-icon-action"
                 >
-                  ›
+                  <app-ui-icon name="forward" />
                 </button>
               </div>
             }
@@ -472,7 +481,13 @@
           >
             <header>
               <h3>Фильтры</h3>
-              <button aria-label="Закрыть фильтры" (click)="filtersOpen.set(false)">×</button>
+              <button
+                aria-label="Закрыть фильтры"
+                (click)="filtersOpen.set(false)"
+                class="kva-icon-action"
+              >
+                <app-ui-icon name="close" />
+              </button>
             </header>
             <div class="panel-body">
               <ng-container *ngTemplateOutlet="inventoryFilters" />
@@ -506,8 +521,9 @@
                 aria-label="Закрыть выдачу"
                 [disabled]="busy()"
                 (click)="closePanel()"
+                class="kva-icon-action"
               >
-                ×
+                <app-ui-icon name="close" />
               </button>
             </header>
             <div class="panel-body grant-target">
@@ -612,8 +628,13 @@
                   giftItem() ? 'Подарить предмет' : detail() ? 'О предмете' : 'События инвентаря'
                 }}
               </h3>
-              <button [disabled]="busy()" aria-label="Назад в инвентарь" (click)="closePanel()">
-                ×
+              <button
+                [disabled]="busy()"
+                aria-label="Назад в инвентарь"
+                (click)="closePanel()"
+                class="kva-icon-action"
+              >
+                <app-ui-icon name="close" />
               </button>
             </header>
             <div class="panel-body">
@@ -714,8 +735,13 @@
           >
             <header>
               <h3>{{ item.name }}</h3>
-              <button aria-label="Закрыть предпросмотр" [disabled]="busy()" (click)="closePanel()">
-                ×
+              <button
+                aria-label="Закрыть предпросмотр"
+                [disabled]="busy()"
+                (click)="closePanel()"
+                class="kva-icon-action"
+              >
+                <app-ui-icon name="close" />
               </button>
             </header>
             <div class="panel-body">
@@ -781,8 +807,13 @@
                       : 'аватарку'
                 }}
               </h3>
-              <button aria-label="Закрыть загрузку" [disabled]="busy()" (click)="closePanel()">
-                ×
+              <button
+                aria-label="Закрыть загрузку"
+                [disabled]="busy()"
+                (click)="closePanel()"
+                class="kva-icon-action"
+              >
+                <app-ui-icon name="close" />
               </button>
             </header>
             <form class="panel-body upload-form" (ngSubmit)="saveUpload()">
@@ -903,8 +934,9 @@
                 [disabled]="busy()"
                 aria-label="Закрыть настройки предмета"
                 (click)="closePanel()"
+                class="kva-icon-action"
               >
-                ×
+                <app-ui-icon name="close" />
               </button>
             </header>
             <div class="panel-body">
@@ -1014,11 +1046,12 @@
           <strong>{{ person.nick }}</strong
           ><small>ID {{ person.public_id }}</small>
         </div>
-        <button aria-label="Сбросить получателя" (click)="clearRecipient()">×</button>
+        <button aria-label="Сбросить получателя" (click)="clearRecipient()" class="kva-icon-action">
+          <app-ui-icon name="close" />
+        </button>
       </div>
-    }
-  </div></ng-template
->
+    }</div
+></ng-template>
 
 <ng-template #inventoryFilters>
   <fieldset>

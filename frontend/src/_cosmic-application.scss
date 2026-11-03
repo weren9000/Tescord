@@ -1,5 +1,6 @@
 // Application skin. Existing layout, media nodes and event handlers stay owned
 // by their components; user palettes override these defaults through ThemeController.
+@use 'app/shared/painted-material' as material;
 :root:not([data-ui-theme]) {
   --palette-canvas: #10121c;
   --palette-surface: #191724;
@@ -79,6 +80,23 @@ app-root.kva-app.kva-app.kva-app {
     filter: saturate(0.35);
     box-shadow: none;
   }
+  // Small actions share glyphs; keep their existing hit areas and hidden states.
+  button.kva-icon-action {
+    color: var(--palette-text);
+    line-height: 1;
+    vertical-align: middle;
+    app-ui-icon {
+      width: 20px;
+      height: 20px;
+      vertical-align: middle;
+      pointer-events: none;
+    }
+  }
+  :is(.secondary-button, button.secondary):not(
+    :where(.landing *, .kva-painted-button, .composer__attach)
+  ) {
+    @include material.secondary;
+  }
   :is(.field input, .field select, .field textarea, .search-input):not(:where(.landing *)) {
     border-radius: 8px;
     border-color: var(--palette-border);
@@ -103,22 +121,60 @@ app-root.kva-app.kva-app.kva-app {
     border-radius: 12px;
     border-color: var(--palette-border);
   }
-  .call-control-button {
-    background: var(--palette-raised);
-    border: 1px solid var(--palette-border);
+  // Match the legacy encapsulated call-state selectors without changing their behavior.
+  :is(
+    .messenger-shell .call-control-button.call-control-button.call-control-button,
+    .meeting-toolbar .icon-button
+  ) {
+    background: url('/assets/painted-controls/button-round.webp') center / contain no-repeat;
+    border: 1px solid transparent;
+    border-image: none;
     border-radius: 50%;
-    color: var(--palette-text);
+    color: #fff5e6;
+    box-shadow: none;
   }
-  .call-control-button[aria-pressed='true'] {
-    background-color: var(--palette-selected);
-    box-shadow: inset 0 0 0 1px var(--palette-cyan);
+  :is(
+    .messenger-shell .call-control-button.call-control-button.call-control-button,
+    .meeting-toolbar .icon-button
+  ):is(.call-control-button--active, .active, [aria-expanded='true']) {
+    background-image: url('/assets/painted-controls/button-round-active.webp');
   }
-  :is(.call-control-button--danger, .meeting-toolbar .icon-button.danger) {
+  :is(
+    .messenger-shell .call-control-button.call-control-button.call-control-button,
+    .meeting-toolbar .icon-button
+  ):is(.call-control-button--muted, .muted) {
+    background-image: url('/assets/painted-controls/button-round.webp');
+    filter: saturate(0.25) brightness(0.85);
+  }
+  :is(
+    .messenger-shell .call-control-button.call-control-button.call-control-button,
+    .meeting-toolbar .icon-button
+  ):disabled {
+    opacity: 0.4;
+    filter: grayscale(1);
+  }
+  @media (hover: hover) {
+    :is(
+        .messenger-shell .call-control-button.call-control-button.call-control-button,
+        .meeting-toolbar .icon-button
+      ):hover:not(:disabled) {
+      filter: brightness(1.15);
+    }
+    :is(
+        .messenger-shell .call-control-button.call-control-button.call-control-button,
+        .meeting-toolbar .icon-button
+      ):is(.call-control-button--muted, .muted):hover:not(:disabled) {
+      filter: saturate(0.25) brightness(1);
+    }
+  }
+  :is(
+    .messenger-shell .call-control-button.call-control-button.call-control-button,
+    .meeting-toolbar .icon-button
+  ):is(.call-control-button--danger, .danger) {
     border-radius: 50%;
     border-image: none;
     border-color: transparent;
-    background: url('/assets/painted-controls/button-round-danger.webp') center / 100% 100%
-      no-repeat;
+    background: url('/assets/painted-controls/button-round-danger.webp') center / contain no-repeat;
   }
   .auth-page {
     background:
@@ -187,12 +243,16 @@ app-root.kva-app.kva-app.kva-app {
       .composer__submit,
       button.danger,
       .danger-button,
-      .call-control-button
+      .messenger-shell .call-control-button.call-control-button.call-control-button,
+      .meeting-toolbar .icon-button
     ) {
     background: ButtonFace;
+    // Keep active/muted artwork out of the system high-contrast palette.
+    background-image: none !important;
     color: ButtonText;
     border: 1px solid ButtonText;
     border-image: none;
     box-shadow: none;
+    filter: none !important;
   }
 }

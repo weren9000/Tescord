@@ -1,5 +1,9 @@
 // Compact companion glyphs: cream silhouettes on the painted control surfaces.
 export const PAINTED_GLYPHS = {
+  heart: {
+    body: 'M12 21C9 18 2 13 2 8a5 5 0 0 1 10-1A5 5 0 0 1 22 8c0 5-7 10-10 13z',
+    line: '',
+  },
   headphones: {
     body: 'M3 11a9 9 0 0 1 18 0v8a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h1v-1a6 6 0 0 0-12 0v1h1a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z',
     line: '',
