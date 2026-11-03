@@ -3015,7 +3015,13 @@
         [attr.aria-expanded]="sideMenuOpen()"
         (click)="toggleMobileFooterMenu()"
       >
-        <app-ui-icon name="menu" />
+        <img
+          class="mobile-section-art"
+          src="/assets/cosmic/frog-moonlight-128.webp"
+          width="34"
+          height="34"
+          alt=""
+        />
         @if (friendRequestBadgeVisible()) {
           <span
             class="mobile-mode-footer__badge"
@@ -3032,7 +3038,13 @@
         title="Друзья"
         (click)="openMobileWorkspaceMode('chats')"
       >
-        <app-ui-icon name="friends" />
+        <img
+          class="mobile-section-art"
+          src="/assets/painted-controls/friends-128.webp"
+          width="34"
+          height="34"
+          alt=""
+        />
       </button>
       <button
         class="conversation-sidebar__tab mobile-mode-footer__button"
@@ -3043,7 +3055,13 @@
         title="Группы"
         (click)="openMobileWorkspaceMode('groups')"
       >
-        <app-ui-icon name="groups" />
+        <img
+          class="mobile-section-art"
+          src="/assets/painted-controls/groups-128.webp"
+          width="34"
+          height="34"
+          alt=""
+        />
       </button>
       <button
         class="conversation-sidebar__tab mobile-mode-footer__button"
@@ -3054,7 +3072,13 @@
         title="Площадки"
         (click)="openMobileWorkspaceMode('platforms')"
       >
-        <app-ui-icon name="platforms" />
+        <img
+          class="mobile-section-art"
+          src="/assets/painted-controls/platforms-128.webp"
+          width="34"
+          height="34"
+          alt=""
+        />
       </button>
       <button
         class="conversation-sidebar__tab mobile-mode-footer__button"
@@ -3063,7 +3087,13 @@
         title="Моя комната"
         (click)="openMeetingRoom()"
       >
-        <app-ui-icon name="room" />
+        <img
+          class="mobile-section-art"
+          src="/assets/painted-controls/room-128.webp"
+          width="34"
+          height="34"
+          alt=""
+        />
       </button>
     </nav>
   </div>

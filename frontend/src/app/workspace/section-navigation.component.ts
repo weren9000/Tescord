@@ -1,4 +1,7 @@
-import { Component, input, output } from '@angular/core';
+import { Component, inject, input, output, signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { API_BASE_URL } from '../core/api/api-base';
 import { UiIconComponent } from './ui-icon.component';
 
 export type WorkspaceSection = 'chats' | 'groups' | 'platforms';
@@ -13,6 +16,9 @@ export type WorkspaceSection = 'chats' | 'groups' | 'platforms';
         class="brand-name"
         >Квачат</span
       >
+      <small class="release-version" [title]="releaseTitle()" aria-label="Версия релиза">{{
+        releaseLabel()
+      }}</small>
     </div>
     <div class="sections">
       <button type="button" (click)="openRoom()">
@@ -71,7 +77,13 @@ export type WorkspaceSection = 'chats' | 'groups' | 'platforms';
           [attr.aria-current]="adminSelected() ? 'page' : null"
           (click)="admin.emit()"
         >
-          <app-ui-icon name="avatarAdmin" /><span>Админка</span>
+          <img
+            class="section-art"
+            src="/assets/painted-controls/security-128.webp"
+            width="36"
+            height="36"
+            alt=""
+          /><span>Админка</span>
         </button>
       }
     </div>
@@ -82,7 +94,8 @@ export type WorkspaceSection = 'chats' | 'groups' | 'platforms';
         aria-label="Быстрый переход"
         (click)="search.emit()"
       >
-        <app-ui-icon name="search" /><span>Поиск</span>
+        <span class="search-art" aria-hidden="true"><app-ui-icon name="search" /></span
+        ><span>Поиск</span>
       </button>
       <button
         class="notification"
@@ -90,7 +103,13 @@ export type WorkspaceSection = 'chats' | 'groups' | 'platforms';
         aria-label="Уведомления"
         (click)="notifications.emit()"
       >
-        <app-ui-icon name="bell" />
+        <img
+          class="section-art"
+          src="/assets/painted-controls/bell-128.webp"
+          width="36"
+          height="36"
+          alt=""
+        />
         @if (hasNotifications()) {
           <i></i>
         }
@@ -119,8 +138,17 @@ export type WorkspaceSection = 'chats' | 'groups' | 'platforms';
       :host {
         display: block;
         min-height: 0;
-        background: var(--palette-surface);
-        border-right: 1px solid color-mix(in srgb, var(--palette-text) 3.53%, transparent);
+        background:
+          linear-gradient(
+            color-mix(in srgb, var(--palette-surface) 86%, transparent),
+            color-mix(in srgb, var(--palette-surface) 94%, transparent)
+          ),
+          url('/assets/painted-controls/panel.webp') center / auto 160%;
+        border-right: 1px solid
+          color-mix(in srgb, var(--palette-primary-text) 45%, var(--palette-border));
+        box-shadow:
+          inset -1px 0 #57c8d533,
+          4px 0 18px #09061520;
         color: var(--palette-muted);
       }
       nav {
@@ -154,6 +182,26 @@ export type WorkspaceSection = 'chats' | 'groups' | 'platforms';
         display: block;
         object-fit: contain;
         flex-shrink: 0;
+      }
+      .release-version {
+        display: block;
+        margin-top: 5px;
+        color: var(--palette-muted);
+        font: 500 10px/1.3 var(--ui-font);
+        letter-spacing: 0.2px;
+        white-space: nowrap;
+      }
+      .search-art {
+        display: grid;
+        place-items: center;
+        width: 36px;
+        height: 36px;
+        background: url('/assets/painted-controls/button-round.webp') center / contain no-repeat;
+        color: #fff5e6;
+      }
+      .search-art app-ui-icon {
+        width: 20px;
+        height: 20px;
       }
       .brand span {
         font-weight: 400;
@@ -299,10 +347,41 @@ export type WorkspaceSection = 'chats' | 'groups' | 'platforms';
           display: none;
         }
       }
+      @media (forced-colors: active) {
+        :host {
+          background: Canvas;
+          border-color: CanvasText;
+          box-shadow: none;
+        }
+        .search-art {
+          background: ButtonFace;
+          color: ButtonText;
+          border: 1px solid ButtonText;
+          border-radius: 50%;
+        }
+      }
     `,
   ],
 })
 export class SectionNavigationComponent {
+  readonly releaseLabel = signal('…');
+  readonly releaseTitle = signal('Версия серверного релиза');
+  constructor() {
+    inject(HttpClient)
+      .get<{ revision: string | null }>(API_BASE_URL + '/api/release')
+      .pipe(takeUntilDestroyed())
+      .subscribe({
+        next: ({ revision }) => {
+          const valid = typeof revision === 'string' && /^[0-9a-f]{40}$/.test(revision);
+          this.releaseLabel.set(valid ? 'r' + revision.slice(0, 7) : 'Локально');
+          this.releaseTitle.set(valid ? 'Релиз ' + revision : 'Локальная сборка');
+        },
+        error: () => {
+          this.releaseLabel.set('—');
+          this.releaseTitle.set('Версия релиза недоступна');
+        },
+      });
+  }
   readonly applications = output<void>();
   openRoom() {
     window.location.assign('/my-room');

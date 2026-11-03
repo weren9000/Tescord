@@ -7,8 +7,15 @@ from sqlalchemy import text
 from app.core.config import get_settings
 from app.db.session import engine
 from app.schemas.health import HealthResponse
+from app.services.release_info import release_revision
 
 router = APIRouter(tags=["system"])
+
+
+@router.get('/release')
+def read_release(response: Response) -> dict[str, str | None]:
+    response.headers['Cache-Control'] = 'no-cache'
+    return {'revision': release_revision()}
 
 
 @router.get("/health", response_model=HealthResponse, status_code=status.HTTP_200_OK)

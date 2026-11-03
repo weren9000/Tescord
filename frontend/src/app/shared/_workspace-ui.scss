@@ -26,6 +26,13 @@
       width: 24px;
       height: 24px;
     }
+    .mobile-section-art {
+      display: block;
+      width: 34px;
+      height: 34px;
+      object-fit: contain;
+      flex-shrink: 0;
+    }
     &:hover,
     &.mobile-mode-footer__button--active,
     &.mobile-mode-footer__action--active {
