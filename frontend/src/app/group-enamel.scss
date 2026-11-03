@@ -1,5 +1,27 @@
 @use './shared/floating-enamel' as enamel;
 
+@media (min-width: 981px) {
+  .messenger-shell
+    .messenger-layout--sidebar-collapsed:not(.messenger-layout--platform):not(
+      .platform-navigation-hidden
+    ) {
+    grid-template-columns: 92px 80px minmax(0, 1fr);
+    &.messenger-layout--info {
+      grid-template-columns: 92px 80px minmax(0, 1fr) min(320px, 28vw);
+    }
+    .conversation-sidebar--enamel {
+      .desktop-sidebar-toolbar {
+        padding-inline: 0;
+        justify-content: center;
+      }
+      > .conversation-sidebar__list {
+        padding: 8px 4px;
+        scrollbar-gutter: stable both-edges;
+      }
+    }
+  }
+}
+
 .messenger-shell .messenger-layout .conversation-sidebar--enamel,
 .messenger-shell .messenger-layout > app-platform-list,
 .messenger-shell .messenger-layout > .platform-sidebar {

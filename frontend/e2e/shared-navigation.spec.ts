@@ -26,14 +26,14 @@ for (const section of ['groups', 'chats'] as const) {
             ? ['Поход выходного дня', 'Настольные игры', 'Команда проекта']
             : ['Анна', 'Михаил', 'Екатерина'];
         a.conversationLinks = () =>
-          names.map((name, i) => ({
+          Array.from({ length: 24 }, (_, i) => ({
             id: `chat${i}`,
-            name,
+            name: names[i % names.length] + (i > 2 ? ` ${i}` : ''),
             subtitle: section === 'groups' ? 'Групповой чат' : 'В сети',
             icon: null,
             group: section === 'groups',
             online: true,
-            unread: 0,
+            unread: i === 0 ? 120 : 0,
             mentions: 0,
           }));
         a.selectedServerId.set('chat0');
@@ -73,6 +73,33 @@ for (const section of ['groups', 'chats'] as const) {
       expect(heads[1]!.height).toBe(72);
       expect(heads[0]!.y).toBe(heads[1]!.y + 8);
       await page.screenshot({ path: testInfo.outputPath(`${section}-expanded-${width}.png`) });
+      await page.getByRole('button', { name: 'Свернуть список бесед', exact: true }).click();
+      const panel = page.locator('.conversation-sidebar--enamel');
+      const expand = page.getByRole('button', { name: 'Развернуть список бесед', exact: true });
+      await expect(panel).toHaveCSS('width', '74px');
+      const panelBox = (await panel.boundingBox())!;
+      const expandBox = (await expand.boundingBox())!;
+      const center = panelBox.x + panelBox.width / 2;
+      expect(Math.abs(expandBox.x + expandBox.width / 2 - center)).toBeLessThan(1);
+      for (const selector of ['.entry', '.avatar', 'small', '.presence']) {
+        for (const item of await panel.locator(selector).all()) {
+          const box = (await item.boundingBox())!;
+          expect(box.x).toBeGreaterThanOrEqual(panelBox.x + 3);
+          expect(box.x + box.width).toBeLessThanOrEqual(panelBox.x + panelBox.width - 3);
+          if (selector === '.avatar')
+            expect(Math.abs(box.x + box.width / 2 - center)).toBeLessThan(1);
+        }
+      }
+      const scroll = panel.locator('.conversation-sidebar__list');
+      expect(await scroll.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+      await page.screenshot({
+        path: testInfo.outputPath(`${section}-collapsed-${width}.png`),
+        animations: 'disabled',
+      });
+      await panel.locator('.entry').last().focus();
+      await expect(panel.locator('.entry').last()).toBeInViewport();
+      await expand.click();
+      await expect(panel.getByRole('searchbox')).toBeVisible();
       await field.fill('Черновик\nВторая строка');
       await page.evaluate(() => {
         (window as any).chatNode = document.querySelector('.messenger-workspace');
