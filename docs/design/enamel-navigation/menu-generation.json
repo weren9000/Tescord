@@ -1,0 +1,7 @@
+{
+  "tool": "built-in image_gen",
+  "reference": "master.png",
+  "master": "menu-master.png",
+  "prompt": "Edit this TRANSPARENT icon sheet into a matching six-icon extension, preserving alpha transparency outside objects. Output only six isolated badges, arranged 3 columns x 2 rows with clear generous transparent gutters. Row one: ONE gold person bust for profile; gold painter palette for appearance; gold speaker and two sound arcs for sound. Row two: gold prohibition circle/slash for block; gold doorframe and right arrow for logout; gold plus for install. All on purple enamel badges matching this reference exactly. Preserve its hand-painted brush texture, gold upper-left light, cyan bottom edge. Flat front view. No words. No glow outside objects. No background color whatsoever. The checkerboard/transparency must be real alpha transparency. The image must be a production cutout sprite sheet, not a presentation.",
+  "export": "frontend/scripts/prepare-enamel-menu.cjs"
+}

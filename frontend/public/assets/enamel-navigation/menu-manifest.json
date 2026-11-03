@@ -1,0 +1,59 @@
+{
+  "source": "docs/design/enamel-navigation/menu-master.png",
+  "assets": [
+    {
+      "name": "profile",
+      "crop": [
+        70,
+        63,
+        411,
+        407
+      ]
+    },
+    {
+      "name": "appearance",
+      "crop": [
+        546,
+        54,
+        441,
+        424
+      ]
+    },
+    {
+      "name": "sound",
+      "crop": [
+        1035,
+        52,
+        424,
+        427
+      ]
+    },
+    {
+      "name": "block",
+      "crop": [
+        59,
+        526,
+        428,
+        434
+      ]
+    },
+    {
+      "name": "logout",
+      "crop": [
+        548,
+        515,
+        431,
+        455
+      ]
+    },
+    {
+      "name": "install",
+      "crop": [
+        1031,
+        534,
+        429,
+        418
+      ]
+    }
+  ]
+}

@@ -2,6 +2,9 @@ import { expect, test } from '@playwright/test';
 
 test('painted navigation and release label on desktop and mobile', async ({ page }, info) => {
   await page.route('**/api/**', (route) => route.fulfill({ json: [] }));
+  await page.route('**/api/wallet', (route) =>
+    route.fulfill({ json: { coins: 0, crystals: 680, items: [], page: 1, pages: 1, total: 0 } }),
+  );
   await page.route('**/api/release', (route) =>
     route.fulfill({ json: { revision: '744ec57c6165d77c271331c71f5c0ca322ee3f3f' } }),
   );
@@ -13,6 +16,7 @@ test('painted navigation and release label on desktop and mobile', async ({ page
     const ng = (window as any).ng;
     const app = ng.getComponent(document.querySelector('app-root'));
     app.session.set({ access_token: 'fixture' });
+    app.inventoryUnread.set(1);
     app.currentUserAvatarUrl = () => '/assets/cosmic/frog-moonlight-128.webp';
     app.currentUser.set({ id: 'self', nick: 'Анна', email: 'self@example.test', is_admin: true });
     ng.applyChanges(app);
@@ -63,6 +67,16 @@ test('painted navigation and release label on desktop and mobile', async ({ page
     );
     await page.waitForTimeout(400);
     await page.screenshot({ path: info.outputPath(`navigation-${width}.png`) });
+    if (width > 980) {
+      const opener = page.locator('app-section-navigation .profile');
+      await opener.click();
+      const menu = page.locator('dialog.action-menu--account');
+      await expect(menu).toBeVisible();
+      await page.screenshot({ path: info.outputPath(`account-menu-${width}.png`) });
+      await page.keyboard.press('Escape');
+      await expect(menu).toHaveCount(0);
+      await expect(opener).toBeFocused();
+    }
     if (width <= 980) {
       await page
         .locator('.mobile-mode-footer')
@@ -73,7 +87,7 @@ test('painted navigation and release label on desktop and mobile', async ({ page
         .click();
       const menu = page.locator('dialog.action-menu--account');
       await expect(menu).toBeVisible();
-      await expect(menu.locator('.enamel-menu-art')).toHaveCount(4);
+      await expect(menu.locator('.enamel-menu-art')).toHaveCount(10);
       for (const image of await menu.locator('.enamel-menu-art').all()) {
         await expect(image).toBeVisible();
         await expect(image).toHaveJSProperty('complete', true);
@@ -116,4 +130,22 @@ test('painted navigation and release label on desktop and mobile', async ({ page
   await expect(profile).toBeInViewport();
   await expect(profile).toBeFocused();
   await page.screenshot({ path: info.outputPath('navigation-short-focus.png') });
+  await page.setViewportSize({ width: 320, height: 560 });
+  const opener = page
+    .locator('.mobile-mode-footer')
+    .getByRole('button', { name: 'Меню приложения' });
+  await opener.click();
+  const menu = page.locator('dialog.action-menu--account');
+  await expect(menu).toBeVisible();
+  const bounds = await menu.boundingBox();
+  expect(bounds!.x).toBeGreaterThanOrEqual(8);
+  expect(bounds!.y).toBeGreaterThanOrEqual(8);
+  expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(312);
+  expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(552);
+  await page.keyboard.press('End');
+  await expect(menu.locator('.action-menu__body button').last()).toBeFocused();
+  await expect(menu.locator('.action-menu__body button').last()).toBeInViewport();
+  await page.screenshot({ path: info.outputPath('account-menu-light-short.png') });
+  await page.keyboard.press('Escape');
+  await expect(opener).toBeFocused();
 });

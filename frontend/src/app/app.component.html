@@ -1008,7 +1008,13 @@
         />
         <section>
           <button type="button" (click)="closeSideMenu(); openProfileEditor()">
-            <app-ui-icon name="profile" /><span class="account-menu__label">Мой профиль</span>
+            <img
+              class="enamel-menu-art"
+              src="/assets/enamel-navigation/profile-128.webp"
+              width="32"
+              height="32"
+              alt=""
+            /><span class="account-menu__label">Мой профиль</span>
             <app-ui-icon name="forward" class="account-menu__chevron" />
           </button>
           <button type="button" (click)="closeSideMenu(); openFriendRequestsModal()">
@@ -1053,15 +1059,33 @@
             <app-ui-icon name="forward" class="account-menu__chevron" />
           </button>
           <button type="button" (click)="closeSideMenu(); appearanceOpen.set(true)">
-            <app-ui-icon name="appearance" /><span class="account-menu__label">Оформление</span>
+            <img
+              class="enamel-menu-art"
+              src="/assets/enamel-navigation/appearance-128.webp"
+              width="32"
+              height="32"
+              alt=""
+            /><span class="account-menu__label">Оформление</span>
             <app-ui-icon name="forward" class="account-menu__chevron" />
           </button>
           <button type="button" (click)="closeSideMenu(); openVoiceSettings()">
-            <app-ui-icon name="sound" /><span class="account-menu__label">Звук и устройства</span>
+            <img
+              class="enamel-menu-art"
+              src="/assets/enamel-navigation/sound-128.webp"
+              width="32"
+              height="32"
+              alt=""
+            /><span class="account-menu__label">Звук и устройства</span>
             <app-ui-icon name="forward" class="account-menu__chevron" />
           </button>
           <button type="button" (click)="openBlockedFriendsModal()">
-            <app-ui-icon name="block" /><span class="account-menu__label">Блокировки</span>
+            <img
+              class="enamel-menu-art"
+              src="/assets/enamel-navigation/block-128.webp"
+              width="32"
+              height="32"
+              alt=""
+            /><span class="account-menu__label">Блокировки</span>
             <app-ui-icon name="forward" class="account-menu__chevron" />
           </button>
         </section>
@@ -1074,7 +1098,13 @@
                 [disabled]="pwa.busy()"
                 (click)="closeSideMenu(); pwa.open()"
               >
-                <app-ui-icon name="plus" /><span class="account-menu__label">На главный экран</span>
+                <img
+                  class="enamel-menu-art"
+                  src="/assets/enamel-navigation/install-128.webp"
+                  width="32"
+                  height="32"
+                  alt=""
+                /><span class="account-menu__label">На главный экран</span>
                 <app-ui-icon name="forward" class="account-menu__chevron" />
               </button>
             }
@@ -1094,7 +1124,13 @@
         }
         <section>
           <button type="button" (click)="closeSideMenu(); logout(true)">
-            <app-ui-icon name="logout" /><span class="account-menu__label">Выход</span>
+            <img
+              class="enamel-menu-art"
+              src="/assets/enamel-navigation/logout-128.webp"
+              width="32"
+              height="32"
+              alt=""
+            /><span class="account-menu__label">Выход</span>
           </button>
         </section>
       </app-action-menu>

@@ -174,6 +174,12 @@ export class ActionMenuComponent implements AfterViewInit, OnDestroy {
 
   ngAfterViewInit(): void {
     this.opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    // Opening the account sheet hides the mobile dock and can blur its button first.
+    if (this.accountMenu() && (!this.opener || this.opener === document.body)) {
+      this.opener = document.querySelector<HTMLElement>(
+        '.mobile-mode-footer [aria-expanded="true"], app-section-navigation [aria-expanded="true"]',
+      );
+    }
     this.dialog.nativeElement.showModal();
     this.position();
     this.observer = new ResizeObserver(this.reposition);
@@ -188,9 +194,12 @@ export class ActionMenuComponent implements AfterViewInit, OnDestroy {
     window.visualViewport?.removeEventListener('resize', this.reposition);
     this.dialog.nativeElement.close();
     // Do not steal focus from the next modal opened by a selected action.
-    const remaining = Array.from(document.querySelectorAll('dialog[open]')).at(-1);
-    if (this.opener?.isConnected && (!remaining || remaining.contains(this.opener)))
-      this.opener.focus({ preventScroll: true });
+    // Wait until Angular has made the mobile dock visible again.
+    queueMicrotask(() => {
+      const remaining = Array.from(document.querySelectorAll('dialog[open]')).at(-1);
+      if (this.opener?.isConnected && (!remaining || remaining.contains(this.opener)))
+        this.opener.focus({ preventScroll: true });
+    });
   }
   dismiss(event: Event): void {
     event.preventDefault();
