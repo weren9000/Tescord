@@ -1,0 +1,8 @@
+{
+  "generator": "image_gen built-in",
+  "selected": "02 · Лунный свет",
+  "reference": "artifacts/logo-shape-variants/variant-02.png",
+  "master": "artifacts/cosmic-motion-originals/frog-moonlight.png",
+  "prompt": "Use case: background-extraction. Edit the supplied approved logo presentation '02 · Лунный свет'. Extract ONLY the large lavender frog speech-bubble logo mark to a genuinely transparent background. Preserve its EXACT silhouette and internal features from the central large mark: broad flattened face, two eye humps, dark plum round dot eyes, curved smile, tapered speech-bubble tail bottom left. Preserve its hand-painted lavender surface, warm cream upper-left light and plum underside. Do not redesign, do not make spherical, do not change proportions, eye position, smile or tail. Remove ALL typography, background, divider, and all small duplicates. Single isolated original large frog mark centered on square transparent canvas with 8 percent padding. No added shadow outside mark, no lettering, no stars, no border, no checkerboard baked into image.",
+  "exporter": "frontend/scripts/prepare-frog-logo.cjs"
+}

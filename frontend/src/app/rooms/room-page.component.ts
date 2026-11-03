@@ -96,6 +96,7 @@ export class MeetingTrackDirective implements OnDestroy {
 
 @Component({
   selector: 'app-root',
+  host: { class: 'kva-app' },
   standalone: true,
   imports: [
     CommonModule,

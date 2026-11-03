@@ -1,0 +1,6 @@
+{
+  "generator": "image_gen",
+  "prompt": "Create a SINGLE compact frog head brand mark for Kvachat, transparent background. Reference image is material/style reference only. Shape: a simple broad rounded smiling frog face seen front-on, two rounded eye bumps on top with tiny dark eyes, wide small friendly smile; silhouette should read at 32 pixels like a friendly purple frog app logo. No body, no neck, no clothes, no accessories, no badge, NO TEXT. Lavender-purple painted material with restrained visible brushwork, warm cream highlight on upper-left edge, a very subtle teal reflection on lower-right edge. Premium coherent with the painted cosmic UI icons in reference, but far simpler geometry, avoid elaborate animal portrait, avoid glossy plastic. Centered complete head with 8% transparent margin, square canvas. Preserve small-size legibility above everything.",
+  "reference": "docs/design/painted-controls/reference.png",
+  "master": "artifacts/cosmic-motion-originals/frog-brand.png"
+}

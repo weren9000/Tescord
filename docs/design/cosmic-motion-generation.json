@@ -1,0 +1,29 @@
+{
+  "reference": "frontend/public/assets/cosmic/hero.webp",
+  "assets": [
+    {
+      "name": "backdrop",
+      "transparent": false,
+      "prompt": "Edit this exact scene into a clean background plate for layered web animation. Remove ALL four frogs, their large central lily pad boat, the lantern, mugs, the large purple planet AND its rings, and the blurred large corner foreground leaves. Reconstruct the empty tranquil cosmic pond and dark navy star sky naturally behind removed objects. Preserve camera framing aspect ratio 1717:916, horizon, cyan water reflection and magenta gold glow on the water. Scattered small distant lily pads may remain. Keep left half very dark and quiet for text. Full bleed painted image no text no UI. This is a background plate of same exact world, not a redesign.",
+      "master": "artifacts/cosmic-motion-originals/backdrop.png"
+    },
+    {
+      "name": "company",
+      "transparent": true,
+      "prompt": "Extract faithfully the complete four frog friends, their central large lily pad boat, glowing lantern, mugs and front pink lotus as ONE isolated transparent layer. Preserve exactly their faces, clothes, poses, painterly detail, warm light, group composition and proportions from reference. Remove entire background sky, planet, water, distant plants and foreground corners. Whole waving hand, whole boat and all characters must be inside canvas with small transparent margin. Landscape tightly fitted group composition, no large empty left area. True alpha transparency, no shadows floating beyond boat, no text, no UI.",
+      "master": "artifacts/cosmic-motion-originals/company.png"
+    },
+    {
+      "name": "planet",
+      "transparent": true,
+      "prompt": "Extract just the large luminous lavender-purple planet AND its complete thin ring system from reference as a single isolated transparent asset. Preserve painted surface, warm pink upper-left rim and violet shadows, original ring angle. Complete planet and complete rings uncut centered with transparent margins. Remove frogs, sky, water, stars and all other objects. Landscape crop, true alpha transparency, no UI no text.",
+      "master": "artifacts/cosmic-motion-originals/planet.png"
+    },
+    {
+      "name": "foreground",
+      "transparent": true,
+      "prompt": "Extract and reconstruct the soft focus dark teal and purple foreground pond foliage and one pink glowing lotus into a horizontal transparent foreground frame: foliage only in lower left and lower right corners, middle 65 percent empty transparent, upper 65 percent fully empty transparent. Match original brushwork palette and perspective exactly. No frogs, no planet, no water, no background. Wide 1717:916 aspect ratio with full transparent canvas preserved. This is an overlay for original scene. No text or UI.",
+      "master": "artifacts/cosmic-motion-originals/foreground.png"
+    }
+  ]
+}

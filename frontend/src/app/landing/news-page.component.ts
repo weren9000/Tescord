@@ -7,6 +7,7 @@ import { NewsFeedComponent } from './news-feed.component';
 
 @Component({
   selector: 'app-root',
+  host: { class: 'kva-app' },
   imports: [GuestHeaderComponent, NewsFeedComponent],
   templateUrl: './news-page.component.html',
   styleUrl: './landing.component.css',

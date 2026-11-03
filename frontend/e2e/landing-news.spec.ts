@@ -41,6 +41,8 @@ for (const width of [320, 393, 1024, 1440]) {
     for (const action of await page.locator('.entry-actions a').all()) {
       const bounds = await action.boundingBox();
       expect(bounds).not.toBeNull();
+      expect(bounds!.x).toBeGreaterThanOrEqual(0);
+      expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(page.viewportSize()!.width);
       expect(bounds!.y + bounds!.height).toBeLessThan(page.viewportSize()!.height);
       expect(bounds!.y + bounds!.height).toBeLessThan(preview!.y);
     }
@@ -126,7 +128,7 @@ test('landing stays readable and actions stay unique without JavaScript', async 
   try {
     const page = await context.newPage();
     await page.goto('/');
-    await expect(page.getByRole('heading', { level: 1 })).toContainText('Свои люди.');
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('Все свои');
     await expect(page.locator('a[href="/register"]')).toHaveCount(1);
     await expect(page.locator('a[href="/login"]')).toHaveCount(1);
     await expect(page.locator('.landing-downloads a')).toHaveCount(2);

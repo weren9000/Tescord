@@ -1756,8 +1756,8 @@
         .guest-logo img {
           display: block;
           object-fit: contain;
-          width: 100px;
-          height: 50px;
+          width: 36px;
+          height: 36px;
         }
         .guest-header a {
           color: var(--palette-secondary, #d4d8e8);
@@ -1796,8 +1796,8 @@
             height: 76px;
           }
           .guest-logo img {
-            width: 80px;
-            height: 40px;
+            width: 30px;
+            height: 30px;
           }
           .guest-header nav {
             gap: 18px;
@@ -1815,349 +1815,3062 @@
             gap: 12px;
           }
           .guest-logo img {
-            width: 64px;
+            width: 28px;
           }
           .guest-login {
             padding: 0 9px;
           }
-        }</style
-      >﻿
+        }
+        /* Canonical visual rules: docs/design/cosmic-friends.md. Scoped to the public landing. */
+        .landing {
+          --palette-canvas: #10121c;
+          --palette-surface: #191c2d;
+          --palette-raised: #23273c;
+          --palette-selected: #2c2447;
+          --palette-text: #fff5e6;
+          --palette-secondary: #e1dbea;
+          --palette-muted: #b3b2c8;
+          --palette-border: #45405e;
+          --palette-primary: #754bff;
+          --palette-primary-hover: #6540df;
+          --palette-primary-text: #c5b4ff;
+          --palette-cyan: #57c8d5;
+          overflow: clip;
+        }
+        .landing .landing-hero {
+          position: relative;
+          isolation: isolate;
+          width: min(1600px, 100%);
+          padding: 46px max(32px, calc((100% - 1180px) / 2)) 0;
+          text-align: left;
+          min-height: 770px;
+        }
+        .landing app-guest-header,
+        .landing > .guest-header {
+          position: relative;
+          z-index: 2;
+          background: linear-gradient(#10121ce6, #10121c55);
+        }
+        .cosmic-scene {
+          position: absolute;
+          z-index: -2;
+          inset: -94px 0 auto;
+          width: 100%;
+          height: 880px;
+          object-fit: cover;
+          object-position: center;
+          mask-image: linear-gradient(#000 85%, transparent);
+        }
+        .landing-hero::before {
+          content: '';
+          position: absolute;
+          z-index: -1;
+          inset: 0;
+          pointer-events: none;
+          background: linear-gradient(90deg, #10121c8c, transparent 65%);
+        }
+        .cosmic-intro {
+          width: 440px;
+          max-width: 100%;
+        }
+        .landing .cosmic-brand {
+          font-size: 66px;
+          font-weight: 800;
+          line-height: 1;
+          letter-spacing: -3px;
+          margin: 0 0 12px;
+        }
+        .landing .landing-lead {
+          margin: 0 0 36px !important;
+          font-size: 20px;
+          color: var(--palette-text);
+        }
+        .landing .landing-hero h1 {
+          font-size: clamp(46px, 4.3vw, 68px);
+          line-height: 1.06;
+          letter-spacing: -2.5px;
+          font-weight: 780;
+          margin-bottom: 34px;
+        }
+        .landing .landing-hero h1 span {
+          position: relative;
+          color: inherit;
+          white-space: nowrap;
+        }
+        .landing-hero h1 span::after {
+          content: '';
+          position: absolute;
+          left: 0;
+          bottom: -10px;
+          width: 90%;
+          height: 7px;
+          border-top: 4px solid #57c8d5;
+          border-radius: 50%;
+          transform: rotate(-3deg);
+        }
+        .landing .entry-actions {
+          margin: 0;
+          width: 400px;
+          max-width: 100%;
+          gap: 22px;
+        }
+        .landing .entry-actions .landing-actions {
+          grid-template-columns: minmax(0, 1fr) 104px;
+          gap: 12px;
+        }
+        .landing .landing-open {
+          border-radius: 13px;
+          border: 1px solid #9a7bff;
+          box-shadow: 0 8px 32px #754bff30;
+        }
+        .landing .secondary-action {
+          border: 1px solid #dad2ed;
+          border-radius: 13px;
+          color: #fff5e6;
+          text-decoration: none !important;
+          font-weight: 600;
+          background: #15192a80;
+        }
+        .landing .landing-help {
+          margin: 6px 0 0;
+          max-width: 400px;
+        }
+        .landing .landing-help summary {
+          margin: 0;
+        }
+        .landing .landing-help > div {
+          background: #191c2df5;
+        }
+        .cosmic-voice {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 24px;
+          padding: 18px 24px;
+          margin: 68px 0 0 auto;
+          width: min(100%, 940px);
+          border: 1px solid #807099;
+          border-radius: 28px;
+          background: #202437e8;
+          box-shadow:
+            0 12px 48px #080b2166,
+            inset 0 1px #c5b4ff33;
+          backdrop-filter: blur(14px);
+        }
+        .cosmic-voice-title {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+        }
+        .cosmic-voice-title strong {
+          display: block;
+          font-size: 18px;
+          line-height: 1.35;
+        }
+        .cosmic-voice-title span {
+          display: flex;
+          align-items: center;
+          gap: 7px;
+          font-size: 13px;
+          margin-top: 7px;
+          color: #e1dbea;
+        }
+        .cosmic-voice-title i {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          background: #41d394;
+        }
+        .landing .cosmic-voice-title app-ui-icon,
+        .landing .cosmic-voice-title svg {
+          width: 30px;
+          height: 30px;
+          color: #57c8d5;
+        }
+        .cosmic-friends {
+          display: flex;
+          gap: 22px;
+          text-align: center;
+        }
+        .cosmic-friends > div {
+          display: grid;
+          justify-items: center;
+          gap: 5px;
+          font-size: 11px;
+        }
+        .cosmic-friends img {
+          width: 54px;
+          height: 54px;
+          border-radius: 50%;
+          border: 1px solid #b9a6ff;
+          object-fit: cover;
+        }
+        .cosmic-friends .is-speaking img {
+          outline: 2px solid #57c8d5;
+          outline-offset: 4px;
+          box-shadow: 0 0 18px #57c8d544;
+        }
+        .cosmic-voice-symbols {
+          display: flex;
+          gap: 10px;
+          padding-left: 18px;
+          border-left: 1px solid #655e7a;
+        }
+        .cosmic-voice-symbols > span {
+          display: grid;
+          place-items: center;
+          width: 42px;
+          height: 42px;
+          background: #363b55;
+          border-radius: 50%;
+        }
+        .cosmic-voice-symbols .end-call {
+          background: #e54c64;
+        }
+        .landing .cosmic-caption {
+          margin: 12px 0 0 auto;
+          width: min(100%, 940px);
+          text-align: center;
+          font-size: 12px;
+          color: #b3b2c8;
+        }
+        .cosmic-product {
+          padding-top: 42px;
+        }
+        .cosmic-product-heading {
+          display: flex;
+          justify-content: space-between;
+          gap: 36px;
+          align-items: end;
+          margin-bottom: 24px;
+        }
+        .cosmic-product-heading h2 {
+          max-width: 520px;
+          margin: 0;
+        }
+        .cosmic-product-heading p {
+          max-width: 300px;
+          margin: 0;
+          color: var(--palette-muted);
+          font-size: 15px;
+        }
+        .cosmic-product .landing-preview {
+          max-width: 1000px;
+          margin: auto;
+          border-radius: 22px;
+          box-shadow:
+            0 24px 80px #0005,
+            0 0 90px #754bff12;
+        }
+        .landing .section {
+          margin-top: 80px;
+          padding-top: 60px;
+          border-top-color: #b9a6ff26;
+        }
+        .landing .space-art,
+        .landing .call-illustration,
+        .landing .document-illustration,
+        .landing .application-grid article {
+          border-radius: 22px;
+          border-color: #65577e;
+          background: linear-gradient(145deg, #222237, #171b2a);
+        }
+        .landing .small-icon,
+        .landing .app-mark {
+          border: 1px solid #695583;
+          border-radius: 13px;
+          background: #2c2447;
+          color: #c5b4ff;
+        }
+        .landing .space-grid article h3 {
+          color: #fff5e6;
+        }
+        .landing .room-people img,
+        .landing .call-people img {
+          border-radius: 50%;
+        }
+        .landing .landing-footer {
+          border-top-color: #b9a6ff26;
+        }
+        .landing a:focus-visible,
+        .landing button:focus-visible,
+        .landing summary:focus-visible,
+        .landing input:focus-visible {
+          outline-color: #57c8d5;
+        }
+        @media (min-width: 1600px) {
+          .landing .landing-hero {
+            padding-inline: 80px;
+          }
+        }
+        @media (max-width: 1100px) {
+          .cosmic-scene {
+            height: auto;
+            object-fit: contain;
+            object-position: right bottom;
+            top: 74px;
+            mask-image: linear-gradient(transparent, #000 18%, #000 85%, transparent);
+          }
+          .landing-hero::before {
+            background: linear-gradient(90deg, #10121cd9, #10121c33 60%, transparent);
+          }
+          .cosmic-intro {
+            width: 340px;
+          }
+          .landing .entry-actions {
+            width: 340px;
+          }
+          .landing .entry-actions .landing-actions {
+            grid-template-columns: minmax(0, 1fr) 84px;
+          }
+          .cosmic-voice {
+            margin-top: 76px;
+            gap: 16px;
+            padding: 18px;
+          }
+          .cosmic-friends {
+            gap: 16px;
+          }
+          .cosmic-voice-symbols {
+            display: none;
+          }
+        }
+        @media (max-width: 960px) {
+          .landing .landing-hero {
+            padding: 20px 20px 0;
+            min-height: 0;
+          }
+          .cosmic-intro {
+            width: 100%;
+          }
+          .landing .cosmic-brand {
+            font-size: 46px;
+            letter-spacing: -2px;
+          }
+          .landing .landing-lead {
+            font-size: 16px;
+            margin-bottom: 26px !important;
+          }
+          .landing .landing-hero h1 {
+            font-size: clamp(40px, 9vw, 58px);
+            letter-spacing: -1.8px;
+            margin-bottom: 30px;
+          }
+          .landing .entry-actions {
+            width: 400px;
+          }
+          .landing .entry-actions .landing-actions {
+            grid-template-columns: minmax(0, 1fr) 80px;
+            gap: 12px;
+          }
+          .landing .landing-open {
+            font-size: 13px;
+            padding-inline: 8px;
+          }
+          .landing .secondary-action {
+            min-height: 49px;
+          }
+          .landing .entry-actions .landing-download {
+            padding-inline: 4px;
+            gap: 8px;
+          }
+          .landing .landing-download strong {
+            font-size: 12px;
+          }
+          .cosmic-scene {
+            position: relative;
+            inset: auto;
+            width: calc(100% + 40px);
+            max-width: none !important;
+            height: clamp(200px, 70vw, 420px);
+            object-fit: cover;
+            object-position: right center;
+            margin: 0 -20px;
+            mask-image: linear-gradient(transparent, #000 15%, #000 88%, transparent);
+          }
+          .landing .landing-hero {
+            display: flex;
+            flex-direction: column;
+          }
+          .cosmic-intro {
+            order: -1;
+          }
+          .landing-hero::before {
+            display: none;
+          }
+          .cosmic-voice {
+            margin: -5px 0 0;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 16px;
+            padding: 18px 16px;
+            border-radius: 22px;
+          }
+          .cosmic-voice-title {
+            justify-content: center;
+          }
+          .cosmic-voice-title strong {
+            font-size: 17px;
+          }
+          .cosmic-voice-title span {
+            margin-top: 3px;
+            font-size: 12px;
+          }
+          .cosmic-friends {
+            justify-content: space-around;
+            gap: 10px;
+          }
+          .cosmic-friends img {
+            width: 46px;
+            height: 46px;
+          }
+          .landing .cosmic-caption {
+            font-size: 11px;
+            margin-top: 14px;
+          }
+          .cosmic-product {
+            padding-top: 46px;
+          }
+          .cosmic-product-heading {
+            display: block;
+          }
+          .cosmic-product-heading h2 {
+            margin-bottom: 14px;
+          }
+          .cosmic-product .landing-preview {
+            border-radius: 12px;
+          }
+          .landing .section {
+            margin-top: 46px;
+            padding-top: 34px;
+          }
+        }
+        /* Textures and glyphs from docs/design/painted-controls/reference.png. No global selectors. */
+        .kva-painted-button {
+          --paint-height: 52px;
+          --paint-surface: url('/assets/painted-controls/button-primary.webp');
+          position: relative;
+          isolation: isolate;
+          box-sizing: border-box;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 10px;
+          min-height: var(--paint-height);
+          max-width: 100%;
+          min-width: 0;
+          padding: 12px 28px;
+          border: 0;
+          border-radius: 24px;
+          background: #43225c;
+          color: #fff0d2;
+          font:
+            650 16px/1.3 Inter,
+            'Segoe UI',
+            Arial,
+            sans-serif;
+          text-align: center;
+          text-decoration: none;
+          cursor: pointer;
+          touch-action: manipulation;
+          overflow-wrap: anywhere;
+          vertical-align: middle;
+          box-shadow: 0 5px 12px #09081945;
+        }
+        .kva-painted-button::before {
+          content: '';
+          position: absolute;
+          inset: -1px;
+          z-index: -1;
+          pointer-events: none;
+          border-style: solid;
+          border-color: transparent;
+          border-width: 0 26px;
+          border-image-source: var(--paint-surface);
+          border-image-slice: 0 12% fill;
+          border-image-width: 0 26px;
+          border-image-repeat: stretch;
+        }
+        .kva-painted-button--secondary {
+          --paint-surface: url('/assets/painted-controls/button-secondary.webp');
+          background: #20162f;
+        }
+        .kva-painted-button--danger {
+          --paint-surface: url('/assets/painted-controls/button-danger.webp');
+          background: #852b49;
+        }
+        .kva-painted-button--quiet,
+        .kva-painted-button--tab,
+        .kva-painted-button--menu {
+          color: var(--kva-control-ink, #fff0d2);
+          background: var(--kva-control-surface, #251d36);
+          border: 1px solid var(--kva-control-border, #67547c);
+          border-radius: 12px;
+          box-shadow: none;
+          padding: 10px 28px;
+          font-size: 14px;
+        }
+        .kva-painted-button--quiet::before,
+        .kva-painted-button--tab::before,
+        .kva-painted-button--menu::before {
+          display: none;
+        }
+        .kva-painted-button--menu {
+          justify-content: flex-start;
+          width: 100%;
+        }
+        .kva-painted-button--tab[aria-pressed='true'],
+        .kva-painted-button--menu[aria-pressed='true'] {
+          background: var(--kva-control-selected, #47305e);
+          border-color: #bca1e5;
+        }
+        .kva-painted-button--sm {
+          --paint-height: 44px;
+          padding: 10px 23px;
+          font-size: 14px;
+        }
+        .kva-painted-button--lg {
+          --paint-height: 64px;
+          padding: 16px 32px;
+          font-size: 20px;
+        }
+        .kva-painted-button--sm::before {
+          border-width: 0 22px;
+          border-image-width: 0 22px;
+        }
+        .kva-painted-button--lg::before {
+          border-width: 0 32px;
+          border-image-width: 0 32px;
+        }
+        .kva-painted-button--round {
+          width: var(--paint-height);
+          height: var(--paint-height);
+          min-width: var(--paint-height);
+          padding: 0;
+          border-radius: 50%;
+          --paint-surface: url('/assets/painted-controls/button-round.webp');
+        }
+        .kva-painted-button--round::before {
+          border: 0;
+          border-image: none;
+          background: var(--paint-surface) center/100% 100% no-repeat;
+        }
+        .kva-painted-button--round.kva-painted-button--danger {
+          --paint-surface: url('/assets/painted-controls/button-round-danger.webp');
+        }
+        .kva-painted-button[aria-pressed='true'] {
+          box-shadow:
+            0 0 0 2px #57c8d5,
+            0 0 16px #57c8d533;
+        }
+        .kva-painted-button--round[aria-pressed='true']:not(.kva-painted-button--danger) {
+          --paint-surface: url('/assets/painted-controls/button-round-active.webp');
+          box-shadow: 0 0 0 1px #57c8d5;
+        }
+        .kva-painted-button:focus-visible {
+          outline: 3px solid #7be5ef;
+          outline-offset: 4px;
+        }
+        @media (hover: hover) {
+          .kva-painted-button:hover:not(:disabled)::before {
+            filter: brightness(1.13);
+          }
+          .kva-painted-button:hover:not(:disabled) {
+            box-shadow: 0 5px 18px #a36cf433;
+          }
+        }
+        .kva-painted-button:active:not(:disabled) {
+          transform: translateY(1px);
+          box-shadow: inset 0 3px 7px #12071e99;
+        }
+        .kva-painted-button:active:not(:disabled)::before {
+          filter: brightness(0.82);
+        }
+        .kva-painted-button:not(.kva-painted-button--round):not(
+            .kva-painted-button--danger
+          ):active:not(:disabled) {
+          --paint-surface: url('/assets/painted-controls/button-pressed.webp');
+        }
+        .kva-painted-button:disabled {
+          cursor: default;
+          color: #d0c2df;
+          background: #30243b;
+          box-shadow: none;
+        }
+        .kva-painted-button:disabled::before {
+          filter: saturate(0.3) brightness(0.65);
+        }
+        .kva-painted-button--quiet:disabled,
+        .kva-painted-button--tab:disabled,
+        .kva-painted-button--menu:disabled {
+          color: var(--kva-control-disabled-ink, #b1a3c1);
+          background: var(--kva-control-disabled-surface, #30243b);
+        }
+        .kva-painted-button[aria-busy='true'] {
+          cursor: progress;
+        }
+        .kva-painted-spinner {
+          position: absolute;
+          left: 8px;
+          display: inline-block;
+          flex-shrink: 0;
+          width: 14px;
+          height: 14px;
+          border: 2px solid #fff0d244;
+          border-top-color: #fff0d2;
+          border-radius: 50%;
+        }
+        .kva-painted-button--round[aria-busy='true'] .kva-painted-glyph {
+          visibility: hidden;
+        }
+        .kva-painted-button--round .kva-painted-spinner {
+          left: calc(50% - 7px);
+        }
+        .kva-painted-glyph {
+          display: inline-block;
+          width: 24px;
+          height: 24px;
+          flex: 0 0 24px;
+          vertical-align: middle;
+          color: inherit;
+        }
+        .kva-painted-glyph svg {
+          display: block;
+          width: 100%;
+          height: 100%;
+        }
+        .kva-painted-art {
+          display: inline-block;
+          width: var(--paint-icon-size, 64px);
+          height: var(--paint-icon-size, 64px);
+          object-fit: contain;
+          vertical-align: middle;
+        }
+        .kva-painted-panel {
+          position: relative;
+          isolation: isolate;
+          box-sizing: border-box;
+          padding: 24px;
+          border-radius: 32px;
+          background: #241733;
+          color: #fff0d2;
+        }
+        .kva-painted-panel::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          z-index: -1;
+          pointer-events: none;
+          border: solid transparent;
+          border-width: 20px 34px;
+          border-image: url('/assets/painted-controls/panel.webp') 20% 8% fill / 20px 34px stretch;
+        }
+        .kva-painted-preload {
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          overflow: hidden;
+          clip-path: inset(50%);
+          pointer-events: none;
+          background-image:
+            url('/assets/painted-controls/button-pressed.webp'),
+            url('/assets/painted-controls/button-round-active.webp');
+        }
+        @media (prefers-reduced-motion: no-preference) {
+          .kva-painted-button {
+            transition:
+              box-shadow 120ms,
+              transform 80ms;
+          }
+          .kva-painted-button::before {
+            transition: filter 120ms;
+          }
+          .kva-painted-spinner {
+            animation: kva-painted-spin 0.8s linear infinite;
+          }
+          @keyframes kva-painted-spin {
+            to {
+              transform: rotate(360deg);
+            }
+          }
+        }
+        @media (forced-colors: active) {
+          .kva-painted-button,
+          .kva-painted-panel {
+            background: Canvas;
+            color: ButtonText;
+            border: 2px solid ButtonText;
+            box-shadow: none;
+          }
+          .kva-painted-button::before,
+          .kva-painted-panel::before {
+            display: none;
+          }
+          .kva-painted-button:disabled {
+            color: GrayText;
+            border-color: GrayText;
+          }
+          .kva-painted-button[aria-pressed='true'] {
+            outline: 2px solid Highlight;
+            outline-offset: 2px;
+          }
+          .kva-painted-button:focus-visible {
+            outline-color: Highlight;
+          }
+        }
+        /* Layered painted scene. Text and navigation remain in the normal document flow. */
+        .landing {
+          overflow: clip;
+          background: #10121c;
+        }
+        .cosmic-journey {
+          position: relative;
+        }
+        .landing .landing-hero {
+          width: 100%;
+          max-width: 1800px;
+          min-height: 790px;
+          padding-top: 40px;
+          padding-bottom: 48px;
+        }
+        .cosmic-stage {
+          position: absolute;
+          inset: -94px 0 0;
+          z-index: -2;
+          overflow: hidden;
+          pointer-events: none;
+          mask-image: linear-gradient(#000 88%, transparent);
+        }
+        .cosmic-stage img {
+          display: block;
+          max-width: none;
+        }
+        .scene-backdrop {
+          position: absolute;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+        .scene-planet {
+          position: absolute;
+          right: -6%;
+          top: 1%;
+          width: 57%;
+          height: auto;
+          transform: translate3d(var(--planet-x, 0px), var(--planet-y, 0px), 0);
+        }
+        .scene-company {
+          position: absolute;
+          right: 1%;
+          bottom: 19%;
+          width: 66%;
+          transform: translate3d(var(--company-x, 0px), var(--company-y, 0px), 0)
+            scale(var(--scene-scale, 1));
+          transform-origin: center bottom;
+        }
+        .scene-company > img {
+          width: 100%;
+          height: auto;
+        }
+        .scene-foreground {
+          position: absolute;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          transform: translate3d(var(--leaves-x, 0px), var(--leaves-y, 0px), 0);
+        }
+        .scene-lantern {
+          position: absolute;
+          left: 51%;
+          top: 59%;
+          width: 10%;
+          aspect-ratio: 1;
+          border-radius: 50%;
+          background: radial-gradient(#ffe4a465, #ffc96b15 45%, transparent 72%);
+          mix-blend-mode: screen;
+        }
+        .scene-reflection {
+          position: absolute;
+          left: 48%;
+          bottom: 5%;
+          width: 40%;
+          height: 23%;
+          background: radial-gradient(ellipse, #d797eb18, transparent 70%);
+          transform: scaleY(0.5);
+        }
+        .scene-star {
+          position: absolute;
+          width: 3px;
+          height: 3px;
+          border-radius: 50%;
+          background: #fff3d6;
+          box-shadow: 0 0 10px 3px #d1a4ff80;
+        }
+        .star-one {
+          left: 45%;
+          top: 15%;
+        }
+        .star-two {
+          left: 61%;
+          top: 7%;
+        }
+        .star-three {
+          right: 9%;
+          top: 39%;
+        }
+        .landing .landing-hero::before {
+          background: linear-gradient(90deg, #10121c66, transparent 48%);
+        }
+        .cosmic-intro {
+          position: relative;
+          z-index: 1;
+        }
+        .landing .entry-actions {
+          width: 430px;
+        }
+        .landing .landing-open.kva-painted-button,
+        .landing .secondary-action.kva-painted-button {
+          border: 0;
+          border-radius: 24px;
+          font-size: 15px;
+          min-height: 54px;
+          padding: 14px 18px;
+          color: #fff0d2;
+          text-decoration: none;
+          background: #43225c;
+        }
+        .landing .secondary-action.kva-painted-button {
+          background: #20162f;
+        }
+        .landing .entry-actions .landing-actions {
+          grid-template-columns: minmax(0, 1fr) 108px;
+          gap: 14px;
+        }
+        .landing .cosmic-voice {
+          position: relative;
+          z-index: 1;
+          margin-top: 76px;
+          border: 0;
+          backdrop-filter: none;
+          background: #241733c9;
+        }
+        .landing .cosmic-voice-symbols > span {
+          background: url('/assets/painted-controls/button-round.webp') center/contain no-repeat;
+        }
+        .landing .cosmic-voice-symbols > .end-call {
+          background-image: url('/assets/painted-controls/button-round-danger.webp');
+        }
+        .motion-toggle {
+          position: relative;
+          display: flex;
+          align-items: center;
+          gap: 7px;
+          width: max-content;
+          min-height: 44px;
+          margin: 14px 0 0 auto;
+          padding: 8px 12px;
+          border: 1px solid #75638b66;
+          border-radius: 22px;
+          background: #141526;
+          color: #d6c8e7;
+          font: inherit;
+          font-size: 12px;
+          cursor: pointer;
+        }
+        .motion-toggle app-ui-icon {
+          width: 16px;
+          height: 16px;
+        }
+        .motion-toggle::after {
+          content: '';
+          width: 7px;
+          height: 7px;
+          background: #84798c;
+          border-radius: 50%;
+        }
+        .motion-toggle[aria-pressed='true']::after {
+          background: #6ed9d7;
+          box-shadow: 0 0 8px #6ed9d744;
+        }
+        .motion-toggle:disabled {
+          cursor: default;
+          opacity: 0.6;
+        }
+        [data-static-landing] .motion-toggle {
+          display: none;
+        }
+        .landing .cosmic-product {
+          padding-top: 32px;
+        }
+        .landing .section {
+          position: relative;
+          margin-top: 92px;
+          padding-top: 56px;
+        }
+        .landing .section h2,
+        .landing .cosmic-product h2 {
+          letter-spacing: -1px;
+        }
+        .landing .space-grid article {
+          position: relative;
+        }
+        .landing .space-grid article h3 {
+          display: flex;
+          gap: 14px;
+          align-items: center;
+          font-size: 24px;
+          margin: 18px 0 10px;
+        }
+        .landing .feature-art {
+          width: 64px;
+          height: 64px;
+          object-fit: contain;
+          flex: none;
+        }
+        .landing .section-art {
+          display: block;
+          width: 84px;
+          height: 84px;
+          margin-bottom: 18px;
+          object-fit: contain;
+        }
+        .landing .space-art,
+        .landing .document-illustration,
+        .landing .call-illustration {
+          box-shadow: 0 20px 50px #05071145;
+          border-color: #85709b66;
+        }
+        .landing .space-art {
+          background: linear-gradient(145deg, #29213c, #171b2a);
+        }
+        .landing .call-demo-controls {
+          display: flex;
+          justify-content: center;
+          gap: 18px;
+          padding: 18px 16px 8px;
+        }
+        .landing .call-demo-note {
+          text-align: center;
+          color: #c4b7d2;
+          font-size: 11px;
+          margin: 8px 12px 18px;
+        }
+        .landing .call-people > div {
+          transition:
+            background-color 0.2s,
+            border-radius 0.2s;
+        }
+        .landing .demo-camera .call-people > div {
+          background: #372950;
+          border-radius: 14px;
+          padding: 10px;
+        }
+        .demo-screen-preview {
+          min-height: 100px;
+          margin: 0 20px;
+          padding: 24px;
+          border: 1px solid #6b597e;
+          border-radius: 12px;
+          background: #141725;
+          display: flex;
+          gap: 12px;
+          align-items: center;
+          justify-content: center;
+          font-size: 13px;
+          color: #d2c7de;
+        }
+        .demo-screen-preview[hidden] {
+          display: none;
+        }
+        .landing .settings-grid details {
+          background: #1d1c2c;
+          border-color: #66557766;
+          border-radius: 16px;
+        }
+        .landing .application-grid article {
+          background: #211d30;
+          border-color: #66557766;
+          padding: 24px;
+        }
+        .landing .application-grid article h3 {
+          font-size: 21px;
+        }
+        .landing .appearance-section {
+          position: relative;
+        }
+        .landing .landing-footer {
+          padding-block: 32px;
+        }
+        @media (min-width: 1101px) and (min-height: 740px) and (pointer: fine) {
+          .motion-enhanced .cosmic-journey {
+            height: calc(max(790px, 100svh - 94px) + 220px);
+          }
+          .motion-enhanced .landing-hero {
+            position: sticky;
+            top: 0;
+            min-height: max(790px, 100svh - 94px);
+          }
+        }
+        @media (prefers-reduced-motion: no-preference) {
+          .scene-company > img {
+            animation: cosmic-float 10s ease-in-out infinite;
+            animation-play-state: paused;
+          }
+          .scene-lantern {
+            animation: cosmic-lantern 6s ease-in-out infinite;
+            animation-play-state: paused;
+          }
+          .scene-reflection {
+            animation: cosmic-reflection 12s ease-in-out infinite;
+            animation-play-state: paused;
+          }
+          .scene-star {
+            animation: cosmic-star 7s ease-in-out infinite;
+            animation-play-state: paused;
+          }
+          .star-two {
+            animation-delay: -2s;
+          }
+          .star-three {
+            animation-delay: -4s;
+          }
+          .motion-running .scene-company > img,
+          .motion-running .scene-lantern,
+          .motion-running .scene-reflection,
+          .motion-running .scene-star {
+            animation-play-state: running;
+          }
+          .landing .appearance-chat,
+          .landing .bubble,
+          .landing .appearance-illustration .panel-header {
+            transition:
+              background-color 0.22s,
+              color 0.22s;
+          }
+          @keyframes cosmic-float {
+            0%,
+            100% {
+              transform: translateY(0);
+            }
+            50% {
+              transform: translateY(-4px);
+            }
+          }
+          @keyframes cosmic-lantern {
+            0%,
+            100% {
+              opacity: 0.45;
+            }
+            50% {
+              opacity: 0.9;
+            }
+          }
+          @keyframes cosmic-reflection {
+            0%,
+            100% {
+              opacity: 0.35;
+              transform: scaleX(0.95);
+            }
+            50% {
+              opacity: 0.8;
+              transform: scaleX(1.04);
+            }
+          }
+          @keyframes cosmic-star {
+            0%,
+            100% {
+              opacity: 0.3;
+            }
+            50% {
+              opacity: 0.85;
+            }
+          }
+        }
+        @media (max-width: 1100px) and (min-width: 961px) {
+          .landing .landing-hero {
+            min-height: 760px;
+          }
+          .scene-company {
+            width: 68%;
+            right: -3%;
+            bottom: 25%;
+          }
+          .scene-planet {
+            top: 11%;
+            width: 62%;
+            right: -11%;
+          }
+          .landing .cosmic-brand {
+            font-size: 56px;
+          }
+          .landing .landing-hero h1 {
+            font-size: 50px;
+          }
+          .landing .entry-actions {
+            width: 350px;
+          }
+          .landing .entry-actions .landing-actions {
+            grid-template-columns: minmax(0, 1fr) 86px;
+            gap: 10px;
+          }
+          .landing .landing-open.kva-painted-button {
+            font-size: 13px;
+          }
+        }
+        @media (max-width: 960px) {
+          .landing .landing-hero {
+            padding: 20px 20px 24px;
+            min-height: 0;
+          }
+          .cosmic-stage {
+            position: relative;
+            inset: auto;
+            width: calc(100% + 40px);
+            height: clamp(270px, 74vw, 540px);
+            margin: 0 -20px;
+            flex: none;
+            mask-image: linear-gradient(transparent, #000 12%, #000 89%, transparent);
+          }
+          .scene-backdrop {
+            object-position: 70% center;
+          }
+          .scene-company {
+            width: 98%;
+            right: 1%;
+            bottom: 10%;
+          }
+          .scene-planet {
+            width: 84%;
+            right: -5%;
+            top: 0;
+          }
+          .scene-foreground {
+            object-fit: fill;
+          }
+          .scene-lantern {
+            left: 51%;
+          }
+          .landing .entry-actions {
+            width: 400px;
+            max-width: 100%;
+          }
+          .landing .entry-actions .landing-actions {
+            grid-template-columns: minmax(0, 1fr) 80px;
+            gap: 12px;
+          }
+          .landing .landing-open.kva-painted-button,
+          .landing .secondary-action.kva-painted-button {
+            font-size: 13px;
+            padding: 12px 8px;
+            min-height: 50px;
+          }
+          .landing .cosmic-voice {
+            margin-top: 0;
+            padding: 18px 16px;
+          }
+          .landing .cosmic-product {
+            padding-top: 16px;
+          }
+          .landing .section {
+            margin-top: 48px;
+            padding-top: 32px;
+          }
+          .landing .section-art {
+            width: 68px;
+            height: 68px;
+            margin-bottom: 12px;
+          }
+          .landing .space-grid article h3 {
+            font-size: 22px;
+          }
+          .landing .motion-toggle {
+            margin-top: 12px;
+          }
+          .scene-company > img {
+            animation: none;
+          }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .landing .call-people > div {
+            transition: none;
+          }
+        }
+        /* Public landing only. Painted shells surround readable, real product examples. */
+        .space-description {
+          display: none;
+        }
+        .hex-cluster {
+          position: absolute;
+          inset: 0;
+          z-index: 1;
+        }
+        .hex-cluster img {
+          position: absolute;
+          width: 140px;
+          height: 154px;
+          object-fit: cover;
+          clip-path: polygon(50% 0, 94% 25%, 94% 75%, 50% 100%, 6% 75%, 6% 25%);
+          filter: drop-shadow(0 8px 10px #0007);
+        }
+        .hex-one {
+          left: calc(50% - 140px);
+          top: 35px;
+          rotate: -10deg;
+        }
+        .hex-two {
+          left: calc(50% - 20px);
+          top: 12px;
+          rotate: 5deg;
+        }
+        .hex-three {
+          left: calc(50% - 60px);
+          top: 95px;
+          rotate: 8deg;
+        }
+        .landing .islands-cover {
+          opacity: 0.22;
+          filter: blur(2px);
+        }
+        .landing .motion-toggle kva-painted-glyph {
+          width: 16px;
+          height: 16px;
+          flex-basis: 16px;
+        }
+        .landing .landing-download kva-painted-glyph {
+          width: 20px;
+          height: 20px;
+          flex-basis: 20px;
+        }
+        .landing .panel-header kva-painted-glyph {
+          width: 16px;
+          height: 16px;
+          flex-basis: 16px;
+        }
+        .landing .settings-grid summary > kva-painted-glyph {
+          width: 18px;
+          height: 18px;
+          flex-basis: 18px;
+        }
+        .landing:not(.motion-allowed) *,
+        .landing:not(.motion-allowed) *::before,
+        .landing:not(.motion-allowed) *::after {
+          animation-play-state: paused !important;
+          transition: none !important;
+        }
+        @media (prefers-reduced-motion: no-preference) {
+          .motion-allowed .demo-entered .hex-cluster img {
+            animation: hex-arrive 0.8s both;
+          }
+          .motion-allowed .demo-entered .hex-cluster .hex-two {
+            animation-delay: 0.15s;
+          }
+          .motion-allowed .demo-entered .hex-cluster .hex-three {
+            animation-delay: 0.3s;
+          }
+          @keyframes hex-arrive {
+            from {
+              opacity: 0;
+              transform: translateY(45px) scale(0.85);
+            }
+            to {
+              opacity: 1;
+              transform: none;
+            }
+          }
+          .motion-allowed .demo-entered .settings-grid details[open] > p {
+            animation: card-arrive 0.25s both;
+          }
+        }
+        @media (max-width: 760px) {
+          .space-description {
+            display: block;
+            min-height: 58px;
+            margin: 0 !important;
+            color: #bfb1ce;
+            font-size: 13px !important;
+            line-height: 1.6 !important;
+          }
+          .hex-cluster {
+            scale: 0.8;
+            transform-origin: center 30%;
+          }
+          [data-static-landing] .space-switches {
+            grid-template-columns: 1fr;
+          }
+          [data-static-landing] .space-switches small {
+            display: block;
+          }
+          [data-static-landing] .space-switches button {
+            flex-direction: row;
+            text-align: left;
+          }
+        }
+        .landing-masthead {
+          height: 94px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          position: relative;
+          z-index: 2;
+        }
+        .frog-wordmark {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          color: #fff0d2;
+          text-decoration: none;
+          font-size: 25px;
+          font-weight: 750;
+          letter-spacing: -0.7px;
+          white-space: nowrap;
+        }
+        .frog-wordmark img {
+          width: 42px;
+          height: 42px;
+          object-fit: contain;
+        }
+        .landing-masthead nav {
+          display: flex;
+          gap: 28px;
+          align-items: center;
+          font-size: 13px;
+        }
+        .landing-masthead nav a {
+          display: flex;
+          align-items: center;
+          min-height: 44px;
+          color: #ded2ea;
+          text-decoration: none;
+        }
+        .landing-masthead nav a:hover {
+          color: #fff0d2;
+        }
+        .chapter-index {
+          display: block;
+          margin-bottom: 18px;
+          font-size: 11px;
+          letter-spacing: 1.6px;
+          text-transform: uppercase;
+          color: #ae98ca;
+          font-weight: 650;
+        }
+        .landing .chapter-heading {
+          max-width: 700px;
+          margin-bottom: 40px;
+        }
+        .landing .chapter-heading h2 {
+          font-size: clamp(32px, 3.5vw, 46px);
+          line-height: 1.13;
+          margin-bottom: 22px;
+        }
+        .landing .chapter-heading p {
+          max-width: 560px;
+          color: #c5bbd1;
+          line-height: 1.7;
+        }
+        .landing .section {
+          border-top: 1px solid #9b7cb322;
+          margin-top: 96px;
+          padding-top: 64px;
+        }
+        .landing .spaces-section {
+          margin-top: 24px;
+        }
+        .landing .spaces-workbench {
+          display: grid;
+          grid-template-columns: 0.9fr 1.35fr;
+          gap: 32px;
+          align-items: center;
+        }
+        .space-switches {
+          display: grid;
+          gap: 12px;
+        }
+        .space-switches button {
+          display: flex;
+          align-items: center;
+          text-align: left;
+          gap: 16px;
+          min-height: 124px;
+          width: 100%;
+          border: 1px solid transparent;
+          border-radius: 22px;
+          padding: 16px;
+          background: transparent;
+          color: #fff0d2;
+          cursor: pointer;
+          font: inherit;
+        }
+        .space-switches button[aria-pressed='true'] {
+          background: #282035;
+          border-color: #9672bc80;
+          box-shadow:
+            inset 0 1px #d4a9ff20,
+            0 10px 35px #0002;
+        }
+        .space-switches button > img {
+          width: 76px;
+          height: 76px;
+          object-fit: contain;
+          flex: none;
+        }
+        .space-switches strong {
+          display: block;
+          font-size: 22px;
+          font-weight: 700;
+          margin-bottom: 6px;
+        }
+        .space-switches small {
+          display: block;
+          font-size: 13px;
+          line-height: 1.6;
+          color: #bdb1cc;
+        }
+        .space-arrow {
+          margin-left: auto;
+          color: #bba0d8;
+          font-size: 22px;
+        }
+        .space-display {
+          border: 1px solid #9270af66;
+          border-radius: 28px;
+          background: #1a1727;
+          box-shadow:
+            0 30px 80px #0004,
+            inset 0 1px #d7b4ff22;
+          overflow: hidden;
+          min-width: 0;
+        }
+        .window-bar {
+          height: 54px;
+          padding: 0 24px;
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          border-bottom: 1px solid #9b7cb329;
+          font-size: 12px;
+          color: #ad9cbe;
+        }
+        .window-bar > .kva-painted-glyph {
+          margin-left: auto;
+          width: 18px;
+        }
+        .window-dots {
+          display: flex;
+          gap: 5px;
+        }
+        .window-dots i {
+          width: 5px;
+          height: 5px;
+          border-radius: 50%;
+          background: #8e769f;
+        }
+        .space-example {
+          height: 360px;
+          padding: 28px;
+          box-sizing: border-box;
+        }
+        .space-example[hidden] {
+          display: none;
+        }
+        .example-heading {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 34px;
+          font-size: 14px;
+        }
+        .example-heading small {
+          margin-left: auto;
+          color: #ac9aba;
+          font-size: 10px;
+        }
+        .status-dot {
+          display: inline-block;
+          width: 7px;
+          height: 7px;
+          border-radius: 50%;
+          background: #6bd2b3;
+          flex: none;
+        }
+        .space-guests {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 14px;
+        }
+        .space-guests > div {
+          display: flex;
+          align-items: center;
+          flex-direction: column;
+          gap: 10px;
+          padding: 18px 8px;
+          background: #272137;
+          border-radius: 20px;
+          font-size: 13px;
+        }
+        .space-guests img {
+          width: 68px;
+          height: 68px;
+          border-radius: 50%;
+          border: 1px solid #b88ae1;
+        }
+        .space-guests > div:first-child img {
+          outline: 2px solid #67d1d3;
+          outline-offset: 5px;
+        }
+        .space-guests small {
+          font-size: 10px;
+          color: #ab98bc;
+        }
+        .sample-wave {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          height: 32px;
+          gap: 5px;
+          margin-top: 16px;
+        }
+        .sample-wave i {
+          height: 9px;
+          width: 3px;
+          background: #72cbd0;
+          border-radius: 2px;
+        }
+        .sample-wave i:nth-child(3n) {
+          height: 22px;
+        }
+        .sample-wave i:nth-child(2n) {
+          height: 15px;
+        }
+        .example-caption {
+          text-align: center;
+          color: #aa9bbd;
+          font-size: 11px !important;
+          margin: 6px 0 !important;
+        }
+        .story-message {
+          display: flex;
+          align-items: flex-end;
+          gap: 12px;
+          margin: 16px 0;
+        }
+        .story-message > img {
+          border-radius: 50%;
+          flex: none;
+        }
+        .story-message > div {
+          position: relative;
+          background: #30253f;
+          border: 1px solid #906ab141;
+          border-radius: 16px 16px 16px 4px;
+          padding: 14px 18px;
+          max-width: 85%;
+        }
+        .story-message strong {
+          font-size: 11px;
+          color: #cbb1eb;
+        }
+        .story-message p {
+          font-size: 14px !important;
+          margin: 5px 0 !important;
+        }
+        .story-message small {
+          font-size: 9px;
+          display: block;
+          text-align: right;
+          color: #b5a8c2;
+        }
+        .sample-reaction {
+          position: absolute;
+          bottom: -12px;
+          right: 12px;
+          background: #493461;
+          border: 1px solid #a17ccc;
+          border-radius: 14px;
+          padding: 3px 8px;
+          font-size: 11px;
+        }
+        .sample-composer {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          border: 1px solid #76578c66;
+          border-radius: 12px;
+          padding: 12px;
+          margin-top: 28px;
+          font-size: 12px;
+          color: #a598b5;
+        }
+        .platform-example {
+          display: grid;
+          grid-template-columns: 150px 1fr;
+          gap: 20px;
+        }
+        .platform-example aside {
+          display: grid;
+          align-content: start;
+          gap: 10px;
+          font-size: 12px;
+          color: #c4b5d4;
+        }
+        .platform-example aside > span {
+          padding: 12px 10px;
+          border-radius: 9px;
+          display: flex;
+          gap: 8px;
+          align-items: center;
+        }
+        .platform-example .selected {
+          background: #342447;
+          border-left: 2px solid #ad80e0;
+        }
+        .platform-example aside kva-painted-glyph {
+          width: 16px;
+          height: 16px;
+          flex-basis: 16px;
+        }
+        .platform-conversation {
+          display: flex;
+          align-items: center;
+          flex-direction: column;
+          gap: 12px;
+          text-align: center;
+          padding: 6px 0;
+        }
+        .platform-conversation strong {
+          font-size: 14px;
+        }
+        .platform-conversation span,
+        .platform-conversation small {
+          font-size: 11px;
+          color: #b3a2c3;
+        }
+        .landing .interface-link {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin: 28px 0 0;
+          max-width: none;
+          border: 0;
+          background: none;
+          box-shadow: none;
+        }
+        .landing .interface-link .picture-button {
+          display: inline-flex;
+          align-items: center;
+          gap: 12px;
+          width: auto;
+          min-height: 44px;
+          padding: 10px 0;
+          border: 0;
+          background: none;
+          color: #d4b7ee;
+          font-size: 13px;
+          cursor: pointer;
+        }
+        .interface-link > span {
+          font-size: 11px;
+          color: #8e819e;
+        }
+        .landing .call-illustration {
+          background: #1a1727;
+          border: 1px solid #9270af66;
+          border-radius: 26px;
+          overflow: hidden;
+        }
+        .landing .call-stage {
+          height: 280px;
+          padding: 20px;
+          position: relative;
+          display: grid;
+          grid-template-columns: 1fr;
+          align-items: center;
+          box-sizing: border-box;
+        }
+        .landing .call-people {
+          padding: 0;
+          gap: 12px;
+        }
+        .landing .call-people > div {
+          position: relative;
+          min-width: 0;
+          padding: 24px 10px;
+          background: #2b223a;
+          border: 1px solid #906ab133;
+          border-radius: 18px;
+          transform-origin: top left;
+        }
+        .landing .call-people img {
+          width: 72px;
+          height: 72px;
+          object-fit: cover;
+          border-radius: 50%;
+        }
+        .landing .demo-camera .call-people > div {
+          padding: 24px 10px;
+          background: #3a2d4d;
+          border-radius: 18px;
+        }
+        .landing .demo-camera .call-people img {
+          border-radius: 16px;
+        }
+        .landing .demo-screen .call-stage {
+          grid-template-columns: minmax(0, 1fr) 76px;
+          gap: 12px;
+        }
+        .landing .demo-screen .call-people {
+          grid-column: 2;
+          grid-row: 1;
+          grid-template-columns: 1fr;
+          gap: 6px;
+        }
+        .landing .demo-screen .call-people > div {
+          padding: 7px 4px;
+          gap: 3px;
+          font-size: 9px;
+          border-radius: 10px;
+        }
+        .landing .demo-screen .call-people img {
+          width: 38px;
+          height: 38px;
+        }
+        .landing .demo-screen-preview {
+          grid-column: 1;
+          grid-row: 1;
+          margin: 0;
+          min-width: 0;
+          min-height: 0;
+          height: 220px;
+          padding: 12px;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          border-radius: 14px;
+        }
+        .landing .demo-screen-preview[hidden] {
+          display: none;
+        }
+        .screen-title {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          align-self: flex-start;
+          font-size: 11px;
+        }
+        .screen-title kva-painted-glyph {
+          width: 16px;
+          height: 16px;
+          flex-basis: 16px;
+        }
+        .demo-screen-preview img {
+          width: 100%;
+          height: 145px;
+          object-fit: contain;
+          border-radius: 7px;
+        }
+        .demo-screen-preview small {
+          font-size: 9px;
+          color: #aa98bd;
+        }
+        .landing .call-demo-controls {
+          border-top: 1px solid #9b7cb329;
+          padding-top: 20px;
+          margin: 0 20px;
+        }
+        .landing .call-demo-note {
+          min-height: 16px;
+        }
+        .draft-transform {
+          height: 178px;
+          position: relative;
+          margin: 24px 0 16px;
+        }
+        .draft-text {
+          padding: 18px 20px;
+          border: 1px solid #9170aa55;
+          border-radius: 18px;
+          background: #261e33;
+          position: absolute;
+          inset: 0;
+        }
+        .draft-text > span {
+          color: #b99cda;
+          font-size: 10px;
+          letter-spacing: 0.5px;
+        }
+        .draft-text p {
+          font-size: 13px !important;
+          line-height: 1.6 !important;
+          margin: 12px 0 !important;
+        }
+        .draft-text i {
+          display: block;
+          width: 80%;
+          height: 3px;
+          background: #a887c522;
+          margin-top: 7px;
+          border-radius: 3px;
+        }
+        .draft-text i:last-child {
+          width: 60%;
+        }
+        .packed-file {
+          position: absolute;
+          left: 0;
+          right: 0;
+          top: 36px;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 20px 16px;
+          border: 1px solid #ac7fd075;
+          border-radius: 18px;
+          background: #2a213a;
+          visibility: hidden;
+          opacity: 0;
+          transform: translateY(18px) scale(0.94);
+        }
+        .packed-file > img {
+          flex: none;
+          object-fit: contain;
+        }
+        .packed-file strong {
+          font-size: 16px;
+        }
+        .packed-file small {
+          display: block;
+          color: #b6a2c8;
+          font-size: 11px;
+          margin-top: 5px;
+        }
+        .packed-file button {
+          margin-left: auto;
+          background: #473058;
+          border: 1px solid #9771b166;
+          border-radius: 12px;
+          color: #fff0d2;
+          min-width: 44px;
+          min-height: 44px;
+          cursor: pointer;
+        }
+        .packed .draft-text {
+          opacity: 0;
+          transform: translateY(16px) scale(0.9);
+          visibility: hidden;
+        }
+        .packed .packed-file {
+          opacity: 1;
+          transform: none;
+          visibility: visible;
+        }
+        .landing .pack-action {
+          font-size: 13px;
+          min-height: 46px;
+        }
+        .landing .document-illustration {
+          border: 1px solid #9270af66;
+          border-radius: 24px;
+          overflow: hidden;
+        }
+        .landing .document-illustration pre {
+          min-height: 280px;
+        }
+        .landing .document-illustration .markdown-example {
+          min-height: 280px;
+          box-sizing: border-box;
+        }
+        .landing .document-toolbar {
+          background: #241f31;
+        }
+        .landing .file-formats button,
+        .landing .document-toolbar button {
+          border-radius: 12px;
+          border-color: #85669e66;
+          background: #241e31;
+          color: #dfcfec;
+          min-height: 40px;
+        }
+        .landing .file-formats button[aria-pressed='true'],
+        .landing .document-toolbar button[aria-pressed='true'] {
+          background: #4b3261;
+          border-color: #b085d8;
+          color: #fff0d2;
+        }
+        .landing .message-benefits {
+          border-color: #8d6baa33;
+        }
+        .landing .appearance-chapter {
+          padding: 40px;
+          border: 1px solid #9672bc33;
+          border-radius: 32px;
+          background: linear-gradient(135deg, #241a32aa, #151722);
+        }
+        .appearance-chat {
+          position: relative;
+          isolation: isolate;
+          overflow: hidden;
+        }
+        .preview-message {
+          position: relative;
+          z-index: 1;
+        }
+        .wallpaper-before {
+          position: absolute;
+          inset: 0;
+          background-size: 480px;
+          background-color: var(--palette-canvas);
+          pointer-events: none;
+          opacity: 0;
+        }
+        .landing .appearance-illustration {
+          border-radius: 24px;
+          overflow: hidden;
+        }
+        .landing .items-line {
+          border-color: #8d6baa33;
+        }
+        .landing .settings-grid {
+          gap: 12px;
+        }
+        .landing .settings-grid details {
+          border-color: #9270af44;
+          background: #211b2e;
+          border-radius: 18px;
+          overflow: hidden;
+        }
+        .landing .settings-grid details[open] {
+          background: #2a2038;
+          border-color: #b18bd16e;
+        }
+        .landing .settings-grid summary {
+          min-height: 58px;
+        }
+        .landing .settings-grid summary app-ui-icon:last-child {
+          margin-left: auto;
+        }
+        .landing .settings-grid details[open] summary app-ui-icon:last-child {
+          transform: rotate(180deg);
+        }
+        .landing .application-grid {
+          gap: 28px;
+        }
+        .landing .application-grid article {
+          display: flex;
+          flex-direction: column;
+          align-items: stretch;
+          gap: 0;
+          padding: 0;
+          background: #201a2c;
+          border: 1px solid #9270af44;
+          border-radius: 26px;
+          overflow: hidden;
+        }
+        .landing .application-grid article > div:last-child:not(.calendar-art):not(.islands-art) {
+          padding: 26px 28px;
+        }
+        .calendar-art,
+        .islands-art {
+          position: relative;
+          height: 265px;
+          overflow: hidden;
+          isolation: isolate;
+        }
+        .calendar-art {
+          background: radial-gradient(ellipse at 65% 40%, #74509155, transparent 70%), #211b30;
+          padding: 30px 55px;
+        }
+        .calendar-sheet {
+          border: 1px solid #c7a5df77;
+          border-radius: 18px;
+          background: #efe3d1;
+          color: #3b294b;
+          padding: 22px;
+          transform: rotate(-5deg);
+          box-shadow: 0 16px 28px #0004;
+        }
+        .calendar-sheet > span {
+          font-size: 10px;
+          letter-spacing: 2px;
+          font-weight: 750;
+        }
+        .calendar-days {
+          display: grid;
+          grid-template-columns: repeat(7, 1fr);
+          gap: 8px;
+          margin-top: 18px;
+          text-align: center;
+        }
+        .calendar-days i {
+          font-size: 9px;
+          font-style: normal;
+          color: #83678d;
+        }
+        .calendar-days b {
+          font-size: 12px;
+          padding: 6px 0;
+        }
+        .calendar-days .chosen {
+          background: #7852a2;
+          color: #fff0d2;
+          border-radius: 8px;
+        }
+        .calendar-event {
+          position: absolute;
+          left: 22%;
+          right: 5%;
+          bottom: 25px;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 16px;
+          background: #3b2950;
+          border: 1px solid #c6a0e56b;
+          border-radius: 16px;
+          box-shadow: 0 14px 32px #0004;
+        }
+        .calendar-event strong {
+          display: block;
+          font-size: 13px;
+        }
+        .calendar-event div > span {
+          display: block;
+          font-size: 10px;
+          color: #c3aed3;
+          margin-top: 5px;
+        }
+        .calendar-event img {
+          margin-left: auto;
+          border-radius: 50%;
+        }
+        .islands-art {
+          background: #102e39;
+        }
+        .islands-cover {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          object-position: center 40%;
+          opacity: 0.9;
+        }
+        .islands-art::after {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(transparent 50%, #171628c9);
+          z-index: 1;
+          pointer-events: none;
+        }
+        .islands-tag {
+          position: absolute;
+          bottom: 22px;
+          left: 26px;
+          font-size: 17px;
+          font-weight: 650;
+          color: #fff0d2;
+          z-index: 2;
+        }
+        .islands-orbit {
+          position: absolute;
+          inset: 18%;
+          border: 1px solid #d4baff50;
+          border-radius: 50%;
+          transform: rotate(-20deg);
+        }
+        .landing .landing-footer {
+          align-items: center;
+          gap: 24px;
+          margin-top: 70px;
+        }
+        .landing-footer .frog-wordmark {
+          font-size: 22px;
+        }
+        .landing-footer > span {
+          color: #b8a6c9;
+          font-size: 12px;
+        }
+        .footer-motion {
+          margin-left: auto;
+          min-height: 44px;
+          border: 1px solid #80639566;
+          border-radius: 22px;
+          padding: 8px 14px;
+          background: #211b2e;
+          color: #d7c1e9;
+          font: inherit;
+          font-size: 11px;
+          cursor: pointer;
+        }
+        .footer-motion[aria-pressed='true'] {
+          border-color: #75cfd577;
+        }
+        .footer-motion:disabled {
+          opacity: 0.55;
+          cursor: default;
+        }
+        .landing .picture-dialog {
+          border: 1px solid #b18bd16e;
+          background: #201a2c;
+          border-radius: 24px;
+          color: #fff0d2;
+        }
+        .landing .picture-dialog form button {
+          border-radius: 12px;
+          min-height: 44px;
+        }
+        [data-static-landing] .footer-motion {
+          display: none;
+        }
+        [data-static-landing] .space-switches button:first-child {
+          background: #282035;
+        }
+        @media (prefers-reduced-motion: no-preference) {
+          .motion-allowed .space-switches button,
+          .motion-allowed .file-formats button,
+          .motion-allowed .settings-grid summary app-ui-icon {
+            transition:
+              background-color 0.2s,
+              border-color 0.2s,
+              transform 0.2s;
+          }
+          .motion-allowed .draft-text,
+          .motion-allowed .packed-file {
+            transition:
+              opacity 0.35s,
+              transform 0.45s,
+              visibility 0.35s;
+          }
+          .motion-allowed .wallpaper-before.fading {
+            animation: wallpaper-dissolve 0.28s ease-out both;
+          }
+          .motion-allowed .avatar-frame {
+            animation: frame-arrive 0.35s ease-out;
+          }
+          .motion-allowed .demo-visible .sample-wave i {
+            animation: voice-bars 1s ease-in-out infinite alternate;
+          }
+          .motion-allowed .demo-visible .sample-wave i:nth-child(2n) {
+            animation-delay: -0.3s;
+          }
+          .motion-allowed .demo-visible .sample-wave i:nth-child(3n) {
+            animation-delay: -0.7s;
+          }
+          .motion-allowed .demo-visible .space-example:not([hidden]) .space-guests > div {
+            animation: card-arrive 0.6s both;
+          }
+          .motion-allowed .demo-visible .story-message {
+            animation: card-arrive 0.5s both;
+          }
+          .motion-allowed .demo-visible .message-second {
+            animation-delay: 0.2s;
+          }
+          .motion-allowed .demo-visible .sample-reaction {
+            animation: card-arrive 0.4s 0.6s both;
+          }
+          .motion-allowed .demo-visible .platform-conversation {
+            animation: card-arrive 0.5s both;
+          }
+          .motion-allowed .demo-visible .call-illustration:not(.demo-muted) .call-people > div {
+            animation: speaker-ring 9s infinite;
+          }
+          .motion-allowed
+            .demo-visible
+            .call-illustration:not(.demo-muted)
+            .call-people
+            > div:nth-child(2) {
+            animation-delay: -6s;
+          }
+          .motion-allowed
+            .demo-visible
+            .call-illustration:not(.demo-muted)
+            .call-people
+            > div:nth-child(3) {
+            animation-delay: -3s;
+          }
+          .motion-allowed .demo-entered .calendar-sheet {
+            animation: calendar-arrive 0.8s both;
+          }
+          .motion-allowed .demo-entered .calendar-event {
+            animation: card-arrive 0.6s 0.25s both;
+          }
+          .motion-allowed .demo-entered .islands-cover {
+            animation: islands-arrive 1.1s both;
+          }
+          .motion-allowed .application-grid article:hover .calendar-sheet {
+            rotate: 2deg;
+            transition: rotate 0.4s;
+          }
+          .motion-allowed .application-grid article:hover .islands-orbit {
+            rotate: 10deg;
+            transition: rotate 0.8s;
+          }
+          @keyframes voice-bars {
+            to {
+              transform: scaleY(0.35);
+              opacity: 0.55;
+            }
+          }
+          @keyframes card-arrive {
+            from {
+              opacity: 0;
+              transform: translateY(18px) scale(0.97);
+            }
+            to {
+              opacity: 1;
+              transform: none;
+            }
+          }
+          @keyframes speaker-ring {
+            0%,
+            29% {
+              border-color: #73d5d1;
+              box-shadow: 0 0 16px #57c8d522;
+            }
+            34%,
+            100% {
+              border-color: #906ab133;
+              box-shadow: none;
+            }
+          }
+          @keyframes wallpaper-dissolve {
+            from {
+              opacity: 1;
+            }
+            to {
+              opacity: 0;
+            }
+          }
+          @keyframes frame-arrive {
+            from {
+              opacity: 0;
+              scale: 0.85;
+            }
+            to {
+              opacity: 1;
+              scale: 1;
+            }
+          }
+          @keyframes calendar-arrive {
+            from {
+              opacity: 0.3;
+              transform: translateY(30px) rotate(-12deg);
+            }
+            to {
+              opacity: 1;
+              transform: rotate(-5deg);
+            }
+          }
+          @keyframes islands-arrive {
+            from {
+              opacity: 0.4;
+              transform: scale(1.12);
+            }
+            to {
+              opacity: 0.9;
+              transform: scale(1);
+            }
+          }
+          .landing:not(.motion-allowed) .appearance-chat,
+          .landing:not(.motion-allowed) .bubble,
+          .landing:not(.motion-allowed) .call-people > div {
+            transition: none;
+          }
+        }
+        @media (max-width: 1100px) {
+          .landing .spaces-workbench {
+            grid-template-columns: 0.85fr 1.15fr;
+            gap: 18px;
+          }
+          .space-switches button > img {
+            width: 58px;
+            height: 58px;
+          }
+          .space-switches button {
+            gap: 10px;
+            padding: 12px;
+          }
+          .space-switches strong {
+            font-size: 19px;
+          }
+          .space-example {
+            padding: 22px;
+          }
+          .platform-example {
+            grid-template-columns: 120px 1fr;
+            gap: 10px;
+          }
+        }
+        @media (max-width: 760px) {
+          .landing-masthead {
+            height: 76px;
+          }
+          .frog-wordmark {
+            font-size: 22px;
+            gap: 6px;
+          }
+          .frog-wordmark img {
+            width: 32px;
+            height: 32px;
+          }
+          .landing-masthead nav {
+            gap: 16px;
+            font-size: 12px;
+          }
+          .landing .section {
+            margin-top: 52px;
+            padding-top: 36px;
+          }
+          .landing .spaces-section {
+            margin-top: 12px;
+          }
+          .chapter-index {
+            font-size: 9px;
+            letter-spacing: 1.1px;
+            margin-bottom: 14px;
+          }
+          .landing .chapter-heading {
+            margin-bottom: 24px;
+          }
+          .landing .chapter-heading h2 {
+            font-size: 32px;
+          }
+          .landing .spaces-workbench {
+            grid-template-columns: 1fr;
+            gap: 22px;
+          }
+          .space-switches {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 6px;
+          }
+          .space-switches button {
+            flex-direction: column;
+            justify-content: center;
+            gap: 6px;
+            text-align: center;
+            min-height: 112px;
+            padding: 8px 4px;
+            border-radius: 16px;
+          }
+          .space-switches button > img {
+            width: 56px;
+            height: 56px;
+          }
+          .space-switches strong {
+            font-size: 13px;
+            margin: 0;
+          }
+          .space-switches small,
+          .space-arrow {
+            display: none;
+          }
+          .space-example {
+            height: 340px;
+            padding: 20px 16px;
+          }
+          .space-display {
+            border-radius: 22px;
+          }
+          .window-bar {
+            padding: 0 16px;
+            font-size: 10px;
+          }
+          .example-heading {
+            font-size: 12px;
+            gap: 5px;
+            margin-bottom: 28px;
+          }
+          .example-heading small {
+            font-size: 8px;
+          }
+          .space-guests {
+            gap: 8px;
+          }
+          .space-guests > div {
+            padding: 16px 5px;
+            font-size: 11px;
+          }
+          .space-guests img {
+            width: 52px;
+            height: 52px;
+          }
+          .space-guests small {
+            font-size: 8px;
+          }
+          .platform-example {
+            grid-template-columns: 105px 1fr;
+            gap: 10px;
+          }
+          .platform-example aside {
+            font-size: 10px;
+          }
+          .platform-example aside > span {
+            padding: 12px 6px;
+          }
+          .platform-conversation img {
+            width: 82px;
+            height: 82px;
+          }
+          .platform-conversation strong {
+            font-size: 12px;
+          }
+          .platform-conversation small {
+            font-size: 9px;
+          }
+          .story-message {
+            gap: 8px;
+          }
+          .story-message > img {
+            width: 30px;
+            height: 30px;
+          }
+          .story-message > div {
+            padding: 10px 12px;
+          }
+          .story-message p {
+            font-size: 12px !important;
+          }
+          .interface-link > span {
+            display: none;
+          }
+          .landing .interface-link {
+            margin-top: 12px;
+          }
+          .landing .call-stage {
+            height: 260px;
+            padding: 14px;
+          }
+          .landing .call-people {
+            gap: 8px;
+          }
+          .landing .call-people > div,
+          .landing .demo-camera .call-people > div {
+            padding: 22px 6px;
+          }
+          .landing .call-people img {
+            width: 52px;
+            height: 52px;
+          }
+          .landing .demo-screen .call-stage {
+            grid-template-columns: minmax(0, 1fr) 60px;
+            gap: 8px;
+          }
+          .landing .demo-screen .call-people > div {
+            padding: 7px 3px;
+          }
+          .landing .demo-screen .call-people img {
+            width: 32px;
+            height: 32px;
+          }
+          .landing .demo-screen-preview {
+            padding: 8px;
+            height: 210px;
+          }
+          .demo-screen-preview small {
+            font-size: 8px;
+          }
+          .landing .appearance-chapter {
+            padding: 28px 16px;
+            border-radius: 24px;
+          }
+          .landing .appearance-section {
+            gap: 28px;
+          }
+          .landing .application-grid {
+            gap: 20px;
+          }
+          .calendar-art,
+          .islands-art {
+            height: 225px;
+          }
+          .calendar-art {
+            padding: 26px 35px;
+          }
+          .calendar-sheet {
+            padding: 16px;
+          }
+          .calendar-event {
+            left: 12%;
+            bottom: 20px;
+            padding: 14px;
+          }
+          .calendar-event strong {
+            font-size: 12px;
+          }
+          .landing .application-grid article > div:last-child:not(.calendar-art):not(.islands-art) {
+            padding: 22px;
+          }
+          .landing .landing-footer {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px 20px;
+          }
+          .landing-footer .frog-wordmark {
+            font-size: 21px;
+          }
+          .landing-footer > span {
+            font-size: 11px;
+          }
+          .footer-motion {
+            margin: 0;
+          }
+        }
+        @media (max-width: 360px) {
+          .frog-wordmark {
+            font-size: 20px;
+          }
+          .landing-masthead nav {
+            font-size: 11px;
+            gap: 12px;
+          }
+          .space-example {
+            padding: 18px 12px;
+          }
+          .space-guests img {
+            width: 44px;
+            height: 44px;
+          }
+          .space-guests small {
+            font-size: 7px;
+          }
+          .packed-file {
+            padding: 14px 10px;
+            gap: 8px;
+          }
+          .packed-file > img {
+            width: 42px;
+            height: 42px;
+          }
+          .packed-file small {
+            font-size: 9px;
+          }
+          .calendar-art {
+            padding-inline: 24px;
+          }
+          .calendar-days {
+            gap: 5px;
+          }
+        }
+      </style>
       <div class="landing" data-static-landing>
-        <header class="guest-header">
-          <a class="guest-logo" href="/" aria-label="Квачат — главная"
-            ><img src="/assets/kva-wordmark-v2.png" width="116" height="58" alt="KVA Chat"
-          /></a>
+        <header class="landing-masthead container">
+          <a class="frog-wordmark" href="/" aria-label="Квачат — главная"
+            ><img src="/assets/cosmic/frog-moonlight-128.webp" width="42" height="42" alt="" /><span
+              >Квачат</span
+            ></a
+          >
           <nav aria-label="Главное меню">
-            <a href="/#features">Возможности</a>
-            <a href="/#download">Скачать</a>
+            <a href="#features">Возможности</a><a href="#download">Скачать</a>
           </nav>
         </header>
-
         <main>
-          <section class="landing-hero container" aria-labelledby="landing-title">
-            <h1 id="landing-title">Свои люди.<br />Всегда <span>рядом.</span></h1>
-            <p class="landing-lead">
-              Переписывайтесь лично и в группах, собирайтесь в комнате<br class="desktop-break" />
-              и создавайте площадки для своих сообществ.
-            </p>
-            <div class="entry-actions" id="download">
-              <div class="landing-actions">
-                <a class="landing-open" href="/register">Зарегистрироваться</a>
-                <a class="secondary-action" href="/login">Войти</a>
-              </div>
-              <div class="landing-downloads" aria-label="Скачать приложение">
-                <a
-                  class="landing-download windows-download"
-                  href="/downloads/KvaChat-Setup-0.5.35-x64.exe"
-                  download
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.7"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    aria-hidden="true"
-                  >
-                    <path d="M12 3v12M7 10l5 5 5-5M4 16v5h16v-5" />
-                  </svg>
-                  <span><strong>Windows · EXE</strong><small>10 / 11 · x64 · v0.5.35</small></span>
-                </a>
-                <a
-                  class="landing-download android-download"
-                  href="/downloads/KvaChat-0.3.38-android.apk"
-                  download
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.7"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    aria-hidden="true"
-                  >
-                    <path d="M12 3v12M7 10l5 5 5-5M4 16v5h16v-5" />
-                  </svg>
-                  <span><strong>Android · APK</strong><small>10+ · v0.3.38</small></span>
-                </a>
-              </div>
-            </div>
-            <details class="landing-help">
-              <summary>Как установить</summary>
-              <div>
-                <p>
-                  <strong>Windows.</strong> Откройте EXE и следуйте шагам установщика. Установщик
-                  пока без подписи издателя.
-                </p>
-                <p>
-                  <strong>Android.</strong> Откройте APK и разрешите установку из выбранного
-                  браузера или файлового менеджера. Версия тестовая. Для уведомлений разрешите
-                  фоновую работу; звонки в фоне и демонстрация требуют проверки на телефоне.
-                </p>
-                <p>
-                  Версия 0.3.38 устанавливается поверх 0.3.34–0.3.37. При переходе с 0.3.33 и более
-                  ранних версий удалите старое приложение и войдите заново. Переписки на сервере
-                  сохранятся, локальные настройки и несохранённые данные могут быть удалены.
-                </p>
-                <p class="checksum-links">
-                  SHA-256:
-                  <a href="/downloads/KvaChat-Setup-0.5.35-x64.exe.sha256" download>Windows</a
-                  ><a href="/downloads/KvaChat-0.3.38-android.apk.sha256" download>Android</a>
-                </p>
-              </div>
-            </details>
-            <div class="hero-scene">
-              <img
-                class="hero-ribbons"
-                src="/assets/landing/ribbons.png"
-                width="1672"
-                height="940"
-                alt=""
-              />
-              <figure class="landing-preview">
-                <button disabled class="picture-button" aria-label="Рассмотреть интерфейс Квачата">
+          <div class="cosmic-journey">
+            <section class="landing-hero container" aria-labelledby="landing-title">
+              <div
+                class="cosmic-stage"
+                role="img"
+                aria-label="Четверо друзей-лягушек у фонаря на кувшинке под звёздным небом"
+              >
+                <img
+                  class="scene-backdrop"
+                  src="/assets/cosmic-motion/backdrop-1600.webp"
+                  srcset="
+                    /assets/cosmic-motion/backdrop-720.webp   720w,
+                    /assets/cosmic-motion/backdrop-1600.webp 1600w
+                  "
+                  sizes="100vw"
+                  width="1600"
+                  height="854"
+                  alt=""
+                  fetchpriority="high"
+                />
+                <img
+                  class="scene-planet"
+                  src="/assets/cosmic-motion/planet-1600.webp"
+                  srcset="
+                    /assets/cosmic-motion/planet-720.webp   720w,
+                    /assets/cosmic-motion/planet-1600.webp 1600w
+                  "
+                  sizes="(max-width: 960px) 80vw, 50vw"
+                  width="1600"
+                  height="800"
+                  alt=""
+                />
+                <div class="scene-reflection"></div>
+                <div class="scene-company">
                   <img
-                    src="/assets/landing-chat.png"
-                    alt="Групповая беседа в Квачате: сообщения, реакции и созвон"
-                    width="1120"
-                    height="700"
+                    src="/assets/cosmic-motion/company-1600.webp"
+                    srcset="
+                      /assets/cosmic-motion/company-720.webp   720w,
+                      /assets/cosmic-motion/company-1600.webp 1600w
+                    "
+                    sizes="(max-width: 960px) 100vw, 66vw"
+                    width="1600"
+                    height="854"
+                    alt=""
                     fetchpriority="high"
-                  />
-                </button>
-              </figure>
-            </div>
-          </section>
-
-          <section class="section container" id="features" aria-labelledby="spaces-title">
-            <h2 id="spaces-title">Комната, группы и площадки</h2>
-            <div class="friends-line">
-              <span class="small-icon"
-                ><svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.7"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M17 8h5M19.5 5.5v5"
-                  /></svg
-              ></span>
-              <p>
-                <strong>Начните с друзей.</strong> Приглашайте по ссылке, переписывайтесь и звоните
-                лично.
-              </p>
-            </div>
-            <div class="space-grid">
-              <article>
-                <div class="space-art" aria-hidden="true">
-                  <div class="mini-title">Моя комната <span>3 участника</span></div>
-                  <div class="room-people">
-                    <div>
-                      <img
-                        src="/assets/landing/frog.webp"
-                        width="58"
-                        height="58"
-                        alt=""
-                        loading="lazy"
-                      /><span>Аня</span>
-                    </div>
-                    <div>
-                      <img
-                        src="/assets/landing/fox.webp"
-                        width="58"
-                        height="58"
-                        alt=""
-                        loading="lazy"
-                      /><span>Саша</span>
-                    </div>
-                    <div>
-                      <img
-                        src="/assets/landing/cat.webp"
-                        width="58"
-                        height="58"
-                        alt=""
-                        loading="lazy"
-                      /><span>Маша</span>
-                    </div>
+                  /><span class="scene-lantern"></span>
+                </div>
+                <img
+                  class="scene-foreground"
+                  src="/assets/cosmic-motion/foreground-1600.webp"
+                  srcset="
+                    /assets/cosmic-motion/foreground-720.webp   720w,
+                    /assets/cosmic-motion/foreground-1600.webp 1600w
+                  "
+                  sizes="100vw"
+                  width="1600"
+                  height="855"
+                  alt=""
+                />
+                <span class="scene-star star-one"></span><span class="scene-star star-two"></span
+                ><span class="scene-star star-three"></span>
+              </div>
+              <div class="cosmic-intro">
+                <p class="cosmic-brand">Квачат</p>
+                <p class="landing-lead">Голосовой чат для друзей</p>
+                <h1 id="landing-title">Все свои<br />уже на <span>связи.</span></h1>
+                <div class="entry-actions" id="download">
+                  <div class="landing-actions">
+                    <a
+                      class="landing-open kva-painted-button kva-painted-button--primary"
+                      href="/register"
+                      >Зарегистрироваться</a
+                    >
+                    <a
+                      class="secondary-action kva-painted-button kva-painted-button--secondary"
+                      href="/login"
+                      >Войти</a
+                    >
                   </div>
-                  <div class="mini-controls">
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="1.7"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      aria-hidden="true"
+                  <div class="landing-downloads" aria-label="Скачать приложение">
+                    <a
+                      class="landing-download windows-download"
+                      href="/downloads/KvaChat-Setup-0.5.35-x64.exe"
+                      download
                     >
-                      <path
-                        d="M9 5a3 3 0 0 1 6 0v7a3 3 0 0 1-6 0zM5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8"
-                      /></svg
-                    ><svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="1.7"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      aria-hidden="true"
+                      <span class="kva-painted-glyph" aria-hidden="true"
+                        ><svg viewBox="0 0 24 24">
+                          <path d="" fill="currentColor" fill-rule="evenodd" />
+                          <path
+                            d="M12 2v13M7 10l5 5 5-5M3 16v5h18v-5"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2.3"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                          /></svg
+                      ></span>
+                      <span
+                        ><strong>Windows · EXE</strong><small>10 / 11 · x64 · v0.5.35</small></span
+                      >
+                    </a>
+                    <a
+                      class="landing-download android-download"
+                      href="/downloads/KvaChat-0.3.38-android.apk"
+                      download
                     >
+                      <span class="kva-painted-glyph" aria-hidden="true"
+                        ><svg viewBox="0 0 24 24">
+                          <path d="" fill="currentColor" fill-rule="evenodd" />
+                          <path
+                            d="M12 2v13M7 10l5 5 5-5M3 16v5h18v-5"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2.3"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                          /></svg
+                      ></span>
+                      <span><strong>Android · APK</strong><small>10+ · v0.3.38</small></span>
+                    </a>
+                  </div>
+                </div>
+                <details class="landing-help">
+                  <summary>Как установить</summary>
+                  <div>
+                    <p>
+                      <strong>Windows.</strong> Откройте EXE и следуйте шагам установщика.
+                      Установщик пока без подписи издателя.
+                    </p>
+                    <p>
+                      <strong>Android.</strong> Откройте APK и разрешите установку из выбранного
+                      браузера или файлового менеджера. Версия тестовая. Для уведомлений разрешите
+                      фоновую работу; звонки в фоне и демонстрация требуют проверки на телефоне.
+                    </p>
+                    <p>
+                      Версия 0.3.38 устанавливается поверх 0.3.34–0.3.37. При переходе с 0.3.33 и
+                      более ранних версий удалите старое приложение и войдите заново. Переписки на
+                      сервере сохранятся, локальные настройки и несохранённые данные могут быть
+                      удалены.
+                    </p>
+                    <p class="checksum-links">
+                      SHA-256:
+                      <a href="/downloads/KvaChat-Setup-0.5.35-x64.exe.sha256" download>Windows</a
+                      ><a href="/downloads/KvaChat-0.3.38-android.apk.sha256" download>Android</a>
+                    </p>
+                  </div>
+                </details>
+              </div>
+              <div
+                class="cosmic-voice kva-painted-panel"
+                role="img"
+                aria-label="Пример голосовой комнаты: Вечерняя компания, Квак, Жабик, Лиля и Болот"
+              >
+                <div class="cosmic-voice-title">
+                  <span class="kva-painted-glyph" aria-hidden="true"
+                    ><svg viewBox="0 0 24 24">
                       <path
-                        d="M4 6h11a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1zM16 10l5-3v10l-5-3"
-                      /></svg
-                    ><svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="1.7"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      aria-hidden="true"
-                    >
+                        d="M3 11a9 9 0 0 1 18 0v8a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h1v-1a6 6 0 0 0-12 0v1h1a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"
+                        fill="currentColor"
+                        fill-rule="evenodd"
+                      />
                       <path
-                        d="M4 3h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM12 17v4M8 21h8M12 13V7M9 10l3-3 3 3"
-                      /></svg
-                    ><svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="1.7"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      aria-hidden="true"
-                    >
-                      <path
-                        d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"
-                      /></svg
-                    ><span class="hangup"
-                      ><svg
-                        viewBox="0 0 24 24"
+                        d=""
                         fill="none"
                         stroke="currentColor"
-                        stroke-width="1.7"
+                        stroke-width="2.3"
                         stroke-linecap="round"
                         stroke-linejoin="round"
-                        aria-hidden="true"
+                      /></svg
+                  ></span>
+                  <div>
+                    <strong>Вечерняя компания</strong><span><i></i> Голосовой чат</span>
+                  </div>
+                </div>
+                <div class="cosmic-friends" aria-hidden="true">
+                  <div class="is-speaking">
+                    <img src="/assets/cosmic/kvak.webp" width="60" height="60" alt="" /><span
+                      >Квак</span
+                    >
+                  </div>
+                  <div>
+                    <img src="/assets/cosmic/zhabik.webp" width="60" height="60" alt="" /><span
+                      >Жабик</span
+                    >
+                  </div>
+                  <div>
+                    <img src="/assets/cosmic/lilya.webp" width="60" height="60" alt="" /><span
+                      >Лиля</span
+                    >
+                  </div>
+                  <div>
+                    <img src="/assets/cosmic/bolot.webp" width="60" height="60" alt="" /><span
+                      >Болот</span
+                    >
+                  </div>
+                </div>
+                <div class="cosmic-voice-symbols" aria-hidden="true">
+                  <span
+                    ><span class="kva-painted-glyph" aria-hidden="true"
+                      ><svg viewBox="0 0 24 24">
+                        <path
+                          d="M3 11a9 9 0 0 1 18 0v8a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h1v-1a6 6 0 0 0-12 0v1h1a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"
+                          fill="currentColor"
+                          fill-rule="evenodd"
+                        />
+                        <path
+                          d=""
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2.3"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        /></svg></span></span
+                  ><span
+                    ><span class="kva-painted-glyph" aria-hidden="true"
+                      ><svg viewBox="0 0 24 24">
+                        <path
+                          d="M8 6a4 4 0 0 1 8 0v6a4 4 0 0 1-8 0z"
+                          fill="currentColor"
+                          fill-rule="evenodd"
+                        />
+                        <path
+                          d="M5 11v1a7 7 0 0 0 14 0v-1M12 19v3M9 22h6"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2.3"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        /></svg></span></span
+                  ><span class="end-call"
+                    ><span class="kva-painted-glyph" aria-hidden="true"
+                      ><svg viewBox="0 0 24 24">
+                        <path
+                          d="M2 10q10-9 20 0 2 2 1 4l-1 3q-1 1-2 0l-4-2v-4q-4-2-8 0v4l-4 2q-1 1-2 0l-1-3q-1-2 1-4z"
+                          fill="currentColor"
+                          fill-rule="evenodd"
+                        />
+                        <path
+                          d=""
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2.3"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        /></svg></span
+                  ></span>
+                </div>
+              </div>
+              <p class="cosmic-caption">Свои люди. Одна комната. Столько всего обсудить.</p>
+              <button disabled class="motion-toggle" type="button" aria-label="Анимация сцены">
+                <span class="kva-painted-glyph" aria-hidden="true"
+                  ><svg viewBox="0 0 24 24">
+                    <path
+                      d="M9 1h6l1 4 4-1 3 5-3 3 3 3-3 5-4-1-1 4H9l-1-4-4 1-3-5 3-3-3-3 3-5 4 1zM12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8"
+                      fill="currentColor"
+                      fill-rule="evenodd"
+                    />
+                    <path
+                      d=""
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.3"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    /></svg></span
+                ><span>Анимация</span>
+              </button>
+            </section>
+          </div>
+
+          <section
+            class="section container spaces-section"
+            id="features"
+            aria-labelledby="spaces-title"
+            kvaDemo
+          >
+            <div class="chapter-heading">
+              <span class="chapter-index">01 / Свои места</span>
+              <h2 id="spaces-title">Для каждого разговора<br />найдётся место.</h2>
+              <p>Начните с друзей. Приглашайте по ссылке, переписывайтесь и звоните лично.</p>
+            </div>
+            <div class="space-grid spaces-workbench">
+              <div class="space-switches" role="group" aria-label="Пространства Квачата">
+                <button disabled type="button" aria-controls="space-room">
+                  <img
+                    src="/assets/painted-controls/room-256.webp"
+                    width="88"
+                    height="88"
+                    alt=""
+                    loading="lazy"
+                  /><span
+                    ><strong>Комната</strong
+                    ><small>Встреча по ссылке. Гости могут подключиться без аккаунта.</small></span
+                  ><span class="space-arrow" aria-hidden="true">↗</span>
+                </button>
+                <button disabled type="button" aria-controls="space-group">
+                  <img
+                    src="/assets/painted-controls/groups-256.webp"
+                    width="88"
+                    height="88"
+                    alt=""
+                    loading="lazy"
+                  /><span
+                    ><strong>Группы</strong
+                    ><small>Переписка, файлы и созвоны для вашей компании.</small></span
+                  ><span class="space-arrow" aria-hidden="true">↗</span>
+                </button>
+                <button disabled type="button" aria-controls="space-platform">
+                  <img
+                    src="/assets/painted-controls/platforms-256.webp"
+                    width="88"
+                    height="88"
+                    alt=""
+                    loading="lazy"
+                  /><span
+                    ><strong>Площадки</strong
+                    ><small>Сообщество с каналами, участниками и правилами доступа.</small></span
+                  ><span class="space-arrow" aria-hidden="true">↗</span>
+                </button>
+              </div>
+              <p class="space-description">
+                Встреча по ссылке. Гости могут подключиться без аккаунта.
+              </p>
+              <div class="space-display" kvaDemo>
+                <div class="window-bar">
+                  <span class="window-dots" aria-hidden="true"><i></i><i></i><i></i></span
+                  ><span>Квачат · ваша компания</span
+                  ><span class="kva-painted-glyph" aria-hidden="true"
+                    ><svg viewBox="0 0 24 24">
+                      <path
+                        d="M4 3h16q3 0 3 3v10q0 3-3 3H9l-6 4v-5q-2-1-2-3V6q0-3 3-3zM7 9v3h2V9zM11 9v3h2V9zM15 9v3h2V9z"
+                        fill="currentColor"
+                        fill-rule="evenodd"
+                      />
+                      <path
+                        d=""
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.3"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      /></svg
+                  ></span>
+                </div>
+                <div id="space-room" class="space-example">
+                  <div class="example-heading">
+                    <span class="status-dot"></span><strong>Вечерняя компания</strong
+                    ><small>Моя комната</small>
+                  </div>
+                  <div class="space-guests">
+                    <div>
+                      <img
+                        src="/assets/cosmic/kvak.webp"
+                        width="88"
+                        height="88"
+                        alt=""
+                        loading="lazy"
+                      /><span>Аня</span><small>Рассказывает</small>
+                    </div>
+                    <div>
+                      <img
+                        src="/assets/cosmic/zhabik.webp"
+                        width="88"
+                        height="88"
+                        alt=""
+                        loading="lazy"
+                      /><span>Саша</span><small>На связи</small>
+                    </div>
+                    <div>
+                      <img
+                        src="/assets/cosmic/lilya.webp"
+                        width="88"
+                        height="88"
+                        alt=""
+                        loading="lazy"
+                      /><span>Маша</span><small>На связи</small>
+                    </div>
+                  </div>
+                  <div class="sample-wave" aria-hidden="true">
+                    <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                  </div>
+                  <p class="example-caption">Одна ссылка — и можно собираться.</p>
+                </div>
+                <div id="space-group" class="space-example" hidden>
+                  <div class="example-heading">
+                    <strong>Книжный клуб</strong><small>5 участников</small>
+                  </div>
+                  <div class="story-message">
+                    <img
+                      src="/assets/cosmic/kvak.webp"
+                      width="40"
+                      height="40"
+                      alt=""
+                      loading="lazy"
+                    />
+                    <div>
+                      <strong>Аня</strong>
+                      <p>Дочитала. Есть что обсудить!</p>
+                      <small>18:24</small>
+                    </div>
+                  </div>
+                  <div class="story-message message-second">
+                    <img
+                      src="/assets/cosmic/zhabik.webp"
+                      width="40"
+                      height="40"
+                      alt=""
+                      loading="lazy"
+                    />
+                    <div>
+                      <strong>Саша</strong>
+                      <p>Давайте созвонимся вечером?</p>
+                      <span class="sample-reaction">✦ 3</span>
+                    </div>
+                  </div>
+                  <div class="sample-composer">
+                    <span class="kva-painted-glyph" aria-hidden="true"
+                      ><svg viewBox="0 0 24 24">
+                        <path
+                          d="M8 2a4 4 0 1 1 0 8 4 4 0 0 1 0-8M1 21v-3q0-6 7-6t7 6v3z"
+                          fill="currentColor"
+                          fill-rule="evenodd"
+                        />
+                        <path
+                          d="M19 7v8M15 11h8"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2.3"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        /></svg></span
+                    ><span>Написать своей компании…</span>
+                  </div>
+                </div>
+                <div id="space-platform" class="space-example" hidden>
+                  <div class="example-heading">
+                    <strong>Наша площадка</strong><small>Место для сообщества</small>
+                  </div>
+                  <div class="platform-example">
+                    <aside>
+                      <span># Общий</span><span># Разработка</span
+                      ><span class="selected"
+                        ><span class="kva-painted-glyph" aria-hidden="true"
+                          ><svg viewBox="0 0 24 24">
+                            <path
+                              d="M3 11a9 9 0 0 1 18 0v8a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h1v-1a6 6 0 0 0-12 0v1h1a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"
+                              fill="currentColor"
+                              fill-rule="evenodd"
+                            />
+                            <path
+                              d=""
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="2.3"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                            /></svg></span
+                        >Болталка</span
                       >
-                        <path d="M3 12c5-5 13-5 18 0v5h-5v-4a12 12 0 0 0-8 0v4H3z" /></svg
-                    ></span>
+                    </aside>
+                    <div class="platform-conversation">
+                      <img
+                        src="/assets/painted-controls/headphones-256.webp"
+                        width="100"
+                        height="100"
+                        alt=""
+                        loading="lazy"
+                      /><strong>Разговор уже идёт</strong><span>Аня, Саша и Маша</span
+                      ><small>3 участника в голосовом канале</small>
+                    </div>
                   </div>
                 </div>
-                <h3>Комната</h3>
-                <p>
-                  Встреча по ссылке. Гости подключаются без аккаунта — с голосом, камерой и чатом.
-                </p>
-              </article>
-              <article>
-                <div class="space-art" aria-hidden="true">
-                  <div class="mini-title">Книжный клуб <span>5 участников</span></div>
-                  <div class="mini-message">
-                    <img
-                      src="/assets/landing/frog.webp"
-                      width="30"
-                      height="30"
-                      alt=""
-                      loading="lazy"
-                    /><span><b>Аня</b>Давайте обсудим вечером?</span>
-                  </div>
-                  <div class="mini-message">
-                    <img
-                      src="/assets/landing/fox.webp"
-                      width="30"
-                      height="30"
-                      alt=""
-                      loading="lazy"
-                    /><span><b>Саша</b>Я за. В восемь удобно?</span>
-                  </div>
-                  <div class="mini-composer">
-                    <svg
-                      viewBox="0 0 24 24"
+              </div>
+            </div>
+            <div class="landing-preview interface-link">
+              <button disabled class="picture-button" aria-label="Рассмотреть интерфейс Квачата">
+                <span class="kva-painted-glyph" aria-hidden="true"
+                  ><svg viewBox="0 0 24 24">
+                    <path d="M9 19h6v2h3v2H6v-2h3z" fill="currentColor" fill-rule="evenodd" />
+                    <path
+                      d="M4 3h16q2 0 2 2v11q0 2-2 2H4q-2 0-2-2V5q0-2 2-2zM7 13q1-5 8-5M12 5l4 3-4 3"
                       fill="none"
                       stroke="currentColor"
-                      stroke-width="1.7"
+                      stroke-width="2.3"
                       stroke-linecap="round"
                       stroke-linejoin="round"
-                      aria-hidden="true"
-                    >
-                      <path d="M12 5v14M5 12h14" /></svg
-                    >Написать сообщение…<svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="1.7"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      aria-hidden="true"
-                    >
-                      <path d="M22 2L9 15M22 2l-7 20-6-7-7-6z" />
-                    </svg>
-                  </div>
-                </div>
-                <h3>Группы</h3>
-                <p>
-                  Общая переписка, файлы и созвоны для своей компании. Всё обсуждение в одном месте.
-                </p>
-              </article>
-              <article>
-                <div class="space-art" aria-hidden="true">
-                  <div class="mini-title">Наша площадка <span>Каналы сообщества</span></div>
-                  <div class="channel">
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="1.7"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      aria-hidden="true"
-                    >
-                      <path d="M4 4h16v12H9l-5 4V4M8 8h8M8 12h5" /></svg
-                    >Общий
-                  </div>
-                  <div class="channel">
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="1.7"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      aria-hidden="true"
-                    >
-                      <path d="M8 7l-5 5 5 5M16 7l5 5-5 5M14 4l-4 16" /></svg
-                    >Разработка
-                  </div>
-                  <div class="channel selected">
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="1.7"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      aria-hidden="true"
-                    >
-                      <path d="M4 14v-3a8 8 0 0 1 16 0v3M4 12h3v8H4zM17 12h3v8h-3z" /></svg
-                    >Болталка <small>3 в созвоне</small>
-                  </div>
-                </div>
-                <h3>Площадки</h3>
-                <p>
-                  Сообщества с отдельными каналами для разных тем. Со своими участниками и правилами
-                  доступа.
-                </p>
-              </article>
+                    /></svg></span
+                >Рассмотреть интерфейс<span aria-hidden="true">↗</span></button
+              ><span>Примеры пространств Квачата</span>
             </div>
           </section>
 
-          <section class="section container split-section" aria-labelledby="calls-title">
+          <section
+            class="section container split-section calls-chapter"
+            aria-labelledby="calls-title"
+            kvaDemo
+          >
             <div class="section-copy">
-              <span class="eyebrow">Голос, видео и экран</span>
+              <img
+                class="section-art"
+                src="/assets/painted-controls/headphones-256.webp"
+                width="96"
+                height="96"
+                alt=""
+                loading="lazy"
+              />
+              <span class="chapter-index">02 / Голос, видео и экран</span>
               <h2 id="calls-title">
                 Разговор<br />
                 продолжается
@@ -2167,103 +4880,166 @@
                 настраивайте громкость каждого участника отдельно.
               </p>
             </div>
-            <div class="call-illustration surface" aria-hidden="true">
+            <div class="call-illustration surface" aria-label="Пример голосового чата">
               <div class="panel-header">
                 <span
-                  ><svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.7"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    aria-hidden="true"
-                  >
-                    <path d="M4 14v-3a8 8 0 0 1 16 0v3M4 12h3v8H4zM17 12h3v8h-3z" /></svg
+                  ><span class="kva-painted-glyph" aria-hidden="true"
+                    ><svg viewBox="0 0 24 24">
+                      <path
+                        d="M3 11a9 9 0 0 1 18 0v8a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h1v-1a6 6 0 0 0-12 0v1h1a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"
+                        fill="currentColor"
+                        fill-rule="evenodd"
+                      />
+                      <path
+                        d=""
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.3"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      /></svg></span
                   >Вечерняя компания</span
                 ><small>3 участника</small>
               </div>
-              <div class="call-people">
-                <div>
-                  <img
-                    src="/assets/landing/frog.webp"
-                    width="72"
-                    height="72"
-                    alt=""
-                    loading="lazy"
-                  /><span>Аня</span>
+              <div class="call-stage">
+                <div class="call-people">
+                  <div>
+                    <img
+                      src="/assets/cosmic/kvak.webp"
+                      width="72"
+                      height="72"
+                      alt=""
+                      loading="lazy"
+                    /><span>Аня</span>
+                  </div>
+                  <div>
+                    <img
+                      src="/assets/cosmic/zhabik.webp"
+                      width="72"
+                      height="72"
+                      alt=""
+                      loading="lazy"
+                    /><span>Саша</span>
+                  </div>
+                  <div>
+                    <img
+                      src="/assets/cosmic/lilya.webp"
+                      width="72"
+                      height="72"
+                      alt=""
+                      loading="lazy"
+                    /><span>Маша</span>
+                  </div>
                 </div>
-                <div>
-                  <img
-                    src="/assets/landing/fox.webp"
-                    width="72"
-                    height="72"
-                    alt=""
+                <div class="demo-screen-preview" hidden>
+                  <span class="screen-title"
+                    ><span class="kva-painted-glyph" aria-hidden="true"
+                      ><svg viewBox="0 0 24 24">
+                        <path d="M9 19h6v2h3v2H6v-2h3z" fill="currentColor" fill-rule="evenodd" />
+                        <path
+                          d="M4 3h16q2 0 2 2v11q0 2-2 2H4q-2 0-2-2V5q0-2 2-2zM7 13q1-5 8-5M12 5l4 3-4 3"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2.3"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        /></svg></span
+                    >Экран Ани</span
+                  ><img
+                    src="/assets/landing-chat.png"
+                    width="1120"
+                    height="700"
+                    alt="Пример демонстрации: открытая беседа Квачата"
                     loading="lazy"
-                  /><span>Саша</span>
-                </div>
-                <div>
-                  <img
-                    src="/assets/landing/cat.webp"
-                    width="72"
-                    height="72"
-                    alt=""
-                    loading="lazy"
-                  /><span>Маша</span>
+                  /><small>Пример демонстрации экрана</small>
                 </div>
               </div>
-              <div class="call-capabilities">
-                <span
-                  ><svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.7"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    aria-hidden="true"
-                  >
-                    <path
-                      d="M9 5a3 3 0 0 1 6 0v7a3 3 0 0 1-6 0zM5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8"
-                    /></svg
-                  >Голос</span
-                ><span
-                  ><svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.7"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    aria-hidden="true"
-                  >
-                    <path
-                      d="M4 6h11a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1zM16 10l5-3v10l-5-3"
-                    /></svg
-                  >Видео</span
-                ><span
-                  ><svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.7"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    aria-hidden="true"
-                  >
-                    <path
-                      d="M4 3h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM12 17v4M8 21h8M12 13V7M9 10l3-3 3 3"
-                    /></svg
-                  >Экран</span
+              <div class="call-demo-controls">
+                <button
+                  disabled
+                  class="kva-painted-button kva-painted-button--round"
+                  aria-label="Микрофон в примере"
                 >
+                  <span class="kva-painted-glyph" aria-hidden="true"
+                    ><svg viewBox="0 0 24 24">
+                      <path
+                        d="M8 6a4 4 0 0 1 8 0v6a4 4 0 0 1-8 0z"
+                        fill="currentColor"
+                        fill-rule="evenodd"
+                      />
+                      <path
+                        d="M5 11v1a7 7 0 0 0 14 0v-1M12 19v3M9 22h6"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.3"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      /></svg
+                  ></span>
+                </button>
+                <button
+                  disabled
+                  class="kva-painted-button kva-painted-button--round"
+                  aria-label="Камера в примере"
+                >
+                  <span class="kva-painted-glyph" aria-hidden="true"
+                    ><svg viewBox="0 0 24 24">
+                      <path
+                        d="M4 5h10a3 3 0 0 1 3 3v1l4-3q2-1 2 1v10l-6-4z"
+                        fill="currentColor"
+                        fill-rule="evenodd"
+                      />
+                      <path
+                        d="M2 2l20 20M2 8v8a3 3 0 0 0 3 3h9"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.3"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      /></svg
+                  ></span>
+                </button>
+                <button
+                  disabled
+                  class="kva-painted-button kva-painted-button--round"
+                  aria-label="Экран в примере"
+                >
+                  <span class="kva-painted-glyph" aria-hidden="true"
+                    ><svg viewBox="0 0 24 24">
+                      <path d="M9 19h6v2h3v2H6v-2h3z" fill="currentColor" fill-rule="evenodd" />
+                      <path
+                        d="M4 3h16q2 0 2 2v11q0 2-2 2H4q-2 0-2-2V5q0-2 2-2zM7 13q1-5 8-5M12 5l4 3-4 3"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.3"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      /></svg
+                  ></span>
+                </button>
               </div>
+              <p class="call-demo-note" aria-live="polite">
+                Пример · микрофон включён, камера выключена
+              </p>
             </div>
           </section>
 
-          <section class="section container" aria-labelledby="documents-title">
+          <section
+            class="section container documents-chapter"
+            aria-labelledby="documents-title"
+            kvaDemo
+          >
             <div class="split-section">
               <div class="section-copy">
-                <span class="eyebrow">От короткого ответа до большого файла</span>
+                <img
+                  class="section-art"
+                  src="/assets/painted-controls/files-256.webp"
+                  width="96"
+                  height="96"
+                  alt=""
+                  loading="lazy"
+                />
+                <span class="chapter-index">03 / Больше, чем сообщение</span>
                 <h2 id="documents-title">
                   Сообщения, файлы<br />
                   и длинные тексты
@@ -2278,6 +5054,51 @@
                   <button disabled>.py</button>
                   <button disabled>.md</button>
                 </div>
+                <div class="draft-transform">
+                  <div class="draft-text">
+                    <span>Черновик сообщения</span>
+                    <p>
+                      Встречаемся в пятницу в 20:00. Обсудим любимые главы, вопросы к финалу и
+                      выберем следующую книгу.
+                    </p>
+                    <i></i><i></i>
+                  </div>
+                  <div class="packed-file">
+                    <img
+                      src="/assets/painted-controls/files-128.webp"
+                      width="58"
+                      height="58"
+                      alt=""
+                      loading="lazy"
+                    /><span
+                      ><strong>meeting.md</strong><small>Всё важное — в одном файле</small></span
+                    ><button disabled type="button" aria-label="Открыть подготовленный документ">
+                      <span class="kva-painted-glyph" aria-hidden="true"
+                        ><svg viewBox="0 0 24 24">
+                          <path
+                            d="M5 1h9l6 6v14q0 2-2 2H5q-2 0-2-2V3q0-2 2-2zM13 3v5h5zM7 12v2h9v-2zM7 17v2h7v-2z"
+                            fill="currentColor"
+                            fill-rule="evenodd"
+                          />
+                          <path
+                            d=""
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2.3"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                          /></svg
+                      ></span>
+                    </button>
+                  </div>
+                </div>
+                <button
+                  disabled
+                  type="button"
+                  class="pack-action kva-painted-button kva-painted-button--secondary"
+                >
+                  Оформить как файл
+                </button>
               </div>
               <div
                 class="document-illustration surface"
@@ -2285,31 +5106,35 @@
               >
                 <div class="panel-header">
                   <span
-                    ><svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="1.7"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      aria-hidden="true"
-                    >
-                      <path
-                        d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M8 13h8M8 17h5"
-                      /></svg
+                    ><span class="kva-painted-glyph" aria-hidden="true"
+                      ><svg viewBox="0 0 24 24">
+                        <path
+                          d="M5 1h9l6 6v14q0 2-2 2H5q-2 0-2-2V3q0-2 2-2zM13 3v5h5zM7 12v2h9v-2zM7 17v2h7v-2z"
+                          fill="currentColor"
+                          fill-rule="evenodd"
+                        />
+                        <path
+                          d=""
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2.3"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        /></svg></span
                     ><span>config.yaml</span></span
                   ><button disabled aria-label="Скачать пример файла">
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="1.7"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      aria-hidden="true"
-                    >
-                      <path d="M12 3v12M7 10l5 5 5-5M4 16v5h16v-5" />
-                    </svg>
+                    <span class="kva-painted-glyph" aria-hidden="true"
+                      ><svg viewBox="0 0 24 24">
+                        <path d="" fill="currentColor" fill-rule="evenodd" />
+                        <path
+                          d="M12 2v13M7 10l5 5 5-5M3 16v5h18v-5"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2.3"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        /></svg
+                    ></span>
                   </button>
                 </div>
                 <div class="document-toolbar">
@@ -2342,72 +5167,92 @@
             </div>
             <div class="message-benefits">
               <div>
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.7"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M10.5 17a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13M16 16l5 5" /></svg
+                <span class="kva-painted-glyph" aria-hidden="true"
+                  ><svg viewBox="0 0 24 24">
+                    <path d="" fill="currentColor" fill-rule="evenodd" />
+                    <path
+                      d="M10 2a8 8 0 1 0 0 16 8 8 0 0 0 0-16M16 16l6 6"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.3"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    /></svg></span
                 ><span><strong>Найти нужное</strong>Поиск сообщений в беседе</span>
               </div>
               <div>
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.7"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M8 13h8M8 17h5"
-                  /></svg
+                <span class="kva-painted-glyph" aria-hidden="true"
+                  ><svg viewBox="0 0 24 24">
+                    <path
+                      d="M5 1h9l6 6v14q0 2-2 2H5q-2 0-2-2V3q0-2 2-2zM13 3v5h5zM7 12v2h9v-2zM7 17v2h7v-2z"
+                      fill="currentColor"
+                      fill-rule="evenodd"
+                    />
+                    <path
+                      d=""
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.3"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    /></svg></span
                 ><span><strong>Собрать материалы</strong>Файлы беседы в одном списке</span>
               </div>
               <div>
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.7"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M9 3h6l-1 6 4 4v2H6v-2l4-4zM12 15v6" /></svg
+                <span class="kva-painted-glyph" aria-hidden="true"
+                  ><svg viewBox="0 0 24 24">
+                    <path
+                      d="M7 2h10l-2 7 5 5v3H4v-3l5-5z"
+                      fill="currentColor"
+                      fill-rule="evenodd"
+                    />
+                    <path
+                      d="M12 17v5"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.3"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    /></svg></span
                 ><span><strong>Держать под рукой</strong>Закрепление бесед и быстрый переход</span>
               </div>
             </div>
           </section>
 
-          <section class="section container" id="appearance" aria-labelledby="appearance-title">
+          <section
+            class="section container appearance-chapter"
+            id="appearance"
+            aria-labelledby="appearance-title"
+            kvaDemo
+          >
             <div class="split-section appearance-section">
               <div class="appearance-illustration surface">
                 <div class="panel-header">
                   <span
-                    ><svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="1.7"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      aria-hidden="true"
-                    >
-                      <path d="M4 4h16v12H9l-5 4V4M8 8h8M8 12h5" /></svg
+                    ><span class="kva-painted-glyph" aria-hidden="true"
+                      ><svg viewBox="0 0 24 24">
+                        <path
+                          d="M4 3h16q3 0 3 3v10q0 3-3 3H9l-6 4v-5q-2-1-2-3V6q0-3 3-3zM7 9v3h2V9zM11 9v3h2V9zM15 9v3h2V9z"
+                          fill="currentColor"
+                          fill-rule="evenodd"
+                        />
+                        <path
+                          d=""
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2.3"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        /></svg></span
                     >Своя компания</span
                   >
                 </div>
                 <div class="appearance-chat">
+                  <span class="wallpaper-before" aria-hidden="true"></span>
                   <div class="preview-message">
                     <div class="framed-avatar">
                       <img
-                        src="/assets/landing/frog.webp"
+                        src="/assets/cosmic/kvak.webp"
                         width="38"
                         height="38"
                         alt=""
@@ -2429,7 +5274,7 @@
                   </div>
                   <div class="preview-message">
                     <img
-                      src="/assets/landing/fox.webp"
+                      src="/assets/cosmic/zhabik.webp"
                       width="38"
                       height="38"
                       alt=""
@@ -2443,7 +5288,7 @@
                   </div>
                   <div class="preview-message">
                     <img
-                      src="/assets/landing/cat.webp"
+                      src="/assets/cosmic/lilya.webp"
                       width="38"
                       height="38"
                       alt=""
@@ -2458,6 +5303,7 @@
                 </div>
               </div>
               <div class="section-copy">
+                <span class="chapter-index">04 / Ваше настроение</span>
                 <h2 id="appearance-title">
                   Квачат<br />
                   в вашем стиле
@@ -2524,18 +5370,21 @@
             </div>
             <div class="items-line">
               <span class="small-icon"
-                ><svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.7"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M3 8h18v4H3zM5 12v9h14v-9M12 8v13M12 8C3 8 5 1 9 3l3 5M12 8c9 0 7-7 3-5z"
-                  /></svg
+                ><span class="kva-painted-glyph" aria-hidden="true"
+                  ><svg viewBox="0 0 24 24">
+                    <path
+                      d="M2 8h9v5H2zM13 8h9v5h-9zM4 15h7v7H4zM13 15h7v7h-7z"
+                      fill="currentColor"
+                      fill-rule="evenodd"
+                    />
+                    <path
+                      d="M12 8C1 9 4-2 9 3l3 5c11 1 8-10 3-5z"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.3"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    /></svg></span
               ></span>
               <div>
                 <h3>Оформление можно подарить</h3>
@@ -2543,32 +5392,43 @@
               </div>
             </div>
           </section>
-          <section class="section container settings-section" aria-labelledby="settings-title">
+          <section
+            class="section container settings-section"
+            aria-labelledby="settings-title"
+            kvaDemo
+          >
+            <span class="chapter-index">05 / Как удобно вам</span>
             <h2 id="settings-title">Настройте общение под себя</h2>
             <div class="settings-grid">
               <details>
                 <summary>
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.7"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    aria-hidden="true"
-                  >
-                    <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" /></svg
-                  >Уведомления<svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.7"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    aria-hidden="true"
-                  >
-                    <path d="M6 9l6 6 6-6" />
-                  </svg>
+                  <span class="kva-painted-glyph" aria-hidden="true"
+                    ><svg viewBox="0 0 24 24">
+                      <path
+                        d="M5 9a7 7 0 0 1 14 0q0 6 3 8v2H2v-2q3-2 3-8M9 21h6a3 3 0 0 1-6 0"
+                        fill="currentColor"
+                        fill-rule="evenodd"
+                      />
+                      <path
+                        d=""
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.3"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      /></svg></span
+                  >Уведомления<span class="kva-painted-glyph" aria-hidden="true"
+                    ><svg viewBox="0 0 24 24">
+                      <path d="" fill="currentColor" fill-rule="evenodd" />
+                      <path
+                        d="M3 8l9 9 9-9"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.3"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      /></svg
+                  ></span>
                 </summary>
                 <p>
                   Упоминания, заявки в друзья и приглашения собраны в событиях. Уведомления
@@ -2577,27 +5437,29 @@
               </details>
               <details>
                 <summary>
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.7"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    aria-hidden="true"
-                  >
-                    <path d="M5 5l14 14M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18" /></svg
-                  >Блокировки<svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.7"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    aria-hidden="true"
-                  >
-                    <path d="M6 9l6 6 6-6" />
-                  </svg>
+                  <span class="kva-painted-glyph" aria-hidden="true"
+                    ><svg viewBox="0 0 24 24">
+                      <path d="" fill="currentColor" fill-rule="evenodd" />
+                      <path
+                        d="M5 5l14 14M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.3"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      /></svg></span
+                  >Блокировки<span class="kva-painted-glyph" aria-hidden="true"
+                    ><svg viewBox="0 0 24 24">
+                      <path d="" fill="currentColor" fill-rule="evenodd" />
+                      <path
+                        d="M3 8l9 9 9-9"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.3"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      /></svg
+                  ></span>
                 </summary>
                 <p>
                   Управляйте заблокированными пользователями, группами и площадками в настройках.
@@ -2605,27 +5467,33 @@
               </details>
               <details>
                 <summary>
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.7"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    aria-hidden="true"
-                  >
-                    <path d="M6 10h12v11H6zM8 10V6a4 4 0 0 1 8 0v4M12 14v3" /></svg
-                  >Защита аккаунта<svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.7"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    aria-hidden="true"
-                  >
-                    <path d="M6 9l6 6 6-6" />
-                  </svg>
+                  <span class="kva-painted-glyph" aria-hidden="true"
+                    ><svg viewBox="0 0 24 24">
+                      <path
+                        d="M5 10h14q2 0 2 2v8q0 2-2 2H5q-2 0-2-2v-8q0-2 2-2M11 14v4h2v-4z"
+                        fill="currentColor"
+                        fill-rule="evenodd"
+                      />
+                      <path
+                        d="M7 10V7a5 5 0 0 1 10 0v3"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.3"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      /></svg></span
+                  >Защита аккаунта<span class="kva-painted-glyph" aria-hidden="true"
+                    ><svg viewBox="0 0 24 24">
+                      <path d="" fill="currentColor" fill-rule="evenodd" />
+                      <path
+                        d="M3 8l9 9 9-9"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.3"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      /></svg
+                  ></span>
                 </summary>
                 <p>
                   Почта подтверждается при регистрации. В профиле можно включить двухфакторную
@@ -2635,45 +5503,78 @@
             </div>
           </section>
 
-          <section class="section container" aria-labelledby="applications-title">
+          <section
+            class="section container apps-chapter"
+            aria-labelledby="applications-title"
+            kvaDemo
+          >
+            <span class="chapter-index">06 / Собраться за чем-нибудь ещё</span>
             <h2 id="applications-title">Дополнительные приложения</h2>
             <p class="section-intro">Подключаются через каталог Квачата.</p>
             <div class="application-grid">
               <article>
-                <span class="app-mark"
-                  ><svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.7"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    aria-hidden="true"
-                  >
-                    <path
-                      d="M5 4h14a2 2 0 0 1 2 2v14H3V6a2 2 0 0 1 2-2M7 2v5M17 2v5M3 10h18M7 14h2M12 14h2M7 17h2"
-                    /></svg
-                ></span>
+                <div class="calendar-art" aria-hidden="true">
+                  <div class="calendar-sheet">
+                    <span>НАШИ ПЛАНЫ</span>
+                    <div class="calendar-days">
+                      <i>П</i><i>В</i><i>С</i><i>Ч</i><i>П</i><i>С</i><i>В</i><b>12</b><b>13</b
+                      ><b>14</b><b>15</b><b class="chosen">16</b><b>17</b><b>18</b>
+                    </div>
+                  </div>
+                  <div class="calendar-event">
+                    <span class="status-dot"></span>
+                    <div><strong>Вечер приключений</strong><span>Пятница · 20:00</span></div>
+                    <img
+                      src="/assets/cosmic/zhabik.webp"
+                      width="38"
+                      height="38"
+                      alt=""
+                      loading="lazy"
+                    />
+                  </div>
+                </div>
                 <div>
                   <h3>Когда игра</h3>
                   <p>Календарь ролевых игр и конвентов.</p>
                 </div>
               </article>
               <article>
-                <span class="app-mark islands-mark"
-                  ><svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.7"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    aria-hidden="true"
-                  >
-                    <path
-                      d="M19 12a7 7 0 1 0-14 0 7 7 0 0 0 14 0M22 7c.83 1.66-2.97 5.24-8.5 8S2.83 18.66 2 17s2.98-5.24 8.5-8S21.17 5.34 22 7"
-                    /></svg
-                ></span>
+                <div class="islands-art" aria-hidden="true">
+                  <img
+                    class="islands-cover"
+                    src="/assets/landing/islands.png"
+                    width="622"
+                    height="390"
+                    alt=""
+                    loading="lazy"
+                  />
+                  <div class="hex-cluster">
+                    <img
+                      class="hex-one"
+                      src="/assets/cosmic/islands-forest.webp"
+                      width="256"
+                      height="256"
+                      alt=""
+                      loading="lazy"
+                    /><img
+                      class="hex-two"
+                      src="/assets/cosmic/islands-fields.webp"
+                      width="256"
+                      height="256"
+                      alt=""
+                      loading="lazy"
+                    /><img
+                      class="hex-three"
+                      src="/assets/cosmic/islands-mountains.webp"
+                      width="256"
+                      height="256"
+                      alt=""
+                      loading="lazy"
+                    />
+                  </div>
+                  <span class="islands-orbit"></span
+                  ><span class="islands-tag">Вечер на островах</span>
+                </div>
                 <div>
                   <h3>Острова</h3>
                   <p>Настольная стратегия для 3–4 игроков.</p>
@@ -2683,23 +5584,29 @@
           </section>
         </main>
         <footer class="landing-footer container">
-          <span>Квачат</span><span>Свои люди. Всегда рядом.</span>
+          <a class="frog-wordmark" href="/" aria-label="Квачат — главная"
+            ><img src="/assets/cosmic/frog-moonlight-128.webp" width="42" height="42" alt="" /><span
+              >Квачат</span
+            ></a
+          ><span>Свои люди. Всегда рядом.</span
+          ><button disabled class="footer-motion" type="button">Анимация страницы</button>
         </footer>
         <dialog class="picture-dialog" aria-label="Интерфейс Квачата">
           <form method="dialog">
             <button disabled aria-label="Закрыть изображение">
               Закрыть
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.7"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-              >
-                <path d="M6 6l12 12M18 6L6 18" />
-              </svg>
+              <span class="kva-painted-glyph" aria-hidden="true"
+                ><svg viewBox="0 0 24 24">
+                  <path d="" fill="currentColor" fill-rule="evenodd" />
+                  <path
+                    d="M6 6l12 12M18 6L6 18"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.3"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  /></svg
+              ></span>
             </button>
           </form>
           <img

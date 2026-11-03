@@ -1,0 +1,8 @@
+body { background:#10121c; color:#fff5e6; }
+header { border-bottom:1px solid #51435f; margin-bottom:16px; padding-left:72px; background:url('./cosmic-logo.webp') 20px 22px/36px 36px no-repeat; }
+p,small { color:#b9afc8; }
+button { border-radius:14px; background:#252033; border-color:#51435f; }
+button:hover { background:#352845; border-color:#b9a6ff; }
+button:focus-visible { outline:3px solid #57c8d5; outline-offset:3px; }
+footer { background:#191724; border-top:1px solid #51435f; }
+@media(forced-colors:active){body,header,footer,button { background:Canvas; color:CanvasText; border-color:ButtonText; }}

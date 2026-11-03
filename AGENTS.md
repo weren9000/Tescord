@@ -11,6 +11,8 @@
 
 ## Интерфейс
 
+- Эталон нового оформления — `docs/design/reference.png`, правила — `docs/design/cosmic-friends.md`. Для задач в этом стиле использовать навыки `kvachat-cosmic-ui` и `kvachat-cosmic-assets` (копии в `docs/design/skills/`). Стиль подключён к стартовой странице и общим элементам приложения; область перехода и проверки — `docs/design/painted-controls/application-rollout.md`.
+- Иконки и кнопки рисованного набора: эталон `docs/design/painted-controls/reference.png`, подключение `docs/design/painted-controls/README.md`. Готовые компоненты — `frontend/src/app/shared/painted-controls/`. Этот набор не означает автоматическую замену всех иконок приложения.
 - Использовать существующую палитру `frontend/src/_palette.scss`, CSS-переменные и общие компоненты. Сначала искать аналог в интерфейсе групп и звонков.
 - Не добавлять Tailwind, Material или другую UI-библиотеку ради локального изменения.
 - Сохранять единые размеры кнопок, отступы, типографику, скругления и набор иконок. Панель звонка должна оставаться на одном уровне.

@@ -674,6 +674,7 @@ const DEFAULT_SERVER_ICON_ASSET_BY_NAME: Record<string, string> = {
 @Component({
   providers: [AuthFormStore, WorkspaceStateStore, AttachmentPreviewStore],
   selector: 'app-root',
+  host: { class: 'kva-app' },
   imports: [
     ApplicationsComponent,
     IslandsComponent,

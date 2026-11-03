@@ -1,0 +1,424 @@
+/* Canonical visual rules: docs/design/cosmic-friends.md. Scoped to the public landing. */
+.landing {
+  --palette-canvas: #10121c;
+  --palette-surface: #191c2d;
+  --palette-raised: #23273c;
+  --palette-selected: #2c2447;
+  --palette-text: #fff5e6;
+  --palette-secondary: #e1dbea;
+  --palette-muted: #b3b2c8;
+  --palette-border: #45405e;
+  --palette-primary: #754bff;
+  --palette-primary-hover: #6540df;
+  --palette-primary-text: #c5b4ff;
+  --palette-cyan: #57c8d5;
+  overflow: clip;
+}
+.landing .landing-hero {
+  position: relative;
+  isolation: isolate;
+  width: min(1600px, 100%);
+  padding: 46px max(32px, calc((100% - 1180px) / 2)) 0;
+  text-align: left;
+  min-height: 770px;
+}
+.landing app-guest-header,
+.landing > .guest-header {
+  position: relative;
+  z-index: 2;
+  background: linear-gradient(#10121ce6, #10121c55);
+}
+.cosmic-scene {
+  position: absolute;
+  z-index: -2;
+  inset: -94px 0 auto;
+  width: 100%;
+  height: 880px;
+  object-fit: cover;
+  object-position: center;
+  mask-image: linear-gradient(#000 85%, transparent);
+}
+.landing-hero::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg, #10121c8c, transparent 65%);
+}
+.cosmic-intro {
+  width: 440px;
+  max-width: 100%;
+}
+.landing .cosmic-brand {
+  font-size: 66px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -3px;
+  margin: 0 0 12px;
+}
+.landing .landing-lead {
+  margin: 0 0 36px !important;
+  font-size: 20px;
+  color: var(--palette-text);
+}
+.landing .landing-hero h1 {
+  font-size: clamp(46px, 4.3vw, 68px);
+  line-height: 1.06;
+  letter-spacing: -2.5px;
+  font-weight: 780;
+  margin-bottom: 34px;
+}
+.landing .landing-hero h1 span {
+  position: relative;
+  color: inherit;
+  white-space: nowrap;
+}
+.landing-hero h1 span::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -10px;
+  width: 90%;
+  height: 7px;
+  border-top: 4px solid #57c8d5;
+  border-radius: 50%;
+  transform: rotate(-3deg);
+}
+.landing .entry-actions {
+  margin: 0;
+  width: 400px;
+  max-width: 100%;
+  gap: 22px;
+}
+.landing .entry-actions .landing-actions {
+  grid-template-columns: minmax(0, 1fr) 104px;
+  gap: 12px;
+}
+.landing .landing-open {
+  border-radius: 13px;
+  border: 1px solid #9a7bff;
+  box-shadow: 0 8px 32px #754bff30;
+}
+.landing .secondary-action {
+  border: 1px solid #dad2ed;
+  border-radius: 13px;
+  color: #fff5e6;
+  text-decoration: none !important;
+  font-weight: 600;
+  background: #15192a80;
+}
+.landing .landing-help {
+  margin: 6px 0 0;
+  max-width: 400px;
+}
+.landing .landing-help summary {
+  margin: 0;
+}
+.landing .landing-help > div {
+  background: #191c2df5;
+}
+.cosmic-voice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 18px 24px;
+  margin: 68px 0 0 auto;
+  width: min(100%, 940px);
+  border: 1px solid #807099;
+  border-radius: 28px;
+  background: #202437e8;
+  box-shadow:
+    0 12px 48px #080b2166,
+    inset 0 1px #c5b4ff33;
+  backdrop-filter: blur(14px);
+}
+.cosmic-voice-title {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.cosmic-voice-title strong {
+  display: block;
+  font-size: 18px;
+  line-height: 1.35;
+}
+.cosmic-voice-title span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  margin-top: 7px;
+  color: #e1dbea;
+}
+.cosmic-voice-title i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #41d394;
+}
+.landing .cosmic-voice-title app-ui-icon,
+.landing .cosmic-voice-title svg {
+  width: 30px;
+  height: 30px;
+  color: #57c8d5;
+}
+.cosmic-friends {
+  display: flex;
+  gap: 22px;
+  text-align: center;
+}
+.cosmic-friends > div {
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+  font-size: 11px;
+}
+.cosmic-friends img {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  border: 1px solid #b9a6ff;
+  object-fit: cover;
+}
+.cosmic-friends .is-speaking img {
+  outline: 2px solid #57c8d5;
+  outline-offset: 4px;
+  box-shadow: 0 0 18px #57c8d544;
+}
+.cosmic-voice-symbols {
+  display: flex;
+  gap: 10px;
+  padding-left: 18px;
+  border-left: 1px solid #655e7a;
+}
+.cosmic-voice-symbols > span {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  background: #363b55;
+  border-radius: 50%;
+}
+.cosmic-voice-symbols .end-call {
+  background: #e54c64;
+}
+.landing .cosmic-caption {
+  margin: 12px 0 0 auto;
+  width: min(100%, 940px);
+  text-align: center;
+  font-size: 12px;
+  color: #b3b2c8;
+}
+.cosmic-product {
+  padding-top: 42px;
+}
+.cosmic-product-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 36px;
+  align-items: end;
+  margin-bottom: 24px;
+}
+.cosmic-product-heading h2 {
+  max-width: 520px;
+  margin: 0;
+}
+.cosmic-product-heading p {
+  max-width: 300px;
+  margin: 0;
+  color: var(--palette-muted);
+  font-size: 15px;
+}
+.cosmic-product .landing-preview {
+  max-width: 1000px;
+  margin: auto;
+  border-radius: 22px;
+  box-shadow:
+    0 24px 80px #0005,
+    0 0 90px #754bff12;
+}
+.landing .section {
+  margin-top: 80px;
+  padding-top: 60px;
+  border-top-color: #b9a6ff26;
+}
+.landing .space-art,
+.landing .call-illustration,
+.landing .document-illustration,
+.landing .application-grid article {
+  border-radius: 22px;
+  border-color: #65577e;
+  background: linear-gradient(145deg, #222237, #171b2a);
+}
+.landing .small-icon,
+.landing .app-mark {
+  border: 1px solid #695583;
+  border-radius: 13px;
+  background: #2c2447;
+  color: #c5b4ff;
+}
+.landing .space-grid article h3 {
+  color: #fff5e6;
+}
+.landing .room-people img,
+.landing .call-people img {
+  border-radius: 50%;
+}
+.landing .landing-footer {
+  border-top-color: #b9a6ff26;
+}
+.landing a:focus-visible,
+.landing button:focus-visible,
+.landing summary:focus-visible,
+.landing input:focus-visible {
+  outline-color: #57c8d5;
+}
+@media (min-width: 1600px) {
+  .landing .landing-hero {
+    padding-inline: 80px;
+  }
+}
+@media (max-width: 1100px) {
+  .cosmic-scene {
+    height: auto;
+    object-fit: contain;
+    object-position: right bottom;
+    top: 74px;
+    mask-image: linear-gradient(transparent, #000 18%, #000 85%, transparent);
+  }
+  .landing-hero::before {
+    background: linear-gradient(90deg, #10121cd9, #10121c33 60%, transparent);
+  }
+  .cosmic-intro {
+    width: 340px;
+  }
+  .landing .entry-actions {
+    width: 340px;
+  }
+  .landing .entry-actions .landing-actions {
+    grid-template-columns: minmax(0, 1fr) 84px;
+  }
+  .cosmic-voice {
+    margin-top: 76px;
+    gap: 16px;
+    padding: 18px;
+  }
+  .cosmic-friends {
+    gap: 16px;
+  }
+  .cosmic-voice-symbols {
+    display: none;
+  }
+}
+@media (max-width: 960px) {
+  .landing .landing-hero {
+    padding: 20px 20px 0;
+    min-height: 0;
+  }
+  .cosmic-intro {
+    width: 100%;
+  }
+  .landing .cosmic-brand {
+    font-size: 46px;
+    letter-spacing: -2px;
+  }
+  .landing .landing-lead {
+    font-size: 16px;
+    margin-bottom: 26px !important;
+  }
+  .landing .landing-hero h1 {
+    font-size: clamp(40px, 9vw, 58px);
+    letter-spacing: -1.8px;
+    margin-bottom: 30px;
+  }
+  .landing .entry-actions {
+    width: 400px;
+  }
+  .landing .entry-actions .landing-actions {
+    grid-template-columns: minmax(0, 1fr) 80px;
+    gap: 12px;
+  }
+  .landing .landing-open {
+    font-size: 13px;
+    padding-inline: 8px;
+  }
+  .landing .secondary-action {
+    min-height: 49px;
+  }
+  .landing .entry-actions .landing-download {
+    padding-inline: 4px;
+    gap: 8px;
+  }
+  .landing .landing-download strong {
+    font-size: 12px;
+  }
+  .cosmic-scene {
+    position: relative;
+    inset: auto;
+    width: calc(100% + 40px);
+    max-width: none !important;
+    height: clamp(200px, 70vw, 420px);
+    object-fit: cover;
+    object-position: right center;
+    margin: 0 -20px;
+    mask-image: linear-gradient(transparent, #000 15%, #000 88%, transparent);
+  }
+  .landing .landing-hero {
+    display: flex;
+    flex-direction: column;
+  }
+  .cosmic-intro {
+    order: -1;
+  }
+  .landing-hero::before {
+    display: none;
+  }
+  .cosmic-voice {
+    margin: -5px 0 0;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+    padding: 18px 16px;
+    border-radius: 22px;
+  }
+  .cosmic-voice-title {
+    justify-content: center;
+  }
+  .cosmic-voice-title strong {
+    font-size: 17px;
+  }
+  .cosmic-voice-title span {
+    margin-top: 3px;
+    font-size: 12px;
+  }
+  .cosmic-friends {
+    justify-content: space-around;
+    gap: 10px;
+  }
+  .cosmic-friends img {
+    width: 46px;
+    height: 46px;
+  }
+  .landing .cosmic-caption {
+    font-size: 11px;
+    margin-top: 14px;
+  }
+  .cosmic-product {
+    padding-top: 46px;
+  }
+  .cosmic-product-heading {
+    display: block;
+  }
+  .cosmic-product-heading h2 {
+    margin-bottom: 14px;
+  }
+  .cosmic-product .landing-preview {
+    border-radius: 12px;
+  }
+  .landing .section {
+    margin-top: 46px;
+    padding-top: 34px;
+  }
+}

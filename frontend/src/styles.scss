@@ -1,5 +1,6 @@
 @use 'palette';
 @use 'ui-tokens';
+@use 'cosmic-application';
 
 :root {
   color-scheme: dark;
@@ -128,11 +129,10 @@ body {
   color: #fff;
 }
 :root[data-ui-scheme='light'] app-section-navigation .brand img {
-  // Invert the original black matte to white; multiply removes it on light surfaces.
-  // Hue rotation retains the cyan brand accents without changing the source logo.
-  mix-blend-mode: multiply;
-  filter: contrast(1.5) invert(1) hue-rotate(180deg);
-  opacity: 0.85;
+  // The Moonlight mark has genuine transparency and works in both schemes.
+  mix-blend-mode: normal;
+  filter: none;
+  opacity: 1;
 }
 :root[data-ui-scheme='light'] .composer__submit img {
   filter: brightness(0.35);

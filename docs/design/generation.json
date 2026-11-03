@@ -1,0 +1,36 @@
+{
+  "tool": "Built-in image_gen",
+  "reference": "docs/design/reference.png",
+  "assets": [
+    {
+      "name": "hero",
+      "file": "frontend/public/assets/cosmic/hero.webp",
+      "original": "artifacts/cosmic-originals/hero.png",
+      "prompt": "Use case: illustration-story. Create a production website hero BACKGROUND illustration based precisely on the attached canonical Kvachat moodboard. Match its hand-painted sophisticated animated-film style, fine texture, warm friendships, cream highlights, turquoise swamp, lilac ringed planet. Wide landscape 1920x1080. Four frogs gathered on a lily pad around a warm amber star lantern in a cosmic marsh. Keep all FOUR identifiable: green relaxed frog in purple headphones and violet hoodie; happy green explorer with goggles and ochre scarf waving; lilac smiling frog with gold star hairclip and constellation cape; olive frog in plum knitted beanie and round spectacles holding cup. Characters clustered on RIGHT 60%, faces within middle vertical third, generous dark navy #10121c NEGATIVE SPACE LEFT 40% for HTML typography. Large glowing purple ringed planet upper right, teal reflections below, soft lily flowers. Match reference character personalities and clothing. NO typography, NO text, NO labels, NO buttons, NO panels, NO interface, NO palette swatches, NO moodboard strip, NO borders. This is only the standalone scene for a real website."
+    },
+    {
+      "name": "kvak",
+      "file": "frontend/public/assets/cosmic/kvak.webp",
+      "original": "artifacts/cosmic-originals/kvak.png",
+      "prompt": "Use case: illustration-story. Production character avatar for Kvachat. Reference image provides exact character design and painterly visual style. Produce ONE square 768x768 portrait, head and upper shoulders, centered, ample padding for circular avatar crop, polished hand-painted animated-film style with soft brush texture, purple rim lighting and warm cream highlights. Green relaxed frog with big purple headphones with tiny cyan planet symbol, violet hoodie. Eyes happily closed, soft smile. Match this character from attached moodboard faithfully. Background plain midnight navy #10121c, no scenery, no other characters, NO text, NO border, NO UI. Face should be very readable at 48px."
+    },
+    {
+      "name": "zhabik",
+      "file": "frontend/public/assets/cosmic/zhabik.webp",
+      "original": "artifacts/cosmic-originals/zhabik.png",
+      "prompt": "Use case: illustration-story. Production character avatar for Kvachat. Reference image provides exact character design and painterly visual style. Produce ONE square 768x768 portrait, head and upper shoulders, centered, ample padding for circular avatar crop, polished hand-painted animated-film style with soft brush texture, purple rim lighting and warm cream highlights. Happy green explorer frog, brown aviator goggles on forehead, ochre orange scarf, cheerful open smile. Match this character from attached moodboard faithfully. Background plain midnight navy #10121c, no scenery, no other characters, NO text, NO border, NO UI. Face should be very readable at 48px."
+    },
+    {
+      "name": "lilya",
+      "file": "frontend/public/assets/cosmic/lilya.webp",
+      "original": "artifacts/cosmic-originals/lilya.png",
+      "prompt": "Use case: illustration-story. Production character avatar for Kvachat. Reference image provides exact character design and painterly visual style. Produce ONE square 768x768 portrait, head and upper shoulders, centered, ample padding for circular avatar crop, polished hand-painted animated-film style with soft brush texture, purple rim lighting and warm cream highlights. Lilac frog with golden star hairclip, dark violet cape with delicate gold constellations, warm smiling expression. Match this character from attached moodboard faithfully. Background plain midnight navy #10121c, no scenery, no other characters, NO text, NO border, NO UI. Face should be very readable at 48px."
+    },
+    {
+      "name": "bolot",
+      "file": "frontend/public/assets/cosmic/bolot.webp",
+      "original": "artifacts/cosmic-originals/bolot.png",
+      "prompt": "Use case: illustration-story. Production character avatar for Kvachat. Reference image provides exact character design and painterly visual style. Produce ONE square 768x768 portrait, head and upper shoulders, centered, ample padding for circular avatar crop, polished hand-painted animated-film style with soft brush texture, purple rim lighting and warm cream highlights. Olive green frog, large round spectacles, plum knitted beanie with tiny planet pin and dark scarf, gentle smile. Match this character from attached moodboard faithfully. Background plain midnight navy #10121c, no scenery, no other characters, NO text, NO border, NO UI. Face should be very readable at 48px."
+    }
+  ]
+}

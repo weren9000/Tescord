@@ -9,11 +9,20 @@ export type WorkspaceSection = 'chats' | 'groups' | 'platforms';
   imports: [UiIconComponent],
   template: ` <nav aria-label="Основные разделы">
     <div class="brand">
-      <img src="/assets/kva-wordmark-v2.png" alt="Квачат" width="70" height="35" />
+      <img src="/assets/cosmic/frog-moonlight-128.webp" alt="" width="36" height="36" /><span
+        class="brand-name"
+        >Квачат</span
+      >
     </div>
     <div class="sections">
       <button type="button" (click)="openRoom()">
-        <app-ui-icon name="room" /><span>Моя комната</span>
+        <img
+          class="section-art"
+          src="/assets/painted-controls/room-128.webp"
+          width="36"
+          height="36"
+          alt=""
+        /><span>Моя комната</span>
       </button>
       @for (section of sections; track section.id) {
         <button
@@ -23,11 +32,23 @@ export type WorkspaceSection = 'chats' | 'groups' | 'platforms';
           [attr.aria-current]="!adminSelected() && selected() === section.id ? 'page' : null"
           (click)="selectSection.emit(section.id)"
         >
-          <app-ui-icon [name]="section.icon" /><span>{{ section.label }}</span>
+          <img
+            class="section-art"
+            [src]="'/assets/painted-controls/' + section.icon + '-128.webp'"
+            width="36"
+            height="36"
+            alt=""
+          /><span>{{ section.label }}</span>
         </button>
       }
       <button type="button" (click)="shop.emit()">
-        <app-ui-icon name="inventory" /><span
+        <img
+          class="section-art"
+          src="/assets/painted-controls/inventory-128.webp"
+          width="36"
+          height="36"
+          alt=""
+        /><span
           >Предметы
           @if (inventoryUnread()) {
             · {{ inventoryUnread() }}
@@ -35,7 +56,13 @@ export type WorkspaceSection = 'chats' | 'groups' | 'platforms';
         </span>
       </button>
       <button type="button" (click)="applications.emit()" title="Приложения">
-        <app-ui-icon name="inventory" /><span>Приложения</span>
+        <img
+          class="section-art"
+          src="/assets/painted-controls/applications-128.webp"
+          width="36"
+          height="36"
+          alt=""
+        /><span>Приложения</span>
       </button>
       @if (isSystemAdmin() || isAvatarAdmin()) {
         <button
@@ -110,6 +137,23 @@ export type WorkspaceSection = 'chats' | 'groups' | 'platforms';
         font: bold 18px system-ui;
         color: var(--palette-text);
         letter-spacing: -1px;
+      }
+      .brand img {
+        display: block;
+        width: 36px;
+        height: 36px;
+        margin: 0 auto 4px;
+        object-fit: contain;
+      }
+      .brand .brand-name {
+        font-size: 14px;
+        font-weight: 750;
+        letter-spacing: 0;
+      }
+      .section-art {
+        display: block;
+        object-fit: contain;
+        flex-shrink: 0;
       }
       .brand span {
         font-weight: 400;

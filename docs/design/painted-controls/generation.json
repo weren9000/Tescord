@@ -1,0 +1,107 @@
+{
+  "reference": "reference.png",
+  "generator": "image_gen",
+  "transparent": true,
+  "assets": [
+    {
+      "name": "room",
+      "prompt": "EDIT the supplied approved reference board into ONE standalone reusable asset. Faithful extraction and careful reconstruction, not a redesign. Keep the exact hand-painted cosmic illustration look: visible fine directional brushwork, matte deep violet surfaces, golden warm highlights, turquoise reflected undersides. No plastic, enamel, glossy 3D or new embellishments. Extract ONLY the upper-left Room icon: violet arched stone doorway, glowing gold star on door, small amber lantern on right and leaves at base. Preserve its exact proportions, silhouette, brush texture and details. Square canvas with 6% clear padding. Genuine transparent alpha background. No dark rectangle, no checkerboard painted into the image, no labels, no other objects from the board.",
+      "master": "artifacts/painted-controls-originals/room.png"
+    },
+    {
+      "name": "headphones",
+      "prompt": "EDIT the supplied approved reference board into ONE standalone reusable asset. Faithful extraction and careful reconstruction, not a redesign. Keep the exact hand-painted cosmic illustration look: visible fine directional brushwork, matte deep violet surfaces, golden warm highlights, turquoise reflected undersides. No plastic, enamel, glossy 3D or new embellishments. Extract ONLY the Headphones icon in second row second column: dark violet over-ear headphones, turquoise ringed-planet symbol on left cup, lilac rim lighting. Preserve exact silhouette, paint texture and details. Square canvas with 6% clear padding. Genuine transparent alpha background. No dark rectangle, no checkerboard painted into the image, no labels, no other objects from the board.",
+      "master": "artifacts/painted-controls-originals/headphones.png"
+    },
+    {
+      "name": "chat",
+      "prompt": "EDIT the supplied approved reference board into ONE standalone reusable asset. Faithful extraction and careful reconstruction, not a redesign. Keep the exact hand-painted cosmic illustration look: visible fine directional brushwork, matte deep violet surfaces, golden warm highlights, turquoise reflected undersides. No plastic, enamel, glossy 3D or new embellishments. Extract ONLY the Messages icon in first row fifth column: violet rounded speech bubble with three cream dots and small lower-left tail, turquoise lower rim. Preserve exact shape and brush texture. Square canvas with 6% clear padding. Genuine transparent alpha background. No dark rectangle, no checkerboard painted into the image, no labels, no other objects from the board.",
+      "master": "artifacts/painted-controls-originals/chat.png"
+    },
+    {
+      "name": "button-primary",
+      "prompt": "EDIT the supplied approved reference board into ONE standalone reusable asset. Faithful extraction and careful reconstruction, not a redesign. Keep the exact hand-painted cosmic illustration look: visible fine directional brushwork, matte deep violet surfaces, golden warm highlights, turquoise reflected undersides. No plastic, enamel, glossy 3D or new embellishments. Extract ONLY the long purple button base behind the word Присоединиться, remove ALL lettering and reconstruct the same continuous painted surface beneath it. Rounded rectangle about 5:1 width:height, shallow raised edges, warm upper-left rim, deep violet middle, turquoise bottom edge. Preserve texture and proportions. No icon, text or glyph. Canvas fitted to the button, transparent padding no more than 2%. Genuine transparent alpha background. No dark rectangle, no checkerboard painted into the image, no labels, no other objects from the board.",
+      "master": "artifacts/painted-controls-originals/button-primary.png"
+    },
+    {
+      "name": "button-round",
+      "prompt": "EDIT the supplied approved reference board into ONE standalone reusable asset. Faithful extraction and careful reconstruction, not a redesign. Keep the exact hand-painted cosmic illustration look: visible fine directional brushwork, matte deep violet surfaces, golden warm highlights, turquoise reflected undersides. No plastic, enamel, glossy 3D or new embellishments. Extract ONLY ONE circular purple button base from bottom callbar, REMOVE its cream headphones glyph and reconstruct the painted violet surface beneath it. Preserve hand-painted brush texture, gold-lilac upper rim and turquoise lower edge. Perfectly circular front-facing disc, square canvas tightly fitted with 3% transparent padding. No glyph, no text, no surrounding toolbar. Genuine transparent alpha background. No dark rectangle, no checkerboard painted into the image, no labels, no other objects from the board.",
+      "master": "artifacts/painted-controls-originals/button-round.png"
+    },
+    {
+      "name": "friends",
+      "prompt": "EDIT supplied approved board into ONE standalone reusable asset. Faithful extraction/reconstruction, NOT a redesign. Exact hand-painted texture, matte violet shadows, warm golden highlight and turquoise reflected light. ONLY Friends icon first row second column: exactly TWO frog busts, green frog in purple headphones on left and laughing lilac frog with star clips on right. Keep faces, poses and clothing faithful. Square canvas, all art within frame, 6% clear padding. Genuine transparent alpha background. No dark background rectangle, no checkerboard pattern, no labels, no other elements. Preserve material; no enamel/plastic or generic 3D.",
+      "master": "artifacts/painted-controls-originals/friends.png"
+    },
+    {
+      "name": "groups",
+      "prompt": "EDIT supplied approved board into ONE standalone reusable asset. Faithful extraction/reconstruction, NOT a redesign. Exact hand-painted texture, matte violet shadows, warm golden highlight and turquoise reflected light. ONLY Groups icon first row third column: exactly THREE frog busts, explorer with goggles and ochre scarf at rear, green headphone frog lower left, olive frog with spectacles and plum beanie lower right. Preserve reference arrangement. Square canvas, all art within frame, 6% clear padding. Genuine transparent alpha background. No dark background rectangle, no checkerboard pattern, no labels, no other elements. Preserve material; no enamel/plastic or generic 3D.",
+      "master": "artifacts/painted-controls-originals/groups.png"
+    },
+    {
+      "name": "platforms",
+      "prompt": "EDIT supplied approved board into ONE standalone reusable asset. Faithful extraction/reconstruction, NOT a redesign. Exact hand-painted texture, matte violet shadows, warm golden highlight and turquoise reflected light. ONLY Platforms icon first row fourth column: glowing purple planet with textured lunar surface, narrow luminous lilac elliptical rings and cyan lower rim. Keep original axis tilt and proportions. Square canvas, all art within frame, 6% clear padding. Genuine transparent alpha background. No dark background rectangle, no checkerboard pattern, no labels, no other elements. Preserve material; no enamel/plastic or generic 3D.",
+      "master": "artifacts/painted-controls-originals/platforms.png"
+    },
+    {
+      "name": "files",
+      "prompt": "EDIT supplied approved board into ONE standalone reusable asset. Faithful extraction/reconstruction, NOT a redesign. Exact hand-painted texture, matte violet shadows, warm golden highlight and turquoise reflected light. ONLY Documents icon first row sixth column: warm cream painted sheet with curled upper-right corner, three purple horizontal strokes and teal bottom edge. Keep original irregular softly rounded rectangle. Square canvas, all art within frame, 6% clear padding. Genuine transparent alpha background. No dark background rectangle, no checkerboard pattern, no labels, no other elements. Preserve material; no enamel/plastic or generic 3D.",
+      "master": "artifacts/painted-controls-originals/files.png"
+    },
+    {
+      "name": "mic",
+      "prompt": "EDIT supplied approved board into ONE standalone reusable asset. Faithful extraction/reconstruction, NOT a redesign. Exact hand-painted texture, matte violet shadows, warm golden highlight and turquoise reflected light. ONLY Microphone icon second row first column: warm amber rounded mesh capsule on violet U-shaped holder and oval stand, turquoise lower-edge accents. Exact original silhouette. Square canvas, all art within frame, 6% clear padding. Genuine transparent alpha background. No dark background rectangle, no checkerboard pattern, no labels, no other elements. Preserve material; no enamel/plastic or generic 3D.",
+      "master": "artifacts/painted-controls-originals/mic.png"
+    },
+    {
+      "name": "camera",
+      "prompt": "EDIT supplied approved board into ONE standalone reusable asset. Faithful extraction/reconstruction, NOT a redesign. Exact hand-painted texture, matte violet shadows, warm golden highlight and turquoise reflected light. ONLY Camera icon second row third column: violet rounded camera body with small top grip, cream camera symbol on front, short protruding lens on right. Preserve reference brushwork. Square canvas, all art within frame, 6% clear padding. Genuine transparent alpha background. No dark background rectangle, no checkerboard pattern, no labels, no other elements. Preserve material; no enamel/plastic or generic 3D.",
+      "master": "artifacts/painted-controls-originals/camera.png"
+    },
+    {
+      "name": "screen",
+      "prompt": "EDIT supplied approved board into ONE standalone reusable asset. Faithful extraction/reconstruction, NOT a redesign. Exact hand-painted texture, matte violet shadows, warm golden highlight and turquoise reflected light. ONLY Screen icon second row fourth column: dark violet desktop monitor with thick painted lilac frame, small stand and warm cream right/up curved sharing arrow. Match original shape. Square canvas, all art within frame, 6% clear padding. Genuine transparent alpha background. No dark background rectangle, no checkerboard pattern, no labels, no other elements. Preserve material; no enamel/plastic or generic 3D.",
+      "master": "artifacts/painted-controls-originals/screen.png"
+    },
+    {
+      "name": "bell",
+      "prompt": "EDIT supplied approved board into ONE standalone reusable asset. Faithful extraction/reconstruction, NOT a redesign. Exact hand-painted texture, matte violet shadows, warm golden highlight and turquoise reflected light. ONLY Notifications bell second row fifth column: violet bell with gold top loop, glowing amber clapper, golden ringing marks upper right, teal rim below. Preserve exact silhouette. Square canvas, all art within frame, 6% clear padding. Genuine transparent alpha background. No dark background rectangle, no checkerboard pattern, no labels, no other elements. Preserve material; no enamel/plastic or generic 3D.",
+      "master": "artifacts/painted-controls-originals/bell.png"
+    },
+    {
+      "name": "settings",
+      "prompt": "EDIT supplied approved board into ONE standalone reusable asset. Faithful extraction/reconstruction, NOT a redesign. Exact hand-painted texture, matte violet shadows, warm golden highlight and turquoise reflected light. ONLY Settings icon second row sixth column: six-tooth painted violet gear, cream-gold central ring and dark hole, turquoise underside. Square canvas, all art within frame, 6% clear padding. Genuine transparent alpha background. No dark background rectangle, no checkerboard pattern, no labels, no other elements. Preserve material; no enamel/plastic or generic 3D.",
+      "master": "artifacts/painted-controls-originals/settings.png"
+    },
+    {
+      "name": "button-secondary",
+      "prompt": "EDIT supplied approved board into ONE standalone reusable asset. Faithful extraction/reconstruction, NOT a redesign. Exact hand-painted texture, matte violet shadows, warm golden highlight and turquoise reflected light. ONLY secondary button base behind Пригласить друзей. REMOVE all text and person-plus glyph, reconstruct uninterrupted painted deep dark violet surface. 5:1 rounded rectangle, thin lilac/gold raised upper rim, turquoise lower edge. No text/icon. Fit canvas to button with max 2% padding. Genuine transparent alpha background. No dark background rectangle, no checkerboard pattern, no labels, no other elements. Preserve material; no enamel/plastic or generic 3D.",
+      "master": "artifacts/painted-controls-originals/button-secondary.png"
+    },
+    {
+      "name": "button-danger",
+      "prompt": "EDIT supplied approved board into ONE standalone reusable asset. Faithful extraction/reconstruction, NOT a redesign. Exact hand-painted texture, matte violet shadows, warm golden highlight and turquoise reflected light. ONLY coral-red button base behind Выйти. Remove text, reconstruct brushwork beneath. 5:1 rounded rectangle, warm amber highlight upper left and tiny turquoise reflected lower edge. No text/icon. Fit canvas to button with max 2% padding. Genuine transparent alpha background. No dark background rectangle, no checkerboard pattern, no labels, no other elements. Preserve material; no enamel/plastic or generic 3D.",
+      "master": "artifacts/painted-controls-originals/button-danger.png"
+    },
+    {
+      "name": "button-pressed",
+      "prompt": "EDIT supplied approved board into ONE standalone reusable asset. Faithful extraction/reconstruction, NOT a redesign. Exact hand-painted texture, matte violet shadows, warm golden highlight and turquoise reflected light. ONLY inset pressed violet rectangular button base in row labelled Нажатие. Remove lettering В комнату. Reconstruct continuous painted surface beneath. 5:1 rectangle with rounded corners, darker recessed center and lilac inner edge, subtle teal underside. No text, no label. Max 2% padding. Genuine transparent alpha background. No dark background rectangle, no checkerboard pattern, no labels, no other elements. Preserve material; no enamel/plastic or generic 3D.",
+      "master": "artifacts/painted-controls-originals/button-pressed.png"
+    },
+    {
+      "name": "button-round-active",
+      "prompt": "EDIT supplied approved board into ONE standalone reusable asset. Faithful extraction/reconstruction, NOT a redesign. Exact hand-painted texture, matte violet shadows, warm golden highlight and turquoise reflected light. ONLY selected circular microphone button base on bottom toolbar. Remove microphone glyph and green indicator dot. Keep violet painted disc with cyan-turquoise rim, subtle warm top highlight. Perfect circular front-facing button. No glyph. Square tight canvas with max 3% padding. Genuine transparent alpha background. No dark background rectangle, no checkerboard pattern, no labels, no other elements. Preserve material; no enamel/plastic or generic 3D.",
+      "master": "artifacts/painted-controls-originals/button-round-active.png"
+    },
+    {
+      "name": "button-round-danger",
+      "prompt": "EDIT supplied approved board into ONE standalone reusable asset. Faithful extraction/reconstruction, NOT a redesign. Exact hand-painted texture, matte violet shadows, warm golden highlight and turquoise reflected light. ONLY coral-red circular hang-up button base on bottom right. Remove cream handset glyph, reconstruct uninterrupted brush texture. Coral red painted circular disc with warm upper-left highlight and purple/turquoise lower edge. No glyph. Square tight canvas with max 3% padding. Genuine transparent alpha background. No dark background rectangle, no checkerboard pattern, no labels, no other elements. Preserve material; no enamel/plastic or generic 3D.",
+      "master": "artifacts/painted-controls-originals/button-round-danger.png"
+    },
+    {
+      "name": "panel",
+      "prompt": "EDIT supplied approved board into ONE standalone reusable asset. Faithful extraction/reconstruction, NOT a redesign. Exact hand-painted texture, matte violet shadows, warm golden highlight and turquoise reflected light. ONLY bottom dark violet toolbar background. Remove ALL controls, avatar, text, divider and dots, reconstruct the continuous dark aubergine painted surface. Preserve narrow lavender upper edge, turquoise thin lower edge, gently rounded ends. Wide 7:1 rounded rectangle. Dark enough behind cream labels, visible subtle brushwork. No text/objects/glyphs. Max 2% clear padding. Genuine transparent alpha background. No dark background rectangle, no checkerboard pattern, no labels, no other elements. Preserve material; no enamel/plastic or generic 3D.",
+      "master": "artifacts/painted-controls-originals/panel.png"
+    }
+  ]
+}

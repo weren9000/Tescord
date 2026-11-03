@@ -1,0 +1,46 @@
+{
+  "tool": "image_gen built-in",
+  "reference": "docs/design/painted-controls/reference.png",
+  "assets": [
+    {
+      "name": "applications",
+      "prompt": "Create ONE standalone transparent UI illustration for Kvachat. The provided image is the approved MATERIAL AND STYLE reference. Match its hand-painted purple brushwork, matte surfaces, warm golden upper-left edges and restrained turquoise reflected lower edges. This is an addition to that exact icon family, not glossy plastic or enamel. Square canvas, complete isolated object, ample 8% transparent margin, strong clear silhouette readable at 48 pixels, limited large forms without microdetail. No text, no labels, no presentation board, no background, no floating stars, no checkerboard baked in. Subject: Four distinct rounded violet modules arranged in a loose 2x2 square, connected with small golden joints. Clear app catalogue symbol.",
+      "master": "artifacts/painted-controls-originals/applications.png"
+    },
+    {
+      "name": "inventory",
+      "prompt": "Create ONE standalone transparent UI illustration for Kvachat. The provided image is the approved MATERIAL AND STYLE reference. Match its hand-painted purple brushwork, matte surfaces, warm golden upper-left edges and restrained turquoise reflected lower edges. This is an addition to that exact icon family, not glossy plastic or enamel. Square canvas, complete isolated object, ample 8% transparent margin, strong clear silhouette readable at 48 pixels, limited large forms without microdetail. No text, no labels, no presentation board, no background, no floating stars, no checkerboard baked in. Subject: An open small violet wooden treasure chest with warm cream interior and two simple keepsake objects. No coins spilling.",
+      "master": "artifacts/painted-controls-originals/inventory.png"
+    },
+    {
+      "name": "shop",
+      "prompt": "Create ONE standalone transparent UI illustration for Kvachat. The provided image is the approved MATERIAL AND STYLE reference. Match its hand-painted purple brushwork, matte surfaces, warm golden upper-left edges and restrained turquoise reflected lower edges. This is an addition to that exact icon family, not glossy plastic or enamel. Square canvas, complete isolated object, ample 8% transparent margin, strong clear silhouette readable at 48 pixels, limited large forms without microdetail. No text, no labels, no presentation board, no background, no floating stars, no checkerboard baked in. Subject: A compact friendly purple market stall with violet fabric awning and warm golden counter. No lettering or price tags.",
+      "master": "artifacts/painted-controls-originals/shop.png"
+    },
+    {
+      "name": "gift",
+      "prompt": "Create ONE standalone transparent UI illustration for Kvachat. The provided image is the approved MATERIAL AND STYLE reference. Match its hand-painted purple brushwork, matte surfaces, warm golden upper-left edges and restrained turquoise reflected lower edges. This is an addition to that exact icon family, not glossy plastic or enamel. Square canvas, complete isolated object, ample 8% transparent margin, strong clear silhouette readable at 48 pixels, limited large forms without microdetail. No text, no labels, no presentation board, no background, no floating stars, no checkerboard baked in. Subject: One violet gift box with a broad warm cream ribbon and clearly shaped bow.",
+      "master": "artifacts/painted-controls-originals/gift.png"
+    },
+    {
+      "name": "appearance",
+      "prompt": "Create ONE standalone transparent UI illustration for Kvachat. The provided image is the approved MATERIAL AND STYLE reference. Match its hand-painted purple brushwork, matte surfaces, warm golden upper-left edges and restrained turquoise reflected lower edges. This is an addition to that exact icon family, not glossy plastic or enamel. Square canvas, complete isolated object, ample 8% transparent margin, strong clear silhouette readable at 48 pixels, limited large forms without microdetail. No text, no labels, no presentation board, no background, no floating stars, no checkerboard baked in. Subject: A violet picture frame with a small cosmic landscape inside and a simple paintbrush leaning beside it. Clear customization symbol.",
+      "master": "artifacts/painted-controls-originals/appearance.png"
+    },
+    {
+      "name": "profile",
+      "prompt": "Create ONE standalone transparent UI illustration for Kvachat. The provided image is the approved MATERIAL AND STYLE reference. Match its hand-painted purple brushwork, matte surfaces, warm golden upper-left edges and restrained turquoise reflected lower edges. This is an addition to that exact icon family, not glossy plastic or enamel. Square canvas, complete isolated object, ample 8% transparent margin, strong clear silhouette readable at 48 pixels, limited large forms without microdetail. No text, no labels, no presentation board, no background, no floating stars, no checkerboard baked in. Subject: A rounded violet portrait frame containing a simple smiling lavender frog head silhouette with two raised eyes. Clear profile portrait.",
+      "master": "artifacts/painted-controls-originals/profile.png"
+    },
+    {
+      "name": "security",
+      "prompt": "Create ONE standalone transparent UI illustration for Kvachat. The provided image is the approved MATERIAL AND STYLE reference. Match its hand-painted purple brushwork, matte surfaces, warm golden upper-left edges and restrained turquoise reflected lower edges. This is an addition to that exact icon family, not glossy plastic or enamel. Square canvas, complete isolated object, ample 8% transparent margin, strong clear silhouette readable at 48 pixels, limited large forms without microdetail. No text, no labels, no presentation board, no background, no floating stars, no checkerboard baked in. Subject: One rounded violet shield with a warm golden padlock in front, simple clear silhouette.",
+      "master": "artifacts/painted-controls-originals/security.png"
+    },
+    {
+      "name": "calendar",
+      "prompt": "Create ONE standalone transparent UI illustration for Kvachat. The provided image is the approved MATERIAL AND STYLE reference. Match its hand-painted purple brushwork, matte surfaces, warm golden upper-left edges and restrained turquoise reflected lower edges. This is an addition to that exact icon family, not glossy plastic or enamel. Square canvas, complete isolated object, ample 8% transparent margin, strong clear silhouette readable at 48 pixels, limited large forms without microdetail. No text, no labels, no presentation board, no background, no floating stars, no checkerboard baked in. Subject: One violet bound calendar page with warm cream paper, two purple binding rings and a simple 3 by 3 grid, one square highlighted violet. No dates or letters.",
+      "master": "artifacts/painted-controls-originals/calendar.png"
+    }
+  ]
+}

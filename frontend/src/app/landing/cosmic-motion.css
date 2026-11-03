@@ -1,0 +1,479 @@
+/* Layered painted scene. Text and navigation remain in the normal document flow. */
+.landing {
+  overflow: clip;
+  background: #10121c;
+}
+.cosmic-journey {
+  position: relative;
+}
+.landing .landing-hero {
+  width: 100%;
+  max-width: 1800px;
+  min-height: 790px;
+  padding-top: 40px;
+  padding-bottom: 48px;
+}
+.cosmic-stage {
+  position: absolute;
+  inset: -94px 0 0;
+  z-index: -2;
+  overflow: hidden;
+  pointer-events: none;
+  mask-image: linear-gradient(#000 88%, transparent);
+}
+.cosmic-stage img {
+  display: block;
+  max-width: none;
+}
+.scene-backdrop {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.scene-planet {
+  position: absolute;
+  right: -6%;
+  top: 1%;
+  width: 57%;
+  height: auto;
+  transform: translate3d(var(--planet-x, 0px), var(--planet-y, 0px), 0);
+}
+.scene-company {
+  position: absolute;
+  right: 1%;
+  bottom: 19%;
+  width: 66%;
+  transform: translate3d(var(--company-x, 0px), var(--company-y, 0px), 0)
+    scale(var(--scene-scale, 1));
+  transform-origin: center bottom;
+}
+.scene-company > img {
+  width: 100%;
+  height: auto;
+}
+.scene-foreground {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: translate3d(var(--leaves-x, 0px), var(--leaves-y, 0px), 0);
+}
+.scene-lantern {
+  position: absolute;
+  left: 51%;
+  top: 59%;
+  width: 10%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(#ffe4a465, #ffc96b15 45%, transparent 72%);
+  mix-blend-mode: screen;
+}
+.scene-reflection {
+  position: absolute;
+  left: 48%;
+  bottom: 5%;
+  width: 40%;
+  height: 23%;
+  background: radial-gradient(ellipse, #d797eb18, transparent 70%);
+  transform: scaleY(0.5);
+}
+.scene-star {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #fff3d6;
+  box-shadow: 0 0 10px 3px #d1a4ff80;
+}
+.star-one {
+  left: 45%;
+  top: 15%;
+}
+.star-two {
+  left: 61%;
+  top: 7%;
+}
+.star-three {
+  right: 9%;
+  top: 39%;
+}
+.landing .landing-hero::before {
+  background: linear-gradient(90deg, #10121c66, transparent 48%);
+}
+.cosmic-intro {
+  position: relative;
+  z-index: 1;
+}
+.landing .entry-actions {
+  width: 430px;
+}
+.landing .landing-open.kva-painted-button,
+.landing .secondary-action.kva-painted-button {
+  border: 0;
+  border-radius: 24px;
+  font-size: 15px;
+  min-height: 54px;
+  padding: 14px 18px;
+  color: #fff0d2;
+  text-decoration: none;
+  background: #43225c;
+}
+.landing .secondary-action.kva-painted-button {
+  background: #20162f;
+}
+.landing .entry-actions .landing-actions {
+  grid-template-columns: minmax(0, 1fr) 108px;
+  gap: 14px;
+}
+.landing .cosmic-voice {
+  position: relative;
+  z-index: 1;
+  margin-top: 76px;
+  border: 0;
+  backdrop-filter: none;
+  background: #241733c9;
+}
+.landing .cosmic-voice-symbols > span {
+  background: url('/assets/painted-controls/button-round.webp') center/contain no-repeat;
+}
+.landing .cosmic-voice-symbols > .end-call {
+  background-image: url('/assets/painted-controls/button-round-danger.webp');
+}
+.motion-toggle {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: max-content;
+  min-height: 44px;
+  margin: 14px 0 0 auto;
+  padding: 8px 12px;
+  border: 1px solid #75638b66;
+  border-radius: 22px;
+  background: #141526;
+  color: #d6c8e7;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.motion-toggle app-ui-icon {
+  width: 16px;
+  height: 16px;
+}
+.motion-toggle::after {
+  content: '';
+  width: 7px;
+  height: 7px;
+  background: #84798c;
+  border-radius: 50%;
+}
+.motion-toggle[aria-pressed='true']::after {
+  background: #6ed9d7;
+  box-shadow: 0 0 8px #6ed9d744;
+}
+.motion-toggle:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+[data-static-landing] .motion-toggle {
+  display: none;
+}
+.landing .cosmic-product {
+  padding-top: 32px;
+}
+.landing .section {
+  position: relative;
+  margin-top: 92px;
+  padding-top: 56px;
+}
+.landing .section h2,
+.landing .cosmic-product h2 {
+  letter-spacing: -1px;
+}
+.landing .space-grid article {
+  position: relative;
+}
+.landing .space-grid article h3 {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  font-size: 24px;
+  margin: 18px 0 10px;
+}
+.landing .feature-art {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  flex: none;
+}
+.landing .section-art {
+  display: block;
+  width: 84px;
+  height: 84px;
+  margin-bottom: 18px;
+  object-fit: contain;
+}
+.landing .space-art,
+.landing .document-illustration,
+.landing .call-illustration {
+  box-shadow: 0 20px 50px #05071145;
+  border-color: #85709b66;
+}
+.landing .space-art {
+  background: linear-gradient(145deg, #29213c, #171b2a);
+}
+.landing .call-demo-controls {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+  padding: 18px 16px 8px;
+}
+.landing .call-demo-note {
+  text-align: center;
+  color: #c4b7d2;
+  font-size: 11px;
+  margin: 8px 12px 18px;
+}
+.landing .call-people > div {
+  transition:
+    background-color 0.2s,
+    border-radius 0.2s;
+}
+.landing .demo-camera .call-people > div {
+  background: #372950;
+  border-radius: 14px;
+  padding: 10px;
+}
+.demo-screen-preview {
+  min-height: 100px;
+  margin: 0 20px;
+  padding: 24px;
+  border: 1px solid #6b597e;
+  border-radius: 12px;
+  background: #141725;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  color: #d2c7de;
+}
+.demo-screen-preview[hidden] {
+  display: none;
+}
+.landing .settings-grid details {
+  background: #1d1c2c;
+  border-color: #66557766;
+  border-radius: 16px;
+}
+.landing .application-grid article {
+  background: #211d30;
+  border-color: #66557766;
+  padding: 24px;
+}
+.landing .application-grid article h3 {
+  font-size: 21px;
+}
+.landing .appearance-section {
+  position: relative;
+}
+.landing .landing-footer {
+  padding-block: 32px;
+}
+@media (min-width: 1101px) and (min-height: 740px) and (pointer: fine) {
+  .motion-enhanced .cosmic-journey {
+    height: calc(max(790px, 100svh - 94px) + 220px);
+  }
+  .motion-enhanced .landing-hero {
+    position: sticky;
+    top: 0;
+    min-height: max(790px, 100svh - 94px);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .scene-company > img {
+    animation: cosmic-float 10s ease-in-out infinite;
+    animation-play-state: paused;
+  }
+  .scene-lantern {
+    animation: cosmic-lantern 6s ease-in-out infinite;
+    animation-play-state: paused;
+  }
+  .scene-reflection {
+    animation: cosmic-reflection 12s ease-in-out infinite;
+    animation-play-state: paused;
+  }
+  .scene-star {
+    animation: cosmic-star 7s ease-in-out infinite;
+    animation-play-state: paused;
+  }
+  .star-two {
+    animation-delay: -2s;
+  }
+  .star-three {
+    animation-delay: -4s;
+  }
+  .motion-running .scene-company > img,
+  .motion-running .scene-lantern,
+  .motion-running .scene-reflection,
+  .motion-running .scene-star {
+    animation-play-state: running;
+  }
+  .landing .appearance-chat,
+  .landing .bubble,
+  .landing .appearance-illustration .panel-header {
+    transition:
+      background-color 0.22s,
+      color 0.22s;
+  }
+  @keyframes cosmic-float {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-4px);
+    }
+  }
+  @keyframes cosmic-lantern {
+    0%,
+    100% {
+      opacity: 0.45;
+    }
+    50% {
+      opacity: 0.9;
+    }
+  }
+  @keyframes cosmic-reflection {
+    0%,
+    100% {
+      opacity: 0.35;
+      transform: scaleX(0.95);
+    }
+    50% {
+      opacity: 0.8;
+      transform: scaleX(1.04);
+    }
+  }
+  @keyframes cosmic-star {
+    0%,
+    100% {
+      opacity: 0.3;
+    }
+    50% {
+      opacity: 0.85;
+    }
+  }
+}
+@media (max-width: 1100px) and (min-width: 961px) {
+  .landing .landing-hero {
+    min-height: 760px;
+  }
+  .scene-company {
+    width: 68%;
+    right: -3%;
+    bottom: 25%;
+  }
+  .scene-planet {
+    top: 11%;
+    width: 62%;
+    right: -11%;
+  }
+  .landing .cosmic-brand {
+    font-size: 56px;
+  }
+  .landing .landing-hero h1 {
+    font-size: 50px;
+  }
+  .landing .entry-actions {
+    width: 350px;
+  }
+  .landing .entry-actions .landing-actions {
+    grid-template-columns: minmax(0, 1fr) 86px;
+    gap: 10px;
+  }
+  .landing .landing-open.kva-painted-button {
+    font-size: 13px;
+  }
+}
+@media (max-width: 960px) {
+  .landing .landing-hero {
+    padding: 20px 20px 24px;
+    min-height: 0;
+  }
+  .cosmic-stage {
+    position: relative;
+    inset: auto;
+    width: calc(100% + 40px);
+    height: clamp(270px, 74vw, 540px);
+    margin: 0 -20px;
+    flex: none;
+    mask-image: linear-gradient(transparent, #000 12%, #000 89%, transparent);
+  }
+  .scene-backdrop {
+    object-position: 70% center;
+  }
+  .scene-company {
+    width: 98%;
+    right: 1%;
+    bottom: 10%;
+  }
+  .scene-planet {
+    width: 84%;
+    right: -5%;
+    top: 0;
+  }
+  .scene-foreground {
+    object-fit: fill;
+  }
+  .scene-lantern {
+    left: 51%;
+  }
+  .landing .entry-actions {
+    width: 400px;
+    max-width: 100%;
+  }
+  .landing .entry-actions .landing-actions {
+    grid-template-columns: minmax(0, 1fr) 80px;
+    gap: 12px;
+  }
+  .landing .landing-open.kva-painted-button,
+  .landing .secondary-action.kva-painted-button {
+    font-size: 13px;
+    padding: 12px 8px;
+    min-height: 50px;
+  }
+  .landing .cosmic-voice {
+    margin-top: 0;
+    padding: 18px 16px;
+  }
+  .landing .cosmic-product {
+    padding-top: 16px;
+  }
+  .landing .section {
+    margin-top: 48px;
+    padding-top: 32px;
+  }
+  .landing .section-art {
+    width: 68px;
+    height: 68px;
+    margin-bottom: 12px;
+  }
+  .landing .space-grid article h3 {
+    font-size: 22px;
+  }
+  .landing .motion-toggle {
+    margin-top: 12px;
+  }
+  .scene-company > img {
+    animation: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .landing .call-people > div {
+    transition: none;
+  }
+}

@@ -1,0 +1,273 @@
+/* Textures and glyphs from docs/design/painted-controls/reference.png. No global selectors. */
+.kva-painted-button {
+  --paint-height: 52px;
+  --paint-surface: url('/assets/painted-controls/button-primary.webp');
+  position: relative;
+  isolation: isolate;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: var(--paint-height);
+  max-width: 100%;
+  min-width: 0;
+  padding: 12px 28px;
+  border: 0;
+  border-radius: 24px;
+  background: #43225c;
+  color: #fff0d2;
+  font:
+    650 16px/1.3 Inter,
+    'Segoe UI',
+    Arial,
+    sans-serif;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  touch-action: manipulation;
+  overflow-wrap: anywhere;
+  vertical-align: middle;
+  box-shadow: 0 5px 12px #09081945;
+}
+.kva-painted-button::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  z-index: -1;
+  pointer-events: none;
+  border-style: solid;
+  border-color: transparent;
+  border-width: 0 26px;
+  border-image-source: var(--paint-surface);
+  border-image-slice: 0 12% fill;
+  border-image-width: 0 26px;
+  border-image-repeat: stretch;
+}
+.kva-painted-button--secondary {
+  --paint-surface: url('/assets/painted-controls/button-secondary.webp');
+  background: #20162f;
+}
+.kva-painted-button--danger {
+  --paint-surface: url('/assets/painted-controls/button-danger.webp');
+  background: #852b49;
+}
+.kva-painted-button--quiet,
+.kva-painted-button--tab,
+.kva-painted-button--menu {
+  color: var(--kva-control-ink, #fff0d2);
+  background: var(--kva-control-surface, #251d36);
+  border: 1px solid var(--kva-control-border, #67547c);
+  border-radius: 12px;
+  box-shadow: none;
+  padding: 10px 28px;
+  font-size: 14px;
+}
+.kva-painted-button--quiet::before,
+.kva-painted-button--tab::before,
+.kva-painted-button--menu::before {
+  display: none;
+}
+.kva-painted-button--menu {
+  justify-content: flex-start;
+  width: 100%;
+}
+.kva-painted-button--tab[aria-pressed='true'],
+.kva-painted-button--menu[aria-pressed='true'] {
+  background: var(--kva-control-selected, #47305e);
+  border-color: #bca1e5;
+}
+.kva-painted-button--sm {
+  --paint-height: 44px;
+  padding: 10px 23px;
+  font-size: 14px;
+}
+.kva-painted-button--lg {
+  --paint-height: 64px;
+  padding: 16px 32px;
+  font-size: 20px;
+}
+.kva-painted-button--sm::before {
+  border-width: 0 22px;
+  border-image-width: 0 22px;
+}
+.kva-painted-button--lg::before {
+  border-width: 0 32px;
+  border-image-width: 0 32px;
+}
+.kva-painted-button--round {
+  width: var(--paint-height);
+  height: var(--paint-height);
+  min-width: var(--paint-height);
+  padding: 0;
+  border-radius: 50%;
+  --paint-surface: url('/assets/painted-controls/button-round.webp');
+}
+.kva-painted-button--round::before {
+  border: 0;
+  border-image: none;
+  background: var(--paint-surface) center/100% 100% no-repeat;
+}
+.kva-painted-button--round.kva-painted-button--danger {
+  --paint-surface: url('/assets/painted-controls/button-round-danger.webp');
+}
+.kva-painted-button[aria-pressed='true'] {
+  box-shadow:
+    0 0 0 2px #57c8d5,
+    0 0 16px #57c8d533;
+}
+.kva-painted-button--round[aria-pressed='true']:not(.kva-painted-button--danger) {
+  --paint-surface: url('/assets/painted-controls/button-round-active.webp');
+  box-shadow: 0 0 0 1px #57c8d5;
+}
+.kva-painted-button:focus-visible {
+  outline: 3px solid #7be5ef;
+  outline-offset: 4px;
+}
+@media (hover: hover) {
+  .kva-painted-button:hover:not(:disabled)::before {
+    filter: brightness(1.13);
+  }
+  .kva-painted-button:hover:not(:disabled) {
+    box-shadow: 0 5px 18px #a36cf433;
+  }
+}
+.kva-painted-button:active:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow: inset 0 3px 7px #12071e99;
+}
+.kva-painted-button:active:not(:disabled)::before {
+  filter: brightness(0.82);
+}
+.kva-painted-button:not(.kva-painted-button--round):not(.kva-painted-button--danger):active:not(
+    :disabled
+  ) {
+  --paint-surface: url('/assets/painted-controls/button-pressed.webp');
+}
+.kva-painted-button:disabled {
+  cursor: default;
+  color: #d0c2df;
+  background: #30243b;
+  box-shadow: none;
+}
+.kva-painted-button:disabled::before {
+  filter: saturate(0.3) brightness(0.65);
+}
+.kva-painted-button--quiet:disabled,
+.kva-painted-button--tab:disabled,
+.kva-painted-button--menu:disabled {
+  color: var(--kva-control-disabled-ink, #b1a3c1);
+  background: var(--kva-control-disabled-surface, #30243b);
+}
+.kva-painted-button[aria-busy='true'] {
+  cursor: progress;
+}
+.kva-painted-spinner {
+  position: absolute;
+  left: 8px;
+  display: inline-block;
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  border: 2px solid #fff0d244;
+  border-top-color: #fff0d2;
+  border-radius: 50%;
+}
+.kva-painted-button--round[aria-busy='true'] .kva-painted-glyph {
+  visibility: hidden;
+}
+.kva-painted-button--round .kva-painted-spinner {
+  left: calc(50% - 7px);
+}
+.kva-painted-glyph {
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  vertical-align: middle;
+  color: inherit;
+}
+.kva-painted-glyph svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.kva-painted-art {
+  display: inline-block;
+  width: var(--paint-icon-size, 64px);
+  height: var(--paint-icon-size, 64px);
+  object-fit: contain;
+  vertical-align: middle;
+}
+.kva-painted-panel {
+  position: relative;
+  isolation: isolate;
+  box-sizing: border-box;
+  padding: 24px;
+  border-radius: 32px;
+  background: #241733;
+  color: #fff0d2;
+}
+.kva-painted-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  border: solid transparent;
+  border-width: 20px 34px;
+  border-image: url('/assets/painted-controls/panel.webp') 20% 8% fill / 20px 34px stretch;
+}
+.kva-painted-preload {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  pointer-events: none;
+  background-image:
+    url('/assets/painted-controls/button-pressed.webp'),
+    url('/assets/painted-controls/button-round-active.webp');
+}
+@media (prefers-reduced-motion: no-preference) {
+  .kva-painted-button {
+    transition:
+      box-shadow 120ms,
+      transform 80ms;
+  }
+  .kva-painted-button::before {
+    transition: filter 120ms;
+  }
+  .kva-painted-spinner {
+    animation: kva-painted-spin 0.8s linear infinite;
+  }
+  @keyframes kva-painted-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+}
+@media (forced-colors: active) {
+  .kva-painted-button,
+  .kva-painted-panel {
+    background: Canvas;
+    color: ButtonText;
+    border: 2px solid ButtonText;
+    box-shadow: none;
+  }
+  .kva-painted-button::before,
+  .kva-painted-panel::before {
+    display: none;
+  }
+  .kva-painted-button:disabled {
+    color: GrayText;
+    border-color: GrayText;
+  }
+  .kva-painted-button[aria-pressed='true'] {
+    outline: 2px solid Highlight;
+    outline-offset: 2px;
+  }
+  .kva-painted-button:focus-visible {
+    outline-color: Highlight;
+  }
+}

@@ -1,0 +1,6 @@
+button { border-radius:12px; }
+button.primary,.primary-button { background:#57327a url('./cosmic-button-primary.webp') center/100% 100% no-repeat; color:#fff5e6; border:1px solid #9a70ca; }
+button.danger { background:#9a304d url('./cosmic-button-danger.webp') center/100% 100% no-repeat; color:#fff5e6; border-color:#e78198; }
+dialog { border-radius:20px; }
+button:focus-visible,a:focus-visible { outline:3px solid #57c8d5; outline-offset:3px; }
+@media(forced-colors:active){button.primary,.primary-button,button.danger { background:ButtonFace; color:ButtonText; border:1px solid ButtonText; }}

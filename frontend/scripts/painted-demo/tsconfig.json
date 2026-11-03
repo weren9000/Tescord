@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "../../../artifacts/painted-compiled",
+    "rootDir": "../..",
+    "sourceMap": false
+  },
+  "angularCompilerOptions": { "compilationMode": "full" },
+  "files": ["main.ts"]
+}

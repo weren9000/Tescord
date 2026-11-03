@@ -1,0 +1,184 @@
+// Application skin. Existing layout, media nodes and event handlers stay owned
+// by their components; user palettes override these defaults through ThemeController.
+:root:not([data-ui-theme]) {
+  --palette-canvas: #10121c;
+  --palette-surface: #191724;
+  --palette-raised: #252033;
+  --palette-hover: #322941;
+  --palette-border: #51435f;
+  --palette-selected: #352845;
+  --palette-text: #fff5e6;
+  --palette-secondary: #ded2e7;
+  --palette-muted: #b9afc8;
+  --palette-primary-text: #cdb1f5;
+  --rgb-surface: 25 23 36;
+  --rgb-raised: 37 32 51;
+  --rgb-hover: 50 41 65;
+  --rgb-border: 81 67 95;
+  --rgb-selected: 53 40 69;
+  --rgb-text: 255 245 230;
+  --rgb-secondary: 222 210 231;
+  --rgb-muted: 185 175 200;
+  --rgb-primary-text: 205 177 245;
+  --ui-radius-control: 12px;
+  --ui-radius-panel: 18px;
+  --ui-radius-dialog: 22px;
+}
+
+app-root.kva-app.kva-app.kva-app {
+  --kva-control-ink: var(--palette-text);
+  --kva-control-surface: var(--palette-raised);
+  --kva-control-border: var(--palette-border);
+  --kva-control-selected: var(--palette-selected);
+  --kva-control-disabled-ink: var(--palette-muted);
+  --kva-control-disabled-surface: var(--palette-surface);
+
+  button:not(:where(.landing *, .kva-painted-button)) {
+    font-family: var(--ui-font);
+    border-radius: var(--ui-radius-control, 12px);
+    touch-action: manipulation;
+  }
+  :is(button, a, input, select, textarea):focus-visible {
+    outline: 2px solid var(--palette-cyan);
+    outline-offset: 3px;
+  }
+  button:disabled {
+    cursor: default;
+  }
+  :is(.primary-button, button.primary, .composer__submit):not(
+    :where(.landing *, .kva-painted-button)
+  ) {
+    color: #fff5e6;
+    background: #57327a url('/assets/painted-controls/button-primary.webp') center / 100% 100%
+      no-repeat;
+    border: 1px solid #9a70ca;
+    border-radius: 16px;
+    box-shadow: 0 3px 9px #10091e30;
+  }
+  :is(.secondary-button, button.secondary, .icon-button):not(
+    :where(.landing *, .kva-painted-button)
+  ) {
+    color: var(--palette-text);
+    background-color: var(--palette-raised);
+    border: 1px solid var(--palette-border);
+    border-radius: 12px;
+  }
+  :is(.danger-button, button.danger, .call-control-button--danger):not(:where(.landing *)) {
+    color: #fff5e6;
+    background: #9a304d url('/assets/painted-controls/button-danger.webp') center / 100% 100%
+      no-repeat;
+    border-color: #e78198;
+  }
+  :is(.primary-button, button.primary, .composer__submit):disabled {
+    filter: saturate(0.35);
+    box-shadow: none;
+  }
+  :is(.field input, .field select, .field textarea, .search-input):not(:where(.landing *)) {
+    border-radius: 12px;
+    border-color: var(--palette-border);
+    background-color: var(--palette-canvas);
+    color: var(--palette-text);
+  }
+  :is(dialog, .modal, .auth-panel, .quick-switch, .invite-entry-card):not(
+    :where(.landing *, app-photo-viewer *, .islands-dialog)
+  ) {
+    border-radius: var(--ui-radius-dialog, 22px);
+    border-color: var(--palette-border);
+    box-shadow: 0 20px 70px #09061555;
+  }
+  dialog::backdrop {
+    background: #100c1bcc;
+  }
+  :is(.conversation-head, .desktop-sidebar-toolbar, .channel-header) {
+    border-bottom-color: var(--palette-border);
+    background-color: var(--palette-surface);
+  }
+  :is(.composer, .composer-shell) {
+    border-radius: 16px;
+    border-color: var(--palette-border);
+  }
+  .call-control-button {
+    background: var(--palette-raised);
+    border: 1px solid var(--palette-border);
+    border-radius: 50%;
+    color: var(--palette-text);
+  }
+  .call-control-button[aria-pressed='true'] {
+    background-color: var(--palette-selected);
+    box-shadow: inset 0 0 0 1px var(--palette-cyan);
+  }
+  .auth-page {
+    background:
+      radial-gradient(ellipse at 85% 15%, #754bff18, transparent 45%), var(--palette-canvas);
+  }
+  .auth-panel {
+    background: var(--palette-surface);
+  }
+  .auth-panel::before {
+    content: '';
+    display: block;
+    height: 3px;
+    background: linear-gradient(90deg, var(--palette-primary), var(--palette-cyan));
+    border-radius: 3px;
+    margin-bottom: 20px;
+  }
+  .cosmic-wordmark {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--palette-text);
+    font: 750 22px/1.1 var(--ui-font);
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .cosmic-wordmark img {
+    width: 36px;
+    height: 36px;
+    object-fit: contain;
+  }
+  .cosmic-art {
+    width: 42px;
+    height: 42px;
+    object-fit: contain;
+    flex-shrink: 0;
+  }
+}
+@media (max-width: 600px) {
+  app-root.kva-app.kva-app.kva-app .guest-header {
+    gap: 8px;
+  }
+  app-root.kva-app.kva-app.kva-app .guest-header .cosmic-wordmark {
+    font-size: 18px;
+    gap: 6px;
+  }
+  app-root.kva-app.kva-app.kva-app .guest-header .cosmic-wordmark img {
+    width: 28px;
+    height: 28px;
+  }
+  app-root.kva-app.kva-app.kva-app .guest-header nav {
+    gap: 8px;
+    font-size: 11px;
+  }
+  app-root.kva-app.kva-app.kva-app .guest-header .guest-login {
+    padding: 0 8px;
+  }
+  app-root.kva-app.kva-app.kva-app :is(.text-file-viewer, .room-settings-dialog) {
+    border-radius: 0;
+  }
+}
+@media (forced-colors: active) {
+  app-root.kva-app.kva-app.kva-app
+    :is(
+      .primary-button,
+      button.primary,
+      .composer__submit,
+      button.danger,
+      .danger-button,
+      .call-control-button
+    ) {
+    background: ButtonFace;
+    color: ButtonText;
+    border: 1px solid ButtonText;
+    box-shadow: none;
+  }
+}

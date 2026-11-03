@@ -63,7 +63,16 @@ import { UiIconComponent } from './ui-icon.component';
                 @if (tab() === 'catalog') {
                   <div class="application-row">
                     <span class="application-icon"
-                      ><app-ui-icon [name]="item.id === 'islands' ? 'inventory' : 'calendar'"
+                      ><img
+                        class="cosmic-art"
+                        [src]="
+                          item.id === 'islands'
+                            ? '/assets/cosmic/islands-forest.webp'
+                            : '/assets/painted-controls/calendar-128.webp'
+                        "
+                        width="48"
+                        height="48"
+                        alt=""
                     /></span>
                     <div class="application-copy">
                       <strong>{{ item.name }}</strong>
@@ -93,7 +102,16 @@ import { UiIconComponent } from './ui-icon.component';
                     (click)="open(item)"
                   >
                     <span class="application-icon"
-                      ><app-ui-icon [name]="item.id === 'islands' ? 'inventory' : 'calendar'"
+                      ><img
+                        class="cosmic-art"
+                        [src]="
+                          item.id === 'islands'
+                            ? '/assets/cosmic/islands-forest.webp'
+                            : '/assets/painted-controls/calendar-128.webp'
+                        "
+                        width="48"
+                        height="48"
+                        alt=""
                     /></span>
                     <strong>{{ item.name }}</strong>
                     <small>{{ item.description }}</small>

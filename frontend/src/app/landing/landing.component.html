@@ -1,186 +1,374 @@
-﻿<div class="landing">
-  <app-guest-header [showLogin]="false" />
+<div class="landing" kvaLandingMotion #motion="landingMotion">
+  <header class="landing-masthead container">
+    <a class="frog-wordmark" href="/" aria-label="Квачат — главная"
+      ><img src="/assets/cosmic/frog-moonlight-128.webp" width="42" height="42" alt="" /><span
+        >Квачат</span
+      ></a
+    >
+    <nav aria-label="Главное меню">
+      <a href="#features">Возможности</a><a href="#download">Скачать</a>
+    </nav>
+  </header>
   <main>
-    <section class="landing-hero container" aria-labelledby="landing-title">
-      <h1 id="landing-title">Свои люди.<br />Всегда <span>рядом.</span></h1>
-      <p class="landing-lead">
-        Переписывайтесь лично и в группах, собирайтесь в комнате<br class="desktop-break" />
-        и создавайте площадки для своих сообществ.
-      </p>
-      <div class="entry-actions" id="download">
-        <div class="landing-actions">
-          <a class="landing-open" href="/register">Зарегистрироваться</a>
-          <a class="secondary-action" href="/login">Войти</a>
+    <div class="cosmic-journey">
+      <section class="landing-hero container" aria-labelledby="landing-title">
+        <div
+          class="cosmic-stage"
+          role="img"
+          aria-label="Четверо друзей-лягушек у фонаря на кувшинке под звёздным небом"
+        >
+          <img
+            class="scene-backdrop"
+            src="/assets/cosmic-motion/backdrop-1600.webp"
+            srcset="
+              /assets/cosmic-motion/backdrop-720.webp   720w,
+              /assets/cosmic-motion/backdrop-1600.webp 1600w
+            "
+            sizes="100vw"
+            width="1600"
+            height="854"
+            alt=""
+            fetchpriority="high"
+          />
+          <img
+            class="scene-planet"
+            src="/assets/cosmic-motion/planet-1600.webp"
+            srcset="
+              /assets/cosmic-motion/planet-720.webp   720w,
+              /assets/cosmic-motion/planet-1600.webp 1600w
+            "
+            sizes="(max-width: 960px) 80vw, 50vw"
+            width="1600"
+            height="800"
+            alt=""
+          />
+          <div class="scene-reflection"></div>
+          <div class="scene-company">
+            <img
+              src="/assets/cosmic-motion/company-1600.webp"
+              srcset="
+                /assets/cosmic-motion/company-720.webp   720w,
+                /assets/cosmic-motion/company-1600.webp 1600w
+              "
+              sizes="(max-width: 960px) 100vw, 66vw"
+              width="1600"
+              height="854"
+              alt=""
+              fetchpriority="high"
+            /><span class="scene-lantern"></span>
+          </div>
+          <img
+            class="scene-foreground"
+            src="/assets/cosmic-motion/foreground-1600.webp"
+            srcset="
+              /assets/cosmic-motion/foreground-720.webp   720w,
+              /assets/cosmic-motion/foreground-1600.webp 1600w
+            "
+            sizes="100vw"
+            width="1600"
+            height="855"
+            alt=""
+          />
+          <span class="scene-star star-one"></span><span class="scene-star star-two"></span
+          ><span class="scene-star star-three"></span>
         </div>
-        <div class="landing-downloads" aria-label="Скачать приложение">
-          <a
-            class="landing-download windows-download"
-            href="/downloads/KvaChat-Setup-0.5.35-x64.exe"
-            download
-          >
-            <app-ui-icon name="download" />
-            <span><strong>Windows · EXE</strong><small>10 / 11 · x64 · v0.5.35</small></span>
-          </a>
-          <a
-            class="landing-download android-download"
-            href="/downloads/KvaChat-0.3.38-android.apk"
-            download
-          >
-            <app-ui-icon name="download" />
-            <span><strong>Android · APK</strong><small>10+ · v0.3.38</small></span>
-          </a>
+        <div class="cosmic-intro">
+          <p class="cosmic-brand">Квачат</p>
+          <p class="landing-lead">Голосовой чат для друзей</p>
+          <h1 id="landing-title">Все свои<br />уже на <span>связи.</span></h1>
+          <div class="entry-actions" id="download">
+            <div class="landing-actions">
+              <a
+                class="landing-open kva-painted-button kva-painted-button--primary"
+                href="/register"
+                >Зарегистрироваться</a
+              >
+              <a
+                class="secondary-action kva-painted-button kva-painted-button--secondary"
+                href="/login"
+                >Войти</a
+              >
+            </div>
+            <div class="landing-downloads" aria-label="Скачать приложение">
+              <a
+                class="landing-download windows-download"
+                href="/downloads/KvaChat-Setup-0.5.35-x64.exe"
+                download
+              >
+                <kva-painted-glyph name="download" />
+                <span><strong>Windows · EXE</strong><small>10 / 11 · x64 · v0.5.35</small></span>
+              </a>
+              <a
+                class="landing-download android-download"
+                href="/downloads/KvaChat-0.3.38-android.apk"
+                download
+              >
+                <kva-painted-glyph name="download" />
+                <span><strong>Android · APK</strong><small>10+ · v0.3.38</small></span>
+              </a>
+            </div>
+          </div>
+          <details class="landing-help">
+            <summary>Как установить</summary>
+            <div>
+              <p>
+                <strong>Windows.</strong> Откройте EXE и следуйте шагам установщика. Установщик пока
+                без подписи издателя.
+              </p>
+              <p>
+                <strong>Android.</strong> Откройте APK и разрешите установку из выбранного браузера
+                или файлового менеджера. Версия тестовая. Для уведомлений разрешите фоновую работу;
+                звонки в фоне и демонстрация требуют проверки на телефоне.
+              </p>
+              <p>
+                Версия 0.3.38 устанавливается поверх 0.3.34–0.3.37. При переходе с 0.3.33 и более
+                ранних версий удалите старое приложение и войдите заново. Переписки на сервере
+                сохранятся, локальные настройки и несохранённые данные могут быть удалены.
+              </p>
+              <p class="checksum-links">
+                SHA-256:
+                <a href="/downloads/KvaChat-Setup-0.5.35-x64.exe.sha256" download>Windows</a
+                ><a href="/downloads/KvaChat-0.3.38-android.apk.sha256" download>Android</a>
+              </p>
+            </div>
+          </details>
         </div>
+        <div
+          class="cosmic-voice kva-painted-panel"
+          role="img"
+          aria-label="Пример голосовой комнаты: Вечерняя компания, Квак, Жабик, Лиля и Болот"
+        >
+          <div class="cosmic-voice-title">
+            <kva-painted-glyph name="headphones" />
+            <div>
+              <strong>Вечерняя компания</strong><span><i></i> Голосовой чат</span>
+            </div>
+          </div>
+          <div class="cosmic-friends" aria-hidden="true">
+            <div class="is-speaking">
+              <img src="/assets/cosmic/kvak.webp" width="60" height="60" alt="" /><span>Квак</span>
+            </div>
+            <div>
+              <img src="/assets/cosmic/zhabik.webp" width="60" height="60" alt="" /><span
+                >Жабик</span
+              >
+            </div>
+            <div>
+              <img src="/assets/cosmic/lilya.webp" width="60" height="60" alt="" /><span>Лиля</span>
+            </div>
+            <div>
+              <img src="/assets/cosmic/bolot.webp" width="60" height="60" alt="" /><span
+                >Болот</span
+              >
+            </div>
+          </div>
+          <div class="cosmic-voice-symbols" aria-hidden="true">
+            <span><kva-painted-glyph name="headphones" /></span
+            ><span><kva-painted-glyph name="mic" /></span
+            ><span class="end-call"><kva-painted-glyph name="hangup" /></span>
+          </div>
+        </div>
+        <p class="cosmic-caption">Свои люди. Одна комната. Столько всего обсудить.</p>
+        <button
+          class="motion-toggle"
+          type="button"
+          (click)="motion.toggle()"
+          [attr.aria-pressed]="motion.enabled() && !motion.reduced()"
+          [disabled]="motion.reduced()"
+          aria-label="Анимация сцены"
+        >
+          <kva-painted-glyph name="settings" /><span>Анимация</span>
+        </button>
+      </section>
+    </div>
+
+    <section
+      class="section container spaces-section"
+      id="features"
+      aria-labelledby="spaces-title"
+      kvaDemo
+    >
+      <div class="chapter-heading">
+        <span class="chapter-index">01 / Свои места</span>
+        <h2 id="spaces-title">Для каждого разговора<br />найдётся место.</h2>
+        <p>Начните с друзей. Приглашайте по ссылке, переписывайтесь и звоните лично.</p>
       </div>
-      <details class="landing-help">
-        <summary>Как установить</summary>
-        <div>
-          <p>
-            <strong>Windows.</strong> Откройте EXE и следуйте шагам установщика. Установщик пока без
-            подписи издателя.
-          </p>
-          <p>
-            <strong>Android.</strong> Откройте APK и разрешите установку из выбранного браузера или
-            файлового менеджера. Версия тестовая. Для уведомлений разрешите фоновую работу; звонки в
-            фоне и демонстрация требуют проверки на телефоне.
-          </p>
-          <p>
-            Версия 0.3.38 устанавливается поверх 0.3.34–0.3.37. При переходе с 0.3.33 и более ранних
-            версий удалите старое приложение и войдите заново. Переписки на сервере сохранятся,
-            локальные настройки и несохранённые данные могут быть удалены.
-          </p>
-          <p class="checksum-links">
-            SHA-256: <a href="/downloads/KvaChat-Setup-0.5.35-x64.exe.sha256" download>Windows</a
-            ><a href="/downloads/KvaChat-0.3.38-android.apk.sha256" download>Android</a>
-          </p>
-        </div>
-      </details>
-      <div class="hero-scene">
-        <img
-          class="hero-ribbons"
-          src="/assets/landing/ribbons.png"
-          width="1672"
-          height="940"
-          alt=""
-        />
-        <figure class="landing-preview">
+      <div class="space-grid spaces-workbench">
+        <div class="space-switches" role="group" aria-label="Пространства Квачата">
           <button
-            class="picture-button"
-            (click)="openPicture(pictureDialog, $event)"
-            aria-label="Рассмотреть интерфейс Квачата"
+            type="button"
+            (click)="space.set('room')"
+            [attr.aria-pressed]="space() === 'room'"
+            aria-controls="space-room"
           >
             <img
-              src="/assets/landing-chat.png"
-              alt="Групповая беседа в Квачате: сообщения, реакции и созвон"
-              width="1120"
-              height="700"
-              fetchpriority="high"
-            />
+              src="/assets/painted-controls/room-256.webp"
+              width="88"
+              height="88"
+              alt=""
+              loading="lazy"
+            /><span
+              ><strong>Комната</strong
+              ><small>Встреча по ссылке. Гости могут подключиться без аккаунта.</small></span
+            ><span class="space-arrow" aria-hidden="true">↗</span>
           </button>
-        </figure>
-      </div>
-    </section>
-
-    <section class="section container" id="features" aria-labelledby="spaces-title">
-      <h2 id="spaces-title">Комната, группы и площадки</h2>
-      <div class="friends-line">
-        <span class="small-icon"><app-ui-icon name="friends" /></span>
-        <p>
-          <strong>Начните с друзей.</strong> Приглашайте по ссылке, переписывайтесь и звоните лично.
+          <button
+            type="button"
+            (click)="space.set('group')"
+            [attr.aria-pressed]="space() === 'group'"
+            aria-controls="space-group"
+          >
+            <img
+              src="/assets/painted-controls/groups-256.webp"
+              width="88"
+              height="88"
+              alt=""
+              loading="lazy"
+            /><span
+              ><strong>Группы</strong
+              ><small>Переписка, файлы и созвоны для вашей компании.</small></span
+            ><span class="space-arrow" aria-hidden="true">↗</span>
+          </button>
+          <button
+            type="button"
+            (click)="space.set('platform')"
+            [attr.aria-pressed]="space() === 'platform'"
+            aria-controls="space-platform"
+          >
+            <img
+              src="/assets/painted-controls/platforms-256.webp"
+              width="88"
+              height="88"
+              alt=""
+              loading="lazy"
+            /><span
+              ><strong>Площадки</strong
+              ><small>Сообщество с каналами, участниками и правилами доступа.</small></span
+            ><span class="space-arrow" aria-hidden="true">↗</span>
+          </button>
+        </div>
+        <p class="space-description" [textContent]="spaceDescription()">
+          Встреча по ссылке. Гости могут подключиться без аккаунта.
         </p>
+        <div class="space-display" kvaDemo [demoKey]="space()">
+          <div class="window-bar">
+            <span class="window-dots" aria-hidden="true"><i></i><i></i><i></i></span
+            ><span>Квачат · ваша компания</span><kva-painted-glyph name="chat" />
+          </div>
+          <div id="space-room" class="space-example" [hidden]="space() !== 'room'">
+            <div class="example-heading">
+              <span class="status-dot"></span><strong>Вечерняя компания</strong
+              ><small>Моя комната</small>
+            </div>
+            <div class="space-guests">
+              <div>
+                <img
+                  src="/assets/cosmic/kvak.webp"
+                  width="88"
+                  height="88"
+                  alt=""
+                  loading="lazy"
+                /><span>Аня</span><small>Рассказывает</small>
+              </div>
+              <div>
+                <img
+                  src="/assets/cosmic/zhabik.webp"
+                  width="88"
+                  height="88"
+                  alt=""
+                  loading="lazy"
+                /><span>Саша</span><small>На связи</small>
+              </div>
+              <div>
+                <img
+                  src="/assets/cosmic/lilya.webp"
+                  width="88"
+                  height="88"
+                  alt=""
+                  loading="lazy"
+                /><span>Маша</span><small>На связи</small>
+              </div>
+            </div>
+            <div class="sample-wave" aria-hidden="true">
+              <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+            </div>
+            <p class="example-caption">Одна ссылка — и можно собираться.</p>
+          </div>
+          <div id="space-group" class="space-example" hidden [hidden]="space() !== 'group'">
+            <div class="example-heading">
+              <strong>Книжный клуб</strong><small>5 участников</small>
+            </div>
+            <div class="story-message">
+              <img src="/assets/cosmic/kvak.webp" width="40" height="40" alt="" loading="lazy" />
+              <div>
+                <strong>Аня</strong>
+                <p>Дочитала. Есть что обсудить!</p>
+                <small>18:24</small>
+              </div>
+            </div>
+            <div class="story-message message-second">
+              <img src="/assets/cosmic/zhabik.webp" width="40" height="40" alt="" loading="lazy" />
+              <div>
+                <strong>Саша</strong>
+                <p>Давайте созвонимся вечером?</p>
+                <span class="sample-reaction">✦ 3</span>
+              </div>
+            </div>
+            <div class="sample-composer">
+              <kva-painted-glyph name="invite" /><span>Написать своей компании…</span>
+            </div>
+          </div>
+          <div id="space-platform" class="space-example" hidden [hidden]="space() !== 'platform'">
+            <div class="example-heading">
+              <strong>Наша площадка</strong><small>Место для сообщества</small>
+            </div>
+            <div class="platform-example">
+              <aside>
+                <span># Общий</span><span># Разработка</span
+                ><span class="selected"><kva-painted-glyph name="headphones" />Болталка</span>
+              </aside>
+              <div class="platform-conversation">
+                <img
+                  src="/assets/painted-controls/headphones-256.webp"
+                  width="100"
+                  height="100"
+                  alt=""
+                  loading="lazy"
+                /><strong>Разговор уже идёт</strong><span>Аня, Саша и Маша</span
+                ><small>3 участника в голосовом канале</small>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-      <div class="space-grid">
-        <article>
-          <div class="space-art" aria-hidden="true">
-            <div class="mini-title">Моя комната <span>3 участника</span></div>
-            <div class="room-people">
-              <div>
-                <img
-                  src="/assets/landing/frog.webp"
-                  width="58"
-                  height="58"
-                  alt=""
-                  loading="lazy"
-                /><span>Аня</span>
-              </div>
-              <div>
-                <img
-                  src="/assets/landing/fox.webp"
-                  width="58"
-                  height="58"
-                  alt=""
-                  loading="lazy"
-                /><span>Саша</span>
-              </div>
-              <div>
-                <img
-                  src="/assets/landing/cat.webp"
-                  width="58"
-                  height="58"
-                  alt=""
-                  loading="lazy"
-                /><span>Маша</span>
-              </div>
-            </div>
-            <div class="mini-controls">
-              <app-ui-icon name="mic" /><app-ui-icon name="camera" /><app-ui-icon
-                name="screen"
-              /><app-ui-icon name="groups" /><span class="hangup"
-                ><app-ui-icon name="hangup"
-              /></span>
-            </div>
-          </div>
-          <h3>Комната</h3>
-          <p>Встреча по ссылке. Гости подключаются без аккаунта — с голосом, камерой и чатом.</p>
-        </article>
-        <article>
-          <div class="space-art" aria-hidden="true">
-            <div class="mini-title">Книжный клуб <span>5 участников</span></div>
-            <div class="mini-message">
-              <img
-                src="/assets/landing/frog.webp"
-                width="30"
-                height="30"
-                alt=""
-                loading="lazy"
-              /><span><b>Аня</b>Давайте обсудим вечером?</span>
-            </div>
-            <div class="mini-message">
-              <img
-                src="/assets/landing/fox.webp"
-                width="30"
-                height="30"
-                alt=""
-                loading="lazy"
-              /><span><b>Саша</b>Я за. В восемь удобно?</span>
-            </div>
-            <div class="mini-composer">
-              <app-ui-icon name="plus" />Написать сообщение…<app-ui-icon name="send" />
-            </div>
-          </div>
-          <h3>Группы</h3>
-          <p>Общая переписка, файлы и созвоны для своей компании. Всё обсуждение в одном месте.</p>
-        </article>
-        <article>
-          <div class="space-art" aria-hidden="true">
-            <div class="mini-title">Наша площадка <span>Каналы сообщества</span></div>
-            <div class="channel"><app-ui-icon name="chat" />Общий</div>
-            <div class="channel"><app-ui-icon name="code" />Разработка</div>
-            <div class="channel selected">
-              <app-ui-icon name="headphones" />Болталка <small>3 в созвоне</small>
-            </div>
-          </div>
-          <h3>Площадки</h3>
-          <p>
-            Сообщества с отдельными каналами для разных тем. Со своими участниками и правилами
-            доступа.
-          </p>
-        </article>
+      <div class="landing-preview interface-link">
+        <button
+          class="picture-button"
+          (click)="openPicture(pictureDialog, $event)"
+          aria-label="Рассмотреть интерфейс Квачата"
+        >
+          <kva-painted-glyph name="screen" />Рассмотреть интерфейс<span aria-hidden="true"
+            >↗</span
+          ></button
+        ><span>Примеры пространств Квачата</span>
       </div>
     </section>
 
-    <section class="section container split-section" aria-labelledby="calls-title">
+    <section
+      class="section container split-section calls-chapter"
+      aria-labelledby="calls-title"
+      kvaDemo
+    >
       <div class="section-copy">
-        <span class="eyebrow">Голос, видео и экран</span>
+        <img
+          class="section-art"
+          src="/assets/painted-controls/headphones-256.webp"
+          width="96"
+          height="96"
+          alt=""
+          loading="lazy"
+        />
+        <span class="chapter-index">02 / Голос, видео и экран</span>
         <h2 id="calls-title">
           Разговор<br />
           продолжается
@@ -190,42 +378,106 @@
           громкость каждого участника отдельно.
         </p>
       </div>
-      <div class="call-illustration surface" aria-hidden="true">
+      <div
+        class="call-illustration surface"
+        [class.demo-screen]="demoScreen()"
+        [class.demo-camera]="demoCamera()"
+        [class.demo-muted]="!demoMic()"
+        aria-label="Пример голосового чата"
+      >
         <div class="panel-header">
-          <span><app-ui-icon name="headphones" />Вечерняя компания</span><small>3 участника</small>
+          <span><kva-painted-glyph name="headphones" />Вечерняя компания</span
+          ><small>3 участника</small>
         </div>
-        <div class="call-people">
-          <div>
-            <img
-              src="/assets/landing/frog.webp"
-              width="72"
-              height="72"
-              alt=""
+        <div class="call-stage">
+          <div class="call-people">
+            <div>
+              <img
+                src="/assets/cosmic/kvak.webp"
+                width="72"
+                height="72"
+                alt=""
+                loading="lazy"
+              /><span>Аня</span>
+            </div>
+            <div>
+              <img
+                src="/assets/cosmic/zhabik.webp"
+                width="72"
+                height="72"
+                alt=""
+                loading="lazy"
+              /><span>Саша</span>
+            </div>
+            <div>
+              <img
+                src="/assets/cosmic/lilya.webp"
+                width="72"
+                height="72"
+                alt=""
+                loading="lazy"
+              /><span>Маша</span>
+            </div>
+          </div>
+          <div class="demo-screen-preview" [hidden]="!demoScreen()">
+            <span class="screen-title"><kva-painted-glyph name="screen" />Экран Ани</span
+            ><img
+              src="/assets/landing-chat.png"
+              width="1120"
+              height="700"
+              alt="Пример демонстрации: открытая беседа Квачата"
               loading="lazy"
-            /><span>Аня</span>
-          </div>
-          <div>
-            <img src="/assets/landing/fox.webp" width="72" height="72" alt="" loading="lazy" /><span
-              >Саша</span
-            >
-          </div>
-          <div>
-            <img src="/assets/landing/cat.webp" width="72" height="72" alt="" loading="lazy" /><span
-              >Маша</span
-            >
+            /><small>Пример демонстрации экрана</small>
           </div>
         </div>
-        <div class="call-capabilities">
-          <span><app-ui-icon name="mic" />Голос</span><span><app-ui-icon name="camera" />Видео</span
-          ><span><app-ui-icon name="screen" />Экран</span>
+        <div class="call-demo-controls">
+          <button
+            kvaPainted
+            iconOnly
+            aria-label="Микрофон в примере"
+            [attr.aria-pressed]="demoMic()"
+            (click)="demoMic.set(!demoMic())"
+          >
+            <kva-painted-glyph [name]="demoMic() ? 'mic' : 'micOff'" />
+          </button>
+          <button
+            kvaPainted
+            iconOnly
+            aria-label="Камера в примере"
+            [attr.aria-pressed]="demoCamera()"
+            (click)="demoCamera.set(!demoCamera())"
+          >
+            <kva-painted-glyph [name]="demoCamera() ? 'camera' : 'cameraOff'" />
+          </button>
+          <button
+            kvaPainted
+            iconOnly
+            aria-label="Экран в примере"
+            [attr.aria-pressed]="demoScreen()"
+            (click)="toggleDemoScreen()"
+          >
+            <kva-painted-glyph name="screen" />
+          </button>
         </div>
+        <p class="call-demo-note" aria-live="polite">
+          Пример · микрофон {{ demoMic() ? 'включён' : 'выключен' }}, камера
+          {{ demoCamera() ? 'включена' : 'выключена' }}
+        </p>
       </div>
     </section>
 
-    <section class="section container" aria-labelledby="documents-title">
+    <section class="section container documents-chapter" aria-labelledby="documents-title" kvaDemo>
       <div class="split-section">
         <div class="section-copy">
-          <span class="eyebrow">От короткого ответа до большого файла</span>
+          <img
+            class="section-art"
+            src="/assets/painted-controls/files-256.webp"
+            width="96"
+            height="96"
+            alt=""
+            loading="lazy"
+          />
+          <span class="chapter-index">03 / Больше, чем сообщение</span>
           <h2 id="documents-title">
             Сообщения, файлы<br />
             и длинные тексты
@@ -246,15 +498,50 @@
               .md
             </button>
           </div>
+          <div class="draft-transform" [class.packed]="draftPacked()">
+            <div class="draft-text">
+              <span>Черновик сообщения</span>
+              <p>
+                Встречаемся в пятницу в 20:00. Обсудим любимые главы, вопросы к финалу и выберем
+                следующую книгу.
+              </p>
+              <i></i><i></i>
+            </div>
+            <div class="packed-file">
+              <img
+                src="/assets/painted-controls/files-128.webp"
+                width="58"
+                height="58"
+                alt=""
+                loading="lazy"
+              /><span><strong>meeting.md</strong><small>Всё важное — в одном файле</small></span
+              ><button
+                type="button"
+                (click)="openDraft()"
+                aria-label="Открыть подготовленный документ"
+              >
+                <kva-painted-glyph name="files" />
+              </button>
+            </div>
+          </div>
+          <button
+            type="button"
+            class="pack-action kva-painted-button kva-painted-button--secondary"
+            (click)="draftPacked.set(!draftPacked())"
+            [attr.aria-pressed]="draftPacked()"
+            [textContent]="draftPacked() ? 'Вернуть текст' : 'Оформить как файл'"
+          >
+            Оформить как файл
+          </button>
         </div>
         <div class="document-illustration surface" aria-label="Пример просмотра файла config.yaml">
           <div class="panel-header">
             <span
-              ><app-ui-icon name="files" /><span [textContent]="file().name"
+              ><kva-painted-glyph name="files" /><span [textContent]="file().name"
                 >config.yaml</span
               ></span
             ><button (click)="downloadFile()" aria-label="Скачать пример файла">
-              <app-ui-icon name="download" />
+              <kva-painted-glyph name="download" />
             </button>
           </div>
           <div class="document-toolbar">
@@ -303,7 +590,7 @@
           >
         </div>
         <div>
-          <app-ui-icon name="files" /><span
+          <kva-painted-glyph name="files" /><span
             ><strong>Собрать материалы</strong>Файлы беседы в одном списке</span
           >
         </div>
@@ -315,7 +602,12 @@
       </div>
     </section>
 
-    <section class="section container" id="appearance" aria-labelledby="appearance-title">
+    <section
+      class="section container appearance-chapter"
+      id="appearance"
+      aria-labelledby="appearance-title"
+      kvaDemo
+    >
       <div class="split-section appearance-section">
         <div
           class="appearance-illustration surface"
@@ -324,17 +616,23 @@
           [style.--preview-text-size]="textSize() + 'px'"
         >
           <div class="panel-header">
-            <span><app-ui-icon name="chat" />Своя компания</span>
+            <span><kva-painted-glyph name="chat" />Своя компания</span>
           </div>
           <div
             class="appearance-chat"
             [style.background-image]="wallpaperImage()"
             [attr.data-wallpaper]="wallpaper()"
           >
+            <span
+              class="wallpaper-before"
+              aria-hidden="true"
+              [class.fading]="wallpaperFading()"
+              [style.background-image]="previousWallpaperImage()"
+            ></span>
             <div class="preview-message">
               <div class="framed-avatar">
                 <img
-                  src="/assets/landing/frog.webp"
+                  src="/assets/cosmic/kvak.webp"
                   width="38"
                   height="38"
                   alt=""
@@ -356,7 +654,7 @@
               </div>
             </div>
             <div class="preview-message">
-              <img src="/assets/landing/fox.webp" width="38" height="38" alt="" loading="lazy" />
+              <img src="/assets/cosmic/zhabik.webp" width="38" height="38" alt="" loading="lazy" />
               <div class="bubble">
                 <strong>Саша</strong>
                 <p>Очень уютно. Оставляем!</p>
@@ -364,7 +662,7 @@
               </div>
             </div>
             <div class="preview-message">
-              <img src="/assets/landing/cat.webp" width="38" height="38" alt="" loading="lazy" />
+              <img src="/assets/cosmic/lilya.webp" width="38" height="38" alt="" loading="lazy" />
               <div class="bubble">
                 <strong>Маша</strong>
                 <p>А я сделала текст покрупнее.</p>
@@ -374,6 +672,7 @@
           </div>
         </div>
         <div class="section-copy">
+          <span class="chapter-index">04 / Ваше настроение</span>
           <h2 id="appearance-title">
             Квачат<br />
             в вашем стиле
@@ -394,11 +693,14 @@
             </div>
             <div class="appearance-label" id="preview-wallpaper-label">Обои</div>
             <div class="wallpaper-options" role="group" aria-labelledby="preview-wallpaper-label">
-              <button (click)="wallpaper.set('none')" [attr.aria-pressed]="wallpaper() === 'none'">
+              <button
+                (click)="selectWallpaper('none')"
+                [attr.aria-pressed]="wallpaper() === 'none'"
+              >
                 <span class="wallpaper-swatch no-wallpaper"></span>Без обоев
               </button>
               <button
-                (click)="wallpaper.set('forest')"
+                (click)="selectWallpaper('forest')"
                 [attr.aria-pressed]="wallpaper() === 'forest'"
               >
                 <img
@@ -410,7 +712,7 @@
                 />Лес
               </button>
               <button
-                (click)="wallpaper.set('space')"
+                (click)="selectWallpaper('space')"
                 [attr.aria-pressed]="wallpaper() === 'space'"
               >
                 <img
@@ -422,7 +724,7 @@
                 />Космос
               </button>
               <button
-                (click)="wallpaper.set('magic')"
+                (click)="selectWallpaper('magic')"
                 [attr.aria-pressed]="wallpaper() === 'magic'"
               >
                 <img
@@ -469,11 +771,12 @@
         </div>
       </div>
     </section>
-    <section class="section container settings-section" aria-labelledby="settings-title">
+    <section class="section container settings-section" aria-labelledby="settings-title" kvaDemo>
+      <span class="chapter-index">05 / Как удобно вам</span>
       <h2 id="settings-title">Настройте общение под себя</h2>
       <div class="settings-grid">
         <details>
-          <summary><app-ui-icon name="bell" />Уведомления<app-ui-icon name="down" /></summary>
+          <summary><kva-painted-glyph name="bell" />Уведомления<app-ui-icon name="down" /></summary>
           <p>
             Упоминания, заявки в друзья и приглашения собраны в событиях. Уведомления отдельных
             бесед можно отключить.
@@ -493,19 +796,67 @@
       </div>
     </section>
 
-    <section class="section container" aria-labelledby="applications-title">
+    <section class="section container apps-chapter" aria-labelledby="applications-title" kvaDemo>
+      <span class="chapter-index">06 / Собраться за чем-нибудь ещё</span>
       <h2 id="applications-title">Дополнительные приложения</h2>
       <p class="section-intro">Подключаются через каталог Квачата.</p>
       <div class="application-grid">
         <article>
-          <span class="app-mark"><app-ui-icon name="calendar" /></span>
+          <div class="calendar-art" aria-hidden="true">
+            <div class="calendar-sheet">
+              <span>НАШИ ПЛАНЫ</span>
+              <div class="calendar-days">
+                <i>П</i><i>В</i><i>С</i><i>Ч</i><i>П</i><i>С</i><i>В</i><b>12</b><b>13</b><b>14</b
+                ><b>15</b><b class="chosen">16</b><b>17</b><b>18</b>
+              </div>
+            </div>
+            <div class="calendar-event">
+              <span class="status-dot"></span>
+              <div><strong>Вечер приключений</strong><span>Пятница · 20:00</span></div>
+              <img src="/assets/cosmic/zhabik.webp" width="38" height="38" alt="" loading="lazy" />
+            </div>
+          </div>
           <div>
             <h3>Когда игра</h3>
             <p>Календарь ролевых игр и конвентов.</p>
           </div>
         </article>
         <article>
-          <span class="app-mark islands-mark"><app-ui-icon name="platforms" /></span>
+          <div class="islands-art" aria-hidden="true">
+            <img
+              class="islands-cover"
+              src="/assets/landing/islands.png"
+              width="622"
+              height="390"
+              alt=""
+              loading="lazy"
+            />
+            <div class="hex-cluster">
+              <img
+                class="hex-one"
+                src="/assets/cosmic/islands-forest.webp"
+                width="256"
+                height="256"
+                alt=""
+                loading="lazy"
+              /><img
+                class="hex-two"
+                src="/assets/cosmic/islands-fields.webp"
+                width="256"
+                height="256"
+                alt=""
+                loading="lazy"
+              /><img
+                class="hex-three"
+                src="/assets/cosmic/islands-mountains.webp"
+                width="256"
+                height="256"
+                alt=""
+                loading="lazy"
+              />
+            </div>
+            <span class="islands-orbit"></span><span class="islands-tag">Вечер на островах</span>
+          </div>
           <div>
             <h3>Острова</h3>
             <p>Настольная стратегия для 3–4 игроков.</p>
@@ -515,7 +866,20 @@
     </section>
   </main>
   <footer class="landing-footer container">
-    <span>Квачат</span><span>Свои люди. Всегда рядом.</span>
+    <a class="frog-wordmark" href="/" aria-label="Квачат — главная"
+      ><img src="/assets/cosmic/frog-moonlight-128.webp" width="42" height="42" alt="" /><span
+        >Квачат</span
+      ></a
+    ><span>Свои люди. Всегда рядом.</span
+    ><button
+      class="footer-motion"
+      type="button"
+      (click)="motion.toggle()"
+      [attr.aria-pressed]="motion.enabled() && !motion.reduced()"
+      [disabled]="motion.reduced()"
+    >
+      Анимация страницы
+    </button>
   </footer>
   <dialog
     #pictureDialog
@@ -524,7 +888,7 @@
     (close)="restoreFocus()"
   >
     <form method="dialog">
-      <button aria-label="Закрыть изображение">Закрыть <app-ui-icon name="close" /></button>
+      <button aria-label="Закрыть изображение">Закрыть <kva-painted-glyph name="close" /></button>
     </form>
     <img
       src="/assets/landing-chat.png"
