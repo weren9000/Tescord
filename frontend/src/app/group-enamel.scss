@@ -1,0 +1,101 @@
+@use './shared/floating-enamel' as enamel;
+
+.messenger-shell .messenger-layout .conversation-sidebar--enamel {
+  @include enamel.surface;
+  --palette-raised: #382047;
+  --palette-border: #a67aca45;
+  --text: var(--palette-text);
+  margin: 8px 6px 8px 0;
+  min-width: 0;
+  padding: 0;
+
+  .desktop-sidebar-toolbar {
+    height: 64px;
+    min-height: 64px;
+    padding: 0 16px;
+    border: 0;
+    background: transparent;
+    color: var(--palette-text);
+    button {
+      color: var(--palette-text);
+    }
+  }
+  .conversation-sidebar-title {
+    color: var(--palette-text);
+  }
+  > .section-search {
+    height: 44px;
+    box-sizing: border-box;
+    margin: 8px 12px 12px;
+    border: 1px solid #b786d866;
+    border-radius: var(--ui-radius-button, 12px);
+    background: #150c2480;
+    box-shadow:
+      inset 0 1px 4px #08041280,
+      0 1px #d0a0ee20;
+    color: var(--palette-muted);
+    input {
+      color: var(--palette-text);
+    }
+    &:focus-within {
+      outline: 2px solid var(--palette-primary-text);
+      outline-offset: 2px;
+    }
+  }
+  .conversation-sidebar__list {
+    padding: 0 10px 8px;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: #b786d880 transparent;
+  }
+  .section-create {
+    flex-shrink: 0;
+    min-height: 48px;
+    margin: 12px 12px 16px;
+    border: 1px solid #b786d866;
+    border-radius: var(--ui-radius-button, 12px);
+    background: linear-gradient(160deg, #70448280, #38204799);
+    box-shadow:
+      inset 0 1px #e9bcff33,
+      0 3px 8px #08041255;
+    color: var(--palette-text);
+    app-ui-icon {
+      color: #f2c560;
+    }
+    &:hover {
+      background: var(--palette-selected);
+    }
+    &:focus-visible {
+      outline: 2px solid var(--palette-primary-text);
+      outline-offset: 2px;
+    }
+  }
+  @media (max-width: 980px) {
+    &.conversation-sidebar--mobile-open {
+      position: fixed;
+      inset: calc(8px + env(safe-area-inset-top)) 8px calc(78px + env(safe-area-inset-bottom));
+      width: auto;
+      height: auto;
+      max-height: none;
+      margin: 0;
+    }
+    .desktop-sidebar-toolbar {
+      display: flex;
+      align-items: center;
+      button {
+        display: none;
+      }
+    }
+  }
+  @media (forced-colors: active) {
+    > .section-search,
+    .section-create {
+      background: Canvas;
+      border-color: CanvasText;
+      box-shadow: none;
+    }
+    .section-create app-ui-icon {
+      color: ButtonText;
+    }
+  }
+}

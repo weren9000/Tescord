@@ -1390,6 +1390,7 @@
       } @else {
         <aside
           class="conversation-sidebar"
+          [class.conversation-sidebar--enamel]="isGroupsMode() || isChatsMode()"
           [class.conversation-sidebar--mobile-open]="mobilePanel() === 'servers'"
         >
           <div class="desktop-sidebar-toolbar">
@@ -1437,6 +1438,7 @@
               <p class="pin-error" role="alert">{{ pinError() }}</p>
             }
             <app-conversation-list
+              [class.enamel]="isGroupsMode() || isChatsMode()"
               [loading]="workspaceLoading() && !conversations().length"
               [compact]="desktopPreferences.value().collapsed"
               [entries]="conversationLinks()"

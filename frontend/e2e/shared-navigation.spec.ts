@@ -69,9 +69,9 @@ for (const section of ['groups', 'chats'] as const) {
           page.locator(s).boundingBox(),
         ),
       );
-      expect(heads[0]!.height).toBe(72);
+      expect(heads[0]!.height).toBe(64);
       expect(heads[1]!.height).toBe(72);
-      expect(heads[0]!.y).toBe(heads[1]!.y);
+      expect(heads[0]!.y).toBe(heads[1]!.y + 8);
       await page.screenshot({ path: testInfo.outputPath(`${section}-expanded-${width}.png`) });
       await field.fill('Черновик\nВторая строка');
       await page.evaluate(() => {
@@ -180,6 +180,10 @@ for (const section of ['groups', 'chats'] as const) {
       await expect(page.locator('.conversation-sidebar')).toBeVisible();
       await expect(show).toBeHidden();
       await expect(hide).toBeHidden();
+      await page.screenshot({
+        path: testInfo.outputPath(`${section}-mobile-${width}.png`),
+        animations: 'disabled',
+      });
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
         true,
       );

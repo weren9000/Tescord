@@ -276,6 +276,59 @@ export interface ConversationLink {
           min-height: 44px;
         }
       }
+      :host(.enamel) .entry {
+        border-radius: var(--ui-radius-button, 12px);
+      }
+      :host(.enamel) .entry:hover {
+        background: var(--palette-hover);
+      }
+      :host(.enamel) .entry.selected {
+        background: var(--palette-selected);
+        box-shadow:
+          inset 3px 0 #cf9af5,
+          inset 0 0 0 1px #bd8cda55;
+      }
+      :host(.enamel) .avatar {
+        border-radius: var(--ui-radius-control, 8px);
+        background: #343259;
+        box-shadow: inset 0 1px #c8b5f330;
+      }
+      :host(.enamel) h3 {
+        color: var(--palette-text);
+        font-size: 13px;
+        font-weight: 650;
+        margin: 10px 8px 6px;
+      }
+      :host(.enamel) .entry-row + h3 {
+        padding-top: 16px;
+        position: relative;
+      }
+      :host(.enamel) .entry-row + h3::before {
+        content: '';
+        position: absolute;
+        inset: 0 0 auto;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, #c09add60, transparent);
+      }
+      :host(.enamel) .pin--active {
+        color: #e4bd6b;
+        filter: drop-shadow(0 1px 2px #a244d4);
+      }
+      @media (forced-colors: active) {
+        :host(.enamel) .entry.selected {
+          background: Highlight;
+          color: HighlightText;
+          box-shadow: none;
+        }
+        :host(.enamel) .avatar {
+          background: Canvas;
+          box-shadow: none;
+        }
+        :host(.enamel) .pin--active {
+          color: ButtonText;
+          filter: none;
+        }
+      }
       @media (min-width: 981px) {
         .entry {
           min-height: var(--conversation-height, 62px);
