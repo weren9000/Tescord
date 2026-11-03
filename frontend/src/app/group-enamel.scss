@@ -95,6 +95,8 @@
     }
   }
   @media (max-width: 980px) {
+    // Closed mobile drawers must not occupy a row above the conversation.
+    position: fixed;
     &.conversation-sidebar--mobile-open,
     &.platform-list-mobile-open {
       position: fixed;

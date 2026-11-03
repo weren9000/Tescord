@@ -90,6 +90,43 @@ async function setup(page: Page) {
   });
 }
 
+test('quiet enamel composer fits empty and multiline drafts', async ({ page }, info) => {
+  const composer = page.locator('.composer');
+  const field = composer.locator('textarea');
+  for (const width of [1440, 1024, 393, 320]) {
+    await page.setViewportSize({ width, height: 800 });
+    await setup(page);
+    await page.evaluate(() => {
+      const app = (window as any).fixture;
+      app.pendingFiles.set([]);
+      app.selectedReplyMessage.set(null);
+      (window as any).ng.applyChanges(app);
+    });
+    await field.fill('');
+    await expect(composer.locator('.composer__submit')).toBeDisabled();
+    await page.screenshot({
+      path: info.outputPath(`composer-empty-${width}.png`),
+      animations: 'disabled',
+    });
+    await field.fill('Первая строка\nВторая строка сообщения\nТретья строка');
+    await expect(composer.locator('.composer__submit')).toBeEnabled();
+    await expect(field).toHaveValue('Первая строка\nВторая строка сообщения\nТретья строка');
+    for (const button of await composer.locator('.composer__surface button').all()) {
+      const box = (await button.boundingBox())!;
+      expect(box.width).toBeGreaterThanOrEqual(44);
+      expect(box.height).toBeGreaterThanOrEqual(44);
+      await expect(button).toBeInViewport({ ratio: 1 });
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+    await page.screenshot({
+      path: info.outputPath(`composer-draft-${width}.png`),
+      animations: 'disabled',
+    });
+  }
+});
+
 test('touch keyboard keeps Enter as a newline while editing', async ({ browser, baseURL }) => {
   const context = await browser.newContext({
     baseURL,

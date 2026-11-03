@@ -1,0 +1,122 @@
+// Quiet enamel: one calm surface, with emphasis reserved for sending.
+:host(.kva-app.kva-app.kva-app) .messenger-shell .composer {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  .composer__surface {
+    --palette-text: #fff5e6;
+    --palette-muted: #d4c4e3;
+    --palette-primary-text: #e0c3ff;
+    --palette-hover: #70499350;
+    --palette-raised: #382047;
+    --palette-border: #a67aca60;
+    color: var(--palette-text);
+    background: linear-gradient(170deg, #281a35, #160f22 48%, #20132d);
+    border: 1px solid #a67aca70;
+    border-image: none;
+    border-radius: var(--ui-radius-dialog, 16px);
+    box-shadow:
+      inset 0 1px 1px #e9bcff40,
+      inset 0 -1px 1px #9e69bd22,
+      0 3px 10px #08041240;
+    padding: 5px;
+    gap: 4px;
+    grid-template-columns: 44px minmax(0, 1fr) 44px 44px;
+    &:focus-within {
+      border-color: #c99ae5;
+    }
+    &--disabled {
+      grid-template-columns: 44px minmax(0, 1fr) 44px;
+    }
+    &--editing {
+      grid-template-columns: minmax(0, 1fr) 44px 44px;
+    }
+  }
+  .composer__field {
+    min-width: 0;
+    min-height: 44px;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+  }
+  textarea {
+    min-height: 44px;
+    padding: 12px 4px;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    color: #fff5e6;
+    caret-color: #e0c3ff;
+    &::placeholder {
+      color: #cbb9d9;
+      opacity: 1;
+    }
+    &:focus-visible {
+      outline: none;
+    }
+  }
+  .composer__attach,
+  .composer__submit,
+  .composer-emoji > button {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+    padding: 0;
+    border-radius: var(--ui-radius-button, 12px);
+    border: 1px solid transparent;
+    border-image: none;
+    background: transparent;
+    color: #ddc2ef;
+    box-shadow: none;
+    &:focus-visible {
+      outline: 2px solid #e0c3ff;
+      outline-offset: -2px;
+    }
+    &:disabled {
+      opacity: 0.45;
+      filter: none;
+    }
+  }
+  .composer-emoji {
+    height: 44px;
+  }
+  .composer__attach:hover:not(:disabled),
+  .composer-emoji > button:hover:not(:disabled),
+  .composer-emoji > button[aria-expanded='true'] {
+    background: #70499350;
+  }
+  .composer__submit {
+    color: #f5cc76;
+    border-color: #ba8bd15c;
+    background: linear-gradient(150deg, #633777, #382047);
+    box-shadow:
+      inset 0 1px #e9bcff33,
+      0 2px 4px #08041240;
+    &:hover:not(:disabled) {
+      background: linear-gradient(150deg, #754589, #4b2b60);
+    }
+  }
+  @media (max-width: 980px) {
+    textarea {
+      font-size: 16px;
+    }
+  }
+  @media (forced-colors: active) {
+    .composer__surface,
+    .composer__submit {
+      background: Canvas;
+      border-color: CanvasText;
+      color: ButtonText;
+      box-shadow: none;
+    }
+    textarea,
+    .composer__attach,
+    .composer-emoji > button {
+      color: CanvasText;
+    }
+    textarea::placeholder {
+      color: GrayText;
+    }
+  }
+}
