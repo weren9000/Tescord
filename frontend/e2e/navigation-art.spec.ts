@@ -26,9 +26,20 @@ test('painted navigation and release label on desktop and mobile', async ({ page
       await expect(
         page.locator('app-section-navigation img[src*="enamel-navigation/search-"]'),
       ).toBeVisible();
+      const rail = await page.locator('app-section-navigation').boundingBox();
+      expect(rail!.x).toBeGreaterThanOrEqual(6);
+      expect(rail!.y).toBeGreaterThanOrEqual(6);
     } else {
       const images = page.locator('.mobile-mode-footer .mobile-section-art');
       await expect(images).toHaveCount(5);
+      const dock = await page.locator('.mobile-mode-footer').boundingBox();
+      expect(dock!.x).toBeGreaterThanOrEqual(8);
+      expect(dock!.x + dock!.width).toBeLessThanOrEqual(width - 8);
+      for (const button of await page.locator('.mobile-mode-footer button').all()) {
+        const box = await button.boundingBox();
+        expect(box!.width).toBeGreaterThanOrEqual(44);
+        expect(box!.height).toBeGreaterThanOrEqual(44);
+      }
       await expect(images.first()).toHaveAttribute(
         'src',
         '/assets/enamel-navigation/menu-128.webp',
@@ -98,4 +109,11 @@ test('painted navigation and release label on desktop and mobile', async ({ page
     if (width <= 980) await expect(page.locator('.mobile-mode-footer')).toBeVisible();
     await page.screenshot({ path: info.outputPath(`navigation-light-${width}.png`) });
   }
+  // The short desktop rail scrolls without losing access to profile or its focus ring.
+  await page.setViewportSize({ width: 1024, height: 600 });
+  const profile = page.locator('app-section-navigation .profile');
+  await profile.focus();
+  await expect(profile).toBeInViewport();
+  await expect(profile).toBeFocused();
+  await page.screenshot({ path: info.outputPath('navigation-short-focus.png') });
 });

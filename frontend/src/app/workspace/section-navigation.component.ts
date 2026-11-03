@@ -8,6 +8,7 @@ export type WorkspaceSection = 'chats' | 'groups' | 'platforms';
 @Component({
   selector: 'app-section-navigation',
   standalone: true,
+  styleUrl: './section-navigation.scss',
   template: ` <nav aria-label="Основные разделы">
     <div class="brand">
       <img src="/assets/cosmic/frog-moonlight-128.webp" alt="" width="36" height="36" /><span
@@ -141,24 +142,15 @@ export type WorkspaceSection = 'chats' | 'groups' | 'platforms';
       :host {
         display: block;
         min-height: 0;
-        background:
-          linear-gradient(
-            color-mix(in srgb, var(--palette-surface) 86%, transparent),
-            color-mix(in srgb, var(--palette-surface) 94%, transparent)
-          ),
-          url('/assets/painted-controls/panel.webp') center / auto 160%;
-        border-right: 1px solid
-          color-mix(in srgb, var(--palette-primary-text) 45%, var(--palette-border));
-        box-shadow:
-          inset -1px 0 #57c8d533,
-          4px 0 18px #09061520;
+        min-width: 0;
+        margin: 6px 8px 6px 6px;
         color: var(--palette-muted);
       }
       nav {
         display: flex;
         flex-direction: column;
         height: 100%;
-        padding: 24px 10px 16px;
+        padding: 18px 4px 12px;
         box-sizing: border-box;
         gap: 30px;
       }
@@ -226,7 +218,7 @@ export type WorkspaceSection = 'chats' | 'groups' | 'platforms';
         justify-content: center;
         gap: 8px;
         border: 1px solid transparent;
-        border-radius: 12px;
+        border-radius: var(--ui-radius-button, 12px);
         background: transparent;
         color: inherit;
         font: 500 11px system-ui;
@@ -244,7 +236,7 @@ export type WorkspaceSection = 'chats' | 'groups' | 'platforms';
       button.active:before {
         content: '';
         position: absolute;
-        left: -11px;
+        left: 0;
         top: 20px;
         width: 3px;
         height: 26px;
@@ -305,6 +297,9 @@ export type WorkspaceSection = 'chats' | 'groups' | 'platforms';
       }
       nav {
         overflow-y: auto;
+        overflow-x: hidden;
+        scrollbar-width: thin;
+        scrollbar-color: #b786d866 transparent;
       }
       .brand,
       .sections,
@@ -314,7 +309,7 @@ export type WorkspaceSection = 'chats' | 'groups' | 'platforms';
       @media (max-height: 850px) {
         nav {
           gap: 14px;
-          padding: 14px 10px;
+          padding: 10px 4px;
         }
         .sections {
           gap: 4px;

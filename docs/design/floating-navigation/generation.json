@@ -1,0 +1,7 @@
+{
+  "tool": "built-in image_gen",
+  "reference": "reference.png",
+  "master": "master.png",
+  "prompt": "Create a production UI nine-slice background texture matching ONLY the floating purple enamel navigation panel in the reference. No text, icons, buttons or UI content. A SINGLE square solid dark plum enamel plate centered, front-on orthographic, with very softly rounded corners (corner radius about 6% of plate width), 2% transparent margin on all sides. Subtle hand-painted lilac bevel around all edges, purple upper-left highlight, soft tiny pink highlights in top-left and bottom-right corners. Interior very dark plum #24132f with broad subtle painterly brush strokes concentrated near left edge and top-left, smooth quiet dark center with no shapes. Visible enamel material and restrained dimensional rim, not plastic, not polished chrome, not neon, no gold or cyan border. Match the chosen floating panel in reference. Square image designed for nine-slice scaling: rim and rounded corners entirely within outer 8% of image, remaining center suitable for stretching. Thin soft external shadow only. True transparent background OUTSIDE plate, fully opaque interior. No reference screenshot recreation; output only ONE empty square enamel surface.",
+  "export": "frontend/scripts/prepare-floating-navigation.cjs"
+}

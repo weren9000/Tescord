@@ -1,0 +1,41 @@
+// One painted material for desktop navigation and the mobile dock.
+@mixin surface {
+  --palette-text: #fff5e6;
+  --palette-muted: #d4c4e3;
+  --palette-secondary: #eadcf4;
+  --palette-primary-text: #e0c3ff;
+  --palette-selected: #63407e80;
+  --palette-hover: #70499350;
+  position: relative;
+  isolation: isolate;
+  background: transparent;
+  border: 0;
+  border-radius: var(--ui-radius-dialog, 16px);
+  box-shadow: 4px 4px 12px #08041266;
+  color: var(--palette-muted);
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    border: 16px solid transparent;
+    border-image: url('/assets/enamel-navigation/floating-panel.webp') 9% fill / 16px / 0 stretch;
+  }
+
+  @media (forced-colors: active) {
+    --palette-text: CanvasText;
+    --palette-muted: CanvasText;
+    --palette-secondary: CanvasText;
+    --palette-primary-text: HighlightText;
+    --palette-selected: Highlight;
+    background: Canvas;
+    color: CanvasText;
+    border: 1px solid CanvasText;
+    box-shadow: none;
+    &::before {
+      display: none;
+    }
+  }
+}

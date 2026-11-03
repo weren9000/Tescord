@@ -1,4 +1,5 @@
 @use 'ui-controls' as ui;
+@use 'floating-enamel' as enamel;
 
 .enamel-menu-art {
   display: block;
@@ -13,10 +14,17 @@
   font-family: var(--ui-font);
 }
 @media (max-width: 980px) {
-  .messenger-shell .mobile-mode-footer {
+  .messenger-shell nav.mobile-mode-footer {
+    @include enamel.surface;
     grid-template-columns: 44px repeat(4, minmax(0, 1fr));
     gap: 4px;
     padding: 4px;
+    // The mobile shell already reserves the device safe area.
+    margin: 6px 8px;
+    box-shadow: 0 4px 12px #08041266;
+  }
+  .messenger-shell .conversation-sidebar--mobile-open {
+    bottom: calc(64px + env(safe-area-inset-bottom));
   }
   .messenger-shell .mobile-mode-footer > button {
     position: relative;

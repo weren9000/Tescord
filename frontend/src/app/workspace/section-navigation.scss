@@ -1,0 +1,5 @@
+@use '../shared/floating-enamel' as enamel;
+
+:host {
+  @include enamel.surface;
+}
