@@ -1,0 +1,95 @@
+{
+  "source": "docs/design/enamel-navigation/master.png",
+  "assets": [
+    {
+      "name": "room",
+      "crop": [
+        100,
+        22,
+        338,
+        312
+      ]
+    },
+    {
+      "name": "friends",
+      "crop": [
+        509,
+        38,
+        327,
+        296
+      ]
+    },
+    {
+      "name": "groups",
+      "crop": [
+        900,
+        39,
+        372,
+        291
+      ]
+    },
+    {
+      "name": "platforms",
+      "crop": [
+        1317,
+        31,
+        345,
+        303
+      ]
+    },
+    {
+      "name": "inventory",
+      "crop": [
+        1736,
+        42,
+        341,
+        281
+      ]
+    },
+    {
+      "name": "applications",
+      "crop": [
+        101,
+        386,
+        329,
+        305
+      ]
+    },
+    {
+      "name": "security",
+      "crop": [
+        516,
+        371,
+        314,
+        326
+      ]
+    },
+    {
+      "name": "search",
+      "crop": [
+        922,
+        376,
+        325,
+        321
+      ]
+    },
+    {
+      "name": "bell",
+      "crop": [
+        1330,
+        380,
+        331,
+        317
+      ]
+    },
+    {
+      "name": "menu",
+      "crop": [
+        1740,
+        382,
+        335,
+        315
+      ]
+    }
+  ]
+}

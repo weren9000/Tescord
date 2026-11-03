@@ -2,14 +2,12 @@ import { Component, inject, input, output, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { API_BASE_URL } from '../core/api/api-base';
-import { UiIconComponent } from './ui-icon.component';
 
 export type WorkspaceSection = 'chats' | 'groups' | 'platforms';
 
 @Component({
   selector: 'app-section-navigation',
   standalone: true,
-  imports: [UiIconComponent],
   template: ` <nav aria-label="Основные разделы">
     <div class="brand">
       <img src="/assets/cosmic/frog-moonlight-128.webp" alt="" width="36" height="36" /><span
@@ -24,7 +22,7 @@ export type WorkspaceSection = 'chats' | 'groups' | 'platforms';
       <button type="button" (click)="openRoom()">
         <img
           class="section-art"
-          src="/assets/painted-controls/room-128.webp"
+          src="/assets/enamel-navigation/room-128.webp"
           width="36"
           height="36"
           alt=""
@@ -40,7 +38,7 @@ export type WorkspaceSection = 'chats' | 'groups' | 'platforms';
         >
           <img
             class="section-art"
-            [src]="'/assets/painted-controls/' + section.icon + '-128.webp'"
+            [src]="'/assets/enamel-navigation/' + section.icon + '-128.webp'"
             width="36"
             height="36"
             alt=""
@@ -50,7 +48,7 @@ export type WorkspaceSection = 'chats' | 'groups' | 'platforms';
       <button type="button" (click)="shop.emit()">
         <img
           class="section-art"
-          src="/assets/painted-controls/inventory-128.webp"
+          src="/assets/enamel-navigation/inventory-128.webp"
           width="36"
           height="36"
           alt=""
@@ -64,7 +62,7 @@ export type WorkspaceSection = 'chats' | 'groups' | 'platforms';
       <button type="button" (click)="applications.emit()" title="Приложения">
         <img
           class="section-art"
-          src="/assets/painted-controls/applications-128.webp"
+          src="/assets/enamel-navigation/applications-128.webp"
           width="36"
           height="36"
           alt=""
@@ -79,7 +77,7 @@ export type WorkspaceSection = 'chats' | 'groups' | 'platforms';
         >
           <img
             class="section-art"
-            src="/assets/painted-controls/security-128.webp"
+            src="/assets/enamel-navigation/security-128.webp"
             width="36"
             height="36"
             alt=""
@@ -94,8 +92,13 @@ export type WorkspaceSection = 'chats' | 'groups' | 'platforms';
         aria-label="Быстрый переход"
         (click)="search.emit()"
       >
-        <span class="search-art" aria-hidden="true"><app-ui-icon name="search" /></span
-        ><span>Поиск</span>
+        <img
+          class="section-art"
+          src="/assets/enamel-navigation/search-128.webp"
+          width="36"
+          height="36"
+          alt=""
+        /><span>Поиск</span>
       </button>
       <button
         class="notification"
@@ -105,7 +108,7 @@ export type WorkspaceSection = 'chats' | 'groups' | 'platforms';
       >
         <img
           class="section-art"
-          src="/assets/painted-controls/bell-128.webp"
+          src="/assets/enamel-navigation/bell-128.webp"
           width="36"
           height="36"
           alt=""
@@ -190,18 +193,6 @@ export type WorkspaceSection = 'chats' | 'groups' | 'platforms';
         font: 500 10px/1.3 var(--ui-font);
         letter-spacing: 0.2px;
         white-space: nowrap;
-      }
-      .search-art {
-        display: grid;
-        place-items: center;
-        width: 36px;
-        height: 36px;
-        background: url('/assets/painted-controls/button-round.webp') center / contain no-repeat;
-        color: #fff5e6;
-      }
-      .search-art app-ui-icon {
-        width: 20px;
-        height: 20px;
       }
       .brand span {
         font-weight: 400;
@@ -352,12 +343,6 @@ export type WorkspaceSection = 'chats' | 'groups' | 'platforms';
           background: Canvas;
           border-color: CanvasText;
           box-shadow: none;
-        }
-        .search-art {
-          background: ButtonFace;
-          color: ButtonText;
-          border: 1px solid ButtonText;
-          border-radius: 50%;
         }
       }
     `,

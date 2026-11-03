@@ -1,0 +1,7 @@
+{
+  "tool": "built-in image_gen",
+  "reference": "reference.png",
+  "master": "master.png",
+  "prompt": "Edit the approved icon collection into a production sprite master on a genuinely TRANSPARENT background. Preserve the exact approved painted purple enamel and gold raised icon designs, brushwork, cyan edge and proportions. Remove ALL text, headings and background. Arrange TEN isolated icons in an evenly spaced grid of FIVE columns and TWO rows, each in its own equal-size cell with ample transparent margins and no overlap. Row 1 left to right: purple house with gold doorway (room), purple rounded badge with two gold busts (friends), purple scalloped badge with three gold busts (groups), purple planet with gold ring (platforms), purple chest with gold trim (inventory). Row 2 left to right: purple rounded badge with four gold tiles (applications), purple shield with gold lock (security), purple round badge with gold magnifying glass (search), purple rounded badge with gold bell (bell), NEW matching purple rounded badge with THREE thick horizontal gold parallel bars (menu). Same optical scale for all ten. No labels, no numbers, no text, no shadows outside objects. Preserve first nine designs faithfully. Transparent alpha background, not checkerboard drawn into image. Wide landscape image.",
+  "usage": "Desktop section navigation, mobile footer and corresponding application menu entries. Preserve existing compact SVG controls elsewhere."
+}

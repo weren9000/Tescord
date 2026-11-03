@@ -1012,7 +1012,13 @@
             <app-ui-icon name="forward" class="account-menu__chevron" />
           </button>
           <button type="button" (click)="closeSideMenu(); openFriendRequestsModal()">
-            <app-ui-icon name="bell" /><span class="account-menu__label">Уведомления</span>
+            <img
+              class="enamel-menu-art"
+              src="/assets/enamel-navigation/bell-128.webp"
+              width="32"
+              height="32"
+              alt=""
+            /><span class="account-menu__label">Уведомления</span>
             @if (notificationAlertCount()) {
               <span class="account-menu__badge">{{ notificationAlertCount() }}</span>
             }
@@ -1022,7 +1028,13 @@
             type="button"
             (click)="closeSideMenu(); shopInitialMode.set('inventory'); shopOpen.set(true)"
           >
-            <app-ui-icon name="inventory" /><span class="account-menu__label">Предметы</span>
+            <img
+              class="enamel-menu-art"
+              src="/assets/enamel-navigation/inventory-128.webp"
+              width="32"
+              height="32"
+              alt=""
+            /><span class="account-menu__label">Предметы</span>
             @if (inventoryUnread()) {
               <span class="account-menu__badge">{{ inventoryUnread() }}</span>
             }
@@ -1031,7 +1043,13 @@
         </section>
         <section>
           <button type="button" (click)="openApplications()">
-            <app-ui-icon name="inventory" /><span class="account-menu__label">Приложения</span>
+            <img
+              class="enamel-menu-art"
+              src="/assets/enamel-navigation/applications-128.webp"
+              width="32"
+              height="32"
+              alt=""
+            /><span class="account-menu__label">Приложения</span>
             <app-ui-icon name="forward" class="account-menu__chevron" />
           </button>
           <button type="button" (click)="closeSideMenu(); appearanceOpen.set(true)">
@@ -1062,7 +1080,13 @@
             }
             @if (isAdmin() || currentUser()?.is_avatar_admin) {
               <button type="button" (click)="openAdminDirectory()">
-                <app-ui-icon name="avatarAdmin" /><span class="account-menu__label">Админка</span>
+                <img
+                  class="enamel-menu-art"
+                  src="/assets/enamel-navigation/security-128.webp"
+                  width="32"
+                  height="32"
+                  alt=""
+                /><span class="account-menu__label">Админка</span>
                 <app-ui-icon name="forward" class="account-menu__chevron" />
               </button>
             }
@@ -3017,7 +3041,7 @@
       >
         <img
           class="mobile-section-art"
-          src="/assets/cosmic/frog-moonlight-128.webp"
+          src="/assets/enamel-navigation/menu-128.webp"
           width="34"
           height="34"
           alt=""
@@ -3040,7 +3064,7 @@
       >
         <img
           class="mobile-section-art"
-          src="/assets/painted-controls/friends-128.webp"
+          src="/assets/enamel-navigation/friends-128.webp"
           width="34"
           height="34"
           alt=""
@@ -3057,7 +3081,7 @@
       >
         <img
           class="mobile-section-art"
-          src="/assets/painted-controls/groups-128.webp"
+          src="/assets/enamel-navigation/groups-128.webp"
           width="34"
           height="34"
           alt=""
@@ -3074,7 +3098,7 @@
       >
         <img
           class="mobile-section-art"
-          src="/assets/painted-controls/platforms-128.webp"
+          src="/assets/enamel-navigation/platforms-128.webp"
           width="34"
           height="34"
           alt=""
@@ -3089,7 +3113,7 @@
       >
         <img
           class="mobile-section-art"
-          src="/assets/painted-controls/room-128.webp"
+          src="/assets/enamel-navigation/room-128.webp"
           width="34"
           height="34"
           alt=""
