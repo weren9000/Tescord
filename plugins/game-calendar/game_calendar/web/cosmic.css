@@ -1,8 +1,20 @@
 :root { --surface:#191724; --raised:#252033; --border:#51435f; --text:#fff5e6; --muted:#b9afc8; }
 button { border-radius:12px; }
-button.primary, .primary-button { background:#57327a url('./cosmic-button-primary.webp') center/100% 100% no-repeat; color:#fff5e6; border:1px solid #9a70ca; }
-dialog { border-radius:20px; border-color:var(--border); }
+button.primary, .primary-button { background:transparent; color:#fff5e6; border:1px solid transparent; border-image:url('./cosmic-button-primary.webp') 45% 12% fill / 12px / 0 stretch; }
+dialog { border-radius:16px; border-color:var(--border); }
 .brand-icon { display:flex; align-items:center; justify-content:center; background:transparent; }
 .brand-icon img { width:36px; height:36px; object-fit:contain; }
 .ui-icon { fill:none; }
-@media(forced-colors:active){button.primary,.primary-button { background:ButtonFace; color:ButtonText; border:1px solid ButtonText; }}
+dialog, .event {
+  background: linear-gradient(color-mix(in srgb, var(--surface) 84%, transparent), color-mix(in srgb, var(--surface) 84%, transparent)), url('./cosmic-panel.webp') center/cover;
+  border: 1px solid #766089;
+  border-radius:16px;
+  box-shadow: inset 0 2px 2px #c99aee66, inset 0 -2px 2px #57c8d54d;
+}
+.topbar { background: var(--surface); box-shadow: inset 0 1px #c99aee33; }
+@media(forced-colors:active){dialog,.event,.topbar { background:Canvas; border-color:CanvasText; box-shadow:none; }}
+@media(forced-colors:active){button.primary,.primary-button { border-image:none; background:ButtonFace; color:ButtonText; border:1px solid ButtonText; }}
+
+input:not([type="range"]):not([type="checkbox"]):not([type="radio"]),select,textarea { border-radius:8px; }
+
+.event { border-radius:12px; }

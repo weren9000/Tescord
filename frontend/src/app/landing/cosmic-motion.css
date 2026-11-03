@@ -113,16 +113,16 @@
 .landing .landing-open.kva-painted-button,
 .landing .secondary-action.kva-painted-button {
   border: 0;
-  border-radius: 24px;
+  border-radius: 12px;
   font-size: 15px;
   min-height: 54px;
   padding: 14px 18px;
   color: #fff0d2;
   text-decoration: none;
-  background: #43225c;
+  background: transparent;
 }
 .landing .secondary-action.kva-painted-button {
-  background: #20162f;
+  background: transparent;
 }
 .landing .entry-actions .landing-actions {
   grid-template-columns: minmax(0, 1fr) 108px;
@@ -152,7 +152,7 @@
   margin: 14px 0 0 auto;
   padding: 8px 12px;
   border: 1px solid #75638b66;
-  border-radius: 22px;
+  border-radius: 16px;
   background: #141526;
   color: #d6c8e7;
   font: inherit;
@@ -244,7 +244,7 @@
 }
 .landing .demo-camera .call-people > div {
   background: #372950;
-  border-radius: 14px;
+  border-radius: 12px;
   padding: 10px;
 }
 .demo-screen-preview {

@@ -1,0 +1,167 @@
+// A shared material, not a layout: no positioning, padding, overflow or sizing
+// overrides. In particular, modal backdrops and video surfaces stay untouched.
+@mixin surface($strength: 0.84, $radius: 16px) {
+  background-color: var(--palette-surface);
+  background-image:
+    linear-gradient(
+      color-mix(in srgb, var(--palette-surface) #{$strength * 100%}, transparent),
+      color-mix(in srgb, var(--palette-surface) #{$strength * 100%}, transparent)
+    ),
+    url('/assets/painted-controls/panel.webp');
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-clip: padding-box;
+  border-color: color-mix(in srgb, var(--palette-primary-text) 35%, var(--palette-border));
+  border-radius: $radius;
+  // A tall panel needs a fine rim, not the ribbon's broad stretched sides.
+  border-image: none;
+  box-shadow:
+    inset 0 2px 2px #c99aee66,
+    inset 0 -2px 2px #57c8d54d,
+    0 8px 24px #09061524;
+}
+
+@mixin quiet {
+  background-color: var(--palette-surface);
+  background-image:
+    linear-gradient(
+      color-mix(in srgb, var(--palette-surface) 94%, transparent),
+      color-mix(in srgb, var(--palette-surface) 94%, transparent)
+    ),
+    url('/assets/painted-controls/panel.webp');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  border-color: var(--palette-border);
+  box-shadow: inset 0 1px rgb(var(--rgb-primary-text) / 0.16);
+}
+
+app-root.kva-app.kva-app.kva-app {
+  :is(
+    .auth-panel,
+    .modal,
+    .quick-switch,
+    .invite-entry-card,
+    .invite-popover,
+    .inventory-backdrop:not(.embedded) > .inventory,
+    .meeting-page > .welcome,
+    dialog:not(.panel-shade, .sheet-shade, .islands-dialog, .preview),
+    .panel-shade > .subpanel,
+    .panel-shade > .confirm,
+    .panel-shade > .filter-sheet,
+    .panel-shade > .role-confirm,
+    .sheet-shade > .filter-sheet
+  ):not(:where(.landing *, app-photo-viewer *, app-islands *)) {
+    @include surface;
+  }
+
+  // The old accent stripe competed with the painted upper rim.
+  .auth-panel::before {
+    display: none;
+  }
+
+  :is(.meeting-toolbar, .call-window__controls, .call-tray, .group-voice-card) {
+    @include surface(0.18, 16px);
+    background: transparent;
+    border-color: transparent;
+    border-image: url('/assets/painted-controls/panel.webp') 40% 8% fill / 16px / 0 stretch;
+    box-shadow: none;
+  }
+
+  :is(
+    .conversation-sidebar,
+    .conversation-head,
+    .desktop-sidebar-toolbar,
+    .channel-header,
+    .mobile-mode-footer,
+    .composer-shell,
+    .composer,
+    app-admin-directory .admin,
+    .call-window__roster,
+    .call-window__chat,
+    .meeting-page .side-panel,
+    .meeting-page .panel-head,
+    .action-menu,
+    .store-toolbar
+  ) {
+    @include quiet;
+  }
+
+  // Inner headers must not cover the material of the containing dialog.
+  :is(.modal__header, .modal__actions, .applications > header, .applications > nav) {
+    background-color: transparent;
+  }
+
+  :is(.application-tile, .security-card, .wallet .balances > *, .entry-settings) {
+    @include surface(0.9, 12px);
+    border-image-width: 12px 18px;
+    box-shadow: none;
+  }
+}
+
+// Keep user-selected palettes legible, including light themes. The same painted
+// edge remains, but most of the coloured texture is covered by the chosen surface.
+:root[data-ui-theme] app-root.kva-app.kva-app.kva-app {
+  :is(.meeting-toolbar, .call-window__controls, .call-tray, .group-voice-card) {
+    @include surface(0.9, 16px);
+  }
+}
+
+@media (max-width: 980px) {
+  app-root.kva-app.kva-app.kva-app .text-file-viewer {
+    border-radius: 0;
+    box-shadow: none;
+  }
+}
+@media (max-width: 640px) {
+  app-root.kva-app.kva-app.kva-app .store-shell {
+    border-radius: 0;
+    box-shadow: none;
+  }
+}
+@media (forced-colors: active) {
+  app-root.kva-app.kva-app.kva-app {
+    :is(
+      dialog,
+      .modal,
+      .auth-panel,
+      .quick-switch,
+      .invite-entry-card,
+      .invite-popover,
+      .meeting-toolbar,
+      .call-window__controls,
+      .call-tray,
+      .group-voice-card,
+      .conversation-sidebar,
+      .conversation-head,
+      .desktop-sidebar-toolbar,
+      .channel-header,
+      .mobile-mode-footer,
+      .composer-shell,
+      .composer,
+      app-admin-directory .admin,
+      .inventory-backdrop:not(.embedded) > .inventory,
+      .call-window__roster,
+      .call-window__chat,
+      .side-panel,
+      .panel-head,
+      .action-menu,
+      .store-toolbar,
+      .application-tile,
+      .security-card,
+      .entry-settings,
+      .subpanel,
+      .confirm,
+      .filter-sheet,
+      .role-confirm,
+      .wallet .balances > *,
+      .meeting-page > .welcome
+    ) {
+      background-image: none;
+      border-image: none;
+      border-color: CanvasText;
+      box-shadow: none;
+    }
+  }
+}

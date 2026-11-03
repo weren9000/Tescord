@@ -1,8 +1,12 @@
 body { background:#10121c; color:#fff5e6; }
 header { border-bottom:1px solid #51435f; margin-bottom:16px; padding-left:72px; background:url('./cosmic-logo.webp') 20px 22px/36px 36px no-repeat; }
 p,small { color:#b9afc8; }
-button { border-radius:14px; background:#252033; border-color:#51435f; }
+button { border-radius:12px; background:#252033; border-color:#51435f; }
 button:hover { background:#352845; border-color:#b9a6ff; }
 button:focus-visible { outline:3px solid #57c8d5; outline-offset:3px; }
 footer { background:#191724; border-top:1px solid #51435f; }
+header, footer { background-image:linear-gradient(#191724eb,#191724eb),url('./cosmic-panel.webp'); background-size:cover; box-shadow:inset 0 1px #c99aee44,inset 0 -1px #57c8d544; }
+header { background-image:url('./cosmic-logo.webp'),linear-gradient(#191724eb,#191724eb),url('./cosmic-panel.webp'); background-size:36px 36px,cover,cover; background-position:20px 22px,center,center; background-repeat:no-repeat; }
 @media(forced-colors:active){body,header,footer,button { background:Canvas; color:CanvasText; border-color:ButtonText; }}
+
+input:not([type="range"]):not([type="checkbox"]):not([type="radio"]),select,textarea { border-radius:8px; }

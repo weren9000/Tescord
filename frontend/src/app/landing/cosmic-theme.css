@@ -127,7 +127,7 @@
   margin: 68px 0 0 auto;
   width: min(100%, 940px);
   border: 1px solid #807099;
-  border-radius: 28px;
+  border-radius: 16px;
   background: #202437e8;
   box-shadow:
     0 12px 48px #080b2166,
@@ -234,7 +234,7 @@
 .cosmic-product .landing-preview {
   max-width: 1000px;
   margin: auto;
-  border-radius: 22px;
+  border-radius: 16px;
   box-shadow:
     0 24px 80px #0005,
     0 0 90px #754bff12;
@@ -248,7 +248,7 @@
 .landing .call-illustration,
 .landing .document-illustration,
 .landing .application-grid article {
-  border-radius: 22px;
+  border-radius: 16px;
   border-color: #65577e;
   background: linear-gradient(145deg, #222237, #171b2a);
 }
@@ -381,7 +381,7 @@
     align-items: stretch;
     gap: 16px;
     padding: 18px 16px;
-    border-radius: 22px;
+    border-radius: 16px;
   }
   .cosmic-voice-title {
     justify-content: center;

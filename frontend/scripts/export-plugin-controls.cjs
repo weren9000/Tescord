@@ -18,7 +18,7 @@ const glyphs = mod.exports.PAINTED_GLYPHS;
 const dirs = ['plugins/game-calendar/game_calendar/web', 'plugins/islands/web', 'desktop/ui'];
 for (const dir of dirs) {
   const to = path.join(root, dir);
-  for (const name of ['button-primary', 'button-danger'])
+  for (const name of ['button-primary', 'button-danger', 'panel'])
     fs.copyFileSync(
       path.join(root, 'frontend/public/assets/painted-controls', name + '.webp'),
       path.join(to, 'cosmic-' + name + '.webp'),
