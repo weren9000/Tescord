@@ -1,6 +1,8 @@
 @use './shared/floating-enamel' as enamel;
 
-.messenger-shell .messenger-layout .conversation-sidebar--enamel {
+.messenger-shell .messenger-layout .conversation-sidebar--enamel,
+.messenger-shell .messenger-layout > app-platform-list,
+.messenger-shell .messenger-layout > .platform-sidebar {
   @include enamel.surface;
   --palette-raised: #382047;
   --palette-border: #a67aca45;
@@ -71,7 +73,8 @@
     }
   }
   @media (max-width: 980px) {
-    &.conversation-sidebar--mobile-open {
+    &.conversation-sidebar--mobile-open,
+    &.platform-list-mobile-open {
       position: fixed;
       inset: calc(8px + env(safe-area-inset-top)) 8px calc(78px + env(safe-area-inset-bottom));
       width: auto;

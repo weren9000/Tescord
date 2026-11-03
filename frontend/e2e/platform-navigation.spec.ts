@@ -69,9 +69,10 @@ test('Platform alignment and full navigation collapse', async ({ page }, testInf
         (s) => page.locator(s).boundingBox(),
       ),
     );
-    expect(
-      Math.max(...headings.map((b) => b!.height)) - Math.min(...headings.map((b) => b!.height)),
-    ).toBeLessThan(1);
+    expect(headings[0]!.height).toBe(64);
+    expect(headings[1]!.height).toBe(64);
+    expect(headings[0]!.y).toBe(headings[2]!.y + 8);
+    expect(headings[1]!.y).toBe(headings[0]!.y);
     const searches = await Promise.all(
       ['app-platform-list .search', 'app-platform-chats .chat-tools .search'].map((s) =>
         page.locator(s).boundingBox(),
@@ -129,7 +130,7 @@ test('Platform alignment and full navigation collapse', async ({ page }, testInf
   await hide.hover();
   const sidebarEdge = await page.locator('.platform-sidebar').boundingBox();
   const control = await hide.boundingBox();
-  expect(Math.abs(control!.x - (sidebarEdge!.x + sidebarEdge!.width - 16))).toBeLessThan(2);
+  expect(Math.abs(control!.x - (sidebarEdge!.x + sidebarEdge!.width + 6 - 16))).toBeLessThan(2);
   await hide.click();
   await expect(restore).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -172,7 +173,22 @@ test('Platform alignment and full navigation collapse', async ({ page }, testInf
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );
-    await page.screenshot({ path: testInfo.outputPath(`mobile-${width}.png`) });
+    await page.screenshot({
+      path: testInfo.outputPath(`mobile-${width}.png`),
+      animations: 'disabled',
+    });
+    const panel = await page.locator('.platform-sidebar').boundingBox();
+    expect(panel!.x).toBeGreaterThanOrEqual(8);
+    expect(panel!.x + panel!.width).toBeLessThanOrEqual(width - 8);
+    await page.getByRole('button', { name: 'К площадкам', exact: true }).click();
+    await expect(page.locator('app-platform-list')).toBeVisible();
+    await page.screenshot({
+      path: testInfo.outputPath(`mobile-spaces-${width}.png`),
+      animations: 'disabled',
+    });
+    const list = await page.locator('app-platform-list').boundingBox();
+    expect(list!.x).toBeGreaterThanOrEqual(8);
+    expect(list!.x + list!.width).toBeLessThanOrEqual(width - 8);
   }
   expect(errors).toEqual([]);
 });

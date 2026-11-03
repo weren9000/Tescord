@@ -1,10 +1,11 @@
 @use '../shared/compact-ui' as compact;
+@use '../shared/enamel-list-controls' as enamel;
 :host {
   display: flex;
   flex-direction: column;
   min-height: 0;
   height: 100%;
-  background: var(--palette-surface);
+  background: transparent;
   color: var(--palette-text);
   font-size: 13px;
 }
@@ -991,5 +992,92 @@ label {
   }
   .panel-footer button {
     flex: 1;
+  }
+}
+
+// The navigation surface is supplied by the floating parent panel.
+@media (max-width: 980px) {
+  .create-group-tile .compact-label,
+  .panel-footer .compact-label {
+    display: inline;
+  }
+  .panel-footer button {
+    padding: 8px;
+    font-size: 12px;
+  }
+}
+.panel-head {
+  height: 64px;
+  min-height: 64px;
+  border: 0;
+}
+.chat-tools .search {
+  @include enamel.search;
+}
+.chat-tools .search input {
+  width: 100%;
+}
+.chat-list {
+  scrollbar-width: thin;
+  scrollbar-color: #b786d880 transparent;
+  overscroll-behavior: contain;
+}
+.chat-row {
+  border-radius: var(--ui-radius-button, 12px);
+}
+.chat-row.selected {
+  @include enamel.selected;
+}
+.chat-symbol {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--ui-radius-button, 12px);
+  background: linear-gradient(150deg, #70448299, #38204799);
+  box-shadow: inset 0 1px #e9bcff33;
+  color: var(--palette-primary-text);
+}
+.panel-head > .icon-button,
+.row-menu {
+  border: 1px solid var(--palette-border);
+  border-radius: var(--ui-radius-control, 8px);
+  color: var(--palette-primary-text);
+}
+.create-group-tile {
+  @include enamel.action;
+}
+.panel-footer {
+  position: relative;
+  border: 0;
+  margin-bottom: 0;
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0 12px auto;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, #c09add60, transparent);
+  }
+  button {
+    color: var(--palette-text);
+    border-radius: var(--ui-radius-button, 12px);
+  }
+  app-ui-icon {
+    color: #e4bd6b;
+  }
+}
+.panel-head button:focus-visible,
+.chat-list button:focus-visible,
+.panel-footer button:focus-visible {
+  outline-color: var(--palette-primary-text);
+}
+@media (forced-colors: active) {
+  .chat-symbol {
+    background: Canvas;
+    box-shadow: none;
+  }
+  .panel-footer::before {
+    background: CanvasText;
+  }
+  .panel-footer app-ui-icon {
+    color: ButtonText;
   }
 }
