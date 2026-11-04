@@ -1493,246 +1493,353 @@
           </button>
         }
         @if (activeServer()) {
-          <section class="conversation-head conversation-head--managed">
-            <button
-              class="workspace-back"
-              type="button"
-              aria-label="Назад к списку"
-              (click)="platformBrowserStage.set('channels'); toggleMobilePanel('servers')"
-            >
-              <app-ui-icon name="back" />
-            </button>
-            <div class="conversation-head__identity conversation-head__identity--managed">
-              @if (isPlatformsMode()) {
-                <span class="space-channel-icon"
-                  ><app-ui-icon [name]="activeChannel()?.type === 'voice' ? 'sound' : 'hash'"
-                /></span>
-              } @else {
-                <button
-                  class="conversation-head__avatar"
-                  [class.conversation-head__avatar--group]="!isChatsMode()"
-                  [class.conversation-head__avatar--editable]="
-                    !isChatsMode() && canEditActiveServerIcon()
-                  "
-                  type="button"
-                  [appUserCard]="isChatsMode() ? activeDirectPeer()?.user_id : null"
-                  [disabled]="(!isChatsMode() && !canEditActiveServerIcon()) || serverIconSaving()"
-                  [attr.title]="
-                    !isChatsMode() && canEditActiveServerIcon()
-                      ? 'Загрузить иконку пространства'
-                      : null
-                  "
-                  [attr.aria-label]="
-                    !isChatsMode() && canEditActiveServerIcon()
-                      ? 'Загрузить иконку пространства'
-                      : null
-                  "
-                  (click)="
-                    !isChatsMode() && canEditActiveServerIcon() ? openServerIconPicker() : null
-                  "
-                >
-                  @if (activeSpaceIconUrl(); as iconUrl) {
-                    <img [src]="iconUrl" [alt]="activeServer()?.name ?? ''" loading="lazy" />
-                  } @else {
-                    <span>{{ displayNickInitials(activeServer()?.name ?? 'KVA') }}</span>
-                  }
-                </button>
-              }
-              <div class="conversation-head__summary">
-                @if (callWindowExpanded()) {
-                  <strong>{{ activeCallSurface()?.title }}</strong>
-                  <small class="channel-context">{{ callDockParticipantLabel() }}</small>
+          <div class="conversation-header-block">
+            <section class="conversation-head conversation-head--managed">
+              <button
+                class="workspace-back"
+                type="button"
+                aria-label="Назад к списку"
+                (click)="platformBrowserStage.set('channels'); toggleMobilePanel('servers')"
+              >
+                <app-ui-icon name="back" />
+              </button>
+              <div class="conversation-head__identity conversation-head__identity--managed">
+                @if (isPlatformsMode()) {
+                  <span class="space-channel-icon"
+                    ><app-ui-icon [name]="activeChannel()?.type === 'voice' ? 'sound' : 'hash'"
+                  /></span>
                 } @else {
                   <button
-                    class="conversation-info-trigger"
+                    class="conversation-head__avatar"
+                    [class.conversation-head__avatar--group]="!isChatsMode()"
+                    [class.conversation-head__avatar--editable]="
+                      !isChatsMode() && canEditActiveServerIcon()
+                    "
+                    type="button"
+                    [appUserCard]="isChatsMode() ? activeDirectPeer()?.user_id : null"
+                    [disabled]="
+                      (!isChatsMode() && !canEditActiveServerIcon()) || serverIconSaving()
+                    "
+                    [attr.title]="
+                      !isChatsMode() && canEditActiveServerIcon()
+                        ? 'Загрузить иконку пространства'
+                        : null
+                    "
+                    [attr.aria-label]="
+                      !isChatsMode() && canEditActiveServerIcon()
+                        ? 'Загрузить иконку пространства'
+                        : null
+                    "
+                    (click)="
+                      !isChatsMode() && canEditActiveServerIcon() ? openServerIconPicker() : null
+                    "
+                  >
+                    @if (activeSpaceIconUrl(); as iconUrl) {
+                      <img [src]="iconUrl" [alt]="activeServer()?.name ?? ''" loading="lazy" />
+                    } @else {
+                      <span>{{ displayNickInitials(activeServer()?.name ?? 'KVA') }}</span>
+                    }
+                  </button>
+                }
+                <div class="conversation-head__summary">
+                  @if (callWindowExpanded()) {
+                    <strong>{{ activeCallSurface()?.title }}</strong>
+                    <small class="channel-context">{{ callDockParticipantLabel() }}</small>
+                  } @else {
+                    <button
+                      class="conversation-info-trigger"
+                      type="button"
+                      [attr.aria-label]="
+                        isPlatformsMode() ? 'Информация о канале' : 'Информация о беседе'
+                      "
+                      (click)="openConversationInfo()"
+                    >
+                      {{ activeServer()?.name }}
+                    </button>
+                    <small
+                      class="channel-context"
+                      [attr.title]="isPlatformsMode() ? activePlatform()?.description : null"
+                      >{{
+                        isPlatformsMode()
+                          ? activePlatform()?.name
+                          : isGroupsMode()
+                            ? activeGroupMemberCount() + ' участников'
+                            : activeDirectPeer()?.is_online
+                              ? 'В сети'
+                              : 'Личная переписка'
+                      }}</small
+                    >
+                  }
+                </div>
+
+                @if (callWindowExpanded()) {
+                  <app-call-encryption
+                    [session]="
+                      activeCallSurface()?.kind === 'direct'
+                        ? directCallEncryption()
+                        : voiceCallEncryption()
+                    "
+                  />
+                  <button
+                    class="call-control-button"
+                    type="button"
+                    aria-label="Свернуть звонок"
+                    title="Свернуть звонок"
+                    (click)="minimizeCallWindow($event)"
+                  >
+                    <app-ui-icon name="minimize" />
+                  </button>
+                }
+                <div class="conversation-head__menu">
+                  <div class="workspace-tools">
+                    <ng-container
+                      *ngTemplateOutlet="workspaceQuickActions; context: { menu: false }"
+                    />
+                  </div>
+                  <button
+                    class="secondary-button conversation-head__action conversation-head__action--icon conversation-head__settings-toggle"
+                    [class.conversation-head__settings-toggle--active]="
+                      conversationActionMenuOpen()
+                    "
                     type="button"
                     [attr.aria-label]="
-                      isPlatformsMode() ? 'Информация о канале' : 'Информация о беседе'
-                    "
-                    (click)="openConversationInfo()"
-                  >
-                    {{ activeServer()?.name }}
-                  </button>
-                  <small
-                    class="channel-context"
-                    [attr.title]="isPlatformsMode() ? activePlatform()?.description : null"
-                    >{{
                       isPlatformsMode()
-                        ? activePlatform()?.name
-                        : isGroupsMode()
-                          ? activeGroupMemberCount() + ' участников'
-                          : activeDirectPeer()?.is_online
-                            ? 'В сети'
-                            : 'Личная переписка'
-                    }}</small
+                        ? 'Действия канала'
+                        : 'Действия ' + (isChatsMode() ? 'друга' : activeManagedSpaceLabel())
+                    "
+                    [attr.title]="
+                      isPlatformsMode()
+                        ? 'Действия канала'
+                        : 'Действия ' + (isChatsMode() ? 'друга' : activeManagedSpaceLabel())
+                    "
+                    [attr.aria-expanded]="conversationActionMenuOpen()"
+                    aria-haspopup="dialog"
+                    (click)="toggleConversationActionMenu()"
                   >
-                }
-              </div>
+                    <app-ui-icon name="more" />
+                    @if (isPlatformsMode() && activePlatformVoiceRequestCount() > 0) {
+                      <span class="conversation-head__action-badge">{{
+                        activePlatformVoiceRequestCount() > 99
+                          ? '99+'
+                          : activePlatformVoiceRequestCount()
+                      }}</span>
+                    }
+                  </button>
 
-              @if (callWindowExpanded()) {
-                <app-call-encryption
-                  [session]="
-                    activeCallSurface()?.kind === 'direct'
-                      ? directCallEncryption()
-                      : voiceCallEncryption()
-                  "
-                />
-                <button
-                  class="call-control-button"
-                  type="button"
-                  aria-label="Свернуть звонок"
-                  title="Свернуть звонок"
-                  (click)="minimizeCallWindow($event)"
-                >
-                  <app-ui-icon name="minimize" />
-                </button>
-              }
-              <div class="conversation-head__menu">
-                <div class="workspace-tools">
-                  <ng-container
-                    *ngTemplateOutlet="workspaceQuickActions; context: { menu: false }"
-                  />
-                </div>
-                <button
-                  class="secondary-button conversation-head__action conversation-head__action--icon conversation-head__settings-toggle"
-                  [class.conversation-head__settings-toggle--active]="conversationActionMenuOpen()"
-                  type="button"
-                  [attr.aria-label]="
-                    isPlatformsMode()
-                      ? 'Действия канала'
-                      : 'Действия ' + (isChatsMode() ? 'друга' : activeManagedSpaceLabel())
-                  "
-                  [attr.title]="
-                    isPlatformsMode()
-                      ? 'Действия канала'
-                      : 'Действия ' + (isChatsMode() ? 'друга' : activeManagedSpaceLabel())
-                  "
-                  [attr.aria-expanded]="conversationActionMenuOpen()"
-                  aria-haspopup="dialog"
-                  (click)="toggleConversationActionMenu()"
-                >
-                  <app-ui-icon name="more" />
-                  @if (isPlatformsMode() && activePlatformVoiceRequestCount() > 0) {
-                    <span class="conversation-head__action-badge">{{
-                      activePlatformVoiceRequestCount() > 99
-                        ? '99+'
-                        : activePlatformVoiceRequestCount()
-                    }}</span>
+                  @if (conversationActionMenuOpen()) {
+                    <app-action-menu
+                      label="Действия беседы"
+                      (close)="closeConversationActionMenu()"
+                    >
+                      <section>
+                        <ng-container
+                          *ngTemplateOutlet="workspaceQuickActions; context: { menu: true }"
+                        />
+                      </section>
+                      <section>
+                        <button type="button" (click)="openConversationInfo()">
+                          <app-ui-icon name="info" />{{
+                            isChatsMode() ? 'О собеседнике' : 'О группе'
+                          }}
+                        </button>
+                      </section>
+                      @if (pinError()) {
+                        <p class="menu-note" role="alert">{{ pinError() }}</p>
+                      }
+                      @if (pushFeedback(); as feedback) {
+                        <p class="menu-note" role="status">{{ feedback.message }}</p>
+                      }
+                      <section>
+                        @if (activeConversation(); as conversation) {
+                          <button
+                            type="button"
+                            [disabled]="pinPending().includes(conversation.id)"
+                            (click)="toggleConversationPin(conversation.id)"
+                          >
+                            <app-ui-icon name="pin" />{{
+                              pinPending().includes(conversation.id)
+                                ? 'Сохраняем…'
+                                : conversation.pinned
+                                  ? 'Открепить беседу'
+                                  : 'Закрепить беседу'
+                            }}
+                          </button>
+                          <button
+                            type="button"
+                            [disabled]="isActiveConversationPushPending()"
+                            (click)="toggleActiveConversationPush()"
+                          >
+                            <app-ui-icon name="bell" />
+                            {{
+                              isActiveConversationPushPending()
+                                ? 'Сохраняем…'
+                                : activeConversationPushActionLabel()
+                            }}
+                          </button>
+                        }
+                        @if (canUseActiveChannelChat()) {
+                          <button
+                            type="button"
+                            (click)="closeConversationActionMenu(); wallpaperOpen.set(true)"
+                          >
+                            <app-ui-icon name="appearance" />Обои чата
+                          </button>
+                        }
+                      </section>
+
+                      <section>
+                        @if (isChatsMode() && activeDirectPeer(); as directPeer) {
+                          <button
+                            class="danger"
+                            type="button"
+                            [disabled]="isFriendManagementPending(directPeer.user_id)"
+                            (click)="removeActiveFriend()"
+                          >
+                            <app-ui-icon name="trash" />
+                            Убрать из друзей
+                          </button>
+                          <button
+                            class="danger"
+                            type="button"
+                            [disabled]="isFriendManagementPending(directPeer.user_id)"
+                            (click)="blockActiveFriend()"
+                          >
+                            <app-ui-icon name="block" />
+                            Заблокировать
+                          </button>
+                        }
+                        @if (isGroupsMode() && activeGroupConversation(); as groupConversation) {
+                          <button
+                            type="button"
+                            [disabled]="isServerMembershipActionPending(groupConversation.id)"
+                            (click)="leaveActiveGroup()"
+                          >
+                            <app-ui-icon name="logout" />
+                            Выйти из группы
+                          </button>
+                          <button
+                            class="danger"
+                            type="button"
+                            [disabled]="isServerMembershipActionPending(groupConversation.id)"
+                            (click)="blockActiveGroup()"
+                          >
+                            <app-ui-icon name="block" />
+                            Заблокировать группу
+                          </button>
+                        }
+                      </section>
+                    </app-action-menu>
                   }
-                </button>
-
-                @if (conversationActionMenuOpen()) {
-                  <app-action-menu label="Действия беседы" (close)="closeConversationActionMenu()">
-                    <section>
-                      <ng-container
-                        *ngTemplateOutlet="workspaceQuickActions; context: { menu: true }"
-                      />
-                    </section>
-                    <section>
-                      <button type="button" (click)="openConversationInfo()">
-                        <app-ui-icon name="info" />{{
-                          isChatsMode() ? 'О собеседнике' : 'О группе'
-                        }}
-                      </button>
-                    </section>
-                    @if (pinError()) {
-                      <p class="menu-note" role="alert">{{ pinError() }}</p>
-                    }
-                    @if (pushFeedback(); as feedback) {
-                      <p class="menu-note" role="status">{{ feedback.message }}</p>
-                    }
-                    <section>
-                      @if (activeConversation(); as conversation) {
-                        <button
-                          type="button"
-                          [disabled]="pinPending().includes(conversation.id)"
-                          (click)="toggleConversationPin(conversation.id)"
-                        >
-                          <app-ui-icon name="pin" />{{
-                            pinPending().includes(conversation.id)
-                              ? 'Сохраняем…'
-                              : conversation.pinned
-                                ? 'Открепить беседу'
-                                : 'Закрепить беседу'
-                          }}
-                        </button>
-                        <button
-                          type="button"
-                          [disabled]="isActiveConversationPushPending()"
-                          (click)="toggleActiveConversationPush()"
-                        >
-                          <app-ui-icon name="bell" />
-                          {{
-                            isActiveConversationPushPending()
-                              ? 'Сохраняем…'
-                              : activeConversationPushActionLabel()
-                          }}
-                        </button>
-                      }
-                      @if (canUseActiveChannelChat()) {
-                        <button
-                          type="button"
-                          (click)="closeConversationActionMenu(); wallpaperOpen.set(true)"
-                        >
-                          <app-ui-icon name="appearance" />Обои чата
-                        </button>
-                      }
-                    </section>
-
-                    <section>
-                      @if (isChatsMode() && activeDirectPeer(); as directPeer) {
-                        <button
-                          class="danger"
-                          type="button"
-                          [disabled]="isFriendManagementPending(directPeer.user_id)"
-                          (click)="removeActiveFriend()"
-                        >
-                          <app-ui-icon name="trash" />
-                          Убрать из друзей
-                        </button>
-                        <button
-                          class="danger"
-                          type="button"
-                          [disabled]="isFriendManagementPending(directPeer.user_id)"
-                          (click)="blockActiveFriend()"
-                        >
-                          <app-ui-icon name="block" />
-                          Заблокировать
-                        </button>
-                      }
-                      @if (isGroupsMode() && activeGroupConversation(); as groupConversation) {
-                        <button
-                          type="button"
-                          [disabled]="isServerMembershipActionPending(groupConversation.id)"
-                          (click)="leaveActiveGroup()"
-                        >
-                          <app-ui-icon name="logout" />
-                          Выйти из группы
-                        </button>
-                        <button
-                          class="danger"
-                          type="button"
-                          [disabled]="isServerMembershipActionPending(groupConversation.id)"
-                          (click)="blockActiveGroup()"
-                        >
-                          <app-ui-icon name="block" />
-                          Заблокировать группу
-                        </button>
-                      }
-                    </section>
-                  </app-action-menu>
-                }
+                </div>
               </div>
-            </div>
 
-            <input
-              #serverIconInput
-              hidden
-              accept="image/png,image/jpeg"
-              type="file"
-              (change)="onServerIconSelection($event)"
-            />
-          </section>
+              <input
+                #serverIconInput
+                hidden
+                accept="image/png,image/jpeg"
+                type="file"
+                (change)="onServerIconSelection($event)"
+              />
+            </section>
+
+            @if (activeGroupConversation() && !hasActiveCallSurface()) {
+              @if (activeGroupVoiceChannel(); as groupVoiceChannel) {
+                <div
+                  class="group-voice-card"
+                  [class.group-voice-card--active]="
+                    connectedVoiceChannelId() === groupVoiceChannel.id
+                  "
+                >
+                  <button
+                    class="group-voice-card__summary"
+                    type="button"
+                    [attr.aria-expanded]="groupVoiceParticipantsExpanded()"
+                    [attr.aria-label]="
+                      groupVoiceParticipantsExpanded()
+                        ? 'Скрыть активных участников голосового чата'
+                        : 'Показать активных участников голосового чата'
+                    "
+                    (click)="toggleGroupVoiceParticipantsExpanded()"
+                  >
+                    <app-ui-icon class="group-voice-card__symbol" name="headphones" />
+                    <div class="group-voice-card__copy">
+                      <strong>{{ groupVoiceChannel.name }}</strong>
+                      <small>
+                        @if (activeGroupVoiceParticipants().length) {
+                          <span class="voice-active-dot" aria-hidden="true"></span>
+                        }
+                        Участников: {{ activeGroupVoiceParticipants().length }}</small
+                      >
+                    </div>
+                  </button>
+                  <div class="group-voice-card__actions">
+                    <button
+                      class="secondary-button group-voice-card__action"
+                      [class.group-voice-card__action--active]="
+                        connectedVoiceChannelId() === groupVoiceChannel.id && voiceCameraEnabled()
+                      "
+                      type="button"
+                      aria-label="Камера"
+                      title="Камера"
+                      [disabled]="!canToggleGroupVoiceCamera()"
+                      (click)="toggleGroupVoiceCamera()"
+                    >
+                      <app-ui-icon name="camera" />
+                    </button>
+                    @if (
+                      connectedVoiceChannelId() === groupVoiceChannel.id && voiceScreenSharing()
+                    ) {
+                      <button
+                        class="secondary-button group-voice-card__action group-voice-card__action--active"
+                        type="button"
+                        aria-label="Остановить показ экрана"
+                        title="Остановить показ экрана"
+                        [disabled]="!canToggleGroupVoiceScreenShare()"
+                        (click)="toggleGroupVoiceScreenShare()"
+                      >
+                        <app-ui-icon name="screenOff" />
+                      </button>
+                    } @else {
+                      <button
+                        class="secondary-button group-voice-card__action"
+                        type="button"
+                        aria-label="Показать экран"
+                        title="Показать экран"
+                        [disabled]="!canToggleGroupVoiceScreenShare()"
+                        (click)="toggleGroupVoiceScreenShare()"
+                      >
+                        <app-ui-icon name="screen" />
+                      </button>
+                    }
+                    <button
+                      class="secondary-button group-voice-card__action"
+                      type="button"
+                      [attr.aria-label]="
+                        connectedVoiceChannelId() === groupVoiceChannel.id
+                          ? 'Покинуть групповой звонок'
+                          : 'Присоединиться к групповому звонку'
+                      "
+                      [attr.title]="
+                        connectedVoiceChannelId() === groupVoiceChannel.id
+                          ? 'Покинуть групповой звонок'
+                          : 'Присоединиться к групповому звонку'
+                      "
+                      (click)="toggleActiveGroupVoice()"
+                    >
+                      <app-ui-icon
+                        [name]="
+                          connectedVoiceChannelId() === groupVoiceChannel.id ? 'hangup' : 'phone'
+                        "
+                      />
+                      <span class="group-voice-card__join-label">{{
+                        connectedVoiceChannelId() === groupVoiceChannel.id ? 'Выйти' : 'Войти'
+                      }}</span>
+                    </button>
+                  </div>
+                </div>
+              }
+            }
+          </div>
 
           <div class="workspace-content" [class.workspace-content--platform]="isPlatformsMode()">
             <div
@@ -1786,7 +1893,7 @@
               @if (activeGroupConversation()) {
                 <section
                   class="group-overview"
-                  [hidden]="hasActiveCallSurface()"
+                  [hidden]="hasActiveCallSurface() || !groupVoiceParticipantsExpanded()"
                   [class.group-overview--conference]="
                     groupVoiceParticipantsExpanded() &&
                     connectedVoiceChannelId() === activeGroupVoiceChannel()?.id &&
@@ -1794,98 +1901,6 @@
                   "
                 >
                   @if (activeGroupVoiceChannel(); as groupVoiceChannel) {
-                    <div
-                      class="group-voice-card"
-                      [class.group-voice-card--active]="
-                        connectedVoiceChannelId() === groupVoiceChannel.id
-                      "
-                    >
-                      <button
-                        class="group-voice-card__summary"
-                        type="button"
-                        [attr.aria-expanded]="groupVoiceParticipantsExpanded()"
-                        [attr.aria-label]="
-                          groupVoiceParticipantsExpanded()
-                            ? 'Скрыть активных участников голосового чата'
-                            : 'Показать активных участников голосового чата'
-                        "
-                        (click)="toggleGroupVoiceParticipantsExpanded()"
-                      >
-                        <div class="group-voice-card__copy">
-                          <strong>{{ groupVoiceChannel.name }}</strong>
-                          <small>
-                            @if (activeGroupVoiceParticipants().length) {
-                              <span class="voice-active-dot" aria-hidden="true"></span>
-                            }
-                            Участников: {{ activeGroupVoiceParticipants().length }}</small
-                          >
-                        </div>
-                      </button>
-                      <div class="group-voice-card__actions">
-                        <button
-                          class="secondary-button group-voice-card__action"
-                          [class.group-voice-card__action--active]="
-                            connectedVoiceChannelId() === groupVoiceChannel.id &&
-                            voiceCameraEnabled()
-                          "
-                          type="button"
-                          aria-label="Камера"
-                          title="Камера"
-                          [disabled]="!canToggleGroupVoiceCamera()"
-                          (click)="toggleGroupVoiceCamera()"
-                        >
-                          <app-ui-icon name="camera" />
-                        </button>
-                        @if (
-                          connectedVoiceChannelId() === groupVoiceChannel.id && voiceScreenSharing()
-                        ) {
-                          <button
-                            class="secondary-button group-voice-card__action group-voice-card__action--active"
-                            type="button"
-                            aria-label="Остановить показ экрана"
-                            title="Остановить показ экрана"
-                            [disabled]="!canToggleGroupVoiceScreenShare()"
-                            (click)="toggleGroupVoiceScreenShare()"
-                          >
-                            <app-ui-icon name="screenOff" />
-                          </button>
-                        } @else {
-                          <button
-                            class="secondary-button group-voice-card__action"
-                            type="button"
-                            aria-label="Показать экран"
-                            title="Показать экран"
-                            [disabled]="!canToggleGroupVoiceScreenShare()"
-                            (click)="toggleGroupVoiceScreenShare()"
-                          >
-                            <app-ui-icon name="screen" />
-                          </button>
-                        }
-                        <button
-                          class="secondary-button group-voice-card__action"
-                          type="button"
-                          [attr.aria-label]="
-                            connectedVoiceChannelId() === groupVoiceChannel.id
-                              ? 'Покинуть групповой звонок'
-                              : 'Присоединиться к групповому звонку'
-                          "
-                          [attr.title]="
-                            connectedVoiceChannelId() === groupVoiceChannel.id
-                              ? 'Покинуть групповой звонок'
-                              : 'Присоединиться к групповому звонку'
-                          "
-                          (click)="toggleActiveGroupVoice()"
-                        >
-                          <app-ui-icon
-                            [name]="
-                              connectedVoiceChannelId() === groupVoiceChannel.id
-                                ? 'hangup'
-                                : 'phone'
-                            "
-                          />
-                        </button>
-                      </div>
-                    </div>
                     @if (groupVoiceParticipantsExpanded()) {
                       <div
                         class="group-voice-roster group-voice-roster--conference"

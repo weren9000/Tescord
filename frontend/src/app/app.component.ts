@@ -746,6 +746,7 @@ const DEFAULT_SERVER_ICON_ASSET_BY_NAME: Record<string, string> = {
     './islands-workspace.scss',
     './group-enamel.scss',
     './composer-enamel.scss',
+    './conversation-header.scss',
   ],
 })
 export class AppComponent {

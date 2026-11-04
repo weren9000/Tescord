@@ -70,8 +70,8 @@ for (const section of ['groups', 'chats'] as const) {
         ),
       );
       expect(heads[0]!.height).toBe(64);
-      expect(heads[1]!.height).toBe(72);
-      expect(heads[0]!.y).toBe(heads[1]!.y + 8);
+      expect(heads[1]!.height).toBe(62);
+      expect(heads[0]!.y).toBe(heads[1]!.y - 1);
       await page.screenshot({ path: testInfo.outputPath(`${section}-expanded-${width}.png`) });
       await page.getByRole('button', { name: 'Свернуть список бесед', exact: true }).click();
       const panel = page.locator('.conversation-sidebar--enamel');
@@ -199,6 +199,23 @@ for (const section of ['groups', 'chats'] as const) {
     await show.click();
     for (const width of [393, 320]) {
       await page.setViewportSize({ width, height: 850 });
+      await page.evaluate(() => {
+        const a = (window as any).fixture;
+        a.mobilePanel.set(null);
+        (window as any).ng.applyChanges(a);
+      });
+      const header = page.locator('.conversation-header-block');
+      await expect(header).toBeInViewport({ ratio: 1 });
+      if (section === 'groups') {
+        await expect(header.locator('.group-voice-card')).toHaveCount(1);
+        for (const button of await header.locator('.group-voice-card__action').all()) {
+          await expect(button).toBeInViewport({ ratio: 1 });
+        }
+      }
+      await page.screenshot({
+        path: testInfo.outputPath(`${section}-header-${width}.png`),
+        animations: 'disabled',
+      });
       await page.evaluate(() => {
         const a = (window as any).fixture;
         a.mobilePanel.set('servers');

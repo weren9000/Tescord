@@ -71,7 +71,7 @@ test('Platform alignment and full navigation collapse', async ({ page }, testInf
     );
     expect(headings[0]!.height).toBe(64);
     expect(headings[1]!.height).toBe(64);
-    expect(headings[0]!.y).toBe(headings[2]!.y + 8);
+    expect(headings[0]!.y).toBe(headings[2]!.y - 1);
     expect(headings[1]!.y).toBe(headings[0]!.y);
     const searches = await Promise.all(
       ['app-platform-list .search', 'app-platform-chats .chat-tools .search'].map((s) =>
