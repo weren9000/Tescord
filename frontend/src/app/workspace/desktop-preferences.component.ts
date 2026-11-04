@@ -77,6 +77,17 @@ import { InterfaceStyleService } from './interface-style.service';
             ><strong>Звёздный атлас</strong><small>Тёплая бумага и рисованные значки</small></span
           >
         </label>
+        <label class="style-choice" [class.selected]="interfaceStyle.value() === 'quiet-marsh'">
+          <input
+            type="radio"
+            name="interface-style"
+            value="quiet-marsh"
+            [checked]="interfaceStyle.value() === 'quiet-marsh'"
+            (change)="interfaceStyle.select('quiet-marsh')"
+          />
+          <span class="style-swatch style-swatch--marsh" aria-hidden="true"></span>
+          <span><strong>Тихое болото</strong><small>Тёмная зелень, шалфей и лилии</small></span>
+        </label>
         <p>Стиль сохраняется на этом устройстве.</p>
       </fieldset>
       @if (token() && interfaceStyle.value() === 'enamel') {
@@ -212,6 +223,10 @@ import { InterfaceStyleService } from './interface-style.service';
           url('/assets/constellation/sky.svg') center / cover,
           #10121c;
         border: 1px solid #9c8cb6;
+      }
+      .style-swatch--marsh {
+        background: linear-gradient(145deg, #182623 45%, #a7c7ac 46% 75%, #bda4d2 76%);
+        border: 1px solid #668177;
       }
       .style-swatch--atlas {
         background: linear-gradient(160deg, #10121c 40%, #f5e7cf 41% 80%, #754bff 81%);

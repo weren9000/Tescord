@@ -7,7 +7,9 @@ export default defineConfig({
   retries: 0,
   use: {
     baseURL: 'http://127.0.0.1:4217',
-    storageState: ['constellation', 'star-atlas'].includes(process.env['KVA_INTERFACE_STYLE'] ?? '')
+    storageState: ['constellation', 'star-atlas', 'quiet-marsh'].includes(
+      process.env['KVA_INTERFACE_STYLE'] ?? '',
+    )
       ? {
           cookies: [],
           origins: [

@@ -1,0 +1,191 @@
+@use 'constellation' as base;
+
+$colors: (
+  canvas: #101b1a,
+  surface: #182623,
+  raised: #243630,
+  hover: #31483f,
+  primary: #a7c7ac,
+  primary-hover: #bdd9c1,
+  primary-text: #c2ddc7,
+  'cyan': #a7c7ac,
+  text: #f0eee3,
+  muted: #bdc9c0,
+  secondary: #dbe3d9,
+  subtle: #acbbb1,
+  border: #668177,
+  selected: #344e42,
+  danger: #f1a5b0,
+  danger-surface: #633841,
+  danger-text: #ffedf0,
+  warning: #e3c78f,
+  shadow: #08100e,
+);
+
+// Share the non-enamel reset, then keep this palette local to this selectable style.
+:root[data-ui-style='quiet-marsh'] {
+  color-scheme: dark;
+  app-root.kva-app.kva-app.kva-app.kva-app.kva-app.kva-app.kva-app.kva-app.kva-app.kva-app {
+    @include base.palette($colors);
+    :is(
+      app-section-navigation,
+      .conversation-sidebar,
+      app-platform-list,
+      .platform-sidebar,
+      .mobile-mode-footer,
+      .conversation-header-block,
+      .composer__surface,
+      .action-menu--account,
+      .store-shell,
+      .fitting-layout,
+      .meeting-page
+    ) {
+      @include base.palette($colors);
+    }
+    :is(
+      app-section-navigation,
+      .conversation-sidebar--enamel,
+      app-platform-list,
+      .platform-sidebar,
+      .mobile-mode-footer,
+      .conversation-header-block,
+      .composer__surface,
+      .action-menu--account,
+      .store-shell,
+      .modal,
+      .auth-panel,
+      .meeting-head,
+      .meeting-toolbar,
+      .call-tray,
+      .call-window,
+      .call-window__controls,
+      .fitting-room,
+      .fitting-detail,
+      .fitting-layout .grid .tile
+    ) {
+      background: var(--palette-surface);
+      border-color: var(--palette-border);
+      box-shadow:
+        inset 0 0 0 1px #66817755,
+        0 4px 12px #08100e20;
+    }
+    // Decoration lives outside scrolling content and never underneath message text.
+    app-section-navigation {
+      background:
+        url('/assets/quiet-marsh/reeds.svg') left bottom / 100% auto no-repeat,
+        var(--palette-surface);
+    }
+    .conversation-header-block {
+      background: var(--palette-surface);
+    }
+    .workspace-empty-state {
+      background: url('/assets/quiet-marsh/lake.png') right center / cover no-repeat #101b1a;
+      color: var(--palette-text);
+    }
+    :is(
+      .primary-button,
+      .primary,
+      .composer__submit,
+      .fitting-primary,
+      .group-voice-card__action:last-child,
+      .kva-painted-button--primary
+    ) {
+      background: #a7c7ac;
+      color: #10231b;
+      border-color: #bdd9c1;
+    }
+    :is(app-section-navigation button.active, .mobile-mode-footer__button--active) {
+      background: #344e42;
+      border-color: #a7c7ac;
+      color: #f0eee3;
+    }
+    :is(
+      .conversation-item--selected,
+      .conversation-item--active,
+      .platform-channel-entry--active,
+      .space-channel--selected
+    ) {
+      background: #344e42;
+      color: #f0eee3;
+    }
+    app-conversation-list .avatar {
+      background: #31483f;
+      color: #f0eee3;
+    }
+    :is(.composer__attach, .composer-emoji > button) {
+      color: #dbe3d9;
+    }
+    .composer textarea {
+      caret-color: #c2ddc7;
+    }
+    .message-card__body {
+      background: #243630;
+      border-color: #66817780;
+      box-shadow: none;
+    }
+    .message-card--self .message-card__body {
+      background: #493f56;
+      border-color: #917c9c;
+    }
+    .message-card__text {
+      color: #f0eee3;
+    }
+    .message-list__status {
+      background: transparent;
+      color: #bdc9c0;
+    }
+    .fitting-scene {
+      background: #243630;
+    }
+    .fitting-scene.has-wallpaper,
+    .fitting-scene.has-wallpaper small {
+      color: #fff;
+    }
+    :is(.conversation-sidebar__list, .message-list) {
+      scrollbar-color: #668177 transparent;
+    }
+    // One SVG per meaning: stable at 24px, without a sprite download or tiny scenery.
+    @each $name in room, friends, groups, platforms, inventory, applications, security, search,
+      bell, menu, profile, appearance, sound, block, logout, install
+    {
+      img[src$='/#{$name}-128.webp']:not(.brand img) {
+        content: url('/assets/quiet-marsh/#{$name}.svg');
+        background: none;
+        object-fit: contain;
+        padding: 0;
+        filter: none;
+      }
+    }
+  }
+}
+
+@media (forced-colors: active) {
+  :root[data-ui-style='quiet-marsh']
+    app-root.kva-app.kva-app.kva-app.kva-app.kva-app.kva-app.kva-app.kva-app.kva-app.kva-app {
+    :is(
+      .conversation-header-block,
+      .composer__surface,
+      app-section-navigation,
+      .conversation-sidebar,
+      .platform-sidebar,
+      app-platform-list,
+      .mobile-mode-footer,
+      .group-voice-card,
+      .meeting-page,
+      .store-shell,
+      .modal,
+      dialog,
+      button,
+      .workspace-empty-state,
+      .message-card__body
+    ) {
+      background: Canvas;
+      color: CanvasText;
+      border-color: ButtonText;
+      box-shadow: none;
+    }
+    .message-card__text {
+      color: CanvasText;
+    }
+  }
+}

@@ -51,7 +51,11 @@ $colors: (
   box-shadow: 0 4px 16px #05061030;
 }
 
-:root:is([data-ui-style='constellation'], [data-ui-style='star-atlas']) {
+:root:is(
+  [data-ui-style='constellation'],
+  [data-ui-style='star-atlas'],
+  [data-ui-style='quiet-marsh']
+) {
   color-scheme: dark;
   app-root.kva-app.kva-app.kva-app.kva-app.kva-app.kva-app.kva-app.kva-app.kva-app.kva-app {
     @include palette;
