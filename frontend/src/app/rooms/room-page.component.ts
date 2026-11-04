@@ -109,7 +109,7 @@ export class MeetingTrackDirective implements OnDestroy {
     CallEncryptionComponent,
   ],
   templateUrl: './room-page.component.html',
-  styleUrl: './room-page.component.scss',
+  styleUrls: ['./room-page.component.scss', './room-enamel.scss'],
 })
 export class RoomPageComponent implements OnInit, OnDestroy {
   private readonly changeDetector = inject(ChangeDetectorRef);

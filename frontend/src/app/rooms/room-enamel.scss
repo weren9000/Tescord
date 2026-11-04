@@ -1,0 +1,182 @@
+:host {
+  --room-bg: #130e1d;
+  --room-tile: #24172e;
+  --room-border: #a67aca60;
+  --room-muted: #d4c4e3;
+  --room-accent: #d1a1ee;
+  --palette-canvas: #130e1d;
+  --palette-surface: #24172e;
+  --palette-panel: #211529;
+  --palette-raised: #382447;
+  --palette-border: #a67aca60;
+  --palette-hover: #70499350;
+  --palette-selected: #543363;
+  --palette-primary: #b884db;
+  --palette-primary-text: #efceff;
+  --palette-text: #fff5e6;
+  --palette-muted: #d4c4e3;
+  --rgb-text: 255 245 230;
+  color: var(--palette-text);
+  background: var(--room-bg);
+}
+
+:host .meeting-page.meeting-page.meeting-page {
+  background: radial-gradient(ellipse at 15% 0, #3a22434d, transparent 55%), var(--room-bg);
+
+  .meeting-head,
+  .meeting-toolbar,
+  .side-panel,
+  .welcome {
+    background: linear-gradient(145deg, #392443, #211529 60%, #30203a);
+    border: 1px solid var(--room-border);
+    border-radius: var(--ui-radius-dialog, 16px);
+    box-shadow:
+      inset 0 1px 2px #e9bcff40,
+      0 4px 14px #09051030;
+  }
+  .meeting-head {
+    padding: 0 16px;
+    min-height: 52px;
+    strong {
+      font-size: 15px;
+    }
+  }
+  .participant-tile {
+    background:
+      radial-gradient(ellipse at 50% 38%, #50335e55, transparent 60%),
+      linear-gradient(150deg, #2c1d36, #1b1426 65%, #291c33);
+    border: 2px solid #a67aca40;
+    border-radius: var(--ui-radius-dialog, 16px);
+    box-shadow: inset 0 1px 2px #e9bcff25;
+  }
+  .participant-tile.speaking {
+    border-color: #68d6c4;
+    box-shadow:
+      inset 0 0 0 1px #68d6c450,
+      0 0 12px #68d6c420;
+  }
+  .tile-avatar {
+    background: linear-gradient(145deg, #705080, #3b284b);
+    border: 1px solid #d2a5ec60;
+    border-radius: var(--ui-radius-dialog, 16px);
+    color: #fff5e6;
+    box-shadow:
+      inset 0 1px #e9bcff60,
+      0 8px 32px #0d061c40;
+  }
+  .tile-name {
+    background: #1b1028e8;
+    border: 1px solid #b68ac24d;
+    border-radius: var(--ui-radius-field, 8px);
+    color: #fff5e6;
+    padding: 4px 10px;
+  }
+  .presentation {
+    background: #100c18;
+    border-color: var(--room-border);
+    border-radius: var(--ui-radius-dialog, 16px);
+  }
+  .meeting-toolbar {
+    padding: 8px;
+    min-height: 62px;
+  }
+  .meeting-toolbar .icon-button,
+  .meeting-toolbar .invite-button {
+    border: 1px solid #b28bcb50;
+    border-image: none;
+    background: linear-gradient(145deg, #4c305b, #2b1c37);
+    color: #f0dbff;
+    box-shadow: inset 0 1px #e9bcff30;
+    border-radius: var(--ui-radius-button, 12px);
+  }
+  .meeting-toolbar .icon-button.muted {
+    background: #201729;
+    color: #c4b3d2;
+  }
+  .meeting-toolbar .icon-button[aria-pressed='true'],
+  .meeting-toolbar .icon-button[aria-expanded='true'] {
+    background: linear-gradient(145deg, #79508d, #4f2e61);
+    color: #fff5e6;
+    border-color: #d8acee;
+    box-shadow: inset 0 1px #f2d1ff70;
+  }
+  .meeting-toolbar .invite-button {
+    color: #f5cc76;
+  }
+  .meeting-toolbar .danger {
+    background: linear-gradient(145deg, #9b3a59, #64263e);
+    border-color: #ed99ab80;
+    color: #fff0ef;
+  }
+  .meeting-toolbar button:hover:not(:disabled) {
+    filter: brightness(1.15);
+  }
+  .badge {
+    background: #e0bcf4;
+    color: #281434;
+    border: 1px solid #211529;
+  }
+  .badge.unread {
+    background: #f5cc76;
+    color: #281b10;
+  }
+  .panel-head {
+    background: #ffffff04;
+    border-bottom: 1px solid #b28bcb30;
+  }
+  .person {
+    border-bottom-color: #b28bcb25;
+  }
+  .composer {
+    background: #20132c;
+    border-top: 1px solid #b28bcb50;
+  }
+  .composer textarea {
+    background: #160e20;
+    border-color: #a67aca70;
+    border-radius: var(--ui-radius-field, 8px);
+  }
+  .composer .primary {
+    color: #f5cc76;
+    background: linear-gradient(145deg, #633d74, #3b234b);
+    border: 1px solid #b28bcb70;
+  }
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible,
+  summary:focus-visible {
+    outline: 2px solid #efd0ff;
+    outline-offset: -2px;
+  }
+  @media (max-width: 760px) {
+    .meeting-head {
+      min-height: 44px;
+      padding: 0 12px;
+    }
+    .meeting-toolbar {
+      padding: 6px 0 max(6px, env(safe-area-inset-bottom));
+      gap: 0;
+    }
+    .tile-name {
+      padding: 2px 6px;
+    }
+  }
+  @media (forced-colors: active) {
+    .participant-tile,
+    .meeting-head,
+    .meeting-toolbar,
+    .side-panel,
+    .welcome,
+    .meeting-toolbar button {
+      background: Canvas;
+      color: CanvasText;
+      border-color: CanvasText;
+      box-shadow: none;
+    }
+    .participant-tile.speaking {
+      border-color: Highlight;
+    }
+  }
+}
