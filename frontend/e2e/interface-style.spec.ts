@@ -73,12 +73,29 @@ for (const width of [320, 393, 1024, 1440]) {
       'rgb(16, 18, 28)',
     );
     await expect(page.locator('.composer__submit')).toHaveCSS('color', 'rgb(242, 241, 234)');
-    await expect(page.locator('.composer__submit app-ui-icon path')).toHaveAttribute(
-      'stroke-width',
-      '1.65',
+    await expect(page.locator('.composer__submit app-ui-icon path').first()).toHaveAttribute(
+      'fill-rule',
+      'evenodd',
     );
     const roomIcon = nav.locator('img[src$="/room-128.webp"]');
     await expect(roomIcon).toHaveCSS('content', /constellation\/room.svg/);
+    if (width > 980) {
+      for (const height of [1080, 900, 800, 768, 720, 650, 600, 540]) {
+        await page.setViewportSize({ width, height });
+        const rail = page.locator('app-section-navigation nav');
+        expect(await rail.evaluate((el) => el.scrollHeight <= el.clientHeight + 1)).toBeTruthy();
+        await expect(
+          nav.getByRole('button', { name: 'Меню приложения', exact: true }),
+        ).toBeInViewport();
+        const buttons = await nav
+          .locator('button')
+          .evaluateAll((els) => els.map((el) => el.getBoundingClientRect().height));
+        expect(Math.min(...buttons)).toBeGreaterThanOrEqual(44);
+      }
+      await page.setViewportSize({ width, height: 768 });
+      await page.screenshot({ path: testInfo.outputPath(`constellation-rail-${width}.png`) });
+      await page.setViewportSize({ width, height: 900 });
+    }
     await page.screenshot({ path: testInfo.outputPath(`constellation-chat-${width}.png`) });
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),

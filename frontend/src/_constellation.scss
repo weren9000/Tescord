@@ -384,6 +384,75 @@ $colors: (
   }
 }
 
+// Desktop rail fits ordinary laptop heights without hiding the bottom actions.
+// Keep scrolling available on exceptionally short windows and with enlarged text.
+:root[data-ui-style='constellation']
+  app-root.kva-app.kva-app.kva-app.kva-app.kva-app.kva-app.kva-app.kva-app.kva-app.kva-app {
+  app-section-navigation {
+    nav {
+      gap: 8px;
+      padding: 8px 4px;
+    }
+    .brand img {
+      width: 32px;
+      height: 28px;
+    }
+    .brand .brand-name {
+      font-size: 12px;
+    }
+    .release-version {
+      margin-top: 2px;
+    }
+    :is(.sections, .utilities) {
+      gap: 2px;
+    }
+    :is(.sections, .utilities) button {
+      min-height: 52px;
+      padding: 3px 0;
+      gap: 3px;
+      font-size: 10px;
+      line-height: 12px;
+    }
+    button span {
+      white-space: nowrap;
+    }
+    :is(.section-art, .profile-avatar, .profile b) {
+      width: 28px;
+      height: 28px;
+      padding: 0;
+    }
+    button.active::before {
+      top: 12px;
+      height: 26px;
+    }
+    @media (max-height: 740px) {
+      :is(.sections, .utilities) button {
+        min-height: 44px;
+        gap: 2px;
+        padding: 2px 0;
+      }
+      :is(.section-art, .profile-avatar, .profile b) {
+        width: 24px;
+        height: 24px;
+      }
+      button.active::before {
+        top: 9px;
+        height: 24px;
+      }
+    }
+    @media (max-height: 580px) {
+      .brand-name,
+      .release-version {
+        display: none;
+      }
+      nav {
+        gap: 4px;
+        padding: 4px;
+      }
+    }
+  }
+}
+
 @media (forced-colors: active) {
   :root[data-ui-style='constellation']
     app-root.kva-app.kva-app.kva-app.kva-app.kva-app.kva-app.kva-app.kva-app.kva-app.kva-app {

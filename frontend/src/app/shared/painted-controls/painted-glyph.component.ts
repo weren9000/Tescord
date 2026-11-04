@@ -1,3 +1,4 @@
+import { CELESTIAL_GLYPHS } from '../celestial-glyphs';
 import { constellationGlyph } from '../constellation-glyphs';
 import { InterfaceStyleService } from '../../workspace/interface-style.service';
 import { Component, computed, inject, input } from '@angular/core';
@@ -8,7 +9,24 @@ import { PAINTED_GLYPHS, PaintedGlyphName } from './painted-glyphs';
   standalone: true,
   host: { class: 'kva-painted-glyph', 'aria-hidden': 'true' },
   template: `<svg viewBox="0 0 24 24" aria-hidden="true">
-    @if (interfaceStyle.value() !== 'enamel') {
+    @if (interfaceStyle.value() === 'constellation') {
+      <path [attr.d]="celestial().body" fill="currentColor" fill-rule="evenodd" />
+      <path
+        [attr.d]="celestial().line"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+      <path
+        [attr.d]="celestial().accent"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+      />
+    } @else if (interfaceStyle.value() !== 'enamel') {
       <path
         [attr.d]="outline()"
         fill="none"
@@ -34,6 +52,12 @@ import { PAINTED_GLYPHS, PaintedGlyphName } from './painted-glyphs';
 })
 export class PaintedGlyphComponent {
   readonly interfaceStyle = inject(InterfaceStyleService);
+  readonly celestial = computed(
+    () =>
+      CELESTIAL_GLYPHS[
+        Object.hasOwn(CELESTIAL_GLYPHS, this.name()) ? (this.name() as PaintedGlyphName) : 'more'
+      ],
+  );
   readonly outline = computed(() =>
     constellationGlyph(
       Object.hasOwn(PAINTED_GLYPHS, this.name()) ? (this.name() as PaintedGlyphName) : 'more',
