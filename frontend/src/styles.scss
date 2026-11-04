@@ -1,4 +1,5 @@
 @use 'palette';
+@use 'sass:color';
 @use 'ui-tokens';
 @use 'cosmic-application';
 @use 'cosmic-panels';
@@ -10,6 +11,7 @@
       in (
         canvas: palette.$canvas,
         primary: palette.$primary,
+        primary-hover: palette.$primary-hover,
         'cyan': palette.$cyan,
         text: palette.$text,
         surface: palette.$surface,
@@ -29,6 +31,9 @@
       )
   {
     --palette-#{$name}: #{$color};
+    --rgb-#{$name}: #{color.channel($color, 'red', $space: rgb)}
+      #{color.channel($color, 'green', $space: rgb)}
+      #{color.channel($color, 'blue', $space: rgb)};
   }
 }
 
@@ -98,37 +103,11 @@ body {
   font-family: 'Inter', 'Segoe UI Variable', 'Segoe UI', Arial, sans-serif;
 }
 
-:root {
-  --rgb-canvas: 16 18 28;
-  --rgb-primary: 117 75 255;
-  --rgb-cyan: 87 200 213;
-  --rgb-text: 246 247 251;
-  --rgb-surface: 22 25 37;
-  --rgb-raised: 29 33 48;
-  --rgb-hover: 38 43 61;
-  --rgb-border: 48 54 74;
-  --rgb-subtle: 130 137 164;
-  --rgb-muted: 166 174 196;
-  --rgb-secondary: 212 216 232;
-  --rgb-primary-text: 196 181 253;
-  --rgb-primary-hover: 105 64 235;
-  --rgb-selected: 36 32 57;
-  --rgb-danger: 255 113 138;
-  --rgb-danger-surface: 166 63 86;
-  --rgb-danger-text: 255 212 220;
-  --rgb-warning: 242 196 109;
-  --rgb-shadow: 0 0 0;
-  --palette-primary-hover: #6940eb;
-}
-
 :root[data-ui-theme] {
   background: var(--palette-canvas);
   color: var(--palette-text);
 }
-:root[data-ui-theme] button.primary,
-:root[data-ui-theme] .primary-button {
-  color: #fff;
-}
+
 :root[data-ui-scheme='light'] app-section-navigation .brand img {
   // The Moonlight mark has genuine transparency and works in both schemes.
   mix-blend-mode: normal;

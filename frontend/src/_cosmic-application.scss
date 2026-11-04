@@ -1,28 +1,7 @@
 // Application skin. Existing layout, media nodes and event handlers stay owned
 // by their components; user palettes override these defaults through ThemeController.
 @use 'app/shared/painted-material' as material;
-:root:not([data-ui-theme]) {
-  --palette-canvas: #10121c;
-  --palette-surface: #191724;
-  --palette-raised: #252033;
-  --palette-hover: #322941;
-  --palette-border: #51435f;
-  --palette-selected: #352845;
-  --palette-text: #fff5e6;
-  --palette-secondary: #ded2e7;
-  --palette-muted: #b9afc8;
-  --palette-primary-text: #cdb1f5;
-  --rgb-surface: 25 23 36;
-  --rgb-raised: 37 32 51;
-  --rgb-hover: 50 41 65;
-  --rgb-border: 81 67 95;
-  --rgb-selected: 53 40 69;
-  --rgb-text: 255 245 230;
-  --rgb-secondary: 222 210 231;
-  --rgb-muted: 185 175 200;
-  --rgb-primary-text: 205 177 245;
-}
-
+@use 'app/shared/enamel-material' as enamel;
 app-root.kva-app.kva-app.kva-app {
   --kva-control-ink: var(--palette-text);
   --kva-control-surface: var(--palette-raised);
@@ -46,15 +25,7 @@ app-root.kva-app.kva-app.kva-app {
   :is(.primary-button, button.primary, .composer__submit):not(
     :where(.landing *, .kva-painted-button)
   ) {
-    color: #fff5e6;
-    // The artwork supplies its own rounded edge. Stretch only the middle,
-    // leaving no rectangular CSS fill or second border behind transparent corners.
-    background: transparent;
-    border: 1px solid transparent;
-    border-image: url('/assets/painted-controls/button-primary.webp') 45% 12% fill / 12px / 0
-      stretch;
-    border-radius: 12px;
-    box-shadow: none;
+    @include enamel.primary;
   }
   :is(.secondary-button, button.secondary, .icon-button):not(
     :where(.landing *, .kva-painted-button)
@@ -65,11 +36,7 @@ app-root.kva-app.kva-app.kva-app {
     border-radius: 8px;
   }
   :is(.danger-button, button.danger, .call-control-button--danger):not(:where(.landing *)) {
-    color: #fff5e6;
-    background: transparent;
-    border-color: transparent;
-    border-image: url('/assets/painted-controls/button-danger.webp') 45% 12% fill / 12px / 0 stretch;
-    box-shadow: none;
+    @include enamel.danger;
   }
   :is(.secondary-button, button.secondary, .danger-button, button.danger):not(
     :where(.landing *, .kva-painted-button, .icon-button, .call-control-button)
@@ -126,24 +93,19 @@ app-root.kva-app.kva-app.kva-app {
     .messenger-shell .call-control-button.call-control-button.call-control-button,
     .meeting-toolbar .icon-button
   ) {
-    background: url('/assets/painted-controls/button-round.webp') center / contain no-repeat;
-    border: 1px solid transparent;
-    border-image: none;
-    border-radius: 50%;
-    color: #fff5e6;
-    box-shadow: none;
+    @include enamel.secondary;
   }
   :is(
     .messenger-shell .call-control-button.call-control-button.call-control-button,
     .meeting-toolbar .icon-button
   ):is(.call-control-button--active, .active, [aria-expanded='true']) {
-    background-image: url('/assets/painted-controls/button-round-active.webp');
+    @include enamel.primary;
   }
   :is(
     .messenger-shell .call-control-button.call-control-button.call-control-button,
     .meeting-toolbar .icon-button
   ):is(.call-control-button--muted, .muted) {
-    background-image: url('/assets/painted-controls/button-round.webp');
+    background: var(--palette-surface);
     filter: saturate(0.25) brightness(0.85);
   }
   :is(
@@ -171,10 +133,10 @@ app-root.kva-app.kva-app.kva-app {
     .messenger-shell .call-control-button.call-control-button.call-control-button,
     .meeting-toolbar .icon-button
   ):is(.call-control-button--danger, .danger) {
-    border-radius: 50%;
+    border-radius: var(--ui-radius-button, 12px);
     border-image: none;
     border-color: transparent;
-    background: url('/assets/painted-controls/button-round-danger.webp') center / contain no-repeat;
+    @include enamel.danger;
   }
   .auth-page {
     background:

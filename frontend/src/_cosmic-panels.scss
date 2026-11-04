@@ -1,40 +1,19 @@
 // A shared material, not a layout: no positioning, padding, overflow or sizing
 // overrides. In particular, modal backdrops and video surfaces stay untouched.
+@use 'app/shared/enamel-material' as enamel;
 @mixin surface($strength: 0.84, $radius: 16px) {
-  background-color: var(--palette-surface);
-  background-image:
-    linear-gradient(
-      color-mix(in srgb, var(--palette-surface) #{$strength * 100%}, transparent),
-      color-mix(in srgb, var(--palette-surface) #{$strength * 100%}, transparent)
-    ),
-    url('/assets/painted-controls/panel.webp');
-  background-position: center;
-  background-size: cover;
-  background-repeat: no-repeat;
-  background-clip: padding-box;
-  border-color: color-mix(in srgb, var(--palette-primary-text) 35%, var(--palette-border));
+  @include enamel.panel;
   border-radius: $radius;
-  // A tall panel needs a fine rim, not the ribbon's broad stretched sides.
-  border-image: none;
-  box-shadow:
-    inset 0 2px 2px #c99aee66,
-    inset 0 -2px 2px #57c8d54d,
-    0 8px 24px #09061524;
 }
-
 @mixin quiet {
-  background-color: var(--palette-surface);
-  background-image:
-    linear-gradient(
-      color-mix(in srgb, var(--palette-surface) 94%, transparent),
-      color-mix(in srgb, var(--palette-surface) 94%, transparent)
-    ),
-    url('/assets/painted-controls/panel.webp');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
+  background: linear-gradient(
+    155deg,
+    var(--palette-surface),
+    color-mix(in srgb, var(--palette-surface) 82%, var(--palette-raised))
+  );
   border-color: var(--palette-border);
-  box-shadow: inset 0 1px rgb(var(--rgb-primary-text) / 0.16);
+  border-image: none;
+  box-shadow: inset 0 1px rgb(var(--rgb-primary-text) / 0.12);
 }
 
 app-root.kva-app.kva-app.kva-app {
@@ -74,10 +53,6 @@ app-root.kva-app.kva-app.kva-app {
 
   :is(.meeting-toolbar, .call-window__controls, .call-tray, .group-voice-card) {
     @include surface(0.18, 16px);
-    background: transparent;
-    border-color: transparent;
-    border-image: url('/assets/painted-controls/panel.webp') 40% 8% fill / 16px / 0 stretch;
-    box-shadow: none;
   }
 
   :is(
