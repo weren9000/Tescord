@@ -1,7 +1,7 @@
 import { DOCUMENT } from '@angular/common';
 import { Injectable, inject, signal } from '@angular/core';
 
-export type InterfaceStyle = 'enamel' | 'constellation';
+export type InterfaceStyle = 'enamel' | 'constellation' | 'star-atlas';
 const storageKey = 'kva.interface-style.v1';
 
 @Injectable({ providedIn: 'root' })
@@ -30,7 +30,8 @@ export class InterfaceStyleService {
 
   private load(): InterfaceStyle {
     try {
-      return localStorage.getItem(storageKey) === 'constellation' ? 'constellation' : 'enamel';
+      const saved = localStorage.getItem(storageKey);
+      return saved === 'constellation' || saved === 'star-atlas' ? saved : 'enamel';
     } catch {
       return 'enamel';
     }

@@ -7,18 +7,19 @@ export default defineConfig({
   retries: 0,
   use: {
     baseURL: 'http://127.0.0.1:4217',
-    storageState:
-      process.env['KVA_INTERFACE_STYLE'] === 'constellation'
-        ? {
-            cookies: [],
-            origins: [
-              {
-                origin: 'http://127.0.0.1:4217',
-                localStorage: [{ name: 'kva.interface-style.v1', value: 'constellation' }],
-              },
-            ],
-          }
-        : undefined,
+    storageState: ['constellation', 'star-atlas'].includes(process.env['KVA_INTERFACE_STYLE'] ?? '')
+      ? {
+          cookies: [],
+          origins: [
+            {
+              origin: 'http://127.0.0.1:4217',
+              localStorage: [
+                { name: 'kva.interface-style.v1', value: process.env['KVA_INTERFACE_STYLE']! },
+              ],
+            },
+          ],
+        }
+      : undefined,
   },
   reporter: [['list'], ['html', { open: 'never' }]],
   webServer: {

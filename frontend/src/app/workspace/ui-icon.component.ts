@@ -8,7 +8,7 @@ import { PAINTED_GLYPHS, PaintedGlyphName } from '../shared/painted-controls/pai
   standalone: true,
   host: { 'aria-hidden': 'true', class: 'kva-ui-glyph' },
   template: `<svg viewBox="0 0 24 24" aria-hidden="true">
-    @if (interfaceStyle.value() === 'constellation') {
+    @if (interfaceStyle.value() !== 'enamel') {
       <path
         [attr.d]="outline()"
         fill="none"

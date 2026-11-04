@@ -24,8 +24,8 @@ $colors: (
   shadow: #000000,
 );
 
-@mixin palette {
-  @each $name, $value in $colors {
+@mixin palette($values: $colors) {
+  @each $name, $value in $values {
     --palette-#{$name}: #{$value};
     --rgb-#{$name}: #{color.channel($value, 'red', $space: rgb)}
       #{color.channel($value, 'green', $space: rgb)}
@@ -51,7 +51,7 @@ $colors: (
   box-shadow: 0 4px 16px #05061030;
 }
 
-:root[data-ui-style='constellation'] {
+:root:is([data-ui-style='constellation'], [data-ui-style='star-atlas']) {
   color-scheme: dark;
   app-root.kva-app.kva-app.kva-app.kva-app.kva-app.kva-app.kva-app.kva-app.kva-app.kva-app {
     @include palette;

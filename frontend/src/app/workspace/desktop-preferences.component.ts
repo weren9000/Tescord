@@ -64,6 +64,19 @@ import { InterfaceStyleService } from './interface-style.service';
           <span class="style-swatch style-swatch--constellation" aria-hidden="true"></span>
           <span><strong>Созвездие</strong><small>Ночная палитра и контурные иконки</small></span>
         </label>
+        <label class="style-choice" [class.selected]="interfaceStyle.value() === 'star-atlas'">
+          <input
+            type="radio"
+            name="interface-style"
+            value="star-atlas"
+            [checked]="interfaceStyle.value() === 'star-atlas'"
+            (change)="interfaceStyle.select('star-atlas')"
+          />
+          <span class="style-swatch style-swatch--atlas" aria-hidden="true"></span>
+          <span
+            ><strong>Звёздный атлас</strong><small>Тёплая бумага и рисованные значки</small></span
+          >
+        </label>
         <p>Стиль сохраняется на этом устройстве.</p>
       </fieldset>
       @if (token() && interfaceStyle.value() === 'enamel') {
@@ -199,6 +212,10 @@ import { InterfaceStyleService } from './interface-style.service';
           url('/assets/constellation/sky.svg') center / cover,
           #10121c;
         border: 1px solid #9c8cb6;
+      }
+      .style-swatch--atlas {
+        background: linear-gradient(160deg, #10121c 40%, #f5e7cf 41% 80%, #754bff 81%);
+        border: 1px solid #9b8a76;
       }
       @media (max-width: 980px) {
         .range.desktop-widths,

@@ -1,0 +1,326 @@
+@use 'sass:map';
+@use 'sass:math';
+@use 'sass:list';
+@use 'constellation' as base;
+
+$paper: (
+  canvas: #f5e7cf,
+  surface: #fbf0dc,
+  raised: #f2e2c5,
+  hover: #e8d8c3,
+  primary: #754bff,
+  primary-hover: #6238e6,
+  primary-text: #503691,
+  'cyan': #197b83,
+  text: #191a35,
+  muted: #655c70,
+  secondary: #373450,
+  subtle: #74677c,
+  border: #8b7b91,
+  selected: #e0cef1,
+  danger: #983d56,
+  danger-surface: #a94f68,
+  danger-text: #fff3df,
+  warning: #825320,
+  shadow: #10121c,
+);
+$night: map.merge(
+  base.$colors,
+  (
+    canvas: #10121c,
+    surface: #171c3b,
+    raised: #23274c,
+    hover: #38355b,
+    text: #f5e7cf,
+    secondary: #f0dfc0,
+    muted: #d3c5b5,
+    primary-text: #f5e7cf,
+    border: #9e91b0,
+    selected: #754bff,
+  )
+);
+
+// This skin reuses the non-enamel structure, then supplies light paper and dark ink.
+:root[data-ui-style='star-atlas'] {
+  app-root.kva-app.kva-app.kva-app.kva-app.kva-app.kva-app.kva-app.kva-app.kva-app.kva-app {
+    @include base.palette($paper);
+    color-scheme: light;
+    background: var(--palette-canvas);
+
+    :is(
+      .conversation-sidebar,
+      app-platform-list,
+      .platform-sidebar,
+      .composer__surface,
+      .action-menu--account,
+      .store-shell,
+      .fitting-layout,
+      .meeting-page
+    ) {
+      @include base.palette($paper);
+      color: var(--palette-text);
+    }
+
+    :is(.messenger-workspace, .conversation-stream, .message-list, .meeting-page) {
+      background-color: var(--palette-canvas);
+    }
+    :is(
+      .conversation-sidebar--enamel,
+      app-platform-list,
+      .platform-sidebar,
+      .composer__surface,
+      .store-shell,
+      .modal,
+      .auth-panel,
+      .quick-switch,
+      .invite-popover,
+      .invite-entry-card,
+      .side-panel,
+      .welcome,
+      .subpanel,
+      .confirm,
+      .filter-sheet,
+      .role-confirm,
+      .picker,
+      .application-tile,
+      .security-card,
+      .fitting-room,
+      .fitting-detail,
+      .fitting-layout .grid .tile,
+      .inventory-backdrop:not(.embedded) > .inventory,
+      dialog:not(.panel-shade, .sheet-shade, .preview, .islands-dialog)
+    ) {
+      background:
+        url('/assets/star-atlas/paper.svg') repeat,
+        var(--palette-surface);
+      color: var(--palette-text);
+      border-color: var(--palette-border);
+      border-image: none;
+      box-shadow:
+        inset 0 0 0 1px #8b7b9130,
+        0 4px 14px #10121c12;
+    }
+
+    // Dark atlas covers frame the paper pages. Each supplies its own readable palette.
+    :is(
+      app-section-navigation,
+      .mobile-mode-footer,
+      .conversation-header-block,
+      .meeting-head,
+      .meeting-toolbar,
+      .call-window__controls,
+      .call-tray
+    ) {
+      @include base.palette($night);
+      color-scheme: dark;
+      background:
+        url('/assets/star-atlas/paper.svg') repeat,
+        #171c3b;
+      color: var(--palette-text);
+      border-color: var(--palette-border);
+      box-shadow: inset 0 0 0 1px #9e91b080;
+    }
+    .conversation-header-block {
+      background:
+        url('/assets/constellation/sky.svg') right top / auto 170px no-repeat,
+        #171c3b;
+    }
+    .conversation-head {
+      color: var(--palette-text);
+    }
+    :is(
+      .conversation-head,
+      .desktop-sidebar-toolbar,
+      .store-shell .head,
+      .store-shell .section-links,
+      .action-menu__header
+    ) {
+      background-color: transparent;
+    }
+    .group-voice-card {
+      background: #10152c;
+    }
+    .group-voice-card__symbol {
+      color: #57c8d5;
+    }
+
+    :is(
+      .section-search,
+      app-platform-list .search,
+      app-wallet-balance button,
+      input:not([type='radio'], [type='checkbox'], [type='range']),
+      textarea,
+      select
+    ) {
+      background-color: var(--palette-surface);
+      color: var(--palette-text);
+      border-color: var(--palette-border);
+    }
+    :is(.composer__field, .section-search) :is(input, textarea) {
+      background: transparent;
+    }
+    :is(.secondary-button, .section-create, .create-group-tile, .kva-icon-action) {
+      background: var(--palette-surface);
+      color: var(--palette-text);
+      border-color: var(--palette-border);
+    }
+    :is(
+      .primary-button,
+      .primary,
+      .composer__submit,
+      .fitting-primary,
+      .group-voice-card__action:last-child,
+      .kva-painted-button--primary
+    ) {
+      background: #754bff;
+      color: #fff5df;
+      border-color: #754bff;
+    }
+    :is(
+      .meeting-toolbar .icon-button.danger,
+      .danger,
+      .call-control-button.call-control-button--danger,
+      .kva-painted-button--danger
+    ) {
+      background: #a94f68;
+      border-color: #a94f68;
+      color: #fff5df;
+    }
+    :is(app-section-navigation button.active, .mobile-mode-footer__button--active) {
+      background: #754bff;
+      color: #fff5df;
+    }
+    :is(
+      .conversation-item--selected,
+      .conversation-item--active,
+      .platform-channel-entry--active,
+      .space-channel--selected
+    ) {
+      background: #e0cef1;
+      color: #191a35;
+    }
+
+    .message-card__body {
+      background: #fcf2e1;
+      border-color: #9b879f;
+      color: #191a35;
+      box-shadow: none;
+    }
+    .message-card--self .message-card__body {
+      background: #e0cef1;
+    }
+    .message-card__text {
+      color: #191a35;
+    }
+    .message-list__status {
+      background: transparent;
+      color: #655c70;
+    }
+    .fitting-scene {
+      background: #ede0cc;
+    }
+    .fitting-scene small {
+      color: #655c70;
+    }
+    .fitting-scene.has-wallpaper {
+      color: #fff5df;
+    }
+    .fitting-scene.has-wallpaper small {
+      color: #fff5df;
+    }
+    app-conversation-list .avatar {
+      background: #e0cef1;
+      color: #191a35;
+    }
+    .composer-emoji > button {
+      color: #191a35;
+    }
+    .composer textarea {
+      caret-color: #503691;
+    }
+    .participant-tile {
+      background: #f2e2c5;
+      color: #191a35;
+    }
+    .participant-tile.speaking {
+      border-color: #197b83;
+    }
+    .tile-avatar {
+      background: #e0cef1;
+      color: #191a35;
+    }
+    .tile-name {
+      background: #fbf0dc;
+      color: #191a35;
+    }
+    .meeting-page .composer {
+      background: #f2e2c5;
+      border-color: #8b7b91;
+    }
+    .workspace-empty-state {
+      @include base.palette($night);
+      background: url('/assets/star-atlas/lake.png') right center / cover no-repeat #10121c;
+      color: #f5e7cf;
+    }
+    :is(.conversation-sidebar__list, .message-list) {
+      scrollbar-color: #8b7b91 transparent;
+    }
+    th {
+      background: #f2e2c5;
+      color: #373450;
+    }
+    tbody tr:hover {
+      background: #e8d8c3;
+    }
+
+    // A 4x4 transparent illustration atlas; keep each original 36/32px image box.
+    $icons:
+      room, friends, groups, platforms, inventory, applications, security, search, bell, menu,
+      profile, appearance, sound, block, logout, install;
+    @for $i from 1 through list.length($icons) {
+      $name: list.nth($icons, $i);
+      img[src$='/#{$name}-128.webp']:not(.brand img) {
+        content: url('/assets/star-atlas/blank.svg');
+        background-image: url('/assets/star-atlas/icons.png');
+        background-size: 400% 400%;
+        background-position: #{math.div((($i - 1) % 4) * 100%, 3)}
+          #{math.div(math.floor(math.div($i - 1, 4)) * 100%, 3)};
+        background-repeat: no-repeat;
+        object-fit: contain;
+        padding: 0;
+        filter: none;
+      }
+    }
+  }
+}
+
+@media (forced-colors: active) {
+  :root[data-ui-style='star-atlas']
+    app-root.kva-app.kva-app.kva-app.kva-app.kva-app.kva-app.kva-app.kva-app.kva-app.kva-app {
+    :is(
+      .conversation-header-block,
+      .composer__surface,
+      app-section-navigation,
+      .conversation-sidebar,
+      .platform-sidebar,
+      app-platform-list,
+      .mobile-mode-footer,
+      .group-voice-card,
+      .meeting-page,
+      .store-shell,
+      .modal,
+      dialog,
+      button,
+      .workspace-empty-state,
+      .message-card__body
+    ) {
+      background: Canvas;
+      color: CanvasText;
+      border-color: ButtonText;
+      box-shadow: none;
+    }
+    .message-card__text {
+      color: CanvasText;
+    }
+  }
+}
