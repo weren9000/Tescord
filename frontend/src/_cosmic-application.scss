@@ -2,6 +2,28 @@
 // by their components; user palettes override these defaults through ThemeController.
 @use 'app/shared/painted-material' as material;
 @use 'app/shared/enamel-material' as enamel;
+@use 'palette';
+
+// Dark conversation canvases match the enamel chrome even with a legacy theme.
+// Only the backing color changes: user wallpaper images remain above it.
+:root:not([data-ui-scheme='light']) app-root.kva-app .messenger-shell {
+  .messenger-workspace,
+  .conversation-stream,
+  .message-list {
+    background-color: palette.$canvas;
+  }
+}
+
+@media (forced-colors: active) {
+  :root:not([data-ui-scheme='light']) app-root.kva-app .messenger-shell {
+    .messenger-workspace,
+    .conversation-stream,
+    .message-list {
+      background-color: Canvas;
+    }
+  }
+}
+
 app-root.kva-app.kva-app.kva-app {
   --kva-control-ink: var(--palette-text);
   --kva-control-surface: var(--palette-raised);
