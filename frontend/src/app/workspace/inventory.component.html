@@ -3,6 +3,7 @@
     class="inventory-backdrop"
     [class.embedded]="embedded()"
     [class.store-layout]="storeLayout()"
+    [class.fitting-layout]="storeLayout() && mode() === 'inventory'"
     [class.issued-only]="embedded() && initialTab() === 'issued'"
     (click)="menu() ? menu.set(null) : embedded() ? null : dismiss()"
   >
@@ -150,15 +151,150 @@
         }
         <div class="inventory-catalog-layout">
           @if (storeLayout()) {
-            <aside class="inventory-sidebar">
-              <ng-container *ngTemplateOutlet="inventoryFilters" />
-              <button class="browse-link" (click)="shop.emit()">
-                <app-ui-icon name="gift" />Пополнить коллекцию →
-              </button>
+            <aside class="fitting-room" aria-label="Примерочная профиля">
+              <div class="fitting-title">
+                <h3>Примерочная</h3>
+                <span>Предпросмотр</span>
+              </div>
+              <div class="fitting-preview-scroll">
+                <div class="fitting-scene" [class.has-wallpaper]="!!fittingItem('wallpaper')">
+                  @if (fittingItem('wallpaper'); as background) {
+                    <img
+                      class="fitting-background"
+                      [src]="image(background.catalog_id)"
+                      alt="Пример обоев"
+                    />
+                  }
+                  <div class="fitting-portrait">
+                    @if (fittingItem('frame'); as frame) {
+                      <app-asset-preview
+                        [src]="image(frame.catalog_id)"
+                        [avatar]="fittingAvatar()"
+                        [circular]="circularFrames.has(frame.catalog_id)"
+                        [retry]="previewRetry()"
+                        (error)="previewErrors.set(true)"
+                      />
+                    } @else {
+                      <app-asset-preview
+                        [src]="fittingAvatar()"
+                        [retry]="previewRetry()"
+                        (error)="previewErrors.set(true)"
+                      />
+                    }
+                  </div>
+                  <strong>Мой профиль</strong>
+                  <small>{{
+                    fittingItem('wallpaper') ? 'Обои — пример фона беседы' : 'Аватар и рамка вместе'
+                  }}</small>
+                </div>
+                <button
+                  class="fitting-slots-toggle"
+                  [attr.aria-expanded]="fittingSlotsOpen()"
+                  (click)="fittingSlotsOpen.set(!fittingSlotsOpen())"
+                >
+                  {{ fittingSlotsOpen() ? 'Скрыть состав образа' : 'Состав образа' }}
+                  <app-ui-icon [name]="fittingSlotsOpen() ? 'up' : 'down'" />
+                </button>
+                <div class="fitting-slots" [class.expanded]="fittingSlotsOpen()">
+                  @for (category of categories; track category.id) {
+                    <button
+                      [disabled]="busy()"
+                      (click)="switchTab(category.id)"
+                      [class.is-draft]="fittingDraft()[category.id] !== undefined"
+                      [attr.title]="fittingItem(category.id)?.name ?? mobileKindLabel(category.id)"
+                    >
+                      <span>{{ mobileKindLabel(category.id) }}</span>
+                      <strong>{{
+                        fittingItem(category.id)?.name ??
+                          (category.id === 'avatar'
+                            ? 'Текущий аватар'
+                            : category.id === 'wallpaper'
+                              ? 'Выбрать для беседы'
+                              : category.id === 'frame'
+                                ? 'Без рамки'
+                                : 'Базовая тема')
+                      }}</strong>
+                    </button>
+                  }
+                </div>
+                @if (fittingItem('theme'); as theme) {
+                  @if (tab() === 'theme') {
+                    <img
+                      class="fitting-theme"
+                      [src]="image(theme.catalog_id, true)"
+                      [alt]="'Предпросмотр темы: ' + theme.name"
+                    />
+                  }
+                }
+              </div>
+              <div class="fitting-apply">
+                @if (error()) {
+                  <p class="error" role="alert">{{ error() }}</p>
+                }
+                @if (success()) {
+                  <p class="notice" role="status">{{ success() }}</p>
+                }
+                @if (fittingSelected(); as selected) {
+                  <div class="fitting-selection-tools">
+                    <button [disabled]="busy()" (click)="showHistory(selected)">О предмете</button>
+                    @if (
+                      (selected.kind === 'frame' || selected.kind === 'theme') &&
+                      fittingEquipment()[selected.kind]
+                    ) {
+                      <button [disabled]="busy()" (click)="removeFitting(selected.kind)">
+                        {{ selected.kind === 'frame' ? 'Без рамки' : 'Базовая тема' }}
+                      </button>
+                    }
+                  </div>
+                }
+                <button
+                  class="fitting-primary"
+                  [disabled]="busy() || loading() || !fittingCount()"
+                  (click)="applyFitting()"
+                >
+                  <app-ui-icon name="check" />{{
+                    busy()
+                      ? 'Применяем…'
+                      : fittingDraft()['wallpaper']
+                        ? 'Применить и выбрать чат'
+                        : 'Применить'
+                  }}
+                  @if (fittingCount()) {
+                    <span>{{ fittingCount() }}</span>
+                  }
+                </button>
+                <button
+                  class="fitting-reset"
+                  [disabled]="busy() || !fittingCount()"
+                  (click)="resetFitting()"
+                >
+                  Сбросить примерку
+                </button>
+              </div>
             </aside>
           }
           <main class="inventory-results">
             @if (storeLayout()) {
+              <nav class="fitting-categories" aria-label="Категории коллекции">
+                <button
+                  [class.active]="tab() === 'all'"
+                  [attr.aria-pressed]="tab() === 'all'"
+                  [disabled]="busy()"
+                  (click)="switchTab('all')"
+                >
+                  Все
+                </button>
+                @for (category of categories; track category.id) {
+                  <button
+                    [class.active]="tab() === category.id"
+                    [attr.aria-pressed]="tab() === category.id"
+                    [disabled]="busy()"
+                    (click)="switchTab(category.id)"
+                  >
+                    {{ category.label }}
+                  </button>
+                }
+              </nav>
               <form class="inventory-toolbar" (ngSubmit)="filterChanged()">
                 <label class="inventory-search"
                   ><app-ui-icon name="search" /><input
@@ -225,10 +361,10 @@
               </div>
             }
             <div class="inventory-scroll">
-              @if (error()) {
+              @if (error() && !storeLayout()) {
                 <p role="alert" class="error">{{ error() }}</p>
               }
-              @if (success()) {
+              @if (success() && !storeLayout()) {
                 <p class="notice" role="status">{{ success() }}</p>
               }
               @if (mode() === 'inventory' && tab() === 'theme') {
@@ -241,12 +377,19 @@
                       class="tile"
                       [class.wallpaper-tile]="item.kind === 'wallpaper' || item.kind === 'theme'"
                       [class.equipped]="item.in_use ?? item.equipped"
+                      [class.fitting-picked]="fittingDraft()[item.kind]?.id === item.id"
                     >
                       <button
                         class="item-open"
                         type="button"
-                        [attr.aria-label]="'О предмете: ' + item.name"
-                        (click)="showHistory(item)"
+                        [attr.aria-label]="
+                          (storeLayout() ? 'Примерить: ' : 'О предмете: ') + item.name
+                        "
+                        [attr.aria-pressed]="
+                          storeLayout() ? fittingDraft()[item.kind]?.id === item.id : null
+                        "
+                        [disabled]="busy() || loading()"
+                        (click)="storeLayout() ? tryOn(item) : showHistory(item)"
                       >
                         <app-asset-preview
                           [avatar]="item.kind === 'frame' ? rawAvatar() : null"
@@ -271,8 +414,8 @@
                         </button>
                         <button
                           class="mobile-item-caption"
-                          (click)="showHistory(item)"
-                          [attr.aria-label]="'О предмете: ' + item.name"
+                          (click)="tryOn(item)"
+                          [attr.aria-label]="'Примерить: ' + item.name"
                         >
                           <strong>{{ item.name }}</strong
                           ><small>{{ mobileKindLabel(item.kind) }}</small>
@@ -291,24 +434,17 @@
                             class="inventory-state"
                             [class.used]="item.in_use ?? item.equipped"
                             >{{
-                              (item.in_use ?? item.equipped) ? '✓ Используется' : 'В инвентаре'
+                              fittingDraft()[item.kind]?.id === item.id
+                                ? '◉ Выбрано'
+                                : (item.in_use ?? item.equipped)
+                                  ? '✓ Используется'
+                                  : 'В инвентаре'
                             }}</span
                           >
                           <div class="inventory-actions">
-                            <button
-                              [disabled]="busy() || loading()"
-                              (click)="
-                                item.kind === 'wallpaper'
-                                  ? wallpaper.emit(item.id)
-                                  : requestEquip(item)
-                              "
-                            >
+                            <button [disabled]="busy() || loading()" (click)="tryOn(item)">
                               {{
-                                item.kind === 'wallpaper'
-                                  ? 'Разместить'
-                                  : item.equipped
-                                    ? 'Снять'
-                                    : 'Применить'
+                                fittingDraft()[item.kind]?.id === item.id ? 'Выбрано' : 'Примерить'
                               }}</button
                             ><button
                               class="inventory-more"

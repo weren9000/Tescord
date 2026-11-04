@@ -136,7 +136,7 @@ interface ViewState {
     StoreCollectionsComponent,
   ],
   templateUrl: './shop.component.html',
-  styleUrl: './shop.component.scss',
+  styleUrls: ['./shop.component.scss', './shop-enamel.scss'],
 })
 export class ShopComponent implements OnInit, AfterViewInit, OnDestroy {
   readonly token = input.required<string>();

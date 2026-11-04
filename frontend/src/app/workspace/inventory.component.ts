@@ -104,7 +104,7 @@ interface Pending {
     UiIconComponent,
   ],
   templateUrl: './inventory.component.html',
-  styleUrl: './inventory.component.scss',
+  styleUrls: ['./inventory.component.scss', './inventory-fitting.scss'],
 })
 export class InventoryComponent implements OnDestroy {
   readonly embedded = input(false);
@@ -132,6 +132,93 @@ export class InventoryComponent implements OnDestroy {
   readonly http = inject(HttpClient);
   readonly element: ElementRef<HTMLElement> = inject(ElementRef);
   readonly items = signal<Item[]>([]);
+  readonly fittingDraft = signal<Record<string, Item | null>>({});
+  readonly fittingEquipment = signal<Record<string, Item>>({});
+  readonly fittingSelected = signal<Item | null>(null);
+  readonly fittingSlotsOpen = signal(false);
+  private fittingSnapshot: string | null = null;
+
+  fittingItem(kind: string) {
+    return Object.hasOwn(this.fittingDraft(), kind)
+      ? this.fittingDraft()[kind]
+      : this.fittingEquipment()[kind];
+  }
+  fittingAvatar() {
+    const avatar = this.fittingItem('avatar');
+    return avatar ? this.image(avatar.catalog_id) : this.rawAvatar();
+  }
+  fittingCount() {
+    return Object.keys(this.fittingDraft()).length;
+  }
+  tryOn(item: Item) {
+    if (this.busy() || this.loading()) return;
+    this.fittingSelected.set(item);
+    this.success.set('');
+    this.fittingDraft.update((draft) => {
+      const next = { ...draft };
+      if (item.equipped && item.kind !== 'wallpaper') delete next[item.kind];
+      else next[item.kind] = item;
+      return next;
+    });
+    if (window.matchMedia('(max-width: 980px)').matches) {
+      this.element.nativeElement.querySelector('.fitting-room')?.scrollIntoView({ block: 'start' });
+    }
+  }
+  resetFitting() {
+    if (this.busy()) return;
+    this.fittingDraft.set({});
+    this.fittingSelected.set(null);
+  }
+  removeFitting(kind: string) {
+    if (this.busy()) return;
+    this.fittingDraft.update((draft) => ({ ...draft, [kind]: null }));
+  }
+  async applyFitting() {
+    if (this.busy() || this.loading() || !this.fittingCount()) return;
+    this.busy.set(true);
+    this.error.set('');
+    this.success.set('');
+    let applied = 0;
+    let wallpaperId: string | undefined;
+    try {
+      for (const [kind, item] of Object.entries(this.fittingDraft())) {
+        if (kind === 'wallpaper') continue;
+        const target = item ?? this.fittingEquipment()[kind];
+        if (target) {
+          await this.request(`/items/${target.id}/${item ? 'equip' : 'unequip'}`, 'POST', {
+            request_id: crypto.randomUUID(),
+          });
+          applied++;
+        }
+        this.fittingDraft.update((draft) => {
+          const next = { ...draft };
+          delete next[kind];
+          return next;
+        });
+      }
+      const wallpaper = this.fittingDraft()['wallpaper'];
+      if (wallpaper) {
+        // Wallpaper placement is owned by the existing chat/room picker.
+        wallpaperId = wallpaper.id;
+        this.fittingDraft.update((draft) => {
+          const next = { ...draft };
+          delete next['wallpaper'];
+          return next;
+        });
+      }
+      if (applied) this.success.set('Оформление профиля применено');
+    } catch (e) {
+      this.fail(e);
+      if (applied)
+        this.success.set('Часть оформления сохранена. Остальные изменения можно повторить.');
+    } finally {
+      if (applied) this.changed.emit();
+      this.fittingSnapshot = null;
+      await this.reload(true);
+      this.busy.set(false);
+    }
+    if (wallpaperId) this.wallpaper.emit(wallpaperId);
+  }
   readonly notices = signal<Notice[]>([]);
   readonly issued = signal<Item[]>([]);
   readonly catalog = signal<Catalog[]>([]);
@@ -177,8 +264,7 @@ export class InventoryComponent implements OnDestroy {
   private searchTimer?: ReturnType<typeof setTimeout>;
   searchChanged() {
     clearTimeout(this.searchTimer);
-    if (window.matchMedia('(max-width: 980px)').matches)
-      this.searchTimer = setTimeout(() => void this.filterChanged(), 300);
+    this.searchTimer = setTimeout(() => void this.filterChanged(), 300);
   }
   activeFilters() {
     return [
@@ -234,6 +320,7 @@ export class InventoryComponent implements OnDestroy {
     this.favorites = false;
     this.filter = '';
     this.equippedOnly = false;
+    this.sort = 'new';
     void this.filterChanged();
   }
   async favorite(item: Item) {
@@ -592,6 +679,10 @@ export class InventoryComponent implements OnDestroy {
       this.eventsOpen.set(false);
       this.adminTab.set(this.initialTab());
       this.tab.set('all');
+      this.fittingDraft.set({});
+      this.fittingSelected.set(null);
+      this.fittingEquipment.set({});
+      this.fittingSnapshot = null;
       this.uploadOpen.set(false);
       this.editing.set(null);
       this.resetUpload();
@@ -706,6 +797,23 @@ export class InventoryComponent implements OnDestroy {
       } else if (mode === 'inventory') {
         this.items.set(data.items);
         this.acceptPage(data);
+        const snapshot = data.equipped_ids.join(',');
+        if (this.storeLayout() && this.fittingSnapshot !== snapshot) {
+          const equipped = await Promise.all(
+            ['avatar', 'frame', 'theme'].map((kind) =>
+              this.request<Collection>(`?grouped=true&usage=used&kind=${kind}`),
+            ),
+          );
+          if (version !== this.loadVersion) return;
+          this.fittingEquipment.set(
+            Object.fromEntries(
+              equipped.flatMap((page) =>
+                page.items.filter((item) => item.equipped).map((item) => [item.kind, item]),
+              ),
+            ),
+          );
+          this.fittingSnapshot = snapshot;
+        }
       }
     } catch (e) {
       if (version === this.loadVersion && !silent) this.fail(e);
