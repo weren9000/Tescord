@@ -13,6 +13,7 @@ import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { API_BASE_URL } from '../core/api/api-base';
 import { DesktopPreferencesService, Density } from './desktop-preferences.service';
+import { InterfaceStyleService } from './interface-style.service';
 
 @Component({
   imports: [UiIconComponent],
@@ -39,7 +40,33 @@ import { DesktopPreferencesService, Density } from './desktop-preferences.servic
           <app-ui-icon name="close" />
         </button>
       </header>
-      @if (token()) {
+      <fieldset class="interface-styles">
+        <legend>Стиль приложения</legend>
+        <label class="style-choice" [class.selected]="interfaceStyle.value() === 'enamel'">
+          <input
+            type="radio"
+            name="interface-style"
+            value="enamel"
+            [checked]="interfaceStyle.value() === 'enamel'"
+            (change)="interfaceStyle.select('enamel')"
+          />
+          <span class="style-swatch style-swatch--enamel" aria-hidden="true"></span>
+          <span><strong>Эмаль</strong><small>Объёмные значки и мягкие блики</small></span>
+        </label>
+        <label class="style-choice" [class.selected]="interfaceStyle.value() === 'constellation'">
+          <input
+            type="radio"
+            name="interface-style"
+            value="constellation"
+            [checked]="interfaceStyle.value() === 'constellation'"
+            (change)="interfaceStyle.select('constellation')"
+          />
+          <span class="style-swatch style-swatch--constellation" aria-hidden="true"></span>
+          <span><strong>Созвездие</strong><small>Ночная палитра и контурные иконки</small></span>
+        </label>
+        <p>Стиль сохраняется на этом устройстве.</p>
+      </fieldset>
+      @if (token() && interfaceStyle.value() === 'enamel') {
         <label class="range"
           >Тема приложения
           <select
@@ -138,7 +165,43 @@ import { DesktopPreferencesService, Density } from './desktop-preferences.servic
   `,
   styles: [
     `
+      .style-choice {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 8px;
+        margin-block: 6px;
+        border: 1px solid transparent;
+        border-radius: var(--ui-radius-button);
+        cursor: pointer;
+      }
+      .style-choice.selected {
+        border-color: var(--palette-primary-text);
+        background: var(--palette-selected);
+      }
+      .style-choice small {
+        display: block;
+        margin-top: 4px;
+        color: var(--palette-muted);
+      }
+      .style-swatch {
+        flex: 0 0 36px;
+        height: 44px;
+        border-radius: 8px;
+      }
+      .style-swatch--enamel {
+        background: linear-gradient(145deg, #c482d3, #3c164d 45%, #210c30);
+        border: 1px solid #c797e9;
+        box-shadow: inset 2px 2px 4px #edc5ff80;
+      }
+      .style-swatch--constellation {
+        background:
+          url('/assets/constellation/sky.svg') center / cover,
+          #10121c;
+        border: 1px solid #9c8cb6;
+      }
       @media (max-width: 980px) {
+        .range.desktop-widths,
         .desktop-widths {
           display: none;
         }
@@ -249,6 +312,7 @@ import { DesktopPreferencesService, Density } from './desktop-preferences.servic
   ],
 })
 export class DesktopPreferencesComponent implements AfterViewInit {
+  readonly interfaceStyle = inject(InterfaceStyleService);
   readonly platforms = input(false);
   readonly openImmediately = input(false);
   readonly token = input('');
@@ -304,7 +368,8 @@ export class DesktopPreferencesComponent implements AfterViewInit {
       this.changed.emit();
     } catch {
       this.error.set('Не удалось применить тему.');
-      this.dialog.nativeElement.querySelector('select')!.value = this.selectedTheme();
+      const select = this.dialog.nativeElement.querySelector('select');
+      if (select) select.value = this.selectedTheme();
     } finally {
       this.saving.set(false);
     }

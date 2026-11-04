@@ -5,7 +5,21 @@ export default defineConfig({
   timeout: 180_000,
   workers: 1,
   retries: 0,
-  use: { baseURL: 'http://127.0.0.1:4217' },
+  use: {
+    baseURL: 'http://127.0.0.1:4217',
+    storageState:
+      process.env['KVA_INTERFACE_STYLE'] === 'constellation'
+        ? {
+            cookies: [],
+            origins: [
+              {
+                origin: 'http://127.0.0.1:4217',
+                localStorage: [{ name: 'kva.interface-style.v1', value: 'constellation' }],
+              },
+            ],
+          }
+        : undefined,
+  },
   reporter: [['list'], ['html', { open: 'never' }]],
   webServer: {
     command: 'npm run start -- --host 127.0.0.1 --port 4217',

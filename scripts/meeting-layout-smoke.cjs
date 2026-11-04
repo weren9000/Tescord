@@ -7,6 +7,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs');
  const errors=[];page.on('pageerror',e=>errors.push(e.message));fs.mkdirSync('.local/room-design',{recursive:true});
  await page.route('**/api/**',r=>r.fulfill({status:200,contentType:'application/json',body:'{}'}));
  try{
+  if (process.env.KVA_INTERFACE_STYLE) await page.addInitScript(style => localStorage.setItem('kva.interface-style.v1', style), process.env.KVA_INTERFACE_STYLE);
   await page.goto((process.env.KVA_UI_BASE || 'http://127.0.0.1:4217') + '/my-room');
   await page.waitForFunction(()=>window.ng?.getComponent?.(document.querySelector('app-root')));
   await page.evaluate(()=>{

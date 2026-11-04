@@ -1,0 +1,407 @@
+@use 'sass:color';
+
+// Independent visual style. Specificity intentionally exceeds legacy enamel skins.
+// No layout, media visibility or interaction rules belong in this file.
+$colors: (
+  canvas: #10121c,
+  surface: #181a29,
+  raised: #23243a,
+  hover: #303047,
+  primary: #754bff,
+  primary-hover: #8965ff,
+  primary-text: #d6caef,
+  'cyan': #57c8d5,
+  text: #f2f1ea,
+  muted: #b6b2ca,
+  secondary: #ddd8e9,
+  subtle: #9f99b5,
+  border: #625a7c,
+  selected: #38305d,
+  danger: #f08ba6,
+  danger-surface: #642f43,
+  danger-text: #ffe4ec,
+  warning: #e4c581,
+  shadow: #000000,
+);
+
+@mixin palette {
+  @each $name, $value in $colors {
+    --palette-#{$name}: #{$value};
+    --rgb-#{$name}: #{color.channel($value, 'red', $space: rgb)}
+      #{color.channel($value, 'green', $space: rgb)}
+      #{color.channel($value, 'blue', $space: rgb)};
+  }
+  --text: var(--palette-text);
+  --muted: var(--palette-muted);
+  --surface: var(--palette-surface);
+  --surface-strong: var(--palette-raised);
+  --canvas: var(--palette-canvas);
+  --accent: var(--palette-primary);
+  --room-bg: var(--palette-canvas);
+  --room-border: var(--palette-border);
+  --room-muted: var(--palette-muted);
+  --room-tile: var(--palette-surface);
+}
+
+@mixin matte {
+  background: linear-gradient(145deg, var(--palette-raised), var(--palette-surface) 72%);
+  color: var(--palette-text);
+  border-color: var(--palette-border);
+  border-image: none;
+  box-shadow: 0 4px 16px #05061030;
+}
+
+:root[data-ui-style='constellation'] {
+  color-scheme: dark;
+  app-root.kva-app.kva-app.kva-app.kva-app.kva-app.kva-app.kva-app.kva-app.kva-app.kva-app {
+    @include palette;
+    color-scheme: dark;
+    color: var(--palette-text);
+    background-color: var(--palette-canvas);
+
+    // Reset local palette islands without touching user-supplied images or previews.
+    :is(
+      app-section-navigation,
+      .conversation-sidebar,
+      app-platform-list,
+      .platform-sidebar,
+      .mobile-mode-footer,
+      .conversation-header-block,
+      .composer__surface,
+      .action-menu--account,
+      .store-shell,
+      .fitting-layout,
+      .meeting-page
+    ) {
+      @include palette;
+    }
+
+    :is(
+      .messenger-shell,
+      .messenger-workspace,
+      .conversation-stream,
+      .message-list,
+      .meeting-page
+    ) {
+      background-color: var(--palette-canvas);
+    }
+    .meeting-page {
+      background-image: none;
+    }
+
+    :is(
+      app-section-navigation,
+      .conversation-sidebar--enamel,
+      app-platform-list,
+      .platform-sidebar,
+      .mobile-mode-footer,
+      .action-menu--account
+    ) {
+      @include matte;
+      border: 0;
+      box-shadow:
+        inset 0 0 0 1px var(--palette-border),
+        0 4px 16px #05061030;
+      &::before {
+        display: none;
+      }
+    }
+
+    :is(
+      .conversation-header-block,
+      .composer__surface,
+      .store-shell,
+      .modal,
+      .auth-panel,
+      .quick-switch,
+      .invite-popover,
+      .invite-entry-card,
+      .meeting-head,
+      .meeting-toolbar,
+      .side-panel,
+      .welcome,
+      .call-tray,
+      .call-window,
+      .call-window__controls,
+      .subpanel,
+      .confirm,
+      .filter-sheet,
+      .role-confirm,
+      .picker,
+      .application-tile,
+      .security-card,
+      .inventory-backdrop:not(.embedded) > .inventory,
+      dialog:not(.panel-shade, .sheet-shade, .preview, .islands-dialog)
+    ) {
+      @include matte;
+    }
+
+    :is(
+      .conversation-head,
+      .desktop-sidebar-toolbar,
+      .action-menu__header,
+      .store-shell > header,
+      .store-shell > nav,
+      .modal__header,
+      .modal__actions
+    ) {
+      background: transparent;
+      box-shadow: none;
+    }
+    .messenger-shell .composer {
+      background: transparent;
+      box-shadow: none;
+    }
+
+    :is(
+      .group-voice-card,
+      .call-window__roster,
+      .call-window__chat,
+      .panel-head,
+      .catalog-toolbar,
+      .store-toolbar,
+      .section-search,
+      app-platform-list .search,
+      app-wallet-balance button,
+      .participant-tile,
+      .tile-name,
+      .tile-avatar
+    ) {
+      background: var(--palette-surface);
+      color: var(--palette-text);
+      border-color: var(--palette-border);
+      border-image: none;
+      box-shadow: none;
+    }
+    .group-voice-card::before {
+      display: none;
+    }
+    .participant-tile.speaking {
+      border-color: var(--palette-cyan);
+    }
+    .group-voice-card__symbol {
+      color: var(--palette-cyan);
+    }
+    .tile-avatar {
+      background: var(--palette-selected);
+    }
+
+    :is(input:not([type='radio'], [type='checkbox'], [type='range']), textarea, select) {
+      color: var(--palette-text);
+      background-color: var(--palette-raised);
+      border-color: var(--palette-border);
+      box-shadow: none;
+      &::placeholder {
+        color: var(--palette-muted);
+        opacity: 1;
+      }
+    }
+    :is(.composer__field, .section-search) :is(input, textarea) {
+      background: transparent;
+    }
+
+    :is(button, .secondary-button, .kva-painted-button):not(
+      :where(.landing *, app-islands *, .participant-tile *, .message-card *)
+    ) {
+      border-image: none;
+      box-shadow: none;
+      text-shadow: none;
+    }
+    :is(
+      .secondary-button,
+      .kva-icon-action,
+      .section-create,
+      .create-group-tile,
+      .meeting-toolbar .icon-button,
+      .meeting-toolbar .invite-button,
+      .kva-painted-button,
+      .call-control-button
+    ) {
+      background: var(--palette-raised);
+      color: var(--palette-text);
+      border: 1px solid var(--palette-border);
+      &::before {
+        border-image: none;
+      }
+    }
+    :is(
+      .primary-button,
+      .primary,
+      .composer__submit,
+      .group-voice-card__action:last-child,
+      .kva-painted-button--primary,
+      .fitting-primary
+    ) {
+      background: linear-gradient(135deg, #8058ff, #6940eb);
+      color: #f2f1ea;
+      border: 1px solid #a18ae1;
+    }
+    :is(
+      .meeting-toolbar .icon-button.danger,
+      .danger,
+      .call-control-button.call-control-button--danger,
+      .kva-painted-button--danger
+    ) {
+      background: #642f43;
+      color: #ffe4ec;
+      border-color: #ba738b;
+    }
+    .meeting-page .composer {
+      background: var(--palette-surface);
+      border-color: var(--palette-border);
+    }
+    :is(
+      .meeting-toolbar .icon-button[aria-pressed='true'],
+      .call-control-button.call-control-button--active
+    ) {
+      background: var(--palette-selected);
+      color: var(--palette-text);
+      border-color: var(--palette-primary-text);
+    }
+    :is(
+        .section-create,
+        .group-voice-card__action,
+        .composer__submit,
+        .meeting-toolbar .invite-button
+      )
+      app-ui-icon {
+      color: inherit;
+    }
+    button:disabled {
+      opacity: 0.45;
+    }
+    button:hover:not(:disabled) {
+      filter: brightness(1.12);
+    }
+    :is(button, a, input, select, textarea, summary):focus-visible {
+      outline-color: var(--palette-primary-text);
+    }
+
+    :is(
+      app-section-navigation button.active,
+      .mobile-mode-footer__button--active,
+      .conversation-item--selected,
+      .conversation-item--active,
+      .platform-channel-entry--active,
+      .space-channel--selected
+    ) {
+      background: var(--palette-selected);
+      border-color: var(--palette-primary-text);
+      color: var(--palette-text);
+    }
+    app-section-navigation button.active::before {
+      background: var(--palette-primary);
+    }
+    :is(app-section-navigation button.active, .mobile-mode-footer__button--active) {
+      background: linear-gradient(135deg, #8058ff, #6940eb);
+      color: #f2f1ea;
+    }
+    .workspace-empty-state {
+      background: url('/assets/constellation/lake.png') right center / cover no-repeat #10121c;
+      border-color: var(--palette-border);
+      color: var(--palette-text);
+    }
+    .message-card__body {
+      background: var(--palette-raised);
+      border-color: #625a7c80;
+    }
+    .message-card--self .message-card__body {
+      background: var(--palette-selected);
+    }
+    .message-card__text {
+      color: var(--palette-text);
+    }
+    :is(.conversation-item__preview, .channel-context, .group-voice-card small) {
+      color: var(--palette-muted);
+    }
+
+    .fitting-layout {
+      @include palette;
+    }
+    :is(.fitting-room, .fitting-detail, .fitting-layout .grid .tile) {
+      @include matte;
+    }
+    .fitting-scene {
+      background: radial-gradient(ellipse at top, #393358, #181a29 80%);
+      border-color: var(--palette-border);
+    }
+    :is(.fitting-slots .is-draft, .fitting-layout .tile.selected) {
+      background: var(--palette-selected);
+      border-color: var(--palette-primary-text);
+    }
+    .fitting-scene small {
+      color: var(--palette-muted);
+    }
+    :is(.store-shell .section-links button.active, .fitting-categories .active) {
+      background: var(--palette-selected);
+      color: var(--palette-text);
+      border-color: var(--palette-primary-text);
+      box-shadow: none;
+    }
+
+    // Actual nav/menu images are switched to matching vector companions.
+    @each $name in room, friends, groups, platforms, inventory, applications, bell, profile, menu,
+      appearance, sound, block, logout, search, security, install
+    {
+      img[src$='/#{$name}-128.webp']:not(.brand img) {
+        content: url('/assets/constellation/#{$name}.svg');
+        object-fit: contain;
+        filter: none;
+      }
+    }
+    :is(.section-art, .mobile-section-art) {
+      padding: 3px;
+      box-sizing: border-box;
+    }
+
+    // Sparse decoration belongs on a header, never under message text.
+    .conversation-header-block {
+      background-image:
+        url('/assets/constellation/sky.svg'), linear-gradient(145deg, #23243a, #181a29);
+      background-repeat: no-repeat;
+      background-position: right top;
+      background-size:
+        auto 150px,
+        cover;
+    }
+    :is(table, th, td) {
+      border-color: var(--palette-border);
+    }
+    th {
+      background: var(--palette-raised);
+      color: var(--palette-secondary);
+    }
+    tbody tr:hover {
+      background: var(--palette-hover);
+    }
+    :is(.conversation-sidebar__list, .message-list) {
+      scrollbar-color: #79708e transparent;
+    }
+  }
+}
+
+@media (forced-colors: active) {
+  :root[data-ui-style='constellation']
+    app-root.kva-app.kva-app.kva-app.kva-app.kva-app.kva-app.kva-app.kva-app.kva-app.kva-app {
+    :is(
+      .conversation-header-block,
+      .composer__surface,
+      app-section-navigation,
+      .conversation-sidebar,
+      .platform-sidebar,
+      app-platform-list,
+      .mobile-mode-footer,
+      .group-voice-card,
+      .meeting-page,
+      .store-shell,
+      .modal,
+      dialog,
+      button
+    ) {
+      background: Canvas;
+      color: CanvasText;
+      border-color: ButtonText;
+      box-shadow: none;
+    }
+  }
+}
