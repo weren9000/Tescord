@@ -13,8 +13,8 @@ export const BOTANICAL_GLYPHS: Record<PaintedGlyphName, BotanicalGlyph> = {
     accent: '',
   },
   mic: {
-    body: 'M8 6a4 4 0 0 1 8 0v6a4 4 0 0 1-8 0zM9.5 10.5Q9.5 5.5 14.5 5.5Q14.5 10.5 9.5 10.5z',
-    line: 'M5 11v1a7 7 0 0 0 14 0v-1M12 19v3M9 22h6',
+    body: 'M8 7q0-5 4-5t4 5v5q0 5-4 5t-4-5z',
+    line: 'M5 11v2q0 7 7 7t7-7v-2M12 20v2',
     accent: '',
   },
   micOff: {
@@ -23,7 +23,7 @@ export const BOTANICAL_GLYPHS: Record<PaintedGlyphName, BotanicalGlyph> = {
     accent: '',
   },
   camera: {
-    body: 'M4 5h10a3 3 0 0 1 3 3v1l4-3q2-1 2 1v10q0 2-2 1l-4-3v1a3 3 0 0 1-3 3H4a3 3 0 0 1-3-3V8a3 3 0 0 1 3-3zM6 15Q6 9 12 9Q12 15 6 15z',
+    body: 'M4 5h9q4 0 4 4v6q0 4-4 4H4q-3 0-3-4V9q0-4 3-4zM19 9l4-3v12l-4-3zM6 14q0-6 7-6q0 6-7 6z',
     line: '',
     accent: '',
   },
@@ -38,12 +38,12 @@ export const BOTANICAL_GLYPHS: Record<PaintedGlyphName, BotanicalGlyph> = {
     accent: '',
   },
   groups: {
-    body: 'M8.8 5a3.2 3.2 0 1 0 6.4 0a3.2 3.2 0 1 0-6.4 0zM1.4 8a2.6 2.6 0 1 0 5.2 0a2.6 2.6 0 1 0-5.2 0zM17.4 8a2.6 2.6 0 1 0 5.2 0a2.6 2.6 0 1 0-5.2 0zM6 23v-5q0-7 6-7t6 7v5zM0 20v-3q0-5 5-5l-1 8zM20 20l-1-8q5 0 5 5v3zM9.2 19.8Q9.2 14.2 14.8 14.2Q14.8 19.8 9.2 19.8z',
+    body: 'M8.5 6a3.5 3.5 0 1 0 7 0a3.5 3.5 0 1 0-7 0zM1 9a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0-5 0zM18 9a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0-5 0zM6 22v-5a6 6 0 0 1 12 0v5zM0 20v-4q0-4 5-4q-2 3-2 8zM21 20q0-5-2-8q5 0 5 4v4z',
     line: '',
     accent: '',
   },
   friends: {
-    body: 'M3.5 5a3.5 3.5 0 1 0 7.0 0a3.5 3.5 0 1 0-7.0 0zM15 7a3 3 0 1 0 6 0a3 3 0 1 0-6 0zM1 23v-4q0-8 6-8t6 8v4zM15 23v-4l-1-6q9-1 9 10zM4.5 19.5Q4.5 14.5 9.5 14.5Q9.5 19.5 4.5 19.5z',
+    body: 'M3.5 7a3.5 3.5 0 1 0 7 0a3.5 3.5 0 1 0-7 0zM15 8a3 3 0 1 0 6 0a3 3 0 1 0-6 0zM1 21v-3a6 6 0 0 1 12 0v3zM15 21v-3q0-3-1-4q8-2 9 4v3z',
     line: '',
     accent: '',
   },
@@ -68,8 +68,8 @@ export const BOTANICAL_GLYPHS: Record<PaintedGlyphName, BotanicalGlyph> = {
     accent: '',
   },
   platforms: {
-    body: 'M9 1h6q2 0 2 2v5q0 2-2 2H9q-2 0-2-2V3q0-2 2-2zM9.4 8.1Q9.4 2.9 14.6 2.9Q14.6 8.1 9.4 8.1zM2 16h5q2 0 2 2v4H0v-4q0-2 2-2zM17 16h5q2 0 2 2v4h-9v-4q0-2 2-2z',
-    line: 'M12 10v3M4 16v-3h16v3',
+    body: 'M9 4a3 3 0 1 0 6 0a3 3 0 1 0-6 0zM0.5 19a3.5 3.5 0 1 0 7 0a3.5 3.5 0 1 0-7 0zM16.5 19a3.5 3.5 0 1 0 7 0a3.5 3.5 0 1 0-7 0z',
+    line: 'M12 7v5M4 15v-3h16v3',
     accent: '',
   },
   bell: {
@@ -88,8 +88,8 @@ export const BOTANICAL_GLYPHS: Record<PaintedGlyphName, BotanicalGlyph> = {
     accent: '',
   },
   soundOff: {
-    body: 'M2 9h5l6-5v16l-6-5H2z',
-    line: 'M17 9l5 6M22 9l-5 6',
+    body: '',
+    line: 'M8 8l5-4v7M13 17v3l-6-5H2V9h2M3 3l18 18',
     accent: '',
   },
   invite: {
@@ -223,17 +223,17 @@ export const BOTANICAL_GLYPHS: Record<PaintedGlyphName, BotanicalGlyph> = {
     accent: '',
   },
   pin: {
-    body: 'M7 2h10l-2 7 5 5v3H4v-3l5-5z',
+    body: 'M8 3q4-2 8 0v4l-2 2v4l4 4H6l4-4V9L8 7z',
     line: 'M12 17v5',
     accent: '',
   },
   inventory: {
-    body: 'M2 9q0-6 5-6h10q5 0 5 6zM2 11h20v10q0 2-2 2H4q-2 0-2-2zM9 16Q9 10 15 10Q15 16 9 16z',
-    line: '',
+    body: 'M3 9q0-7 9-7t9 7zM2 11h8v4h4v-4h8v8q0 3-4 3H6q-4 0-4-3z',
+    line: 'M12 11v2',
     accent: '',
   },
   avatarAdmin: {
-    body: 'M12 1 22 5v7q0 7-10 11Q2 19 2 12V5zM7.5 10a2.5 2.5 0 1 0 5.0 0a2.5 2.5 0 1 0-5.0 0zM9 12h2v6H9zM14.5 9.5Q14.5 4.5 19.5 4.5Q19.5 9.5 14.5 9.5z',
+    body: 'M12 2l9 4v6q0 7-9 10q-9-3-9-10V6zM12 7a3 3 0 0 0-1.5 5.6L10 17h4l-.5-4.4A3 3 0 0 0 12 7z',
     line: '',
     accent: '',
   },
@@ -254,8 +254,8 @@ export const BOTANICAL_GLYPHS: Record<PaintedGlyphName, BotanicalGlyph> = {
   },
   search: {
     body: '',
-    line: 'M10 2a8 8 0 1 0 0 16 8 8 0 0 0 0-16M16 16l6 6',
-    accent: 'M8 13Q8 7 14 7Q14 13 8 13z',
+    line: 'M17 17l5 5M19 10.5a8.5 8.5 0 1 1-17 0a8.5 8.5 0 1 1 17 0',
+    accent: '',
   },
   plus: {
     body: 'M10 2h4v8h8v4h-8v8h-4v-8H2v-4h8z',

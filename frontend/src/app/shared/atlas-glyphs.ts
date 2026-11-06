@@ -13,8 +13,8 @@ export const ATLAS_GLYPHS: Record<PaintedGlyphName, AtlasGlyph> = {
     accent: '',
   },
   mic: {
-    body: 'M8 6a4 4 0 0 1 8 0v6a4 4 0 0 1-8 0zM12 5.5q0 2.5 2.5 2.5q-2.5 0-2.5 2.5q0-2.5-2.5-2.5q2.5 0 2.5-2.5z',
-    line: 'M5 11v1a7 7 0 0 0 14 0v-1M12 19v3M9 22h6',
+    body: 'M8 3h8v11l-4 3-4-3z',
+    line: 'M5 10v3q0 7 7 7t7-7v-3M12 20v2M9 22h6',
     accent: '',
   },
   micOff: {
@@ -23,7 +23,7 @@ export const ATLAS_GLYPHS: Record<PaintedGlyphName, AtlasGlyph> = {
     accent: '',
   },
   camera: {
-    body: 'M3 5h11q2 0 2 2v10q0 2-2 2H3q-2 0-2-2V7q0-2 2-2zM18 9l5-3v12l-5-3zM8.5 8.8q0 3.2 3.2 3.2q-3.2 0-3.2 3.2q0-3.2-3.2-3.2q3.2 0 3.2-3.2z',
+    body: 'M2 5h14v14H2zM18 9l5-3v12l-5-3zM9 8l-4 4 4 4 4-4z',
     line: '',
     accent: '',
   },
@@ -38,12 +38,12 @@ export const ATLAS_GLYPHS: Record<PaintedGlyphName, AtlasGlyph> = {
     accent: '',
   },
   groups: {
-    body: 'M8.8 5a3.2 3.2 0 1 0 6.4 0a3.2 3.2 0 1 0-6.4 0zM1.4 8a2.6 2.6 0 1 0 5.2 0a2.6 2.6 0 1 0-5.2 0zM17.4 8a2.6 2.6 0 1 0 5.2 0a2.6 2.6 0 1 0-5.2 0zM6 23v-5q0-7 6-7t6 7v5zM0 20v-3q0-5 5-5l-1 8zM20 20l-1-8q5 0 5 5v3zM12 14l1.0 2.0 2.0 1.0-2.0 1.0-1.0 2.0-1.0-2.0-2.0-1.0 2.0-1.0z',
+    body: 'M8.5 6a3.5 3.5 0 1 0 7 0a3.5 3.5 0 1 0-7 0zM1 9a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0-5 0zM18 9a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0-5 0zM6 22v-5a6 6 0 0 1 12 0v5zM0 20v-4q0-4 5-4q-2 3-2 8zM21 20q0-5-2-8q5 0 5 4v4z',
     line: '',
     accent: '',
   },
   friends: {
-    body: 'M3.5 5a3.5 3.5 0 1 0 7.0 0a3.5 3.5 0 1 0-7.0 0zM15 7a3 3 0 1 0 6 0a3 3 0 1 0-6 0zM1 23v-4q0-8 6-8t6 8v4zM15 23v-4l-1-6q9-1 9 10zM7 14.5l0.8333333333333334 1.6666666666666667 1.6666666666666667 0.8333333333333334-1.6666666666666667 0.8333333333333334-0.8333333333333334 1.6666666666666667-0.8333333333333334-1.6666666666666667-1.6666666666666667-0.8333333333333334 1.6666666666666667-0.8333333333333334z',
+    body: 'M3.5 7a3.5 3.5 0 1 0 7 0a3.5 3.5 0 1 0-7 0zM15 8a3 3 0 1 0 6 0a3 3 0 1 0-6 0zM1 21v-3a6 6 0 0 1 12 0v3zM15 21v-3q0-3-1-4q8-2 9 4v3z',
     line: '',
     accent: '',
   },
@@ -68,8 +68,8 @@ export const ATLAS_GLYPHS: Record<PaintedGlyphName, AtlasGlyph> = {
     accent: '',
   },
   platforms: {
-    body: 'M8 5a4 4 0 1 0 8 0a4 4 0 1 0-8 0zM12 2.5l0.8333333333333334 1.6666666666666667 1.6666666666666667 0.8333333333333334-1.6666666666666667 0.8333333333333334-0.8333333333333334 1.6666666666666667-0.8333333333333334-1.6666666666666667-1.6666666666666667-0.8333333333333334 1.6666666666666667-0.8333333333333334zM0.5 20a3.5 3.5 0 1 0 7.0 0a3.5 3.5 0 1 0-7.0 0zM16.5 20a3.5 3.5 0 1 0 7.0 0a3.5 3.5 0 1 0-7.0 0z',
-    line: 'M9 9l-4 7M15 9l4 7M8 20h8',
+    body: 'M12 1l4 4-4 4-4-4zM4 15l4 4-4 4-4-4zM20 15l4 4-4 4-4-4z',
+    line: 'M10 8l-4 8M14 8l4 8M8 19h8',
     accent: '',
   },
   bell: {
@@ -88,8 +88,8 @@ export const ATLAS_GLYPHS: Record<PaintedGlyphName, AtlasGlyph> = {
     accent: '',
   },
   soundOff: {
-    body: 'M2 9h5l6-5v16l-6-5H2z',
-    line: 'M17 9l5 6M22 9l-5 6',
+    body: '',
+    line: 'M8 8l5-4v7M13 17v3l-6-5H2V9h2M3 3l18 18',
     accent: '',
   },
   invite: {
@@ -123,8 +123,8 @@ export const ATLAS_GLYPHS: Record<PaintedGlyphName, AtlasGlyph> = {
     accent: '',
   },
   calendar: {
-    body: 'M3 5h18q2 0 2 2v3H1V7q0-2 2-2zM1 12h22v9q0 2-2 2H3q-2 0-2-2zM5 15h4v3H5zM15 15h4v3h-4zM5 20h4v2H5zM15 20h4v2h-4z',
-    line: 'M6 2v4M18 2v4',
+    body: 'M2 5h20v17H2zM4 11v9h16v-9zM7 14h3v3H7zM14 14h3v3h-3z',
+    line: 'M7 2v5M17 2v5',
     accent: '',
   },
   filter: {
@@ -223,17 +223,17 @@ export const ATLAS_GLYPHS: Record<PaintedGlyphName, AtlasGlyph> = {
     accent: '',
   },
   pin: {
-    body: 'M12 1q0 7 7 7q-7 0-7 7q0-7-7-7q7 0 7-7zM12 6q0 2 2 2q-2 0-2 2q0-2-2-2q2 0 2-2z',
-    line: 'M12 15v8',
+    body: 'M6 3h12l-3 5v5l4 4H5l4-4V8z',
+    line: 'M12 17v5',
     accent: '',
   },
   inventory: {
-    body: 'M2 9q0-6 5-6h10q5 0 5 6zM2 11h20v10q0 2-2 2H4q-2 0-2-2zM12 11l1.0 2.0 2.0 1.0-2.0 1.0-1.0 2.0-1.0-2.0-2.0-1.0 2.0-1.0z',
-    line: 'M6 4v4M18 4v4',
+    body: 'M3 4h18v5H3zM2 11h8v4h4v-4h8v9q0 2-2 2H4q-2 0-2-2z',
+    line: 'M12 11v2',
     accent: '',
   },
   avatarAdmin: {
-    body: 'M12 1 22 5v7q0 7-10 11Q2 19 2 12V5zM12 7q0 4 4 4q-4 0-4 4q0-4-4-4q4 0 4-4zM11 14h2v4h-2z',
+    body: 'M12 2l9 4v6q0 7-9 10q-9-3-9-10V6zM12 7a3 3 0 0 0-1.5 5.6L10 17h4l-.5-4.4A3 3 0 0 0 12 7z',
     line: '',
     accent: '',
   },
@@ -253,8 +253,8 @@ export const ATLAS_GLYPHS: Record<PaintedGlyphName, AtlasGlyph> = {
     accent: '',
   },
   search: {
-    body: 'M10 7l1.0 2.0 2.0 1.0-2.0 1.0-1.0 2.0-1.0-2.0-2.0-1.0 2.0-1.0z',
-    line: 'M10 2a8 8 0 1 0 0 16 8 8 0 0 0 0-16M16 16l6 6',
+    body: '',
+    line: 'M17 17l5 5M19 10.5a8.5 8.5 0 1 1-17 0a8.5 8.5 0 1 1 17 0',
     accent: '',
   },
   plus: {
@@ -288,7 +288,7 @@ export const ATLAS_GLYPHS: Record<PaintedGlyphName, AtlasGlyph> = {
     accent: '',
   },
   phone: {
-    body: 'M4 1h4l3 6-3 3q2 4 6 6l3-3 6 3v4q0 3-4 3Q2 22 1 5q0-4 3-4zM18 15.5q0 2.5 2.5 2.5q-2.5 0-2.5 2.5q0-2.5-2.5-2.5q2.5 0 2.5-2.5z',
+    body: 'M5 2h5l1 6-3 2q2 4 6 6l2-3 6 1v5q0 3-3 3Q3 20 2 5q0-3 3-3z',
     line: '',
     accent: '',
   },
@@ -298,7 +298,7 @@ export const ATLAS_GLYPHS: Record<PaintedGlyphName, AtlasGlyph> = {
     accent: '',
   },
   applications: {
-    body: 'M3 2h5q2 0 2 2v4q0 2-2 2H3q-2 0-2-2V4q0-2 2-2zM16 2h5q2 0 2 2v4q0 2-2 2h-5q-2 0-2-2V4q0-2 2-2zM18.5 3q0 3 3 3q-3 0-3 3q0-3-3-3q3 0 3-3zM3 14h5q2 0 2 2v5q0 2-2 2H3q-2 0-2-2v-5q0-2 2-2zM16 14h5q2 0 2 2v5q0 2-2 2h-5q-2 0-2-2v-5q0-2 2-2z',
+    body: 'M2 2h8v8H2zM14 2h8v8h-8zM2 14h8v8H2zM14 14h8v8h-8z',
     line: '',
     accent: '',
   },

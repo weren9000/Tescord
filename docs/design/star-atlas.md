@@ -29,3 +29,10 @@
 `star-atlas-style.spec.ts` проверяет переключение через меню, сохранение, черновик, бумажную палитру, светлые SVG навигации и возврат к эмали на 320/393/1024/1440 px. Высоты первой колонки проверяются от 540 до 1080 px, зоны нажатия — не меньше 44 px. `atlas-icons.spec.ts` сверяет SVG с единым источником и снимает набор на бумаге и тёмной поверхности при 24/32 px. Остальные стили проверяются своими сценариями.
 
 Общую серию можно запускать с `KVA_INTERFACE_STYLE=star-atlas`. Независимые приложения в iframe, системные окна и отдельные установщики не изменяются этим Angular-слоем. Инвентарная тема не сбрасывается и вновь используется после возврата к эмали.
+
+
+## Icon readability refinement ? 2026-11-06
+
+Search uses a plain magnifier; pin uses a recognisable pushpin. Friends and groups use two and three large silhouettes without tiny cutouts. Platforms use connected nodes, inventory uses a chest with a latch, and administration uses a shield with a keyhole. Muted sound uses a diagonal slash. Atlas favours angular geometry; Constellation retains celestial shapes; Quiet Marsh favours soft rounded forms. Shared navigation commands remain familiar. Enamel is unchanged.
+
+Sources and SVG exports must stay in sync through the existing build-*-icons.cjs scripts. Inspect at 16, 20, 24 and 32 px as well as desktop and mobile layouts.

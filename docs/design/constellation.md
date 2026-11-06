@@ -41,3 +41,10 @@
 $env:KVA_INTERFACE_STYLE = 'constellation'
 npm run test:ui -- interface-style.spec.ts platform-navigation.spec.ts shared-navigation.spec.ts inventory-fitting.spec.ts call-chat.spec.ts applications.spec.ts auth-security.spec.ts
 ```
+
+
+## Icon readability refinement ? 2026-11-06
+
+Search uses a plain magnifier; pin uses a recognisable pushpin. Friends and groups use two and three large silhouettes without tiny cutouts. Platforms use connected nodes, inventory uses a chest with a latch, and administration uses a shield with a keyhole. Muted sound uses a diagonal slash. Atlas favours angular geometry; Constellation retains celestial shapes; Quiet Marsh favours soft rounded forms. Shared navigation commands remain familiar. Enamel is unchanged.
+
+Sources and SVG exports must stay in sync through the existing build-*-icons.cjs scripts. Inspect at 16, 20, 24 and 32 px as well as desktop and mobile layouts.

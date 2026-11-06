@@ -13,7 +13,7 @@ export const CELESTIAL_GLYPHS: Record<PaintedGlyphName, CelestialGlyph> = {
     accent: '',
   },
   mic: {
-    body: 'M8 6a4 4 0 0 1 8 0v6a4 4 0 0 1-8 0zM12 5.5q0 2.5 2.5 2.5q-2.5 0-2.5 2.5q0-2.5-2.5-2.5q2.5 0 2.5-2.5z',
+    body: 'M8 6a4 4 0 0 1 8 0v6a4 4 0 0 1-8 0z',
     line: 'M5 11v1a7 7 0 0 0 14 0v-1M12 19v3M9 22h6',
     accent: '',
   },
@@ -23,7 +23,7 @@ export const CELESTIAL_GLYPHS: Record<PaintedGlyphName, CelestialGlyph> = {
     accent: '',
   },
   camera: {
-    body: 'M3 5h11q2 0 2 2v10q0 2-2 2H3q-2 0-2-2V7q0-2 2-2zM18 9l5-3v12l-5-3zM8.5 8.8q0 3.2 3.2 3.2q-3.2 0-3.2 3.2q0-3.2-3.2-3.2q3.2 0 3.2-3.2z',
+    body: 'M3 5h11q2 0 2 2v10q0 2-2 2H3q-2 0-2-2V7q0-2 2-2zM18 9l5-3v12l-5-3zM7 8a4 4 0 1 0 5 5a4 4 0 0 1-5-5z',
     line: '',
     accent: '',
   },
@@ -38,12 +38,12 @@ export const CELESTIAL_GLYPHS: Record<PaintedGlyphName, CelestialGlyph> = {
     accent: '',
   },
   groups: {
-    body: 'M8.8 5a3.2 3.2 0 1 0 6.4 0a3.2 3.2 0 1 0-6.4 0zM1.4 8a2.6 2.6 0 1 0 5.2 0a2.6 2.6 0 1 0-5.2 0zM17.4 8a2.6 2.6 0 1 0 5.2 0a2.6 2.6 0 1 0-5.2 0zM6 23v-5q0-7 6-7t6 7v5zM0 20v-3q0-5 5-5l-1 8zM20 20l-1-8q5 0 5 5v3zM12 14q0 3 3 3q-3 0-3 3q0-3-3-3q3 0 3-3z',
+    body: 'M8.5 6a3.5 3.5 0 1 0 7 0a3.5 3.5 0 1 0-7 0zM1 9a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0-5 0zM18 9a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0-5 0zM6 22v-5a6 6 0 0 1 12 0v5zM0 20v-4q0-4 5-4q-2 3-2 8zM21 20q0-5-2-8q5 0 5 4v4z',
     line: '',
     accent: '',
   },
   friends: {
-    body: 'M3.5 6a3.5 3.5 0 1 0 7.0 0a3.5 3.5 0 1 0-7.0 0zM15 8a3 3 0 1 0 6 0a3 3 0 1 0-6 0zM1 22v-3q0-7 6-7t6 7v3zM15 22v-3q0-3-1-5 9-2 9 8zM7.69 15.7C4.01 15.7 4.01 20.3 7.69 20.3Q9.3 20.3 9.3 18.69Q6.08 18.92 7.69 15.7z',
+    body: 'M3.5 7a3.5 3.5 0 1 0 7 0a3.5 3.5 0 1 0-7 0zM15 8a3 3 0 1 0 6 0a3 3 0 1 0-6 0zM1 21v-3a6 6 0 0 1 12 0v3zM15 21v-3q0-3-1-4q8-2 9 4v3z',
     line: '',
     accent: '',
   },
@@ -68,8 +68,8 @@ export const CELESTIAL_GLYPHS: Record<PaintedGlyphName, CelestialGlyph> = {
     accent: '',
   },
   platforms: {
-    body: 'M9 1h6q2 0 2 2v5q0 2-2 2H9q-2 0-2-2V3q0-2 2-2zM12 2.5q0 3 3 3q-3 0-3 3q0-3-3-3q3 0 3-3zM2 16h5q2 0 2 2v4H0v-4q0-2 2-2zM17 16h5q2 0 2 2v4h-9v-4q0-2 2-2z',
-    line: 'M12 10v3M4 16v-3h16v3',
+    body: 'M9 4a3 3 0 1 0 6 0a3 3 0 1 0-6 0zM1 19a3 3 0 1 0 6 0a3 3 0 1 0-6 0zM17 19a3 3 0 1 0 6 0a3 3 0 1 0-6 0z',
+    line: 'M10 7l-4 9M14 7l4 9M7 19h10',
     accent: '',
   },
   bell: {
@@ -88,8 +88,8 @@ export const CELESTIAL_GLYPHS: Record<PaintedGlyphName, CelestialGlyph> = {
     accent: '',
   },
   soundOff: {
-    body: 'M2 9h5l6-5v16l-6-5H2z',
-    line: 'M17 9l5 6M22 9l-5 6',
+    body: '',
+    line: 'M8 8l5-4v7M13 17v3l-6-5H2V9h2M3 3l18 18',
     accent: '',
   },
   invite: {
@@ -223,17 +223,17 @@ export const CELESTIAL_GLYPHS: Record<PaintedGlyphName, CelestialGlyph> = {
     accent: '',
   },
   pin: {
-    body: 'M12 1q0 7 7 7q-7 0-7 7q0-7-7-7q7 0 7-7zM12 6q0 2 2 2q-2 0-2 2q0-2-2-2q2 0 2-2z',
-    line: 'M12 15v8',
+    body: 'M7 3h10v3l-2 2v5l4 4H5l4-4V8L7 6z',
+    line: 'M12 17v5',
     accent: '',
   },
   inventory: {
-    body: 'M2 9q0-6 5-6h10q5 0 5 6zM2 11h20v10q0 2-2 2H4q-2 0-2-2zM12.9 11C8.1 11 8.1 17 12.9 17Q15 17 15 14.9Q10.8 15.2 12.9 11z',
-    line: '',
+    body: 'M3 9q9-10 18 0zM2 11h8v4h4v-4h8v8q0 3-3 3H5q-3 0-3-3z',
+    line: 'M12 11v2',
     accent: '',
   },
   avatarAdmin: {
-    body: 'M12 1 22 5v7q0 7-10 11Q2 19 2 12V5zM12 7q0 4 4 4q-4 0-4 4q0-4-4-4q4 0 4-4zM11 14h2v4h-2z',
+    body: 'M12 2l9 4v6q0 7-9 10q-9-3-9-10V6zM12 7a3 3 0 0 0-1.5 5.6L10 17h4l-.5-4.4A3 3 0 0 0 12 7z',
     line: '',
     accent: '',
   },
@@ -253,8 +253,8 @@ export const CELESTIAL_GLYPHS: Record<PaintedGlyphName, CelestialGlyph> = {
     accent: '',
   },
   search: {
-    body: 'M11.05 5.5C5.45 5.5 5.45 12.5 11.05 12.5Q13.5 12.5 13.5 10.05Q8.6 10.4 11.05 5.5z',
-    line: 'M10 2a8 8 0 1 0 0 16 8 8 0 0 0 0-16M16 16l6 6',
+    body: '',
+    line: 'M17 17l5 5M19 10.5a8.5 8.5 0 1 1-17 0a8.5 8.5 0 1 1 17 0',
     accent: '',
   },
   plus: {
