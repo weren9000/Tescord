@@ -1,6 +1,5 @@
+@use './app/shared/compact-navigation' as compact;
 @use 'sass:map';
-@use 'sass:math';
-@use 'sass:list';
 @use 'constellation' as base;
 
 $paper: (
@@ -44,6 +43,7 @@ $night: map.merge(
 :root[data-ui-style='star-atlas'] {
   app-root.kva-app.kva-app.kva-app.kva-app.kva-app.kva-app.kva-app.kva-app.kva-app.kva-app {
     @include base.palette($paper);
+    @include compact.rail;
     color-scheme: light;
     background: var(--palette-canvas);
 
@@ -273,22 +273,20 @@ $night: map.merge(
       background: #e8d8c3;
     }
 
-    // A 4x4 transparent illustration atlas; keep each original 36/32px image box.
-    $icons:
-      room, friends, groups, platforms, inventory, applications, security, search, bell, menu,
-      profile, appearance, sound, block, logout, install;
-    @for $i from 1 through list.length($icons) {
-      $name: list.nth($icons, $i);
+    // Use ink on paper menus and ivory on dark navigation covers.
+    @each $name in room, friends, groups, platforms, inventory, applications, security, search,
+      bell, menu, profile, appearance, sound, block, logout, install
+    {
       img[src$='/#{$name}-128.webp']:not(.brand img) {
-        content: url('/assets/star-atlas/blank.svg');
-        background-image: url('/assets/star-atlas/icons.png');
-        background-size: 400% 400%;
-        background-position: #{math.div((($i - 1) % 4) * 100%, 3)}
-          #{math.div(math.floor(math.div($i - 1, 4)) * 100%, 3)};
-        background-repeat: no-repeat;
+        content: url('/assets/star-atlas/#{$name}.svg');
+        background: none;
         object-fit: contain;
         padding: 0;
         filter: none;
+      }
+      :is(app-section-navigation, .mobile-mode-footer)
+        img[src$='/#{$name}-128.webp']:not(.brand img) {
+        content: url('/assets/star-atlas/#{$name}-night.svg');
       }
     }
   }

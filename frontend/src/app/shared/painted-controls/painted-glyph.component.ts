@@ -1,3 +1,4 @@
+import { ATLAS_GLYPHS } from '../atlas-glyphs';
 import { BOTANICAL_GLYPHS } from '../botanical-glyphs';
 import { CELESTIAL_GLYPHS } from '../celestial-glyphs';
 import { constellationGlyph } from '../constellation-glyphs';
@@ -10,7 +11,24 @@ import { PAINTED_GLYPHS, PaintedGlyphName } from './painted-glyphs';
   standalone: true,
   host: { class: 'kva-painted-glyph', 'aria-hidden': 'true' },
   template: `<svg viewBox="0 0 24 24" aria-hidden="true">
-    @if (interfaceStyle.value() === 'quiet-marsh') {
+    @if (interfaceStyle.value() === 'star-atlas') {
+      <path [attr.d]="atlas().body" fill="currentColor" fill-rule="evenodd" />
+      <path
+        [attr.d]="atlas().line"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+      <path
+        [attr.d]="atlas().accent"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+      />
+    } @else if (interfaceStyle.value() === 'quiet-marsh') {
       <path [attr.d]="botanical().body" fill="currentColor" fill-rule="evenodd" />
       <path
         [attr.d]="botanical().line"
@@ -64,6 +82,12 @@ import { PAINTED_GLYPHS, PaintedGlyphName } from './painted-glyphs';
 })
 export class PaintedGlyphComponent {
   readonly interfaceStyle = inject(InterfaceStyleService);
+  readonly atlas = computed(
+    () =>
+      ATLAS_GLYPHS[
+        Object.hasOwn(ATLAS_GLYPHS, this.name()) ? (this.name() as PaintedGlyphName) : 'more'
+      ],
+  );
   readonly botanical = computed(
     () =>
       BOTANICAL_GLYPHS[
