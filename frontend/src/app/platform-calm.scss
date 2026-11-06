@@ -15,8 +15,9 @@
 }
 @media (min-width: 981px) {
   .messenger-shell .messenger-layout.messenger-layout--platform:not(.messenger-layout--admin) {
-    --platform-list-track: min(var(--platforms-width, 230px), calc((100vw - 452px) * 0.43));
-    --platform-chat-track: min(var(--platform-chats-width, 300px), calc((100vw - 452px) * 0.57));
+    // Reserve 480px for the conversation and 92px for primary navigation.
+    --platform-list-track: min(var(--platforms-width, 230px), calc((100vw - 572px) * 0.43));
+    --platform-chat-track: min(var(--platform-chats-width, 300px), calc((100vw - 572px) * 0.57));
     grid-template-columns: 92px var(--platform-list-track) var(--platform-chat-track) minmax(0, 1fr);
   }
   .messenger-shell
@@ -24,6 +25,7 @@
       .messenger-layout--admin
     ) {
     --platform-list-track: 64px;
+    --platform-chat-track: min(var(--platform-chats-width, 300px), calc(100vw - 636px));
   }
   .messenger-shell
     .messenger-layout.messenger-layout--platform.messenger-layout--info:not(

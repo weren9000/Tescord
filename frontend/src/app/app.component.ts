@@ -857,6 +857,24 @@ export class AppComponent {
   }
   private readonly invitesApi = inject(InvitesApiService);
   readonly desktopPreferences = inject(DesktopPreferencesService);
+  private readonly narrowDesktop = signal(
+    typeof window !== 'undefined' && window.innerWidth > 980 && window.innerWidth < 1200,
+  );
+  private readonly narrowPlatformsCollapsed = signal(true);
+  readonly platformListCollapsed = computed(() =>
+    this.narrowDesktop()
+      ? this.narrowPlatformsCollapsed()
+      : this.desktopPreferences.value().platformsCollapsed,
+  );
+  togglePlatformList(): void {
+    if (this.narrowDesktop()) {
+      this.narrowPlatformsCollapsed.update((collapsed) => !collapsed);
+    } else {
+      this.desktopPreferences.update({
+        platformsCollapsed: !this.desktopPreferences.value().platformsCollapsed,
+      });
+    }
+  }
   readonly pinPending = signal<string[]>([]);
   readonly pinError = signal<string | null>(null);
   toggleConversationPin(id: string): void {
@@ -11849,6 +11867,7 @@ export class AppComponent {
 
   @HostListener('window:resize')
   resizeMessageComposer(): void {
+    this.narrowDesktop.set(window.innerWidth > 980 && window.innerWidth < 1200);
     if (this.editingMessage()) this.scheduleMessageTextareaResize();
   }
 

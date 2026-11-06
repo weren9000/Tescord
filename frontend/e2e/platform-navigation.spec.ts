@@ -57,6 +57,14 @@ test('Platform alignment and full navigation collapse', async ({ page }, testInf
   const restore = page.getByRole('button', { name: 'Показать навигацию', exact: true });
   for (const width of [1440, 1024]) {
     await page.setViewportSize({ width, height: 900 });
+    if (width === 1024) {
+      await expect(page.locator('app-platform-list section')).toHaveClass(/collapsed/);
+      expect(
+        (await page.locator('.messenger-workspace').boundingBox())!.width,
+      ).toBeGreaterThanOrEqual(480);
+      await page.getByRole('button', { name: 'Развернуть площадки', exact: true }).click();
+      await expect(page.locator('app-platform-list section')).not.toHaveClass(/collapsed/);
+    }
     await page.mouse.move(width - 20, 400);
     await page.locator('.composer textarea').focus();
     await expect(hide).toHaveCSS('opacity', '0');
@@ -80,6 +88,19 @@ test('Platform alignment and full navigation collapse', async ({ page }, testInf
     );
     expect(Math.abs(searches[0]!.y - searches[1]!.y)).toBeLessThan(1);
     expect(Math.abs(searches[0]!.height - searches[1]!.height)).toBeLessThan(1);
+    // Keep room for the conversation when all desktop columns are visible.
+    expect(
+      (await page.locator('.messenger-workspace').boundingBox())!.width,
+    ).toBeGreaterThanOrEqual(480);
+    for (const selector of [
+      'app-platform-list .search input',
+      'app-platform-chats .chat-tools .search input',
+    ]) {
+      await expect(page.locator(selector)).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+    }
+    const rowMenu = (await page.locator('app-platform-chats .row-menu').first().boundingBox())!;
+    expect(rowMenu.width).toBeGreaterThanOrEqual(44);
+    expect(rowMenu.height).toBeGreaterThanOrEqual(44);
     await page.screenshot({ path: testInfo.outputPath(`expanded-${width}.png`) });
     const composer = page.locator('.composer textarea');
     await composer.fill('Сохранённый черновик');

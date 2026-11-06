@@ -54,6 +54,9 @@ for (const section of ['groups', 'chats'] as const) {
     const show = page.getByRole('button', { name: 'Показать навигацию', exact: true });
     for (const width of [1440, 1024]) {
       await page.setViewportSize({ width, height: 900 });
+      const searchIcon = (await page.locator('.section-search app-ui-icon').boundingBox())!;
+      expect(searchIcon.width).toBe(20);
+      expect(searchIcon.height).toBe(20);
       const field = page.locator('.composer textarea');
       await field.focus();
       await page.mouse.move(width - 40, 300);

@@ -1295,7 +1295,7 @@
       "
       [class.messenger-layout--info]="conversationInfoOpen()"
       [class.messenger-layout--platform]="isPlatformsMode()"
-      [class.platforms-list-collapsed]="desktopPreferences.value().platformsCollapsed"
+      [class.platforms-list-collapsed]="platformListCollapsed()"
       [attr.data-density]="desktopPreferences.value().density"
       [class.messenger-layout--sidebar-collapsed]="
         !isPlatformsMode() && desktopPreferences.value().collapsed
@@ -1345,17 +1345,13 @@
           [loading]="platformApi.loading()"
           [spaces]="platformChoices()"
           [selected]="selectedPlatformId()"
-          [collapsed]="desktopPreferences.value().platformsCollapsed"
+          [collapsed]="platformListCollapsed()"
           [class.platform-list-mobile-open]="
             mobilePanel() === 'servers' && platformBrowserStage() === 'spaces'
           "
           (select)="selectPlatformFromPicker($event)"
           (create)="openCreatePlatformShortcut()"
-          (toggle)="
-            desktopPreferences.update({
-              platformsCollapsed: !desktopPreferences.value().platformsCollapsed,
-            })
-          "
+          (toggle)="togglePlatformList()"
         />
         <aside
           class="conversation-sidebar platform-sidebar"
@@ -2743,7 +2739,7 @@
                           [attr.aria-label]="
                             editingMessage() ? 'Текст редактируемого сообщения' : 'Сообщение'
                           "
-                          [placeholder]="editingMessage() ? 'Текст сообщения' : 'Введите сообщение'"
+                          [placeholder]="editingMessage() ? 'Текст сообщения' : 'Сообщение'"
                           rows="1"
                         ></textarea>
 

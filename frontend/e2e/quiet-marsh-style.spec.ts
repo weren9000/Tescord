@@ -92,6 +92,7 @@ for (const width of [320, 393, 1024, 1440]) {
     const composer = page.locator('.composer textarea');
     // The only group is opened automatically; its mobile drawer then closes.
     await expect(composer).toBeVisible();
+    expect(await composer.evaluate((el) => el.scrollHeight <= el.clientHeight + 1)).toBeTruthy();
     await composer.fill('Черновик остаётся при смене стиля');
 
     const openAppearance = async () => {
@@ -108,6 +109,17 @@ for (const width of [320, 393, 1024, 1440]) {
     await page.screenshot({ path: testInfo.outputPath(`marsh-picker-${width}.png`) });
     await page.keyboard.press('Escape');
     await expect(composer).toHaveValue('Черновик остаётся при смене стиля');
+    // Resizing and changing style must preserve square navigation slots.
+    for (const box of await nav.locator('img.section-art, img').evaluateAll((els) =>
+      els
+        .filter((el) => !el.closest('.brand'))
+        .map((el) => {
+          const r = el.getBoundingClientRect();
+          return { width: r.width, height: r.height };
+        }),
+    )) {
+      expect(Math.abs(box.width - box.height)).toBeLessThanOrEqual(1);
+    }
     await expect(page.locator('.conversation-stream')).toHaveCSS(
       'background-color',
       'rgb(16, 27, 26)',
